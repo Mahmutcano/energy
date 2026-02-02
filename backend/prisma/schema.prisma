@@ -1,0 +1,93 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  SUPER_ADMIN
+  ADMIN
+  CUSTOMER
+}
+
+enum Severity {
+  INFO
+  WARNING
+  CRITICAL
+}
+
+model User {
+  id         String   @id @default(cuid())
+  email      String   @unique
+  password   String
+  name       String?
+  role       Role     @default(CUSTOMER)
+  customerId String?
+  customer   Customer? @relation(fields: [customerId], references: [id])
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model Customer {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  users       User[]
+  devices     Device[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Device {
+  id          String       @id @default(cuid())
+  name        String
+  ipAddress   String
+  port        Int          @default(2404)
+  status      String       @default("OFFLINE")
+  customerId  String
+  customer    Customer     @relation(fields: [customerId], references: [id])
+  mappings    IOAMapping[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+}
+
+model IOAMapping {
+  id          String           @id @default(cuid())
+  deviceId    String
+  device      Device           @relation(fields: [deviceId], references: [id])
+  ioa         Int
+  name        String
+  unit        String?
+  description String?
+  scale       Float            @default(1.0)
+  offset      Float            @default(0.0)
+  thresholds  AlarmThreshold[]
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@unique([deviceId, ioa])
+}
+
+model AlarmThreshold {
+  id           String     @id @default(cuid())
+  ioaMappingId String
+  mapping      IOAMapping @relation(fields: [ioaMappingId], references: [id])
+  lowThreshold Float?
+  highThreshold Float?
+  severity     Severity   @default(WARNING)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+}
+
+model AlarmLog {
+  id        String   @id @default(cuid())
+  deviceId  String
+  ioa       Int
+  value     Float
+  message   String
+  severity  Severity
+  timestamp DateTime @default(now())
+  resolved  Boolean  @default(false)
+}

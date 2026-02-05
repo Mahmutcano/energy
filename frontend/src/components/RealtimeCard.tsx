@@ -33,12 +33,16 @@ export default function RealtimeCard({ deviceId, ioa, label, unit, color = "blue
     }, [deviceId, ioa]);
 
     const diff = (value && prevValue) ? value - prevValue : 0;
-    const colorClass = {
+    const colorClasses: Record<string, string> = {
         blue: "text-blue-400 border-blue-500/30 bg-blue-500/5",
         emerald: "text-emerald-400 border-emerald-500/30 bg-emerald-500/5",
         amber: "text-amber-400 border-amber-500/30 bg-amber-500/5",
         cyan: "text-cyan-400 border-cyan-500/30 bg-cyan-500/5",
-    }[color as 'blue' | 'emerald' | 'amber' | 'cyan'];
+        orange: "text-orange-400 border-orange-500/30 bg-orange-500/5",
+        yellow: "text-yellow-400 border-yellow-500/30 bg-yellow-500/5",
+    };
+
+    const colorClass = colorClasses[color] || colorClasses.blue;
 
     return (
         <motion.div

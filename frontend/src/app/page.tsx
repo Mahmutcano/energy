@@ -8,15 +8,28 @@ export default function Dashboard() {
         <h1 className="text-4xl font-extrabold tracking-tight text-white mb-2 italic">
           System <span className="text-blue-500 italic">Overview</span>
         </h1>
-        <p className="text-slate-400">Monitoring real-time telemetry from RTU 001</p>
+        <p className="text-slate-400">Monitoring real-time telemetry from WAN RTU (178.242.103.255)</p>
       </div>
 
       {/* Hero Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <RealtimeCard deviceId="rtu-001" ioa={100} label="Active Power" unit="kW" color="blue" />
-        <RealtimeCard deviceId="rtu-001" ioa={101} label="Voltage L1" unit="V" color="cyan" />
-        <RealtimeCard deviceId="rtu-001" ioa={102} label="Current L1" unit="A" color="emerald" />
-        <RealtimeCard deviceId="rtu-001" ioa={103} label="Frequency" unit="Hz" color="amber" />
+        <RealtimeCard deviceId="rtu-energy-wan" ioa={2032003} label="Voltage Phase A (Van)" unit="V" color="blue" />
+        <RealtimeCard deviceId="rtu-energy-wan" ioa={2032004} label="Voltage Phase B (Vbn)" unit="V" color="cyan" />
+        <RealtimeCard deviceId="rtu-energy-wan" ioa={2032005} label="Voltage Phase C (Vcn)" unit="V" color="emerald" />
+        <RealtimeCard deviceId="rtu-energy-wan" ioa={2034439} label="System Frequency" unit="Hz" color="amber" />
+      </div>
+
+      {/* Modbus TCP Section */}
+      <div className="space-y-4">
+        <div className="flex items-center gap-3">
+          <div className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
+          <h2 className="text-xl font-bold text-white italic">Modbus TCP Feed <span className="text-slate-500 text-sm font-normal ml-2 tracking-widest uppercase">Live Simulator</span></h2>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <RealtimeCard deviceId="modbus-sim-device" ioa={0} label="Modbus Voltage" unit="V" color="amber" />
+          <RealtimeCard deviceId="modbus-sim-device" ioa={1} label="Modbus Current" unit="A" color="orange" />
+          <RealtimeCard deviceId="modbus-sim-device" ioa={2} label="Modbus Power" unit="kW" color="yellow" />
+        </div>
       </div>
 
       {/* Industrial Layout Breakdown */}
@@ -35,16 +48,16 @@ export default function Dashboard() {
               </div>
               <div className="grid grid-cols-3 gap-8">
                 <div>
-                  <p className="text-xs uppercase tracking-widest text-slate-500 font-bold mb-1">Efficiency</p>
-                  <p className="text-3xl font-black text-white italic">94.2%</p>
+                  <p className="text-xs uppercase tracking-widest text-slate-500 font-bold mb-1">Grid Stability</p>
+                  <p className="text-3xl font-black text-white italic">98.2%</p>
                 </div>
                 <div>
-                  <p className="text-xs uppercase tracking-widest text-slate-500 font-bold mb-1">Load Factor</p>
-                  <p className="text-3xl font-black text-white italic">0.82</p>
+                  <p className="text-xs uppercase tracking-widest text-slate-500 font-bold mb-1">Power Factor</p>
+                  <p className="text-3xl font-black text-white italic">0.96</p>
                 </div>
                 <div>
-                  <p className="text-xs uppercase tracking-widest text-slate-500 font-bold mb-1">Uptime</p>
-                  <p className="text-3xl font-black text-emerald-400 italic">99.98%</p>
+                  <p className="text-xs uppercase tracking-widest text-slate-500 font-bold mb-1">Supply Uptime</p>
+                  <p className="text-3xl font-black text-emerald-400 italic">99.99%</p>
                 </div>
               </div>
             </div>
@@ -53,15 +66,15 @@ export default function Dashboard() {
           <div className="bg-slate-900/30 rounded-3xl border border-slate-800 p-8">
             <div className="flex justify-between items-center mb-6">
               <h3 className="font-bold text-lg flex items-center gap-2 italic">
-                <Cpu className="h-5 w-5 text-slate-400" /> RTU Diagnostics
+                <Cpu className="h-5 w-5 text-slate-400" /> WAN Connectivity Diagnostics
               </h3>
             </div>
             <div className="space-y-4">
               {[
-                { name: 'Connection Latency', val: '12ms', status: 'optimal' },
-                { name: 'Packet Loss', val: '0.01%', status: 'optimal' },
-                { name: 'Memory Usage', val: '24%', status: 'optimal' },
-                { name: 'CPU Temp', val: '42°C', status: 'optimal' },
+                { name: 'Gateway Latency', val: '45ms', status: 'optimal' },
+                { name: 'WAN IP Status', val: 'Active', status: 'optimal' },
+                { name: 'Protocol', val: 'IEC 60870-5-104', status: 'optimal' },
+                { name: 'Remote Port', val: '2404', status: 'optimal' },
               ].map((stat) => (
                 <div key={stat.name} className="flex items-center justify-between p-4 rounded-xl bg-slate-950/50 border border-slate-800/50">
                   <span className="text-sm text-slate-400 font-medium">{stat.name}</span>
@@ -81,9 +94,9 @@ export default function Dashboard() {
               </h3>
               <div className="space-y-4">
                 {[
-                  { id: 1, msg: 'Phase Unbalance RTU-01', time: '2m ago', severity: 'HIGH' },
-                  { id: 2, msg: 'Frequency Drop Detected', time: '15m ago', severity: 'WARN' },
-                  { id: 3, msg: 'Manual Override Triggered', time: '1h ago', severity: 'INFO' },
+                  { id: 1, msg: 'WAN Connection Established', time: 'Just now', severity: 'INFO' },
+                  { id: 2, msg: 'Scanning IOA: 2034433-35', time: '1m ago', severity: 'INFO' },
+                  { id: 3, msg: 'Initial Sync Completed', time: '2m ago', severity: 'INFO' },
                 ].map((alarm) => (
                   <div key={alarm.id} className="p-3 rounded-xl bg-rose-500/5 border border-rose-500/10 space-y-1">
                     <p className="text-sm font-bold text-slate-200">{alarm.msg}</p>
@@ -104,3 +117,4 @@ export default function Dashboard() {
     </div>
   );
 }
+

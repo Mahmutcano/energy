@@ -18,6 +18,11 @@ enum Severity {
   CRITICAL
 }
 
+enum Protocol {
+  IEC104
+  MODBUS_TCP
+}
+
 model User {
   id         String   @id @default(cuid())
   email      String   @unique
@@ -31,43 +36,68 @@ model User {
 }
 
 model Customer {
-  id          String   @id @default(cuid())
+  id          String       @id @default(cuid())
   name        String
   description String?
   users       User[]
+  powerPlants PowerPlant[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+}
+
+model PowerPlant {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  customerId  String
+  customer    Customer @relation(fields: [customerId], references: [id])
   devices     Device[]
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
 
 model Device {
-  id          String       @id @default(cuid())
-  name        String
-  ipAddress   String
-  port        Int          @default(2404)
-  status      String       @default("OFFLINE")
-  customerId  String
-  customer    Customer     @relation(fields: [customerId], references: [id])
-  mappings    IOAMapping[]
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  id           String       @id @default(cuid())
+  name         String
+  protocol     Protocol     @default(IEC104)
+  ipAddress    String
+  port         Int          @default(2404)
+  slaveId      Int?         @default(1) // Modbus Unit ID
+  status       String       @default("OFFLINE")
+  powerPlantId String
+  powerPlant   PowerPlant   @relation(fields: [powerPlantId], references: [id])
+  mappings     IOAMapping[]
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
 }
 
 model IOAMapping {
-  id          String           @id @default(cuid())
-  deviceId    String
-  device      Device           @relation(fields: [deviceId], references: [id])
-  ioa         Int
-  name        String
-  unit        String?
-  description String?
-  scale       Float            @default(1.0)
-  offset      Float            @default(0.0)
-  thresholds  AlarmThreshold[]
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
+  id              String           @id @default(cuid())
+  deviceId        String
+  device          Device           @relation(fields: [deviceId], references: [id])
+  name            String
+  unit            String?
+  description     String?
+  
+  // IEC104 specific
+  ioa             Int?
+  
+  // Modbus specific
+  registerAddress Int?
+  functionCode    Int?             @default(3)
+  registerType    String?          // e.g., "Holding Register"
+  dataType        String?          // e.g., "16-bit Unsigned"
+  
+  scale           Float            @default(1.0)
+  offset          Float            @default(0.0)
+  thresholds      AlarmThreshold[]
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
 
+  // We keep a flexible unique constraint. For IEC104 ioa is required, for Modbus registerAddress is.
+  // In a real DB, you'd use a composite unique based on protocol, but for now:
   @@unique([deviceId, ioa])
+  @@unique([deviceId, registerAddress])
 }
 
 model AlarmThreshold {
@@ -84,7 +114,7 @@ model AlarmThreshold {
 model AlarmLog {
   id        String   @id @default(cuid())
   deviceId  String
-  ioa       Int
+  ioa       Int     // For consistency, we use 'ioa' or 'address' as the identifier in logs
   value     Float
   message   String
   severity  Severity

@@ -8,11 +8,15 @@ dotenv.config();
 
 import deviceRoutes from './routes/device.routes';
 import powerPlantRoutes from './routes/powerPlant.routes';
+import authRoutes from './routes/auth.routes';
+import adminRoutes from './routes/admin.routes';
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
+app.use('/api/auth', authRoutes);
+app.use('/api/admin', adminRoutes);
 app.use('/api', deviceRoutes);
 app.use('/api', powerPlantRoutes);
 

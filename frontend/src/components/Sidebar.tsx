@@ -8,6 +8,8 @@ import {
     Settings,
     AlertTriangle,
     LayoutDashboard,
+    ShieldCheck,
+    Factory,
     Zap
 } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
@@ -22,6 +24,8 @@ const navItems = [
     { name: 'Analytics', href: '/analytics', icon: BarChart3 },
     { name: 'Devices', href: '/devices', icon: Activity },
     { name: 'Alarms', href: '/alarms', icon: AlertTriangle },
+    { name: 'System Admin', href: '/admin/system', icon: ShieldCheck },
+    { name: 'Customer Admin', href: '/admin/customer', icon: Factory },
     { name: 'Settings', href: '/settings', icon: Settings },
 ];
 

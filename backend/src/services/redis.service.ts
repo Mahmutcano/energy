@@ -10,30 +10,42 @@ class RedisService {
     private useFallback: boolean = false;
 
     private constructor() {
-        try {
-            this.client = new Redis(process.env.REDIS_URL || 'redis://localhost:6379', {
-                maxRetriesPerRequest: 1,
-                retryStrategy: (times) => {
-                    if (times > 1) {
-                        this.useFallback = true;
-                        console.warn('[REDIS] Falling back to In-Memory Queue');
-                        return null; // Stop retrying
-                    }
-                    return 50;
+        this.client = new Redis(process.env.REDIS_URL || 'redis://localhost:6379', {
+            maxRetriesPerRequest: null, // Critical for long-running processes
+            retryStrategy: (times) => {
+                const delay = Math.min(times * 100, 5000);
+                if (times === 1) {
+                    console.warn('[REDIS] Connection lost. Falling back to In-Memory Queue...');
+                    this.useFallback = true;
                 }
-            });
+                return delay;
+            },
+            reconnectOnError: (err) => {
+                const targetError = 'READONLY';
+                if (err.message.includes(targetError)) {
+                    return true;
+                }
+                return false;
+            }
+        });
 
-            this.client.on('error', (err) => {
-                // Silently handle connection errors, retry strategy will trigger fallback
-            });
-
-            this.client.on('connect', () => {
-                console.log('[REDIS] Connected successfully');
-                this.useFallback = false;
-            });
-        } catch (e) {
+        this.client.on('error', (err) => {
+            console.error('[REDIS] Error:', err.message);
             this.useFallback = true;
-        }
+        });
+
+        this.client.on('connect', () => {
+            console.log('[REDIS] Connecting...');
+        });
+
+        this.client.on('ready', () => {
+            console.log('[REDIS] Connected and Ready. Switching from Memory to Redis.');
+            this.useFallback = false;
+        });
+
+        this.client.on('reconnecting', () => {
+            console.log('[REDIS] Reconnecting...');
+        });
     }
 
     public static getInstance(): RedisService {

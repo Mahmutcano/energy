@@ -1,5 +1,5 @@
 import redisService from './redis.service';
-import { saveTelemetry } from '../utils/influx';
+import { saveTelemetry } from '../utils/telemetry';
 import { io } from '../app';
 
 class WorkerService {
@@ -39,7 +39,7 @@ class WorkerService {
         const { deviceId, ioa, value, unit, name, timestamp } = data;
 
         // 1. Veritabanına Yaz (Historian)
-        saveTelemetry(deviceId, ioa, value, 'demo-cust');
+        saveTelemetry(deviceId, ioa, value);
 
         // 2. Canlı Yayını Yap (Real-time UI)
         io.emit(`telemetry:${deviceId}:${ioa}`, data);

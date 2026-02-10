@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import { io } from 'socket.io-client';
+import { socket } from '@/lib/socket';
 import { TrendingUp, TrendingDown, Activity } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -16,19 +16,29 @@ interface RealtimeCardProps {
 export default function RealtimeCard({ deviceId, ioa, label, unit, color = "blue" }: RealtimeCardProps) {
     const [value, setValue] = useState<number | null>(null);
     const [prevValue, setPrevValue] = useState<number | null>(null);
+    const [isLive, setIsLive] = useState(false);
 
     useEffect(() => {
-        const socket = io('http://localhost:3001');
+        const topic = `telemetry:${deviceId}:${ioa}`;
 
-        socket.on(`telemetry:${deviceId}:${ioa}`, (data: { value: number }) => {
+        const handleData = (data: { value: number }) => {
             setValue(prevValue => {
                 setPrevValue(prevValue);
                 return data.value;
             });
-        });
+            setIsLive(true);
+        };
+
+        socket.on(topic, handleData);
+
+        socket.on('connect', () => setIsLive(true));
+        socket.on('disconnect', () => setIsLive(false));
+
+        // Initial check
+        setIsLive(socket.connected);
 
         return () => {
-            socket.disconnect();
+            socket.off(topic, handleData);
         };
     }, [deviceId, ioa]);
 
@@ -80,7 +90,8 @@ export default function RealtimeCard({ deviceId, ioa, label, unit, color = "blue
             <div className="mt-4 pt-4 border-t border-slate-800/50 flex justify-between items-center text-[10px] uppercase tracking-widest text-slate-500 font-bold">
                 <span>IOA: {ioa}</span>
                 <span className="flex items-center gap-1">
-                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> LIVE
+                    <div className={`w-1.5 h-1.5 rounded-full ${isLive ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-slate-600'}`} />
+                    {isLive ? 'LIVE' : 'DISCONNECTED'}
                 </span>
             </div>
         </motion.div>

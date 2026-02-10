@@ -38,7 +38,7 @@ export default function Sidebar() {
                 <div className="p-2 bg-blue-600 rounded-lg shadow-lg shadow-blue-500/20">
                     <Zap className="h-6 w-6 text-white" />
                 </div>
-                <span className="text-xl font-bold tracking-tight text-white">PowerSCADA</span>
+                <span className="text-xl font-bold tracking-tight text-white italic">X-SCADA</span>
             </div>
 
             <nav className="flex-1 space-y-1 p-4">

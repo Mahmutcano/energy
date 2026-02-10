@@ -121,3 +121,13 @@ model AlarmLog {
   timestamp DateTime @default(now())
   resolved  Boolean  @default(false)
 }
+
+model Telemetry {
+  id        BigInt   @id @default(autoincrement())
+  deviceId  String
+  address   Int      // represents IOA or Register Address
+  value     Float
+  timestamp DateTime @default(now())
+
+  @@index([deviceId, address, timestamp])
+}

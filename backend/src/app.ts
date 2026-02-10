@@ -23,9 +23,26 @@ app.use('/api', powerPlantRoutes);
 const server = http.createServer(app);
 const io = new Server(server, {
     cors: {
-        origin: '*',
-        methods: ['GET', 'POST']
-    }
+        origin: '*', // In production, replace with specific domain
+        methods: ['GET', 'POST'],
+        credentials: true
+    },
+    pingTimeout: 10000,
+    pingInterval: 25000,
+    connectTimeout: 45000,
+    transports: ['websocket', 'polling']
+});
+
+io.on('connection', (socket) => {
+    console.log(`[SOCKET] Client connected: ${socket.id}`);
+
+    socket.on('disconnect', (reason) => {
+        console.log(`[SOCKET] Client disconnected: ${socket.id}, Reason: ${reason}`);
+    });
+
+    socket.on('error', (error) => {
+        console.error(`[SOCKET] Error for client ${socket.id}:`, error);
+    });
 });
 
 app.get('/health', (req, res) => {

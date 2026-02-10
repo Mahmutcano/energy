@@ -3,15 +3,31 @@ import * as net from 'net';
 import redisService from './redis.service';
 
 export class ModbusService {
-    private clients: Map<string, { client: any, socket: net.Socket }> = new Map();
+    private static instance: ModbusService;
+    private clients: Map<string, { client: any, socket: net.Socket, pollingInterval?: NodeJS.Timeout }> = new Map();
+
+    private constructor() { }
+
+    public static getInstance(): ModbusService {
+        if (!ModbusService.instance) {
+            ModbusService.instance = new ModbusService();
+        }
+        return ModbusService.instance;
+    }
 
     public start() {
         console.log('Modbus TCP Master Service Started');
-        // Connecting to our local simulator for testing
+        // Initial connections can be loaded from DB here if needed
+        // For now, we still connect to the simulator by default or wait for user input
         this.connectToDevice('modbus-sim-device', '127.0.0.1', 5020);
     }
 
     public connectToDevice(deviceId: string, ip: string, port: number) {
+        if (this.clients.has(deviceId)) {
+            console.log(`[Modbus] Device ${deviceId} already connecting/connected. skipping.`);
+            return;
+        }
+
         console.log(`[Modbus] Attempting connection to ${deviceId} at ${ip}:${port}...`);
 
         const socket = new net.Socket();
@@ -28,7 +44,11 @@ export class ModbusService {
 
         socket.on('close', () => {
             console.log(`[Modbus] ⚠️ Connection closed for ${deviceId}. Reconnecting in 5s...`);
-            setTimeout(() => socket.connect({ host: ip, port: port }), 5000);
+            const clientData = this.clients.get(deviceId);
+            if (clientData) {
+                if (clientData.pollingInterval) clearInterval(clientData.pollingInterval);
+                setTimeout(() => socket.connect({ host: ip, port: port }), 5000);
+            }
         });
 
         socket.connect({ host: ip, port: port });
@@ -37,9 +57,8 @@ export class ModbusService {
 
     private startPolling(deviceId: string, client: any) {
         // Polling loop for Holding Registers
-        setInterval(async () => {
+        const pollingInterval = setInterval(async () => {
             try {
-                // Reading first 10 registers as a demonstration
                 const resp = await client.readHoldingRegisters(0, 10);
                 const values = resp.response._body._values;
 
@@ -47,28 +66,26 @@ export class ModbusService {
                     const address = index;
                     const payload = {
                         deviceId,
-                        ioa: address, // Using address as IOA for dashboard compatibility
+                        ioa: address,
                         value: val,
                         unit: this.getUnitForAddress(address),
                         name: this.getNameForAddress(address),
                         timestamp: new Date()
                     };
-
-                    // console.log(`[MODBUS-RECV] ${deviceId} | ADDR: ${address} | VAL: ${val}`);
-
-                    // Push to Broker (Redis Queue)
                     redisService.pushTelemetry(payload);
-
-                    // console.log(`[COLLECTOR] ${deviceId} -> Redis | ADDR: ${address}`);
                 });
             } catch (err) {
                 // console.error(`[Modbus] Polling fail for ${deviceId}:`, err);
             }
-        }, 5000); // 5 second polling interval
+        }, 5000);
+
+        const clientData = this.clients.get(deviceId);
+        if (clientData) {
+            clientData.pollingInterval = pollingInterval;
+        }
     }
 
     private getUnitForAddress(address: number): string {
-        // Map addresses to units (similar to IEC104 IOAs)
         const units: Record<number, string> = {
             0: 'V',
             1: 'A',
@@ -78,7 +95,6 @@ export class ModbusService {
     }
 
     private getNameForAddress(address: number): string {
-        // Map addresses to names
         const names: Record<number, string> = {
             0: 'Modbus Voltage',
             1: 'Modbus Current',
@@ -87,3 +103,5 @@ export class ModbusService {
         return names[address] || `Register ${address}`;
     }
 }
+
+export default ModbusService.getInstance();

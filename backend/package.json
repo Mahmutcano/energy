@@ -18,6 +18,7 @@
   "type": "commonjs",
   "dependencies": {
     "@influxdata/influxdb-client": "^1.35.0",
+    "@prisma/adapter-pg": "^7.3.0",
     "@prisma/client": "^7.3.0",
     "dotenv": "^17.2.3",
     "express": "^5.2.1",

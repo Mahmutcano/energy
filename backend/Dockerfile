@@ -2,28 +2,31 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Dosyaların varlığını garantiye almak için tek tek kopyalıyoruz
-# Eğer burada hata alırsanız, Railway "Root Directory" ayarı yapılmamış demektir.
-COPY package.json ./
-COPY package-lock.json ./
+# Yolları root dizinine göre güncelledik (backend/...)
+COPY backend/package*.json ./backend/
+COPY backend/prisma ./backend/prisma/
 
-RUN npm install
+# Backend klasörüne girip install yapıyoruz
+RUN cd backend && npm install
 
-# Geri kalan her şeyi kopyala
+# Her şeyi kopyala
 COPY . .
 
-RUN npx prisma generate
-RUN npm run build
+# Backend klasöründe generate ve build yap
+RUN cd backend && npx prisma generate
+RUN cd backend && npm run build
 
 FROM node:20-alpine
 
 WORKDIR /app
 
-COPY --from=builder /app/package*.json ./
-COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/prisma ./prisma
+# Production imajı için gerekli dosyaları kopyala
+COPY --from=builder /app/backend/package*.json ./backend/
+COPY --from=builder /app/backend/dist ./backend/dist
+COPY --from=builder /app/backend/node_modules ./backend/node_modules
+COPY --from=builder /app/backend/prisma ./backend/prisma
 
 EXPOSE 3001
 
-CMD ["npm", "run", "start"]
+# Çalıştırırken de backend klasöründen başlatıyoruz
+CMD ["node", "backend/dist/server.js"]

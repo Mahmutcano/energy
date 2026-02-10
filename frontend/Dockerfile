@@ -2,22 +2,22 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-COPY package*.json ./
-RUN npm install
+COPY frontend/package*.json ./frontend/
+RUN cd frontend && npm install
 
 COPY . .
-RUN npm run build
+RUN cd frontend && npm run build
 
 FROM node:20-alpine
 
 WORKDIR /app
 
-COPY --from=builder /app/package*.json ./
-COPY --from=builder /app/.next ./.next
-COPY --from=builder /app/public ./public
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/next.config.ts ./
+COPY --from=builder /app/frontend/package*.json ./frontend/
+COPY --from=builder /app/frontend/.next ./frontend/.next
+COPY --from=builder /app/frontend/public ./frontend/public
+COPY --from=builder /app/frontend/node_modules ./frontend/node_modules
+COPY --from=builder /app/frontend/next.config.ts ./frontend/
 
 EXPOSE 3000
 
-CMD ["npm", "run", "start"]
+CMD ["sh", "-c", "cd frontend && npm run start"]

@@ -2,19 +2,17 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Sadece bağımlılık dosyalarını al
-COPY package*.json ./
+# Dosyaların varlığını garantiye almak için tek tek kopyalıyoruz
+# Eğer burada hata alırsanız, Railway "Root Directory" ayarı yapılmamış demektir.
+COPY package.json ./
+COPY package-lock.json ./
 
-# Modülleri yükle
 RUN npm install
 
-# Tüm dosyaları kopyala (prisma klasörü de dahil olur)
+# Geri kalan her şeyi kopyala
 COPY . .
 
-# Prisma istemcisini oluştur
 RUN npx prisma generate
-
-# Uygulamayı derle
 RUN npm run build
 
 FROM node:20-alpine

@@ -2,14 +2,19 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
+# Sadece bağımlılık dosyalarını al
 COPY package*.json ./
-COPY prisma ./prisma/
 
+# Modülleri yükle
 RUN npm install
 
+# Tüm dosyaları kopyala (prisma klasörü de dahil olur)
 COPY . .
 
+# Prisma istemcisini oluştur
 RUN npx prisma generate
+
+# Uygulamayı derle
 RUN npm run build
 
 FROM node:20-alpine

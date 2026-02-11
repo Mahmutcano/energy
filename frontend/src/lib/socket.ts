@@ -1,6 +1,10 @@
 import { io, Socket } from 'socket.io-client';
 
-const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:3001';
+const PRODUCTION_URL = 'https://energy-production-5fa5.up.railway.app';
+const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL ||
+    (typeof window !== 'undefined' && !window.location.hostname.includes('localhost')
+        ? PRODUCTION_URL
+        : 'http://localhost:3001');
 
 class SocketService {
     private static instance: SocketService;

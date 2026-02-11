@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { ShieldAlert, LogIn, Mail, Lock, ArrowRight, Zap } from 'lucide-react';
 import Link from 'next/link';
@@ -8,11 +8,17 @@ import { useAuth } from '@/context/AuthContext';
 
 export default function LoginPage() {
     const router = useRouter();
-    const { login } = useAuth();
+    const { login, isAuthenticated, loading } = useAuth();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+
+    useEffect(() => {
+        if (!loading && isAuthenticated) {
+            router.push('/');
+        }
+    }, [isAuthenticated, loading, router]);
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();

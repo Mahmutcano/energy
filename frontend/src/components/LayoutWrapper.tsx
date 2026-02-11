@@ -31,6 +31,11 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
         return <>{children}</>;
     }
 
+    // If not authenticated and not on an auth page, don't render anything while redirecting
+    if (!isAuthenticated) {
+        return null;
+    }
+
     return (
         <div className="flex h-screen w-full overflow-hidden">
             <Sidebar />

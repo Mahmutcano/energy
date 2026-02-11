@@ -6,8 +6,10 @@ A general-purpose SaaS platform for monitoring industrial energy telemetry using
 
 The platform is currently running in **Simulation Mode** (mocked database and telemetry) to allow immediate exploration.
 
-- **Frontend:** [http://localhost:3000](http://localhost:3000)
-- **Backend API:** [http://localhost:3001](http://localhost:3001)
+- **Frontend:** [https://hearty-embrace-production-217d.up.railway.app](https://hearty-embrace-production-217d.up.railway.app)
+- **Backend API:** [https://energy-production-5fa5.up.railway.app](https://energy-production-5fa5.up.railway.app)
+- **Database (Postgres):** `postgres-production-f0d0.up.railway.app`
+- **Redis:** `redis-production-fafc.up.railway.app`
 
 ## 🏗️ Architecture
 

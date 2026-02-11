@@ -20,7 +20,8 @@ export default function Devices() {
 
     const fetchDevices = async () => {
         try {
-            const res = await fetch('http://localhost:3001/api/devices', {
+            const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+            const res = await fetch(`${apiUrl}/api/devices`, {
                 headers: { 'x-user-role': 'ADMIN' }
             });
             const data = await res.json();
@@ -43,7 +44,8 @@ export default function Devices() {
     const handleCreateDevice = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
-            const res = await fetch('http://localhost:3001/api/devices', {
+            const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+            const res = await fetch(`${apiUrl}/api/devices`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

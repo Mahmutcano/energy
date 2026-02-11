@@ -1,10 +1,10 @@
 import { Router } from 'express';
 import { getPowerPlants, createPowerPlant } from '../controllers/powerPlant.controller';
-import { authorize } from '../middleware/auth';
+import { authenticate, authorize } from '../middleware/auth';
 
 const router = Router();
 
-router.get('/power-plants', authorize(['SUPER_ADMIN', 'ADMIN', 'CUSTOMER']), getPowerPlants);
-router.post('/power-plants', authorize(['SUPER_ADMIN', 'ADMIN']), createPowerPlant);
+router.get('/power-plants', authenticate, authorize(['SUPER_ADMIN', 'ADMIN', 'CUSTOMER']), getPowerPlants);
+router.post('/power-plants', authenticate, authorize(['SUPER_ADMIN', 'ADMIN']), createPowerPlant);
 
 export default router;

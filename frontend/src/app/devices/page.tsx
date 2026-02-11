@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Activity, Plus, Search, MoreVertical, Edit2, Trash2, X } from 'lucide-react';
+import { apiRequest } from '@/lib/api';
 
 export default function Devices() {
     const [mounted, setMounted] = useState(false);
@@ -20,10 +21,7 @@ export default function Devices() {
 
     const fetchDevices = async () => {
         try {
-            const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
-            const res = await fetch(`${apiUrl}/api/devices`, {
-                headers: { 'x-user-role': 'ADMIN' }
-            });
+            const res = await apiRequest('/api/devices');
             const data = await res.json();
             setDevices(data);
             if (data.length > 0 && !selectedDevice) {
@@ -44,13 +42,8 @@ export default function Devices() {
     const handleCreateDevice = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
-            const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
-            const res = await fetch(`${apiUrl}/api/devices`, {
+            const res = await apiRequest('/api/devices', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'x-user-role': 'ADMIN'
-                },
                 body: JSON.stringify(formData)
             });
 
@@ -59,7 +52,7 @@ export default function Devices() {
                 fetchDevices();
             } else {
                 const err = await res.json();
-                console.error('Hata: ', err.error);
+                console.error('Hata: ', err.message || err.error);
             }
         } catch (err) {
             console.error('Create error:', err);

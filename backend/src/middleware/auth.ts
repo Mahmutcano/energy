@@ -1,18 +1,43 @@
 import { Request, Response, NextFunction } from 'express';
+import jwt from 'jsonwebtoken';
+
+const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-key-123456';
 
 export type Role = 'SUPER_ADMIN' | 'ADMIN' | 'CUSTOMER';
 
-export const authorize = (roles: Role[]) => {
-    return (req: Request, res: Response, next: NextFunction) => {
-        // In a real app, we would get the user from the JWT token
-        const userRole = req.headers['x-user-role'] as Role;
+export interface AuthRequest extends Request {
+    user?: {
+        id: string;
+        email: string;
+        role: Role;
+    };
+}
 
-        if (!userRole) {
-            return res.status(401).json({ message: 'Unauthorized' });
+export const authenticate = (req: AuthRequest, res: Response, next: NextFunction) => {
+    const authHeader = req.headers.authorization;
+    const token = authHeader && authHeader.split(' ')[1];
+
+    if (!token) {
+        return res.status(401).json({ message: 'Lütfen giriş yapın' });
+    }
+
+    try {
+        const decoded = jwt.verify(token, JWT_SECRET) as any;
+        req.user = decoded;
+        next();
+    } catch (err) {
+        return res.status(401).json({ message: 'Geçersiz veya süresi dolmuş token' });
+    }
+};
+
+export const authorize = (roles: Role[]) => {
+    return (req: AuthRequest, res: Response, next: NextFunction) => {
+        if (!req.user) {
+            return res.status(401).json({ message: 'Lütfen önce giriş yapın' });
         }
 
-        if (!roles.includes(userRole)) {
-            return res.status(403).json({ message: 'Forbidden' });
+        if (!roles.includes(req.user.role)) {
+            return res.status(403).json({ message: 'Bu işlem için yetkiniz yok' });
         }
 
         next();

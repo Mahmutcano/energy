@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { ShieldAlert, LogIn, Mail, Lock, ArrowRight, Zap } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
+import { apiRequest } from '@/lib/api';
 
 export default function LoginPage() {
     const router = useRouter();
@@ -26,10 +27,8 @@ export default function LoginPage() {
         setIsLoading(true);
 
         try {
-            const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
-            const res = await fetch(`${apiUrl}/api/auth/login`, {
+            const res = await apiRequest('/api/auth/login', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email, password }),
             });
 

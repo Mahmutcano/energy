@@ -7,13 +7,13 @@ import prisma from '../lib/prisma';
 const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-key-123456';
 
 const LoginSchema = z.object({
-    email: z.string().email(),
-    password: z.string().min(6)
+    email: z.string(),
+    password: z.string().min(1)
 });
 
 const RegisterSchema = z.object({
-    email: z.string().email(),
-    password: z.string().min(6),
+    email: z.string(),
+    password: z.string().min(1),
     name: z.string().optional(),
     role: z.enum(['SUPER_ADMIN', 'ADMIN', 'CUSTOMER']).default('CUSTOMER')
 });

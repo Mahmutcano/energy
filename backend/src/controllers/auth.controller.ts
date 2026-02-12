@@ -62,7 +62,9 @@ export const login = async (req: Request, res: Response) => {
     try {
         const { email, password } = LoginSchema.parse(req.body);
 
+        console.log(`[AUTH] Login attempt for: ${email}`);
         const user = await prisma.user.findUnique({ where: { email } });
+        console.log(`[AUTH] User found: ${!!user}`);
         if (!user) {
             return res.status(401).json({ message: 'Geçersiz kullanıcı adı veya şifre' });
         }

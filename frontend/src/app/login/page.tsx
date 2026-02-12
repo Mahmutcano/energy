@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { ShieldAlert, LogIn, Mail, Lock, ArrowRight, Zap } from 'lucide-react';
+import { ShieldAlert, LogIn, User, Lock, ArrowRight, Zap } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import { apiRequest } from '@/lib/api';
@@ -78,14 +78,14 @@ export default function LoginPage() {
                         )}
 
                         <div className="space-y-3">
-                            <label className="text-[10px] uppercase tracking-[0.3em] text-slate-500 font-black ml-2">Encrypted ID (Email)</label>
+                            <label className="text-[10px] uppercase tracking-[0.3em] text-slate-500 font-black ml-2">Operator Identity (Username)</label>
                             <div className="relative group">
-                                <Mail className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-600 group-focus-within:text-blue-500 transition-colors" size={22} />
+                                <User className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-600 group-focus-within:text-blue-500 transition-colors" size={22} />
                                 <input
-                                    type="email"
+                                    type="text"
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
-                                    placeholder="operator@scada.system"
+                                    placeholder="operator_id_01"
                                     className="w-full bg-slate-950/80 border border-slate-800 rounded-3xl py-6 pl-16 pr-6 text-white placeholder:text-slate-800 focus:border-blue-500/50 focus:ring-8 focus:ring-blue-500/5 transition-all outline-none"
                                     required
                                 />

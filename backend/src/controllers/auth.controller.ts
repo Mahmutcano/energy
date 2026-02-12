@@ -24,7 +24,7 @@ export const register = async (req: Request, res: Response) => {
 
         const existingUser = await prisma.user.findUnique({ where: { email } });
         if (existingUser) {
-            return res.status(400).json({ message: 'Bu email adresi zaten kullanımda' });
+            return res.status(400).json({ message: 'Bu kullanıcı adı zaten kullanımda' });
         }
 
         const hashedPassword = await bcrypt.hash(password, 10);
@@ -64,12 +64,12 @@ export const login = async (req: Request, res: Response) => {
 
         const user = await prisma.user.findUnique({ where: { email } });
         if (!user) {
-            return res.status(401).json({ message: 'Geçersiz email veya şifre' });
+            return res.status(401).json({ message: 'Geçersiz kullanıcı adı veya şifre' });
         }
 
         const isPasswordValid = await bcrypt.compare(password, user.password);
         if (!isPasswordValid) {
-            return res.status(401).json({ message: 'Geçersiz email veya şifre' });
+            return res.status(401).json({ message: 'Geçersiz kullanıcı adı veya şifre' });
         }
 
         const token = jwt.sign(

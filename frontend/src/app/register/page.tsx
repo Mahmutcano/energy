@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { ShieldAlert, UserPlus, Mail, Lock, User, ArrowRight } from 'lucide-react';
+import { ShieldAlert, UserPlus, Lock, User, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import { apiRequest } from '@/lib/api';
@@ -92,14 +92,14 @@ export default function RegisterPage() {
                             </div>
 
                             <div className="space-y-2">
-                                <label className="text-xs uppercase tracking-[0.2em] text-slate-500 font-black ml-1">Email Address</label>
+                                <label className="text-xs uppercase tracking-[0.2em] text-slate-500 font-black ml-1">Operator Username</label>
                                 <div className="relative">
-                                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={20} />
+                                    <User className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={20} />
                                     <input
-                                        type="email"
+                                        type="text"
                                         value={email}
                                         onChange={(e) => setEmail(e.target.value)}
-                                        placeholder="john@example.com"
+                                        placeholder="operator_id_01"
                                         className="w-full bg-slate-950/50 border border-slate-800 rounded-2xl py-5 pl-14 pr-4 text-white placeholder:text-slate-700 focus:border-blue-500/50 focus:ring-4 focus:ring-blue-500/5 transition-all outline-none"
                                         required
                                     />

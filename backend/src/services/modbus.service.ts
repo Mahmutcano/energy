@@ -102,6 +102,59 @@ export class ModbusService {
         };
         return names[address] || `Register ${address}`;
     }
+    public async testModbusConnection(params: {
+        ip: string,
+        port: number,
+        slaveId: number,
+        address: number,
+        quantity: number
+    }): Promise<any> {
+        return new Promise((resolve, reject) => {
+            const socket = new net.Socket();
+            const client = new Modbus.client.TCP(socket, params.slaveId);
+            let resolved = false;
+
+            const timeout = setTimeout(() => {
+                if (!resolved) {
+                    resolved = true;
+                    socket.destroy();
+                    reject(new Error('Connection timeout (10s)'));
+                }
+            }, 10000);
+
+            socket.on('connect', async () => {
+                try {
+                    console.log(`[Modbus Test] Connected to ${params.ip}:${params.port}`);
+                    const resp = await client.readHoldingRegisters(params.address, params.quantity);
+                    const body = (resp.response as any)._body;
+                    resolved = true;
+                    clearTimeout(timeout);
+                    socket.end();
+                    resolve({
+                        success: true,
+                        values: body._values,
+                        rawData: body
+                    });
+                } catch (err: any) {
+                    resolved = true;
+                    clearTimeout(timeout);
+                    socket.destroy();
+                    reject(err);
+                }
+            });
+
+            socket.on('error', (err) => {
+                if (!resolved) {
+                    resolved = true;
+                    clearTimeout(timeout);
+                    socket.destroy();
+                    reject(err);
+                }
+            });
+
+            socket.connect({ host: params.ip, port: params.port });
+        });
+    }
 }
 
 export default ModbusService.getInstance();

@@ -11,7 +11,8 @@ import {
     ShieldCheck,
     Factory,
     Zap,
-    LogOut
+    LogOut,
+    Terminal
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { clsx, type ClassValue } from 'clsx';
@@ -27,6 +28,7 @@ const navItems = [
     { name: 'Devices', href: '/devices', icon: Activity },
     { name: 'Alarms', href: '/alarms', icon: AlertTriangle },
     { name: 'System Admin', href: '/admin/system', icon: ShieldCheck },
+    { name: 'Modbus Terminal', href: '/admin/modbus-test', icon: Terminal },
     { name: 'Customer Admin', href: '/admin/customer', icon: Factory },
     { name: 'Settings', href: '/settings', icon: Settings },
 ];
@@ -50,6 +52,7 @@ export default function Sidebar() {
 
                     // Conditionally show admin links
                     if (item.name === 'System Admin' && user?.role !== 'SUPER_ADMIN') return null;
+                    if (item.name === 'Modbus Terminal' && user?.role !== 'SUPER_ADMIN') return null;
                     if (item.name === 'Customer Admin' && !['SUPER_ADMIN', 'ADMIN'].includes(user?.role || '')) return null;
 
                     return (

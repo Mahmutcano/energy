@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { apiRequest } from '@/lib/api';
 
 interface User {
     id: string;
@@ -14,7 +15,8 @@ interface User {
 interface AuthContextType {
     user: User | null;
     token: string | null;
-    login: (token: string, user: User) => void;
+    login: (email: string, password: string) => Promise<void>;
+    register: (name: string, email: string, password: string) => Promise<void>;
     logout: () => void;
     isAuthenticated: boolean;
     loading: boolean;
@@ -39,11 +41,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setLoading(false);
     }, []);
 
-    const login = (newToken: string, newUser: User) => {
-        setToken(newToken);
-        setUser(newUser);
-        localStorage.setItem('auth_token', newToken);
-        localStorage.setItem('auth_user', JSON.stringify(newUser));
+    const login = async (email: string, password: string) => {
+        const response = await apiRequest('/auth/login', {
+            method: 'POST',
+            body: JSON.stringify({ email, password })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.message || 'Giriş yapılamadı');
+        }
+
+        setToken(data.token);
+        setUser(data.user);
+        localStorage.setItem('auth_token', data.token);
+        localStorage.setItem('auth_user', JSON.stringify(data.user));
+    };
+
+    const register = async (name: string, email: string, password: string) => {
+        const response = await apiRequest('/auth/register', {
+            method: 'POST',
+            body: JSON.stringify({ name, email, password })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.message || 'Kayıt yapılamadı');
+        }
+
+        setToken(data.token);
+        setUser(data.user);
+        localStorage.setItem('auth_token', data.token);
+        localStorage.setItem('auth_user', JSON.stringify(data.user));
     };
 
     const logout = () => {
@@ -59,6 +90,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             user,
             token,
             login,
+            register,
             logout,
             isAuthenticated: !!token,
             loading

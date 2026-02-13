@@ -2,18 +2,17 @@
 
 import { useEffect, useState } from 'react';
 import { socket } from '@/lib/socket';
-import { TrendingUp, TrendingDown, Activity } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { Activity, ArrowUpRight, ArrowDownRight, Zap } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface RealtimeCardProps {
     deviceId: string;
     ioa: number;
     label: string;
     unit: string;
-    color?: string;
 }
 
-export default function RealtimeCard({ deviceId, ioa, label, unit, color = "blue" }: RealtimeCardProps) {
+export default function RealtimeCard({ deviceId, ioa, label, unit }: RealtimeCardProps) {
     const [value, setValue] = useState<number | null>(null);
     const [prevValue, setPrevValue] = useState<number | null>(null);
     const [isLive, setIsLive] = useState(false);
@@ -22,19 +21,16 @@ export default function RealtimeCard({ deviceId, ioa, label, unit, color = "blue
         const topic = `telemetry:${deviceId}:${ioa}`;
 
         const handleData = (data: { value: number }) => {
-            setValue(prevValue => {
-                setPrevValue(prevValue);
+            setValue(current => {
+                setPrevValue(current);
                 return data.value;
             });
             setIsLive(true);
         };
 
         socket.on(topic, handleData);
-
         socket.on('connect', () => setIsLive(true));
         socket.on('disconnect', () => setIsLive(false));
-
-        // Initial check
         setIsLive(socket.connected);
 
         return () => {
@@ -42,58 +38,52 @@ export default function RealtimeCard({ deviceId, ioa, label, unit, color = "blue
         };
     }, [deviceId, ioa]);
 
-    const diff = (value && prevValue) ? value - prevValue : 0;
-    const colorClasses: Record<string, string> = {
-        blue: "text-blue-400 border-blue-500/30 bg-blue-500/5",
-        emerald: "text-emerald-400 border-emerald-500/30 bg-emerald-500/5",
-        amber: "text-amber-400 border-amber-500/30 bg-amber-500/5",
-        cyan: "text-cyan-400 border-cyan-500/30 bg-cyan-500/5",
-        orange: "text-orange-400 border-orange-500/30 bg-orange-500/5",
-        yellow: "text-yellow-400 border-yellow-500/30 bg-yellow-500/5",
-    };
-
-    const colorClass = colorClasses[color] || colorClasses.blue;
+    const delta = (value !== null && prevValue !== null) ? value - prevValue : 0;
+    const isUp = delta >= 0;
 
     return (
-        <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className={`p-6 rounded-2xl border backdrop-blur-sm ${colorClass}`}
-        >
-            <div className="flex justify-between items-start mb-4">
-                <div>
-                    <p className="text-sm font-medium text-slate-400">{label}</p>
-                    <div className="flex items-baseline gap-2">
-                        <h3 className="text-3xl font-bold tracking-tight text-white italic">
-                            {value !== null ? value.toFixed(2) : '--.--'}
-                        </h3>
-                        <span className="text-lg font-medium text-slate-500">{unit}</span>
+        <div className="card-base p-6 flex flex-col justify-between h-48 group dot-bg">
+            {/* Ambient Depth Accent */}
+            <div className="absolute -top-12 -right-12 w-32 h-32 bg-brand-green/5 rounded-full blur-[80px] pointer-events-none group-hover:bg-brand-green/10 transition-colors" />
+
+            <div className="flex justify-between items-start relative z-10">
+                <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-slate-950/50 text-slate-500 border border-slate-800/50 group-hover:text-brand-green group-hover:border-brand-green/30 transition-all">
+                        <Zap size={14} />
                     </div>
+                    <span className="text-tech-label">{label}</span>
                 </div>
-                <div className={`p-2 rounded-lg bg-slate-900/50`}>
-                    <Activity className={`h-5 w-5 ${colorClass.split(' ')[0]}`} />
+                <div className="flex items-center gap-2 px-2.5 py-1 rounded-full bg-slate-950/60 border border-slate-800/50">
+                    <div className={`status-indicator ${isLive ? 'bg-brand-green shadow-[0_0_10px_rgba(16,185,129,0.5)] animate-pulse' : 'bg-slate-700'}`} />
+                    <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">{isLive ? 'Link_Ok' : 'Offline'}</span>
                 </div>
             </div>
 
-            <div className="flex items-center gap-2">
-                {diff >= 0 ? (
-                    <TrendingUp className="h-4 w-4 text-emerald-500" />
-                ) : (
-                    <TrendingDown className="h-4 w-4 text-rose-500" />
-                )}
-                <span className={`text-xs font-semibold ${diff >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
-                    {Math.abs(diff).toFixed(3)}
-                </span>
-                <span className="text-xs text-slate-600 font-medium">Since last update</span>
+            <div className="relative z-10">
+                <AnimatePresence mode="wait">
+                    <motion.div
+                        key={value}
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        className="flex items-baseline gap-2"
+                    >
+                        <span className="text-tech-value text-4xl">
+                            {value !== null ? value.toFixed(2) : '--.--'}
+                        </span>
+                        <span className="text-xs font-black text-brand-green/60 uppercase tracking-widest">{unit}</span>
+                    </motion.div>
+                </AnimatePresence>
             </div>
 
-            <div className="mt-4 pt-4 border-t border-slate-800/50 flex justify-between items-center text-[10px] uppercase tracking-widest text-slate-500 font-bold">
-                <span>IOA: {ioa}</span>
-                <span className="flex items-center gap-1">
-                    <div className={`w-1.5 h-1.5 rounded-full ${isLive ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-slate-600'}`} />
-                    {isLive ? 'LIVE' : 'DISCONNECTED'}
-                </span>
+            <div className="flex items-center justify-between pt-4 border-t border-slate-800/40 relative z-10">
+                <div className={`flex items-center gap-2 font-black text-[10px] tracking-widest ${isUp ? 'text-brand-green' : 'text-danger'}`}>
+                    {isUp ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
+                    <span className="tabular-nums">{(Math.abs(delta) || 0).toFixed(3)}</span>
+                </div>
+                <div className="px-2 py-0.5 rounded bg-slate-950/60 text-[9px] font-mono font-bold text-slate-500 border border-slate-800/50 uppercase tracking-tighter">
+                    Node::{ioa}
+                </div>
             </div>
-        </motion.div>
+        </div>
     );
 }

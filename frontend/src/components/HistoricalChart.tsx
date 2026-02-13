@@ -9,32 +9,32 @@ interface ChartData {
 }
 
 export default function HistoricalChart({ data, title, color = '#3b82f6' }: { data: ChartData[], title: string, color?: string }) {
+    const isDark = typeof document !== 'undefined' && document.documentElement.classList.contains('dark');
+
     const option = {
         backgroundColor: 'transparent',
-        title: {
-            text: title,
-            textStyle: { color: '#94a3b8', fontSize: 14, fontWeight: 'medium' },
-            left: 'center'
-        },
         tooltip: {
             trigger: 'axis',
-            backgroundColor: '#0f172a',
-            borderColor: '#334155',
-            textStyle: { color: '#f1f5f9' },
-            axisPointer: { type: 'cross', label: { backgroundColor: '#1e293b' } }
+            backgroundColor: isDark ? '#1e293b' : '#ffffff',
+            borderColor: isDark ? '#334155' : '#e2e8f0',
+            textStyle: { color: isDark ? '#f1f5f9' : '#1e293b' },
+            axisPointer: { type: 'cross', label: { backgroundColor: isDark ? '#1e293b' : '#f8fafc' } },
+            shadowBlur: 10,
+            shadowColor: 'rgba(0,0,0,0.1)'
         },
-        grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
+        grid: { left: '3%', right: '4%', bottom: '3%', top: '5%', containLabel: true },
         xAxis: {
             type: 'category',
             boundaryGap: false,
             data: data.map(d => d.time),
-            axisLine: { lineStyle: { color: '#334155' } },
-            axisLabel: { color: '#64748b' }
+            axisLine: { lineStyle: { color: isDark ? '#334155' : '#e2e8f0' } },
+            axisLabel: { color: isDark ? '#64748b' : '#94a3b8', fontSize: 10 }
         },
         yAxis: {
             type: 'value',
-            splitLine: { lineStyle: { color: '#1e293b' } },
-            axisLabel: { color: '#64748b' }
+            splitLine: { lineStyle: { color: isDark ? '#1e293b' : '#f1f5f9', type: 'dashed' } },
+            axisLine: { show: false },
+            axisLabel: { color: isDark ? '#64748b' : '#94a3b8', fontSize: 10 }
         },
         series: [
             {
@@ -46,7 +46,7 @@ export default function HistoricalChart({ data, title, color = '#3b82f6' }: { da
                 lineStyle: { width: 3, color: color },
                 areaStyle: {
                     color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-                        { offset: 0, color: `${color}44` },
+                        { offset: 0, color: `${color}33` },
                         { offset: 1, color: `${color}00` }
                     ])
                 },
@@ -56,8 +56,13 @@ export default function HistoricalChart({ data, title, color = '#3b82f6' }: { da
     };
 
     return (
-        <div className="w-full h-[400px] bg-slate-900/50 p-6 rounded-2xl border border-slate-800">
-            <ReactECharts option={option} style={{ height: '100%', width: '100%' }} />
+        <div className="w-full h-full min-h-[300px]">
+            <ReactECharts
+                option={option}
+                style={{ height: '100%', width: '100%' }}
+                notMerge={true}
+                lazyUpdate={true}
+            />
         </div>
     );
 }

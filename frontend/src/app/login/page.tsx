@@ -1,145 +1,180 @@
 "use client";
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { ShieldAlert, LogIn, User, Lock, ArrowRight, Zap } from 'lucide-react';
-import Link from 'next/link';
+import { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { apiRequest } from '@/lib/api';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { Activity, Mail, Lock, CheckCircle, ArrowRight } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 export default function LoginPage() {
-    const router = useRouter();
-    const { login, isAuthenticated, loading } = useAuth();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
-    const [isLoading, setIsLoading] = useState(false);
+    const [loading, setLoading] = useState(false);
+    const { login } = useAuth();
+    const router = useRouter();
 
-    useEffect(() => {
-        if (!loading && isAuthenticated) {
-            router.push('/');
-        }
-    }, [isAuthenticated, loading, router]);
-
-    const handleLogin = async (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
-        setIsLoading(true);
+        setLoading(true);
 
         try {
-            const res = await apiRequest('/api/auth/login', {
-                method: 'POST',
-                body: JSON.stringify({ email, password }),
-            });
-
-            const data = await res.json();
-
-            if (res.ok) {
-                login(data.token, data.user);
-                router.push('/');
-            } else {
-                setError(data.message || 'Giriş başarısız');
-            }
-        } catch (err) {
-            setError('Sunucuya bağlanılamadı');
+            await login(email, password);
+            router.push('/');
+        } catch (err: any) {
+            setError(err.message || 'Kimlik doğrulama başarısız. Lütfen bilgilerinizi kontrol edin.');
         } finally {
-            setIsLoading(false);
+            setLoading(false);
         }
     };
 
     return (
-        <div className="min-h-screen bg-slate-950 flex items-center justify-center p-6 relative overflow-hidden">
-            {/* Background Decorative Elements */}
-            <div className="absolute top-[-20%] right-[-10%] w-[60%] h-[60%] bg-blue-600/10 rounded-full blur-[120px]"></div>
-            <div className="absolute bottom-[-20%] left-[-10%] w-[60%] h-[60%] bg-blue-900/10 rounded-full blur-[120px]"></div>
+        <div className="min-h-screen w-full flex bg-slate-950 font-sans selection:bg-brand-green/20 relative overflow-hidden">
+            {/* Ambient Background Elements */}
+            <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_20%_20%,rgba(16,185,129,0.05),transparent_40%)] pointer-events-none"></div>
+            <div className="absolute bottom-0 right-0 w-full h-full bg-[radial-gradient(circle_at_80%_80%,rgba(16,185,129,0.03),transparent_40%)] pointer-events-none"></div>
+            <div className="absolute inset-0 dot-bg opacity-30 pointer-events-none"></div>
 
-            <div className="w-full max-w-lg space-y-12 relative z-10">
-                <div className="text-center space-y-6">
-                    <div className="relative inline-block group">
-                        <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-[2.5rem] blur opacity-25 group-hover:opacity-50 transition duration-1000 group-hover:duration-200"></div>
-                        <div className="relative inline-flex p-6 rounded-[2.5rem] bg-slate-900 border border-white/5 text-blue-500 shadow-2xl">
-                            <ShieldAlert size={56} />
+            {/* Left: Branding & Visuals (Hidden on small screens) */}
+            <div className="hidden lg:flex w-7/12 items-center justify-center p-24 relative">
+                <div className="relative z-10 max-w-xl space-y-16">
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="flex items-center gap-6"
+                    >
+                        <div className="p-5 bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl relative group">
+                            <div className="absolute inset-0 bg-brand-green/10 blur-2xl rounded-full group-hover:bg-brand-green/20 transition-all opacity-0 group-hover:opacity-100"></div>
+                            <Activity size={56} className="text-brand-green relative z-10" strokeWidth={2.5} />
                         </div>
-                    </div>
-                    <div>
-                        <h1 className="text-6xl font-black italic text-white tracking-tighter">
-                            SCADA <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-500 to-indigo-500">SECURE</span>
-                        </h1>
-                        <p className="text-slate-500 mt-4 font-medium text-lg tracking-wide uppercase">Industrial Identity Terminal</p>
-                    </div>
+                        <div>
+                            <h1 className="text-6xl font-black text-white tracking-tighter uppercase italic leading-none">ENERGY</h1>
+                            <div className="flex items-center gap-3 mt-2">
+                                <span className="text-tech-label text-brand-green tracking-[0.4em]">SCADA Platform</span>
+                                <div className="h-px w-8 bg-slate-800"></div>
+                            </div>
+                        </div>
+                    </motion.div>
+
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.1 }}
+                        className="space-y-8"
+                    >
+                        <h2 className="text-5xl font-black text-white leading-[1.1] tracking-tight italic uppercase">Elite Control for Global Energy Grids.</h2>
+                        <p className="text-lg text-slate-500 leading-relaxed font-medium">Secure, high-precision SCADA infrastructure for monitoring complex telemetry and industrial operations in real-time. Engineered for 99.999% uptime.</p>
+                    </motion.div>
+
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.2 }}
+                        className="grid grid-cols-2 gap-8"
+                    >
+                        {[
+                            { label: 'Network', val: 'AES-256 GCM', sub: 'High Security' },
+                            { label: 'Uplink', val: 'Modbus TCP', sub: 'Low Latency' },
+                        ].map((item, i) => (
+                            <div key={i} className="card-base p-6 bg-slate-900/40 border-slate-800/60">
+                                <p className="text-tech-label mb-2">{item.label}</p>
+                                <p className="text-xl font-black text-white italic tracking-tight">{item.val}</p>
+                                <p className="text-[10px] text-slate-600 font-bold uppercase mt-2 tracking-widest">{item.sub}</p>
+                            </div>
+                        ))}
+                    </motion.div>
                 </div>
+            </div>
 
-                <div className="bg-slate-900/40 backdrop-blur-3xl border border-white/5 p-12 rounded-[4rem] shadow-[0_32px_64px_-16px_rgba(0,0,0,0.6)]">
-                    <form onSubmit={handleLogin} className="space-y-8">
-                        {error && (
-                            <div className="p-4 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm font-bold text-center animate-shake">
-                                {error}
-                            </div>
-                        )}
-
-                        <div className="space-y-3">
-                            <label className="text-[10px] uppercase tracking-[0.3em] text-slate-500 font-black ml-2">Operator Identity (Username)</label>
-                            <div className="relative group">
-                                <User className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-600 group-focus-within:text-blue-500 transition-colors" size={22} />
-                                <input
-                                    type="text"
-                                    value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
-                                    placeholder="operator_id_01"
-                                    className="w-full bg-slate-950/80 border border-slate-800 rounded-3xl py-6 pl-16 pr-6 text-white placeholder:text-slate-800 focus:border-blue-500/50 focus:ring-8 focus:ring-blue-500/5 transition-all outline-none"
-                                    required
-                                />
+            {/* Right: Login Form */}
+            <div className="w-full lg:w-5/12 flex items-center justify-center p-8 relative z-10">
+                <motion.div
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="w-full max-w-md"
+                >
+                    <div className="card-base p-12 bg-slate-900/40 border-slate-800 shadow-2xl backdrop-blur-xl">
+                        <div className="space-y-3 mb-12">
+                            <h3 className="text-3xl font-black text-white uppercase tracking-tighter italic">Access Node</h3>
+                            <div className="flex items-center gap-3">
+                                <span className="text-tech-label text-slate-600 tracking-[0.2em]">Operator Identification Required</span>
                             </div>
                         </div>
 
-                        <div className="space-y-3">
-                            <div className="flex justify-between items-center ml-2">
-                                <label className="text-[10px] uppercase tracking-[0.3em] text-slate-500 font-black">Private Key</label>
-                                <button type="button" className="text-[10px] uppercase tracking-widest text-blue-600 font-black hover:text-blue-400 transition-colors">Emergency Reset</button>
-                            </div>
-                            <div className="relative group">
-                                <Lock className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-600 group-focus-within:text-blue-500 transition-colors" size={22} />
-                                <input
-                                    type="password"
-                                    value={password}
-                                    onChange={(e) => setPassword(e.target.value)}
-                                    placeholder="••••••••••••"
-                                    className="w-full bg-slate-950/80 border border-slate-800 rounded-3xl py-6 pl-16 pr-6 text-white placeholder:text-slate-800 focus:border-blue-500/50 focus:ring-8 focus:ring-blue-500/5 transition-all outline-none"
-                                    required
-                                />
-                                <Zap className="absolute right-6 top-1/2 -translate-y-1/2 text-slate-800" size={18} />
-                            </div>
-                        </div>
+                        <form onSubmit={handleSubmit} className="space-y-8">
+                            <div className="space-y-6">
+                                <div className="space-y-3 group">
+                                    <label className="text-tech-label ml-1 group-focus-within:text-brand-green transition-colors">Endpoint Email</label>
+                                    <div className="relative">
+                                        <Mail size={18} className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-700 group-focus-within:text-brand-green transition-all" />
+                                        <input
+                                            type="text"
+                                            required
+                                            value={email}
+                                            onChange={(e) => setEmail(e.target.value)}
+                                            className="w-full h-16 bg-slate-950/50 border border-slate-800 rounded-2xl pl-14 pr-6 text-sm font-black text-white outline-none focus:border-brand-green/30 focus:shadow-[0_0_20px_rgba(16,185,129,0.05)] transition-all placeholder:text-slate-900 tracking-wide"
+                                            placeholder="operator@system.io"
+                                        />
+                                    </div>
+                                </div>
 
-                        <button
-                            type="submit"
-                            disabled={isLoading}
-                            className="w-full py-6 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-3xl font-black uppercase tracking-[0.3em] text-sm shadow-2xl shadow-blue-500/30 active:scale-[0.97] transition-all flex items-center justify-center gap-4 disabled:opacity-50"
-                        >
-                            {isLoading ? 'Decrypting Access...' : (
-                                <>
-                                    <LogIn size={24} />
-                                    Authenticate Terminal
-                                </>
+                                <div className="space-y-3 group">
+                                    <label className="text-tech-label ml-1 group-focus-within:text-brand-green transition-colors">Access Pin</label>
+                                    <div className="relative">
+                                        <Lock size={18} className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-700 group-focus-within:text-brand-green transition-all" />
+                                        <input
+                                            type="password"
+                                            required
+                                            value={password}
+                                            onChange={(e) => setPassword(e.target.value)}
+                                            className="w-full h-16 bg-slate-950/50 border border-slate-800 rounded-2xl pl-14 pr-6 text-sm font-black text-white outline-none focus:border-brand-green/30 focus:shadow-[0_0_20px_rgba(16,185,129,0.05)] transition-all placeholder:text-slate-900"
+                                            placeholder="••••••••"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
+                            {error && (
+                                <motion.div
+                                    initial={{ opacity: 0, y: -10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    className="p-5 bg-danger/5 border border-danger/20 text-danger rounded-2xl text-[11px] font-black uppercase tracking-tight flex items-start gap-4"
+                                >
+                                    <div className="w-1.5 h-1.5 rounded-full bg-danger mt-1.5 shadow-[0_0_8px_rgba(239,68,68,0.5)]"></div>
+                                    <span className="flex-1 leading-relaxed">{error}</span>
+                                </motion.div>
                             )}
-                        </button>
-                    </form>
 
-                    <div className="mt-12 pt-10 border-t border-white/5 flex flex-col items-center gap-6">
-                        <p className="text-slate-600 font-bold">New system operator?</p>
-                        <Link
-                            href="/register"
-                            className="group flex items-center gap-3 px-8 py-4 bg-white/5 hover:bg-white/10 rounded-2xl border border-white/5 text-slate-300 font-black uppercase tracking-widest text-[10px] transition-all"
-                        >
-                            Request New Access Grant
-                            <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform text-blue-500" />
-                        </Link>
+                            <button
+                                type="submit"
+                                disabled={loading}
+                                className="w-full h-16 bg-brand-green text-white rounded-2xl shadow-2xl shadow-brand-green/20 font-black uppercase tracking-[0.3em] text-xs transition-all flex items-center justify-center gap-4 disabled:opacity-50 disabled:cursor-not-allowed group active:scale-[0.98]"
+                            >
+                                {loading ? (
+                                    <div className="w-6 h-6 border-3 border-white/20 border-t-white rounded-full animate-spin"></div>
+                                ) : (
+                                    <>
+                                        Initialize Auth
+                                        <ArrowRight size={20} className="group-hover:translate-x-1.5 transition-transform" />
+                                    </>
+                                )}
+                            </button>
+                        </form>
+
+                        <div className="mt-12 pt-8 border-t border-slate-800 flex flex-col items-center gap-4">
+                            <p className="text-xs font-black text-slate-600 uppercase tracking-widest">
+                                New unit? <Link href="/register" className="text-brand-green hover:underline">Register Personnel</Link>
+                            </p>
+                            <div className="flex items-center gap-3">
+                                <div className="h-px w-8 bg-slate-800"></div>
+                                <span className="text-[10px] font-mono text-slate-800 uppercase tracking-widest">Kernel Shell v1.4</span>
+                                <div className="h-px w-8 bg-slate-800"></div>
+                            </div>
+                        </div>
                     </div>
-                </div>
-
-                <p className="text-center text-[10px] text-slate-700 font-black uppercase tracking-[0.5em]">
-                    End-to-End Encrypted Industrial Protocol
-                </p>
+                </motion.div>
             </div>
         </div>
     );

@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { PowerPlantSchema } from '../utils/validation';
+import { PlantSchema } from '../utils/validation';
 
 // Mocking Prisma for the demo
 const prismaMock = {
@@ -26,7 +26,7 @@ export const getPowerPlants = async (req: Request, res: Response) => {
 
 export const createPowerPlant = async (req: Request, res: Response) => {
     try {
-        const validatedData = PowerPlantSchema.parse(req.body);
+        const validatedData = PlantSchema.parse(req.body);
         const plant = await prismaMock.powerPlant.create({
             data: validatedData
         });

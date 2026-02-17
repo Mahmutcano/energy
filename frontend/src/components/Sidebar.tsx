@@ -38,6 +38,7 @@ const MENU_GROUPS = [
             { name: 'Devices', href: '/devices', icon: Cpu },
             { name: 'Network Map', href: '/network', icon: Network },
             { name: 'Alarms', href: '/alarms', icon: AlertTriangle },
+            { name: 'Settings', href: '/settings', icon: Settings },
         ]
     },
     {
@@ -56,9 +57,9 @@ export default function Sidebar() {
     const { logout, user } = useAuth();
 
     return (
-        <aside className="w-60 h-screen bg-slate-900 border-r border-slate-800 flex flex-col z-[100] shrink-0">
+        <aside className="w-60 h-screen bg-card border-r border-border flex flex-col z-[100] shrink-0 transition-colors duration-300">
             {/* Professional Logo Area */}
-            <div className="h-14 flex items-center gap-3 px-6 border-b border-slate-800 bg-slate-950/50">
+            <div className="h-14 flex items-center gap-3 px-6 border-b border-border bg-background/50">
                 <div className="w-8 h-8 rounded-lg bg-brand-green flex items-center justify-center text-white shadow-lg shadow-brand-green/20">
                     <Activity size={18} strokeWidth={3} />
                 </div>
@@ -76,7 +77,7 @@ export default function Sidebar() {
 
                     return (
                         <div key={idx} className="space-y-1.5">
-                            <h3 className="px-3 text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] mb-2">
+                            <h3 className="px-3 text-[10px] font-bold text-foreground/40 uppercase tracking-[0.2em] mb-2">
                                 {group.label}
                             </h3>
                             <div className="space-y-0.5">
@@ -94,13 +95,13 @@ export default function Sidebar() {
                                                 "group flex items-center justify-between px-3 py-2 rounded-md transition-all",
                                                 isActive
                                                     ? "bg-brand-green text-white shadow-sm font-semibold"
-                                                    : "text-slate-400 hover:bg-slate-800 hover:text-slate-100 font-medium"
+                                                    : "text-foreground/60 hover:bg-white/5 hover:text-foreground font-medium"
                                             )}
                                         >
                                             <div className="flex items-center gap-3">
                                                 <item.icon size={16} className={cn(
                                                     "transition-colors",
-                                                    isActive ? "text-white" : "text-slate-500 group-hover:text-brand-green"
+                                                    isActive ? "text-white" : "text-foreground/40 group-hover:text-brand-green"
                                                 )} />
                                                 <span className="text-xs leading-none">{item.name}</span>
                                             </div>
@@ -115,22 +116,22 @@ export default function Sidebar() {
             </nav>
 
             {/* Sidebar Footer with Operator Info */}
-            <div className="p-3 border-t border-slate-800 bg-slate-950/30">
-                <div className="mb-4 px-3 py-3 rounded-lg bg-slate-800/50 border border-slate-700/50">
+            <div className="p-3 border-t border-border bg-background/30">
+                <div className="mb-4 px-3 py-3 rounded-lg bg-white/5 border border-border/50">
                     <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-[10px] font-bold text-white border border-slate-600 uppercase">
+                        <div className="w-8 h-8 rounded-full bg-background border border-border flex items-center justify-center text-[10px] font-bold text-white uppercase">
                             {user?.name?.substring(0, 2).toUpperCase() || 'OP'}
                         </div>
                         <div className="flex flex-col min-w-0">
                             <span className="text-xs font-bold text-white truncate">{user?.name || 'Local_Operator'}</span>
-                            <span className="text-[10px] text-slate-500 font-mono truncate uppercase">{user?.role || 'GUEST'}</span>
+                            <span className="text-[10px] text-foreground/40 font-mono truncate uppercase">{user?.role || 'GUEST'}</span>
                         </div>
                     </div>
                 </div>
 
                 <button
                     onClick={logout}
-                    className="w-full h-10 flex items-center justify-center gap-2 rounded-lg text-slate-400 hover:bg-red-500 hover:text-white transition-all text-[10px] font-bold uppercase tracking-wider"
+                    className="w-full h-10 flex items-center justify-center gap-2 rounded-lg text-foreground/40 hover:bg-red-500 hover:text-white transition-all text-[10px] font-bold uppercase tracking-wider"
                 >
                     <LogOut size={16} />
                     Logout

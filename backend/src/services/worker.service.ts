@@ -36,33 +36,32 @@ class WorkerService {
     }
 
     private async process(data: any) {
-        const { deviceId, ioa, value, unit, name, timestamp } = data;
+        const { commProtocolId, value, unit, name, timestamp } = data;
 
         // 1. Veritabanına Yaz (Historian)
-        saveTelemetry(deviceId, ioa, value);
+        saveTelemetry(commProtocolId, value);
 
         // 2. Canlı Yayını Yap (Real-time UI)
-        io.emit(`telemetry:${deviceId}:${ioa}`, data);
+        io.emit(`telemetry:${commProtocolId}`, data);
 
         // 3. Alarm Kontrollerini Yap (Business Logic)
-        this.checkAlarms(deviceId, ioa, value);
+        this.checkAlarms(commProtocolId, value);
 
-        console.log(`[WORKER] Processed: ${deviceId} | IOA: ${ioa} | VAL: ${value.toFixed(2)} ${unit}`);
+        console.log(`[WORKER] Processed: ${commProtocolId} | VAL: ${value.toFixed(2)} ${unit}`);
     }
 
-    private checkAlarms(deviceId: string, ioa: number, value: number) {
+    private checkAlarms(commProtocolId: string, value: number) {
         // Örnek basit alarm mantığı
         if (value > 250) { // Örn: Yüksek Voltaj
             const alarm = {
                 id: Date.now(),
-                deviceId,
-                ioa,
+                commProtocolId,
                 value,
                 severity: 'CRITICAL',
                 message: `Yüksek Değer Algılandı: ${value}`,
                 timestamp: new Date()
             };
-            io.emit(`alarms:${deviceId}`, alarm);
+            io.emit(`alarms:${commProtocolId}`, alarm);
         }
     }
 }

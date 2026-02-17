@@ -1,49 +1,153 @@
 @import "tailwindcss";
 
 @theme {
-  /* Carbon Tech - High-End Palette */
-  --color-brand-green: #10b981;
-  --color-brand-green-glow: rgba(16, 185, 129, 0.4);
+  --color-brand-green: var(--brand-color);
+  --color-brand-green-glow: var(--brand-glow);
+  --color-tech-bg: var(--background);
+  --color-tech-card: var(--card);
+  --color-tech-border: var(--border);
 
-  /* Semantic Technical Surfaces */
-  --color-tech-bg: #020617;
-  /* Sidebar Match */
-  --color-tech-card: #0B0F1A;
-  /* Balanced Surface */
-  --color-tech-border: #1E293B;
-  /* Crisp Boundary */
-
-  --color-background: var(--color-tech-bg);
-  --color-foreground: #F1F5F9;
-  --color-card: var(--color-tech-card);
-  --color-border: var(--color-tech-border);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-border: var(--border);
   --color-muted: var(--muted);
 
-  /* Status Semantics */
   --color-success: #10b981;
   --color-warning: #f59e0b;
   --color-danger: #ef4444;
-
-  /* Premium Radii */
   --radius-xl: 12px;
 }
 
 :root {
+  --background: #020617;
+  --foreground: #f1f5f9;
+  --card: #0B0F1A;
+  --border: #1E293B;
+  --muted: #1e293b;
+  --brand-color: #10b981;
+  --brand-glow: rgba(16, 185, 129, 0.4);
+  font-family: 'Inter', system-ui, sans-serif;
+}
+
+[data-theme="industrial-emerald"] {
+  --background: #020617;
+  --foreground: #f1f5f9;
+  --card: #0B0F1A;
+  --border: #1E293B;
+  --muted: #1e293b;
+  --brand-color: #10b981;
+  --brand-glow: rgba(16, 185, 129, 0.4);
+}
+
+[data-theme="classic-grid"] {
+  --background: #0f172a;
+  --foreground: #f8fafc;
+  --card: #1e293b;
+  --border: #334155;
+  --muted: #1e293b;
+  --brand-color: #38bdf8;
+  --brand-glow: rgba(56, 189, 248, 0.4);
+}
+
+[data-theme="warning-hazard"] {
+  --background: #1c1917;
+  --foreground: #fafaf9;
+  --card: #292524;
+  --border: #44403c;
+  --muted: #292524;
+  --brand-color: #f59e0b;
+  --brand-glow: rgba(245, 158, 11, 0.4);
+}
+
+[data-theme="ghost-white"] {
   --background: #f8fafc;
   --foreground: #0f172a;
   --card: #ffffff;
   --border: #e2e8f0;
   --muted: #f1f5f9;
-  font-family: 'Inter', system-ui, sans-serif;
+  --brand-color: #64748b;
+  --brand-glow: rgba(100, 116, 139, 0.4);
 }
 
-.dark {
-  --background: #020617;
-  /* Sidebar Background Match */
-  --foreground: #f1f5f9;
-  --card: #0B0F1A;
-  --border: #1E293B;
-  --muted: #1e293b;
+[data-theme="cyber-neon"] {
+  --background: #0f0524;
+  --foreground: #ffffff;
+  --card: #1a0b3c;
+  --border: #3d1b7a;
+  --muted: #1a0b3c;
+  --brand-color: #ff00ff;
+  --brand-glow: rgba(255, 0, 255, 0.6);
+}
+
+[data-theme="midnight-oil"] {
+  --background: #040914;
+  --foreground: #ccd6f6;
+  --card: #0a192f;
+  --border: #112240;
+  --muted: #112240;
+  --brand-color: #64ffda;
+  --brand-glow: rgba(100, 255, 218, 0.4);
+}
+
+[data-theme="oceanic-depth"] {
+  --background: #001219;
+  --foreground: #e9ecef;
+  --card: #001b24;
+  --border: #002e3b;
+  --muted: #001b24;
+  --brand-color: #00b4d8;
+  --brand-glow: rgba(0, 180, 216, 0.4);
+}
+
+[data-theme="solar-flare"] {
+  --background: #1a0a00;
+  --foreground: #fff5eb;
+  --card: #2b1200;
+  --border: #4a1d00;
+  --muted: #2b1200;
+  --brand-color: #ff6b00;
+  --brand-glow: rgba(255, 107, 0, 0.4);
+}
+
+[data-theme="toxic-waste"] {
+  --background: #050505;
+  --foreground: #e0ff00;
+  --card: #0a0a0a;
+  --border: #1a1a1a;
+  --muted: #0f0f0f;
+  --brand-color: #d4ff00;
+  --brand-glow: rgba(212, 255, 0, 0.6);
+}
+
+[data-theme="monokai-pro"] {
+  --background: #2d2a2e;
+  --foreground: #fcfcfa;
+  --card: #353236;
+  --border: #403e41;
+  --muted: #353236;
+  --brand-color: #ffd866;
+  --brand-glow: rgba(255, 216, 102, 0.4);
+}
+
+[data-theme="matrix-overload"] {
+  --background: #000000;
+  --foreground: #00ff41;
+  --card: #050505;
+  --border: #003b00;
+  --muted: #001100;
+  --brand-color: #00ff41;
+  --brand-glow: rgba(0, 255, 65, 0.6);
+}
+
+[data-theme="frost-bit"] {
+  --background: #f0f4f8;
+  --foreground: #102a43;
+  --card: #ffffff;
+  --border: #d9e2ec;
+  --muted: #f0f4f8;
+  --brand-color: #1992d4;
+  --brand-glow: rgba(25, 146, 212, 0.4);
 }
 
 @layer base {

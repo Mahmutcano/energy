@@ -9,7 +9,7 @@ interface User {
     email: string;
     name?: string;
     role: 'SUPER_ADMIN' | 'ADMIN' | 'CUSTOMER';
-    customerId?: string;
+    companyProfileId?: string;
 }
 
 interface AuthContextType {

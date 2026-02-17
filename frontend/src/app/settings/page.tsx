@@ -19,28 +19,76 @@ export default function SettingsPage() {
 
     const themes = [
         {
-            id: 'industrial-blue',
+            id: 'industrial-emerald',
             name: 'INDUSTRIAL_EMERALD',
-            color: '#00754A',
+            color: '#10b981',
             desc: 'New corporate protocol identity (Active: 0x01)'
         },
         {
-            id: 'classic-green',
-            name: 'CLASSIC_SCADA_BRIGHT',
-            color: '#10b981',
+            id: 'classic-grid',
+            name: 'CLASSIC_GRID',
+            color: '#38bdf8',
             desc: 'Legacy system aesthetic for core grid control'
         },
         {
-            id: 'warning-amber',
-            name: 'CAUTION_AMBER',
+            id: 'warning-hazard',
+            name: 'WARNING_HAZARD',
             color: '#f59e0b',
             desc: 'High visibility mode for critical environments'
         },
         {
-            id: 'high-contrast-ghost',
-            name: 'GHOST_HEADS_UP',
-            color: '#e2e8f0',
+            id: 'ghost-white',
+            name: 'GHOST_INTERFACE',
+            color: '#64748b',
             desc: 'Ultra-clear monochrome mapping interface'
+        },
+        {
+            id: 'cyber-neon',
+            name: 'CYBER_NEON_V1',
+            color: '#ff00ff',
+            desc: 'Night-shift optimized synthetic aesthetics'
+        },
+        {
+            id: 'midnight-oil',
+            name: 'MIDNIGHT_OIL',
+            color: '#64ffda',
+            desc: 'Deep-sea operations console environment'
+        },
+        {
+            id: 'oceanic-depth',
+            name: 'OCEANIC_DEPTH',
+            color: '#00b4d8',
+            desc: 'Hydro-thermal plant monitoring interface'
+        },
+        {
+            id: 'solar-flare',
+            name: 'SOLAR_FLARE',
+            color: '#ff6b00',
+            desc: 'High-energy fusion reactor telemetry'
+        },
+        {
+            id: 'toxic-waste',
+            name: 'TOXIC_WASTE',
+            color: '#d4ff00',
+            desc: 'Bio-chemical containment unit monitor'
+        },
+        {
+            id: 'monokai-pro',
+            name: 'MONOKAI_TECH',
+            color: '#ffd866',
+            desc: 'System engineer diagnostic environment'
+        },
+        {
+            id: 'matrix-overload',
+            name: 'MATRIX_RELOADED',
+            color: '#00ff41',
+            desc: 'Kernal-level direct memory visualization'
+        },
+        {
+            id: 'frost-bit',
+            name: 'FROST_CRYOGENIC',
+            color: '#1992d4',
+            desc: 'Sub-zero storage facility SCADA node'
         }
     ];
 

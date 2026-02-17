@@ -2,7 +2,19 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 
-type Theme = 'industrial-blue' | 'classic-green' | 'warning-amber' | 'high-contrast-ghost';
+type Theme =
+    | 'industrial-emerald'
+    | 'classic-grid'
+    | 'warning-hazard'
+    | 'ghost-white'
+    | 'cyber-neon'
+    | 'midnight-oil'
+    | 'oceanic-depth'
+    | 'solar-flare'
+    | 'toxic-waste'
+    | 'monokai-pro'
+    | 'matrix-overload'
+    | 'frost-bit';
 
 interface ThemeContextType {
     theme: Theme;
@@ -12,7 +24,7 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-    const [theme, setThemeState] = useState<Theme>('industrial-blue');
+    const [theme, setThemeState] = useState<Theme>('industrial-emerald');
 
     useEffect(() => {
         const savedTheme = localStorage.getItem('scada_user_theme') as Theme;

@@ -87,7 +87,7 @@ export const login = async (req: Request, res: Response) => {
                 email: user.email,
                 name: user.name,
                 role: user.role,
-                customerId: user.customerId
+                companyProfileId: user.companyProfileId
             }
         });
     } catch (err: any) {

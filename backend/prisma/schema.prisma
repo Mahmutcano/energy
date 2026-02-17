@@ -1,6 +1,5 @@
 generator client {
-  provider        = "prisma-client-js"
-  previewFeatures = ["driverAdapters"]
+  provider = "prisma-client-js"
 }
 
 datasource db {
@@ -19,116 +18,140 @@ enum Severity {
   CRITICAL
 }
 
-enum Protocol {
+enum ProtocolType {
+  MODBUS
   IEC104
-  MODBUS_TCP
+}
+
+enum ModbusDataType {
+  INT16
+  UINT16
+  INT32
+  UINT32
+  FLOAT32
+  BOOLEAN
 }
 
 model User {
-  id         String   @id @default(cuid())
-  email      String   @unique
-  password   String
-  name       String?
-  role       Role     @default(CUSTOMER)
-  customerId String?
-  customer   Customer? @relation(fields: [customerId], references: [id])
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id               String          @id @default(uuid())
+  email            String          @unique
+  password         String
+  name             String?
+  role             Role            @default(CUSTOMER)
+  companyProfileId String?
+  companyProfile   CompanyProfile? @relation(fields: [companyProfileId], references: [id])
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
 }
 
-model Customer {
-  id          String       @id @default(cuid())
-  name        String
-  description String?
-  users       User[]
-  powerPlants PowerPlant[]
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+model CompanyProfile {
+  id        String   @id @default(uuid())
+  name      String
+  address   String?  @db.Text
+  isActive  Boolean  @default(true)
+  plants    Plant[]
+  users     User[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
-model PowerPlant {
-  id          String   @id @default(cuid())
-  name        String
-  description String?
-  customerId  String
-  customer    Customer @relation(fields: [customerId], references: [id])
-  devices     Device[]
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+model Plant {
+  id            String         @id @default(uuid())
+  companyId     String
+  company       CompanyProfile @relation(fields: [companyId], references: [id])
+  plantName     String
+  latitude      Decimal?       @db.Decimal(10, 8)
+  longitude     Decimal?       @db.Decimal(11, 8)
+  commProtocols CommProtocol[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+}
+
+model DeviceCategory {
+  id           String   @id @default(uuid())
+  categoryName String
+  isActive     Boolean  @default(true)
+  devices      Device[]
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 }
 
 model Device {
-  id           String       @id @default(cuid())
-  name         String
-  protocol     Protocol     @default(IEC104)
-  ipAddress    String
-  port         Int          @default(2404)
-  slaveId      Int?         @default(1) // Modbus Unit ID
-  status       String       @default("OFFLINE")
-  powerPlantId String
-  powerPlant   PowerPlant   @relation(fields: [powerPlantId], references: [id])
-  mappings     IOAMapping[]
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
+  id            String         @id @default(uuid())
+  categoryId    String
+  category      DeviceCategory @relation(fields: [categoryId], references: [id])
+  deviceName    String
+  isActive      Boolean        @default(true)
+  commProtocols CommProtocol[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
 }
 
-model IOAMapping {
-  id              String           @id @default(cuid())
-  deviceId        String
-  device          Device           @relation(fields: [deviceId], references: [id])
-  name            String
-  unit            String?
-  description     String?
+model CommProtocol {
+  id           String        @id @default(uuid())
+  deviceId     String
+  device       Device        @relation(fields: [deviceId], references: [id])
+  plantId      String
+  plant        Plant         @relation(fields: [plantId], references: [id])
+  protocolType ProtocolType
+  ipAddress    String?       @db.Inet
   
-  // IEC104 specific
-  ioa             Int?
+  modbusConfig ModbusConfig?
+  iec104Config IEC104Config?
   
-  // Modbus specific
-  registerAddress Int?
-  functionCode    Int?             @default(3)
-  registerType    String?          // e.g., "Holding Register"
-  dataType        String?          // e.g., "16-bit Unsigned"
+  // Operational relationships
+  telemetry    Telemetry[]
+  thresholds   AlarmThreshold[]
   
-  scale           Float            @default(1.0)
-  offset          Float            @default(0.0)
-  thresholds      AlarmThreshold[]
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
-
-  // We keep a flexible unique constraint. For IEC104 ioa is required, for Modbus registerAddress is.
-  // In a real DB, you'd use a composite unique based on protocol, but for now:
-  @@unique([deviceId, ioa])
-  @@unique([deviceId, registerAddress])
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
 }
 
-model AlarmThreshold {
-  id           String     @id @default(cuid())
-  ioaMappingId String
-  mapping      IOAMapping @relation(fields: [ioaMappingId], references: [id])
-  lowThreshold Float?
-  highThreshold Float?
-  severity     Severity   @default(WARNING)
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+model ModbusConfig {
+  id             String         @id @default(uuid())
+  commProtocolId String         @unique
+  commProtocol   CommProtocol   @relation(fields: [commProtocolId], references: [id])
+  slaveId        Int
+  regAddress     Int
+  dataType       ModbusDataType
 }
 
-model AlarmLog {
-  id        String   @id @default(cuid())
-  deviceId  String
-  ioa       Int     // For consistency, we use 'ioa' or 'address' as the identifier in logs
-  value     Float
-  message   String
-  severity  Severity
-  timestamp DateTime @default(now())
-  resolved  Boolean  @default(false)
+model IEC104Config {
+  id             String       @id @default(uuid())
+  commProtocolId String       @unique
+  commProtocol   CommProtocol @relation(fields: [commProtocolId], references: [id])
+  asduAddress    Int
+  t0_timeout     Int
+  k_window       Int
 }
 
 model Telemetry {
-  id        BigInt   @id @default(autoincrement())
-  deviceId  String
-  address   Int      // represents IOA or Register Address
-  value     Float
-  timestamp DateTime @default(now())
+  id             BigInt       @id @default(autoincrement())
+  commProtocolId String
+  commProtocol   CommProtocol @relation(fields: [commProtocolId], references: [id])
+  value          Float
+  timestamp      DateTime     @default(now())
 
-  @@index([deviceId, address, timestamp])
+  @@index([commProtocolId, timestamp])
+}
+
+model AlarmThreshold {
+  id             String       @id @default(uuid())
+  commProtocolId String
+  commProtocol   CommProtocol @relation(fields: [commProtocolId], references: [id])
+  lowThreshold   Float?
+  highThreshold  Float?
+  severity       Severity     @default(WARNING)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+}
+
+model AlarmLog {
+  id             String   @id @default(uuid())
+  commProtocolId String
+  value          Float
+  message        String
+  severity       Severity
+  timestamp      DateTime @default(now())
+  resolved       Boolean  @default(false)
 }

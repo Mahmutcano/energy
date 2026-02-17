@@ -6,19 +6,32 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-import deviceRoutes from './routes/device.routes';
-import powerPlantRoutes from './routes/powerPlant.routes';
 import authRoutes from './routes/auth.routes';
 import adminRoutes from './routes/admin.routes';
+import deviceRoutes from './routes/device.routes';
+import plantRoutes from './routes/plant.routes';
+import categoryRoutes from './routes/device-category.routes';
+import protocolRoutes from './routes/protocol.routes';
+import alarmRoutes from './routes/alarm.routes';
+import userRoutes from './routes/user.routes';
+import companyRoutes from './routes/company.routes';
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
 app.use('/api/auth', authRoutes);
+// Admin routes (Modbus Test)
 app.use('/api/admin', adminRoutes);
+
+// Resource routes
 app.use('/api', deviceRoutes);
-app.use('/api', powerPlantRoutes);
+app.use('/api', plantRoutes);
+app.use('/api', categoryRoutes);
+app.use('/api', protocolRoutes);
+app.use('/api', alarmRoutes);
+app.use('/api', userRoutes);
+app.use('/api', companyRoutes);
 
 const server = http.createServer(app);
 const io = new Server(server, {

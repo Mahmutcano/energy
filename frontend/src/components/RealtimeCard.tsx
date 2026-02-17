@@ -2,23 +2,22 @@
 
 import { useEffect, useState } from 'react';
 import { socket } from '@/lib/socket';
-import { Activity, ArrowUpRight, ArrowDownRight, Zap } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight, Zap } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface RealtimeCardProps {
-    deviceId: string;
-    ioa: number;
+    commProtocolId: string;
     label: string;
     unit: string;
 }
 
-export default function RealtimeCard({ deviceId, ioa, label, unit }: RealtimeCardProps) {
+export default function RealtimeCard({ commProtocolId, label, unit }: RealtimeCardProps) {
     const [value, setValue] = useState<number | null>(null);
     const [prevValue, setPrevValue] = useState<number | null>(null);
     const [isLive, setIsLive] = useState(false);
 
     useEffect(() => {
-        const topic = `telemetry:${deviceId}:${ioa}`;
+        const topic = `telemetry:${commProtocolId}`;
 
         const handleData = (data: { value: number }) => {
             setValue(current => {
@@ -36,14 +35,13 @@ export default function RealtimeCard({ deviceId, ioa, label, unit }: RealtimeCar
         return () => {
             socket.off(topic, handleData);
         };
-    }, [deviceId, ioa]);
+    }, [commProtocolId]);
 
     const delta = (value !== null && prevValue !== null) ? value - prevValue : 0;
     const isUp = delta >= 0;
 
     return (
         <div className="card-base p-6 flex flex-col justify-between h-48 group dot-bg">
-            {/* Ambient Depth Accent */}
             <div className="absolute -top-12 -right-12 w-32 h-32 bg-brand-green/5 rounded-full blur-[80px] pointer-events-none group-hover:bg-brand-green/10 transition-colors" />
 
             <div className="flex justify-between items-start relative z-10">
@@ -55,7 +53,7 @@ export default function RealtimeCard({ deviceId, ioa, label, unit }: RealtimeCar
                 </div>
                 <div className="flex items-center gap-2 px-2.5 py-1 rounded-full bg-slate-950/60 border border-slate-800/50">
                     <div className={`status-indicator ${isLive ? 'bg-brand-green shadow-[0_0_10px_rgba(16,185,129,0.5)] animate-pulse' : 'bg-slate-700'}`} />
-                    <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">{isLive ? 'Link_Ok' : 'Offline'}</span>
+                    <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">{isLive ? 'Live' : 'Offline'}</span>
                 </div>
             </div>
 
@@ -80,8 +78,8 @@ export default function RealtimeCard({ deviceId, ioa, label, unit }: RealtimeCar
                     {isUp ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
                     <span className="tabular-nums">{(Math.abs(delta) || 0).toFixed(3)}</span>
                 </div>
-                <div className="px-2 py-0.5 rounded bg-slate-950/60 text-[9px] font-mono font-bold text-slate-500 border border-slate-800/50 uppercase tracking-tighter">
-                    Node::{ioa}
+                <div className="px-2 py-0.5 rounded bg-slate-950/60 text-[8px] font-mono font-bold text-slate-500 border border-slate-800/50 uppercase tracking-tighter truncate max-w-[100px]">
+                    {commProtocolId.substring(0, 8)}
                 </div>
             </div>
         </div>

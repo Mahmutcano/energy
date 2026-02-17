@@ -1,0 +1,261 @@
+"use client";
+
+import { useState, useEffect } from 'react';
+import { Users, Plus, X, ShieldCheck, Mail, Building2 } from 'lucide-react';
+import { apiRequest } from '@/lib/api';
+import { motion, AnimatePresence } from 'framer-motion';
+
+interface User {
+    id: string;
+    email: string;
+    name: string | null;
+    role: 'SUPER_ADMIN' | 'ADMIN' | 'CUSTOMER';
+    companyProfileId: string | null;
+    companyProfile?: { id: string; name: string } | null;
+    createdAt: string;
+}
+
+export default function UsersPage() {
+    const [users, setUsers] = useState<User[]>([]);
+    const [companies, setCompanies] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [formData, setFormData] = useState({
+        email: '',
+        password: '',
+        name: '',
+        role: 'CUSTOMER' as 'SUPER_ADMIN' | 'ADMIN' | 'CUSTOMER',
+        companyProfileId: '',
+    });
+
+    const fetchUsers = async () => {
+        try {
+            const res = await apiRequest('/api/users');
+            if (res.ok) {
+                const data = await res.json();
+                setUsers(data);
+            }
+        } catch (err) {
+            console.error('Failed to fetch users:', err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const fetchCompanies = async () => {
+        try {
+            const res = await apiRequest('/api/companies');
+            if (res.ok) setCompanies(await res.json());
+        } catch (err) {
+            console.error('Failed to fetch companies:', err);
+        }
+    };
+
+    useEffect(() => {
+        fetchUsers();
+        fetchCompanies();
+    }, []);
+
+    const handleCreate = async (e: React.FormEvent) => {
+        e.preventDefault();
+        try {
+            const res = await apiRequest('/api/users', {
+                method: 'POST',
+                body: JSON.stringify({
+                    ...formData,
+                    companyProfileId: formData.companyProfileId || null,
+                })
+            });
+            if (res.ok) {
+                setIsModalOpen(false);
+                setFormData({ email: '', password: '', name: '', role: 'CUSTOMER', companyProfileId: '' });
+                fetchUsers();
+            }
+        } catch (err) {
+            console.error('Create error:', err);
+        }
+    };
+
+    const roleColors: Record<string, string> = {
+        SUPER_ADMIN: 'text-red-400 bg-red-500/10 border-red-500/20',
+        ADMIN: 'text-amber-400 bg-amber-500/10 border-amber-500/20',
+        CUSTOMER: 'text-brand-green bg-brand-green/10 border-brand-green/20',
+    };
+
+    return (
+        <div className="space-y-8 pb-16 animate-in-up font-sans">
+            {/* Header */}
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-8">
+                <div className="space-y-2">
+                    <div className="flex items-center gap-4">
+                        <div className="w-1.5 h-8 bg-brand-green rounded-full shadow-[0_0_20px_rgba(16,185,129,0.4)]"></div>
+                        <h1 className="text-3xl font-black text-white tracking-tight uppercase">User Management</h1>
+                    </div>
+                    <p className="text-sm text-slate-500 ml-6">Manage system users and role assignments</p>
+                </div>
+
+                <button
+                    onClick={() => setIsModalOpen(true)}
+                    className="flex items-center gap-3 px-6 py-3 bg-brand-green text-white rounded-xl text-xs font-bold shadow-lg shadow-brand-green/20 hover:scale-[1.02] transition-all uppercase tracking-widest"
+                >
+                    <Plus size={16} strokeWidth={3} /> New User
+                </button>
+            </div>
+
+            {/* User Table */}
+            <div className="card-base overflow-hidden">
+                <div className="p-6 border-b border-slate-800/40 flex justify-between items-center bg-slate-900/40">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2 rounded-lg bg-slate-950 border border-slate-800 text-brand-green">
+                            <Users size={18} />
+                        </div>
+                        <div>
+                            <h3 className="text-sm font-bold text-white uppercase">User Registry</h3>
+                            <p className="text-[10px] text-slate-500">{users.length} users</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
+                        <thead>
+                            <tr className="text-[10px] font-bold text-slate-500 uppercase tracking-widest border-b border-slate-800/40 bg-slate-900/20">
+                                <th className="px-6 py-4">Name</th>
+                                <th className="px-6 py-4">Email</th>
+                                <th className="px-6 py-4">Role</th>
+                                <th className="px-6 py-4">Company</th>
+                                <th className="px-6 py-4">Created</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {loading ? (
+                                <tr><td colSpan={5} className="px-6 py-12 text-center text-sm text-slate-500 animate-pulse">Loading users...</td></tr>
+                            ) : users.length === 0 ? (
+                                <tr><td colSpan={5} className="px-6 py-12 text-center text-sm text-slate-500">No users found</td></tr>
+                            ) : users.map((user) => (
+                                <tr key={user.id} className="border-b border-slate-800/30 hover:bg-slate-800/20 transition-all">
+                                    <td className="px-6 py-4">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-8 h-8 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center text-[10px] font-bold text-white uppercase">
+                                                {user.name?.substring(0, 2) || 'N/A'}
+                                            </div>
+                                            <span className="text-sm font-bold text-white">{user.name || 'Unnamed'}</span>
+                                        </div>
+                                    </td>
+                                    <td className="px-6 py-4 text-sm text-slate-400">{user.email}</td>
+                                    <td className="px-6 py-4">
+                                        <span className={`px-2 py-1 rounded-md text-[10px] font-bold uppercase border ${roleColors[user.role]}`}>
+                                            {user.role}
+                                        </span>
+                                    </td>
+                                    <td className="px-6 py-4 text-sm text-slate-400">
+                                        {user.companyProfile?.name || '—'}
+                                    </td>
+                                    <td className="px-6 py-4 text-xs font-mono text-slate-600 tabular-nums">
+                                        {new Date(user.createdAt).toLocaleDateString()}
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            {/* Create Modal */}
+            <AnimatePresence>
+                {isModalOpen && (
+                    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+                        <motion.div
+                            initial={{ scale: 0.95, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.95, opacity: 0 }}
+                            className="card-base w-full max-w-lg bg-slate-950 border-slate-800 overflow-hidden shadow-2xl"
+                        >
+                            <div className="p-6 border-b border-slate-800 flex justify-between items-center bg-slate-900/30">
+                                <div className="flex items-center gap-3">
+                                    <div className="p-2 rounded-lg bg-slate-950 border border-slate-800">
+                                        <ShieldCheck size={18} className="text-brand-green" />
+                                    </div>
+                                    <div>
+                                        <h2 className="text-lg font-bold text-white">New User</h2>
+                                        <p className="text-[10px] text-slate-500 uppercase tracking-widest">Create user account</p>
+                                    </div>
+                                </div>
+                                <button onClick={() => setIsModalOpen(false)} className="p-2 text-slate-500 hover:text-white transition-colors">
+                                    <X size={20} />
+                                </button>
+                            </div>
+                            <form onSubmit={handleCreate} className="p-6 space-y-4">
+                                <div className="space-y-2">
+                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Name</label>
+                                    <input
+                                        type="text"
+                                        value={formData.name}
+                                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                        className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none"
+                                        placeholder="Full name"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Email</label>
+                                    <input
+                                        type="email"
+                                        value={formData.email}
+                                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                                        className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none"
+                                        placeholder="user@example.com"
+                                        required
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Password</label>
+                                    <input
+                                        type="password"
+                                        value={formData.password}
+                                        onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                                        className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none"
+                                        placeholder="••••••••"
+                                        required
+                                    />
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Role</label>
+                                        <select
+                                            value={formData.role}
+                                            onChange={(e) => setFormData({ ...formData, role: e.target.value as any })}
+                                            className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none"
+                                        >
+                                            <option value="CUSTOMER">Customer</option>
+                                            <option value="ADMIN">Admin</option>
+                                            <option value="SUPER_ADMIN">Super Admin</option>
+                                        </select>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Company</label>
+                                        <select
+                                            value={formData.companyProfileId}
+                                            onChange={(e) => setFormData({ ...formData, companyProfileId: e.target.value })}
+                                            className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none"
+                                        >
+                                            <option value="">None</option>
+                                            {companies.map((c: any) => (
+                                                <option key={c.id} value={c.id}>{c.name}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                </div>
+                                <button
+                                    type="submit"
+                                    className="w-full py-4 bg-brand-green text-white font-bold uppercase tracking-widest text-xs rounded-xl shadow-lg shadow-brand-green/20 hover:scale-[1.01] transition-all"
+                                >
+                                    Create User
+                                </button>
+                            </form>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+        </div>
+    );
+}

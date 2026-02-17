@@ -1,153 +1,191 @@
 "use client";
 
-import { AlertTriangle, Bell, Clock, CheckCircle, Search, Filter, ShieldAlert, Activity, Cpu } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { AlertTriangle, Bell, Clock, CheckCircle, Search, ShieldAlert } from 'lucide-react';
+import { apiRequest } from '@/lib/api';
 
-const alarms = [
-    { id: 1, device: 'RTU_TRANSFORMER_01', ioa: 100, msg: 'Active Power exceeded High-Threshold (294.2 kW)', severity: 'CRITICAL', time: '2024-02-12 21:05:12', status: 'ACTIVE' },
-    { id: 2, device: 'RTU_TRANSFORMER_01', ioa: 101, msg: 'Phase A Voltage outside normal range', severity: 'WARNING', time: '2024-02-12 20:45:00', status: 'ACKNOWLEDGED' },
-    { id: 3, device: 'MAIN_SWITCHGEAR_EAST', ioa: 502, msg: 'Breaker Trip - Overcurrent Protection', severity: 'CRITICAL', time: '2024-02-12 19:12:33', status: 'RESOLVED' },
-    { id: 4, device: 'GENERATOR_CONTROL_B', ioa: 200, msg: 'Communication Timeout with RTU', severity: 'WARNING', time: '2024-02-12 18:30:15', status: 'ACTIVE' },
-];
+interface AlarmLog {
+    id: string;
+    commProtocolId: string;
+    value: number;
+    message: string;
+    severity: 'INFO' | 'WARNING' | 'CRITICAL';
+    timestamp: string;
+    resolved: boolean;
+}
 
-export default function Alarms() {
+export default function AlarmsPage() {
+    const [alarms, setAlarms] = useState<AlarmLog[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [filter, setFilter] = useState<'ALL' | 'ACTIVE' | 'RESOLVED'>('ALL');
+
+    useEffect(() => {
+        const fetchAlarms = async () => {
+            try {
+                const res = await apiRequest('/api/alarms');
+                if (res.ok) {
+                    const data = await res.json();
+                    setAlarms(data);
+                }
+            } catch (err) {
+                console.error('Failed to fetch alarms:', err);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchAlarms();
+    }, []);
+
+    const filteredAlarms = alarms.filter(a => {
+        if (filter === 'ACTIVE') return !a.resolved;
+        if (filter === 'RESOLVED') return a.resolved;
+        return true;
+    });
+
+    const activeCount = alarms.filter(a => !a.resolved).length;
+    const criticalCount = alarms.filter(a => a.severity === 'CRITICAL' && !a.resolved).length;
+
+    const handleResolve = async (id: string) => {
+        try {
+            const res = await apiRequest(`/api/alarms/${id}/resolve`, { method: 'PATCH' });
+            if (res.ok) {
+                setAlarms(prev => prev.map(a => a.id === id ? { ...a, resolved: true } : a));
+            }
+        } catch (err) {
+            console.error('Failed to resolve alarm:', err);
+        }
+    };
+
+    const severityConfig = {
+        CRITICAL: { color: 'text-red-400', bg: 'bg-red-500/10', border: 'border-red-500/20', dot: 'bg-red-500' },
+        WARNING: { color: 'text-amber-400', bg: 'bg-amber-500/10', border: 'border-amber-500/20', dot: 'bg-amber-500' },
+        INFO: { color: 'text-blue-400', bg: 'bg-blue-500/10', border: 'border-blue-500/20', dot: 'bg-blue-500' },
+    };
+
     return (
-        <div className="space-y-10 pb-16 animate-in-up font-sans">
-            {/* 1. Alarm Intelligence Header */}
-            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-8 relative">
+        <div className="space-y-8 pb-16 animate-in-up font-sans">
+            {/* Header */}
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-8">
                 <div className="space-y-2">
                     <div className="flex items-center gap-4">
-                        <div className="w-1.5 h-8 bg-danger rounded-full shadow-[0_0_20px_rgba(239,68,68,0.4)]"></div>
-                        <h1 className="text-4xl font-black text-white tracking-tighter uppercase italic">Alarm Management</h1>
+                        <div className="w-1.5 h-8 bg-red-500 rounded-full shadow-[0_0_20px_rgba(239,68,68,0.4)]"></div>
+                        <h1 className="text-3xl font-black text-white tracking-tight uppercase">Alarm Logs</h1>
                     </div>
-                    <div className="flex items-center gap-3">
-                        <span className="text-tech-label text-danger/80 tracking-[0.4em]">Critical Event Log</span>
-                        <div className="h-px w-12 bg-slate-800"></div>
-                        <span className="text-[10px] font-mono text-slate-600">WATCHDOG MONITORING ACTIVE</span>
-                    </div>
+                    <p className="text-sm text-slate-500 ml-6">Monitor and manage alarm events from communication protocols</p>
                 </div>
 
-                <div className="flex items-center gap-4">
-                    <button className="flex items-center gap-3 px-8 py-4 bg-slate-900 border border-slate-800 rounded-xl text-xs font-black text-white hover:border-danger/30 transition-all uppercase tracking-widest group">
-                        <CheckCircle size={18} className="text-slate-500 group-hover:text-brand-green" /> Acknowledge All
-                    </button>
-                    <div className="flex items-center gap-3 px-4 py-3 bg-slate-950/40 rounded-xl border border-slate-800/40 backdrop-blur-md">
-                        <div className="w-2 h-2 rounded-full bg-danger animate-pulse shadow-[0_0_12px_rgba(239,68,68,0.6)]"></div>
-                        <span className="text-[10px] font-black text-danger tracking-[0.2em] uppercase">System Alert</span>
+                {activeCount > 0 && (
+                    <div className="flex items-center gap-3 px-4 py-3 bg-red-500/5 rounded-xl border border-red-500/20">
+                        <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse shadow-[0_0_10px_rgba(239,68,68,0.6)]"></div>
+                        <span className="text-xs font-bold text-red-400 uppercase tracking-widest">{activeCount} Active Alarms</span>
                     </div>
-                </div>
+                )}
             </div>
 
-            {/* 2. Tactical Metrics Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {/* Stats */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {[
-                    { label: 'Active Critical', val: '02', sub: 'High priority alerts', color: 'text-danger', bg: 'bg-danger/5', border: 'border-danger/20', icon: ShieldAlert },
-                    { label: 'Unacknowledged', val: '05', sub: 'Pending operator review', color: 'text-warning', bg: 'bg-warning/5', border: 'border-warning/20', icon: Bell },
-                    { label: 'Avg Resolution Time', val: '14:04', unit: 'Min', sub: 'Mean time to clear', color: 'text-brand-green', bg: 'bg-brand-green/5', border: 'border-brand-green/20', icon: Clock },
+                    { label: 'Active Critical', val: criticalCount.toString(), icon: ShieldAlert, color: 'text-red-400', bg: 'bg-red-500/5', border: 'border-red-500/20' },
+                    { label: 'Unresolved', val: activeCount.toString(), icon: Bell, color: 'text-amber-400', bg: 'bg-amber-500/5', border: 'border-amber-500/20' },
+                    { label: 'Total Events', val: alarms.length.toString(), icon: Clock, color: 'text-brand-green', bg: 'bg-brand-green/5', border: 'border-brand-green/20' },
                 ].map((stat, i) => (
-                    <div key={i} className={`card-base p-8 ${stat.bg} ${stat.border} relative overflow-hidden group`}>
-                        <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
-                            <stat.icon size={48} />
+                    <div key={i} className={`card-base p-6 ${stat.bg} ${stat.border} flex items-center gap-4`}>
+                        <div className={`p-3 rounded-xl bg-slate-950 border border-slate-800 ${stat.color}`}>
+                            <stat.icon size={20} />
                         </div>
-                        <div className="flex justify-between items-start mb-6">
-                            <span className={`text-tech-label ${stat.color}`}>{stat.label}</span>
-                            <div className="px-2 py-0.5 rounded bg-slate-950/80 text-[8px] font-mono border border-white/5 text-slate-500 uppercase">Live Sensor</div>
+                        <div>
+                            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{stat.label}</p>
+                            <p className={`text-3xl font-black tabular-nums ${stat.color}`}>{stat.val}</p>
                         </div>
-                        <div className="flex items-baseline gap-2">
-                            <h3 className={`text-5xl font-black italic tracking-tighter ${stat.color}`}>{stat.val}</h3>
-                            {stat.unit && <span className="text-xs font-black text-slate-500 uppercase tracking-widest">{stat.unit}</span>}
-                        </div>
-                        <p className="text-[10px] text-slate-600 font-bold uppercase mt-4 tracking-tight leading-none">{stat.sub}</p>
                     </div>
                 ))}
             </div>
 
-            {/* 3. Event Matrix Console */}
-            <section className="card-base bg-slate-950/40 flex flex-col h-full min-h-[600px] dot-bg border-slate-800 overflow-hidden shadow-2xl">
-                <div className="bg-slate-900/40 px-8 py-5 border-b border-slate-800/60 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-                    <div className="flex items-center gap-6">
-                        <div className="flex items-center gap-3">
-                            <div className="p-2 bg-slate-950 border border-slate-800 rounded-lg">
-                                <Search size={16} className="text-slate-500" />
-                            </div>
-                            <input
-                                type="text"
-                                placeholder="Filter records..."
-                                className="bg-transparent border-none text-xs font-bold text-white focus:outline-none uppercase tracking-widest w-48 placeholder:text-slate-800"
-                            />
+            {/* Alarm Table */}
+            <div className="card-base overflow-hidden">
+                <div className="p-6 border-b border-slate-800/40 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-slate-900/40">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2 rounded-lg bg-slate-950 border border-slate-800 text-red-400">
+                            <AlertTriangle size={18} />
                         </div>
-                        <div className="h-6 w-px bg-slate-800 hidden md:block"></div>
-                        <div className="flex gap-3">
-                            <button className="px-4 py-2 border border-brand-green/30 bg-brand-green/10 text-[9px] font-black text-brand-green rounded-lg uppercase tracking-widest">All Units</button>
-                            <button className="px-4 py-2 border border-slate-800 bg-slate-900/60 text-[9px] font-black text-slate-600 rounded-lg hover:text-white transition-all uppercase tracking-widest">Critical Only</button>
-                        </div>
+                        <h3 className="text-sm font-bold text-white uppercase">Event Log</h3>
+                    </div>
+                    <div className="flex gap-2">
+                        {(['ALL', 'ACTIVE', 'RESOLVED'] as const).map(f => (
+                            <button
+                                key={f}
+                                onClick={() => setFilter(f)}
+                                className={`px-4 py-2 rounded-lg text-[10px] font-bold uppercase tracking-widest border transition-all ${filter === f
+                                    ? 'border-brand-green/30 bg-brand-green/10 text-brand-green'
+                                    : 'border-slate-800 bg-slate-900/60 text-slate-600 hover:text-white'
+                                    }`}
+                            >
+                                {f}
+                            </button>
+                        ))}
                     </div>
                 </div>
 
-                <div className="flex-1 overflow-x-auto relative z-10">
+                <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse">
                         <thead>
-                            <tr className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] border-b border-slate-800/40 bg-slate-900/20">
-                                <th className="px-8 py-5">System State</th>
-                                <th className="px-8 py-5">Source Node</th>
-                                <th className="px-8 py-5">Payload Descriptor</th>
-                                <th className="px-8 py-5">Log Identity</th>
-                                <th className="px-8 py-5">Timestamp</th>
-                                <th className="px-8 py-5 text-right">Action</th>
+                            <tr className="text-[10px] font-bold text-slate-500 uppercase tracking-widest border-b border-slate-800/40 bg-slate-900/20">
+                                <th className="px-6 py-4">Status</th>
+                                <th className="px-6 py-4">Severity</th>
+                                <th className="px-6 py-4">Message</th>
+                                <th className="px-6 py-4">Value</th>
+                                <th className="px-6 py-4">Protocol ID</th>
+                                <th className="px-6 py-4">Timestamp</th>
+                                <th className="px-6 py-4 text-right">Action</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {alarms.map((alarm) => (
-                                <tr key={alarm.id} className="border-b border-slate-800/30 hover:bg-slate-800/20 transition-all group">
-                                    <td className="px-8 py-5">
-                                        <div className="flex items-center gap-3">
-                                            <div className={`w-2 h-2 rounded-full ${alarm.status === 'ACTIVE' ? 'bg-danger animate-pulse shadow-[0_0_10px_rgba(239,68,68,0.5)]' : alarm.status === 'ACKNOWLEDGED' ? 'bg-warning' : 'bg-brand-green'}`} />
-                                            <span className="text-[10px] font-black text-slate-400 mt-0.5 uppercase tracking-tighter">{alarm.status}</span>
-                                        </div>
-                                    </td>
-                                    <td className="px-8 py-5">
-                                        <div className="flex flex-col">
-                                            <span className="text-xs font-black text-white italic uppercase tracking-tighter tabular-nums">{alarm.device}</span>
-                                            <span className="text-[8px] font-mono text-slate-600 uppercase mt-1">Bus::IOA_{alarm.ioa}</span>
-                                        </div>
-                                    </td>
-                                    <td className="px-8 py-5">
-                                        <p className="text-[11px] text-slate-400 max-w-sm font-bold leading-relaxed uppercase tracking-tight">{alarm.msg}</p>
-                                    </td>
-                                    <td className="px-8 py-5">
-                                        <span className={`px-2 py-1 rounded-md text-[9px] font-black uppercase border tracking-widest ${alarm.severity === 'CRITICAL' ? 'border-danger/30 text-danger bg-danger/5' : 'border-warning/30 text-warning bg-warning/5'
-                                            }`}>
-                                            {alarm.severity}
-                                        </span>
-                                    </td>
-                                    <td className="px-8 py-5">
-                                        <span className="text-[10px] font-black text-slate-600 font-mono tabular-nums">{alarm.time}</span>
-                                    </td>
-                                    <td className="px-8 py-5 text-right">
-                                        <button className="px-3 py-1.5 bg-slate-950 border border-slate-800 text-[9px] font-black text-slate-500 rounded hover:text-white hover:border-brand-green/30 transition-all uppercase opacity-0 group-hover:opacity-100">
-                                            Ack Unit
-                                        </button>
-                                    </td>
-                                </tr>
-                            ))}
+                            {loading ? (
+                                <tr><td colSpan={7} className="px-6 py-12 text-center text-sm text-slate-500 animate-pulse">Loading alarm logs...</td></tr>
+                            ) : filteredAlarms.length === 0 ? (
+                                <tr><td colSpan={7} className="px-6 py-12 text-center text-sm text-slate-500">No alarm events found</td></tr>
+                            ) : filteredAlarms.map((alarm) => {
+                                const sev = severityConfig[alarm.severity];
+                                return (
+                                    <tr key={alarm.id} className="border-b border-slate-800/30 hover:bg-slate-800/20 transition-all group">
+                                        <td className="px-6 py-4">
+                                            <div className="flex items-center gap-2">
+                                                <div className={`w-2 h-2 rounded-full ${alarm.resolved ? 'bg-brand-green' : `${sev.dot} animate-pulse`}`} />
+                                                <span className={`text-[10px] font-bold uppercase ${alarm.resolved ? 'text-brand-green' : 'text-slate-400'}`}>
+                                                    {alarm.resolved ? 'Resolved' : 'Active'}
+                                                </span>
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <span className={`px-2 py-1 rounded-md text-[10px] font-bold uppercase border ${sev.bg} ${sev.color} ${sev.border}`}>
+                                                {alarm.severity}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4 text-xs text-slate-300 max-w-sm">{alarm.message}</td>
+                                        <td className="px-6 py-4 text-sm font-mono text-white tabular-nums">{alarm.value.toFixed(2)}</td>
+                                        <td className="px-6 py-4">
+                                            <span className="text-[10px] font-mono text-slate-600">{alarm.commProtocolId.substring(0, 8)}...</span>
+                                        </td>
+                                        <td className="px-6 py-4 text-xs font-mono text-slate-600 tabular-nums">
+                                            {new Date(alarm.timestamp).toLocaleString()}
+                                        </td>
+                                        <td className="px-6 py-4 text-right">
+                                            {!alarm.resolved && (
+                                                <button
+                                                    onClick={() => handleResolve(alarm.id)}
+                                                    className="px-3 py-1.5 bg-slate-950 border border-slate-800 text-[10px] font-bold text-slate-500 rounded hover:text-brand-green hover:border-brand-green/30 transition-all uppercase opacity-0 group-hover:opacity-100"
+                                                >
+                                                    Resolve
+                                                </button>
+                                            )}
+                                        </td>
+                                    </tr>
+                                );
+                            })}
                         </tbody>
                     </table>
                 </div>
-
-                {/* Tactical Console Footer */}
-                <div className="px-8 py-4 bg-slate-900/60 border-t border-slate-800/60 flex justify-between items-center bg-slate-900/40">
-                    <span className="text-[10px] font-black text-slate-700 tracking-[0.4em] uppercase italic">Secure Stream Finalized</span>
-                    <div className="flex gap-10">
-                        <div className="flex items-center gap-2">
-                            <div className="w-1.5 h-1.5 rounded-full bg-slate-800"></div>
-                            <span className="text-[9px] font-black text-slate-700 uppercase tracking-widest">Cache: 1.2MB/10MB</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <div className="w-1.5 h-1.5 rounded-full bg-brand-green animate-pulse"></div>
-                            <span className="text-[9px] font-black text-brand-green uppercase tracking-widest">Uplink Stable</span>
-                        </div>
-                    </div>
-                </div>
-            </section>
+            </div>
         </div>
     );
 }

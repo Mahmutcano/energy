@@ -23,13 +23,9 @@ export default function Analytics() {
                 <div className="space-y-2">
                     <div className="flex items-center gap-4">
                         <div className="w-1.5 h-8 bg-brand-green rounded-full shadow-[0_0_20px_rgba(16,185,129,0.4)]"></div>
-                        <h1 className="text-4xl font-black text-white tracking-tighter uppercase italic">System Analytics</h1>
+                        <h1 className="text-3xl font-black text-white tracking-tight uppercase">System Analytics</h1>
                     </div>
-                    <div className="flex items-center gap-3">
-                        <span className="text-tech-label text-brand-green/80 tracking-[0.4em]">Performance Metrics</span>
-                        <div className="h-px w-12 bg-slate-800"></div>
-                        <span className="text-[10px] font-mono text-slate-600">STREAMS ANALYZED::24H</span>
-                    </div>
+                    <p className="text-sm text-slate-500 ml-6">Historical telemetry data and performance metrics</p>
                 </div>
 
                 <div className="flex items-center gap-4">

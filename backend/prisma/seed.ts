@@ -16,25 +16,21 @@ async function main() {
     console.log('🌱 Seeding database...');
 
     const email = '1';
-    const password = '1';
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    const user = await prisma.user.upsert({
+    const user = await prisma.appUser.upsert({
         where: { email: email },
-        update: {
-            password: hashedPassword,
-        },
+        update: {},
         create: {
+            userCode: Math.random().toString(36).substring(7),
             email: email,
-            password: hashedPassword,
-            name: 'Master Operator',
-            role: 'SUPER_ADMIN',
+            firstName: 'Master',
+            lastName: 'Operator',
+            adminType: 'SUPER_ADMIN',
         },
     });
 
     console.log(`✅ Default user created:`);
     console.log(`   Email: ${user.email}`);
-    console.log(`   Role: ${user.role}`);
+    console.log(`   Role: ${user.adminType}`);
 
     await pool.end();
 }

@@ -5,14 +5,14 @@ import { Prisma } from '@prisma/client';
  * Veriyi Veritabanı (PostgreSQL) üzerine kaydeder.
  * Prisma üzerinden standard bir veritabanı kaydı olarak tutulur.
  */
-export const saveTelemetry = async (commProtocolId: string, value: number) => {
+export const saveTelemetry = async (dataSheetId: string, value: number) => {
     try {
-        const data: Prisma.TelemetryUncheckedCreateInput = {
-            commProtocolId,
-            value,
-            timestamp: new Date()
+        const data: Prisma.TelemetryValueUncheckedCreateInput = {
+            dataSheetId,
+            valueNumeric: value,
+            measurementTime: new Date()
         };
-        await prisma.telemetry.create({ data });
+        await prisma.telemetryValue.create({ data });
     } catch (err) {
         console.error('[TELEMETRY] Save Error:', err);
     }
@@ -21,26 +21,26 @@ export const saveTelemetry = async (commProtocolId: string, value: number) => {
 /**
  * Geçmiş veriyi sorgular (Grafikler için)
  */
-export const queryTelemetry = async (commProtocolId: string, hours: number = 1) => {
+export const queryTelemetry = async (dataSheetId: string, hours: number = 1) => {
     try {
         const startTime = new Date(Date.now() - hours * 60 * 60 * 1000);
 
-        const results = await prisma.telemetry.findMany({
+        const results = await prisma.telemetryValue.findMany({
             where: {
-                commProtocolId,
-                timestamp: {
+                dataSheetId,
+                measurementTime: {
                     gte: startTime
                 }
             },
             orderBy: {
-                timestamp: 'asc'
+                measurementTime: 'asc'
             }
         });
 
         return results.map(r => ({
-            time: r.timestamp,
-            value: r.value,
-            commProtocolId: r.commProtocolId
+            time: r.measurementTime,
+            value: r.valueNumeric,
+            dataSheetId: r.dataSheetId
         }));
     } catch (err) {
         console.error('[TELEMETRY] Query Error:', err);

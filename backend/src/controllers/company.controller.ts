@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import prisma from '../lib/prisma'; // Ensure this matches your project structure
+import prisma from '../lib/prisma';
 import { z } from 'zod';
 
 const createCompanySchema = z.object({
@@ -13,9 +13,8 @@ export const getCompanies = async (req: Request, res: Response) => {
         const companies = await prisma.companyProfile.findMany({
             include: {
                 plants: true,
-                users: true,
-            },
-            orderBy: { createdAt: 'desc' }
+                userProfiles: true,
+            }
         });
         res.json(companies);
     } catch (error) {

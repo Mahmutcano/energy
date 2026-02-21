@@ -1,10 +1,12 @@
 import { Request, Response } from 'express';
 import prisma from '../lib/prisma';
 import { z } from 'zod';
+import { PlantType } from '@prisma/client';
 
 const createPlantSchema = z.object({
     companyId: z.string(),
     plantName: z.string().min(1),
+    plantType: z.nativeEnum(PlantType),
     latitude: z.number().nullable().optional(),
     longitude: z.number().nullable().optional(),
 });
@@ -14,9 +16,8 @@ export const getPlants = async (req: Request, res: Response) => {
         const plants = await prisma.plant.findMany({
             include: {
                 company: true,
-                commProtocols: true,
-            },
-            orderBy: { createdAt: 'desc' }
+                protocols: true,
+            }
         });
         res.json(plants);
     } catch (error) {
@@ -31,8 +32,9 @@ export const createPlant = async (req: Request, res: Response) => {
 
         const plant = await prisma.plant.create({
             data: {
-                companyId: data.companyId,
+                company_id: data.companyId,
                 plantName: data.plantName,
+                plantType: data.plantType,
                 latitude: data.latitude ?? null,
                 longitude: data.longitude ?? null,
             }
@@ -53,12 +55,16 @@ export const updatePlant = async (req: Request, res: Response) => {
     const { id } = req.params;
     try {
         const data = createPlantSchema.partial().parse(req.body);
+
+        let updateData: any = { ...data };
+        if (data.companyId) {
+            updateData.company_id = data.companyId;
+            delete updateData.companyId;
+        }
+
         const plant = await prisma.plant.update({
             where: { id: String(id) },
-            data: {
-                ...data,
-                // Handle optional nulls if needed, partial schema handles optional fields
-            }
+            data: updateData
         });
         res.json(plant);
     } catch (error) {

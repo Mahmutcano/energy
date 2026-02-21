@@ -1,40 +1,45 @@
 import { Request, Response } from 'express';
 import prisma from '../lib/prisma';
 import { z } from 'zod';
-import { ProtocolType, ModbusDataType } from '@prisma/client';
+import { ProtocolType } from '@prisma/client';
 
 const modbusConfigSchema = z.object({
+    ipAddress: z.string(),
+    port: z.number().int(),
     slaveId: z.number().int(),
-    regAddress: z.number().int(),
-    dataType: z.nativeEnum(ModbusDataType),
+    timeout: z.number().int().default(1000),
+    retryCount: z.number().int().default(3),
 });
 
 const iec104ConfigSchema = z.object({
-    asduAddress: z.number().int(),
-    t0_timeout: z.number().int(),
-    k_window: z.number().int(),
+    ipAddress: z.string(),
+    port: z.number().int(),
+    asduAddr: z.number().int(),
+    t0: z.number().int().default(30),
+    t1: z.number().int().default(15),
+    t2: z.number().int().default(10),
+    t3: z.number().int().default(20),
+    k: z.number().int().default(12),
+    w: z.number().int().default(8),
 });
 
 const createProtocolSchema = z.object({
-    deviceId: z.string(),
     plantId: z.string(),
+    configName: z.string(),
     protocolType: z.nativeEnum(ProtocolType),
-    ipAddress: z.string().nullable().optional(),
     modbusConfig: modbusConfigSchema.optional(),
     iec104Config: iec104ConfigSchema.optional(),
 });
 
 export const getProtocols = async (req: Request, res: Response) => {
     try {
-        const protocols = await prisma.commProtocol.findMany({
+        const protocols = await prisma.protocolConfig.findMany({
             include: {
-                device: true,
                 plant: true,
                 modbusConfig: true,
                 iec104Config: true,
-                telemetry: { take: 10, orderBy: { timestamp: 'desc' } }, // Sample telemetry
+                devices: true,
             },
-            orderBy: { createdAt: 'desc' },
         });
         res.json(protocols);
     } catch (error) {
@@ -58,12 +63,11 @@ export const createProtocol = async (req: Request, res: Response) => {
             iecCreate = { create: data.iec104Config };
         }
 
-        const protocol = await prisma.commProtocol.create({
+        const protocol = await prisma.protocolConfig.create({
             data: {
-                deviceId: data.deviceId,
-                plantId: data.plantId,
+                plant_id: data.plantId,
+                configName: data.configName,
                 protocolType: data.protocolType,
-                ipAddress: data.ipAddress ?? null,
                 modbusConfig: modbusCreate,
                 iec104Config: iecCreate,
             },
@@ -89,13 +93,7 @@ export const createProtocol = async (req: Request, res: Response) => {
 export const deleteProtocol = async (req: Request, res: Response) => {
     const { id } = req.params;
     try {
-        // Cascade delete should handle config deletion if set up in DB, but Prisma handles it if relations are correct.
-        // Or we might need to delete config manually first.
-        // Prisma schema: modbusConfig CommProtocol @relation(fields: [commProtocolId], references: [id])
-        // Usually need onDelete: Cascade in schema for DB level, or Prisma handles transaction.
-        // Let's assume correct relation or manual delete if it fails.
-
-        await prisma.commProtocol.delete({ where: { id: String(id) } });
+        await prisma.protocolConfig.delete({ where: { id: String(id) } });
         res.status(204).send();
     } catch (error) {
         console.error('deleteProtocol error:', error);

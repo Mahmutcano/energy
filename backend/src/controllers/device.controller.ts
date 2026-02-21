@@ -1,10 +1,12 @@
 import { Request, Response } from 'express';
 import prisma from '../lib/prisma';
 import { z } from 'zod';
+import { DeviceType } from '@prisma/client';
 
 const createDeviceSchema = z.object({
-    categoryId: z.string().uuid("Invalid Category ID"),
+    protocolConfigId: z.string().uuid("Invalid Protocol Config ID"),
     deviceName: z.string().min(1, "Device name is required"),
+    deviceType: z.nativeEnum(DeviceType),
     isActive: z.boolean().optional(),
 });
 
@@ -12,12 +14,10 @@ export const getDevices = async (req: Request, res: Response) => {
     try {
         const devices = await prisma.device.findMany({
             include: {
-                category: true,
-                commProtocols: {
+                protocol: {
                     include: { plant: true } // Include plant info from protocols
                 }
-            },
-            orderBy: { createdAt: 'desc' }
+            }
         });
         res.json(devices);
     } catch (error) {
@@ -32,8 +32,9 @@ export const createDevice = async (req: Request, res: Response) => {
 
         const device = await prisma.device.create({
             data: {
-                categoryId: data.categoryId,
+                protocol_config_id: data.protocolConfigId,
                 deviceName: data.deviceName,
+                deviceType: data.deviceType,
                 isActive: data.isActive ?? true,
             }
         });

@@ -6,16 +6,22 @@ datasource db {
   provider = "postgresql"
 }
 
-enum Role {
+enum AdminType {
   SUPER_ADMIN
-  ADMIN
-  CUSTOMER
+  COMPANY_ADMIN
+  NORMAL_USER
 }
 
-enum Severity {
-  INFO
-  WARNING
-  CRITICAL
+enum PermissionLevel {
+  READ
+  WRITE
+  FULL
+}
+
+enum PlantType {
+  SOLAR
+  WIND
+  HYDRO
 }
 
 enum ProtocolType {
@@ -23,135 +29,179 @@ enum ProtocolType {
   IEC104
 }
 
-enum ModbusDataType {
-  INT16
-  UINT16
-  INT32
-  UINT32
-  FLOAT32
-  BOOLEAN
+enum DeviceType {
+  INVERTER
+  ANALYZER
+  RELAY
 }
 
-model User {
-  id               String          @id @default(uuid())
-  email            String          @unique
-  password         String
-  name             String?
-  role             Role            @default(CUSTOMER)
-  companyProfileId String?
-  companyProfile   CompanyProfile? @relation(fields: [companyProfileId], references: [id])
-  createdAt        DateTime        @default(now())
-  updatedAt        DateTime        @updatedAt
+model AppUser {
+  id        String           @id @default(uuid())
+  userCode  String           @unique
+  firstName String
+  lastName  String
+  email     String           @unique
+  adminType AdminType
+  isActive  Boolean          @default(true)
+  profiles  AppUserProfile[]
+
+  @@index([userCode])
+  @@index([email])
 }
 
 model CompanyProfile {
-  id        String   @id @default(uuid())
-  name      String
-  address   String?  @db.Text
-  isActive  Boolean  @default(true)
-  plants    Plant[]
-  users     User[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id             String           @id @default(uuid())
+  name           String           @unique
+  address        String?          @db.Text
+  phone          String?
+  email          String?
+  representative String?
+  isActive       Boolean          @default(true)
+  plants         Plant[]
+  userProfiles   AppUserProfile[]
+
+  @@index([name])
+}
+
+model AppUserProfile {
+  id         String         @id @default(uuid())
+  user_id    String
+  user       AppUser        @relation(fields: [user_id], references: [id])
+  company_id String
+  company    CompanyProfile @relation(fields: [company_id], references: [id])
+  plant_id   String?
+  plant      Plant?         @relation(fields: [plant_id], references: [id])
+  device_id  String?
+  device     Device?        @relation(fields: [device_id], references: [id])
+
+  permissionLevel PermissionLevel
+  isActive        Boolean         @default(true)
+
+  @@index([user_id])
+  @@index([company_id])
+  @@index([plant_id])
+  @@index([device_id])
 }
 
 model Plant {
-  id            String         @id @default(uuid())
-  companyId     String
-  company       CompanyProfile @relation(fields: [companyId], references: [id])
-  plantName     String
-  latitude      Decimal?       @db.Decimal(10, 8)
-  longitude     Decimal?       @db.Decimal(11, 8)
-  commProtocols CommProtocol[]
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
+  id         String         @id @default(uuid())
+  company_id String
+  company    CompanyProfile @relation(fields: [company_id], references: [id])
+  plantName  String
+  plantType  PlantType
+  latitude   Decimal?       @db.Decimal(10, 8)
+  longitude  Decimal?       @db.Decimal(11, 8)
+  isActive   Boolean        @default(true)
+
+  protocols    ProtocolConfig[]
+  userProfiles AppUserProfile[]
+
+  @@index([company_id])
 }
 
-model DeviceCategory {
-  id           String   @id @default(uuid())
-  categoryName String
-  isActive     Boolean  @default(true)
-  devices      Device[]
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-}
-
-model Device {
-  id            String         @id @default(uuid())
-  categoryId    String
-  category      DeviceCategory @relation(fields: [categoryId], references: [id])
-  deviceName    String
-  isActive      Boolean        @default(true)
-  commProtocols CommProtocol[]
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-}
-
-model CommProtocol {
-  id           String        @id @default(uuid())
-  deviceId     String
-  device       Device        @relation(fields: [deviceId], references: [id])
-  plantId      String
-  plant        Plant         @relation(fields: [plantId], references: [id])
+model ProtocolConfig {
+  id           String       @id @default(uuid())
+  plant_id     String
+  plant        Plant        @relation(fields: [plant_id], references: [id])
   protocolType ProtocolType
-  ipAddress    String?       @db.Inet
-  
+  configName   String
+  isActive     Boolean      @default(true)
+
+  devices      Device[]
   modbusConfig ModbusConfig?
   iec104Config IEC104Config?
-  
-  // Operational relationships
-  telemetry    Telemetry[]
-  thresholds   AlarmThreshold[]
-  
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
+
+  @@index([plant_id])
 }
 
 model ModbusConfig {
-  id             String         @id @default(uuid())
-  commProtocolId String         @unique
-  commProtocol   CommProtocol   @relation(fields: [commProtocolId], references: [id])
-  slaveId        Int
-  regAddress     Int
-  dataType       ModbusDataType
+  id          String         @id @default(uuid())
+  protocol_id String         @unique
+  protocol    ProtocolConfig @relation(fields: [protocol_id], references: [id])
+  ipAddress   String
+  port        Int
+  slaveId     Int
+  timeout     Int
+  retryCount  Int
+
+  @@index([ipAddress])
 }
 
 model IEC104Config {
-  id             String       @id @default(uuid())
-  commProtocolId String       @unique
-  commProtocol   CommProtocol @relation(fields: [commProtocolId], references: [id])
-  asduAddress    Int
-  t0_timeout     Int
-  k_window       Int
+  id          String         @id @default(uuid())
+  protocol_id String         @unique
+  protocol    ProtocolConfig @relation(fields: [protocol_id], references: [id])
+  ipAddress   String
+  port        Int
+  asduAddr    Int
+  t0          Int
+  t1          Int
+  t2          Int
+  t3          Int
+  k           Int
+  w           Int
+
+  @@index([ipAddress])
 }
 
-model Telemetry {
-  id             BigInt       @id @default(autoincrement())
-  commProtocolId String
-  commProtocol   CommProtocol @relation(fields: [commProtocolId], references: [id])
-  value          Float
-  timestamp      DateTime     @default(now())
+model Device {
+  id                 String         @id @default(uuid())
+  protocol_config_id String
+  protocol           ProtocolConfig @relation(fields: [protocol_config_id], references: [id])
+  deviceName         String
+  deviceType         DeviceType
+  isActive           Boolean        @default(true)
 
-  @@index([commProtocolId, timestamp])
+  dataSheets   DeviceDataSheet[]
+  userProfiles AppUserProfile[]
+
+  @@index([protocol_config_id])
+  @@index([deviceName])
 }
 
-model AlarmThreshold {
-  id             String       @id @default(uuid())
-  commProtocolId String
-  commProtocol   CommProtocol @relation(fields: [commProtocolId], references: [id])
-  lowThreshold   Float?
-  highThreshold  Float?
-  severity       Severity     @default(WARNING)
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
+model DeviceDataSheet {
+  id              String  @id @default(uuid())
+  device_id       String
+  device          Device  @relation(fields: [device_id], references: [id], onDelete: Cascade)
+  dataName        String
+  dataValue       String?
+  registerAddress Int?
+  isActive        Boolean @default(true)
+
+  // --- Modbus'a Özel Alanlar ---
+  functionCode Int? // Örn: 3 (Holding) veya 4 (Input Register)
+  multiplier   Float? // Örn: okunan değeri 0.1 veya 10'la çarpmak için
+  wordSwap     Boolean? @default(false) // 32-bit (örneğin Float32) verilerde register sırasını ters çevirmek için
+
+  // From EXCEL Data Sheet (IEC104) mapped to English
+  feederName        String? // FİDER/HÜCRE İSMİ
+  signalType        String? // SİNYAL TİPİ
+  signalDescription String? // SİNYAL AÇIKLAMASI
+  dataType          String? // DATA TİPİ
+  signalSource      String? // SİNYAL KAYNAĞI
+  componentId       String? // KOMPONENT ID
+  componentText     String? // KOMPONENT METNİ
+  ioa1ObjectAddress Int? // IOA1 (Obje Adresi)
+  ioa2CellNo        Int? // IOA2 (Hücre No)
+  ioa3VoltageLevel  Int? // IOA3 (Gerilim Seviyesi)
+  scadaAddress      Int? // SCADA ADRESİ
+
+  telemetryValues TelemetryValue[]
+
+  @@index([device_id])
+  @@index([dataName])
+  @@index([registerAddress])
 }
 
-model AlarmLog {
-  id             String   @id @default(uuid())
-  commProtocolId String
-  value          Float
-  message        String
-  severity       Severity
-  timestamp      DateTime @default(now())
-  resolved       Boolean  @default(false)
+model TelemetryValue {
+  id              BigInt          @id @default(autoincrement())
+  dataSheetId     String
+  dataSheet       DeviceDataSheet @relation(fields: [dataSheetId], references: [id])
+  measurementTime DateTime        @db.Timestamptz // Measurement Time
+  valueNumeric    Float? // Double
+  quality         Int?            @db.SmallInt
+  rawPayload      Bytes? // ByteA
+
+  @@index([dataSheetId])
+  @@index([measurementTime])
 }

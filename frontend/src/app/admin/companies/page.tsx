@@ -71,14 +71,14 @@ export default function CompaniesPage() {
                 <div className="space-y-2">
                     <div className="flex items-center gap-4">
                         <div className="w-1.5 h-8 bg-brand-green rounded-full shadow-[0_0_20px_rgba(16,185,129,0.4)]"></div>
-                        <h1 className="text-3xl font-black text-white tracking-tight uppercase">Company Profiles</h1>
+                        <h1 className="text-3xl font-black text-white tracking-tight ">Company Profiles</h1>
                     </div>
                     <p className="text-sm text-slate-500 ml-6">Manage company profiles and their associated plants and users</p>
                 </div>
 
                 <button
                     onClick={() => setIsModalOpen(true)}
-                    className="flex items-center gap-3 px-6 py-3 bg-brand-green text-white rounded-xl text-xs font-bold shadow-lg shadow-brand-green/20 hover:scale-[1.02] transition-all uppercase tracking-widest"
+                    className="flex items-center gap-3 px-6 py-3 bg-brand-green text-white rounded-xl text-xs font-bold shadow-lg shadow-brand-green/20 hover:scale-[1.02] transition-all  tracking-widest"
                 >
                     <Plus size={16} strokeWidth={3} /> New Company
                 </button>
@@ -111,7 +111,7 @@ export default function CompaniesPage() {
                             </div>
                             <div className="flex items-center gap-2">
                                 <div className={`w-2 h-2 rounded-full ${company.isActive ? 'bg-brand-green' : 'bg-slate-700'}`} />
-                                <span className={`text-[10px] font-bold uppercase ${company.isActive ? 'text-brand-green' : 'text-slate-600'}`}>
+                                <span className={`text-[10px] font-bold  ${company.isActive ? 'text-brand-green' : 'text-slate-600'}`}>
                                     {company.isActive ? 'Active' : 'Inactive'}
                                 </span>
                             </div>
@@ -121,14 +121,14 @@ export default function CompaniesPage() {
                             <div className="flex items-center gap-2">
                                 <Factory size={14} className="text-slate-600" />
                                 <div>
-                                    <p className="text-[10px] font-bold text-slate-600 uppercase">Plants</p>
+                                    <p className="text-[10px] font-bold text-slate-600 ">Plants</p>
                                     <p className="text-sm font-bold text-white tabular-nums">{company.plants?.length || 0}</p>
                                 </div>
                             </div>
                             <div className="flex items-center gap-2">
                                 <Users size={14} className="text-slate-600" />
                                 <div>
-                                    <p className="text-[10px] font-bold text-slate-600 uppercase">Users</p>
+                                    <p className="text-[10px] font-bold text-slate-600 ">Users</p>
                                     <p className="text-sm font-bold text-white tabular-nums">{company.users?.length || 0}</p>
                                 </div>
                             </div>
@@ -159,7 +159,7 @@ export default function CompaniesPage() {
                                     </div>
                                     <div>
                                         <h2 className="text-lg font-bold text-white">New Company</h2>
-                                        <p className="text-[10px] text-slate-500 uppercase tracking-widest">Register a new company profile</p>
+                                        <p className="text-[10px] text-slate-500  tracking-widest">Register a new company profile</p>
                                     </div>
                                 </div>
                                 <button onClick={() => setIsModalOpen(false)} className="p-2 text-slate-500 hover:text-white transition-colors">
@@ -168,7 +168,7 @@ export default function CompaniesPage() {
                             </div>
                             <form onSubmit={handleCreate} className="p-6 space-y-5">
                                 <div className="space-y-2">
-                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Company Name</label>
+                                    <label className="text-xs font-bold text-slate-400  tracking-widest">Company Name</label>
                                     <input
                                         type="text"
                                         value={formData.name}
@@ -179,7 +179,7 @@ export default function CompaniesPage() {
                                     />
                                 </div>
                                 <div className="space-y-2">
-                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Address</label>
+                                    <label className="text-xs font-bold text-slate-400  tracking-widest">Address</label>
                                     <textarea
                                         value={formData.address}
                                         onChange={(e) => setFormData({ ...formData, address: e.target.value })}
@@ -188,7 +188,7 @@ export default function CompaniesPage() {
                                     />
                                 </div>
                                 <div className="flex items-center justify-between p-4 bg-slate-900/30 rounded-xl border border-slate-800/40">
-                                    <span className="text-xs font-bold text-slate-400 uppercase">Active Status</span>
+                                    <span className="text-xs font-bold text-slate-400 ">Active Status</span>
                                     <button
                                         type="button"
                                         onClick={() => setFormData({ ...formData, isActive: !formData.isActive })}
@@ -199,7 +199,7 @@ export default function CompaniesPage() {
                                 </div>
                                 <button
                                     type="submit"
-                                    className="w-full py-4 bg-brand-green text-white font-bold uppercase tracking-widest text-xs rounded-xl shadow-lg shadow-brand-green/20 hover:scale-[1.01] transition-all"
+                                    className="w-full py-4 bg-brand-green text-white font-bold  tracking-widest text-xs rounded-xl shadow-lg shadow-brand-green/20 hover:scale-[1.01] transition-all"
                                 >
                                     Create Company
                                 </button>

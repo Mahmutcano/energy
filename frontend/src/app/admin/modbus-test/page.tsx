@@ -134,7 +134,7 @@ export default function ModbusTestPage() {
                     <div className="space-y-2">
                         <div className="flex items-center gap-4">
                             <div className="w-1.5 h-8 bg-brand-green rounded-full shadow-[0_0_20px_rgba(16,185,129,0.4)]"></div>
-                            <h1 className="text-4xl font-black text-white tracking-tighter uppercase italic">Protocol Interface</h1>
+                            <h1 className="text-4xl font-black text-white tracking-tighter  italic">Protocol Interface</h1>
                         </div>
                         <div className="flex items-center gap-3">
                             <span className="text-tech-label text-brand-green/80 tracking-[0.4em]">Modbus TCP / RTU Shell</span>
@@ -147,7 +147,7 @@ export default function ModbusTestPage() {
                         <div className="px-4 py-2 bg-slate-900 border border-slate-800 rounded-xl hidden md:block group">
                             <div className="flex items-center gap-3">
                                 <div className="w-2 h-2 rounded-full bg-brand-green shadow-[0_0_8px_rgba(16,185,129,0.5)] animate-pulse"></div>
-                                <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest group-hover:text-brand-green transition-colors">Uplink Stable</span>
+                                <span className="text-[10px] font-black text-slate-500  tracking-widest group-hover:text-brand-green transition-colors">Uplink Stable</span>
                             </div>
                         </div>
                         <div className="p-4 bg-brand-green/10 border border-brand-green/20 rounded-xl">
@@ -168,7 +168,7 @@ export default function ModbusTestPage() {
 
                             <div className="space-y-6">
                                 <div className="space-y-3 group">
-                                    <label className="text-[9px] font-black text-slate-600 uppercase tracking-widest ml-1 group-focus-within:text-brand-green transition-colors">Target Endpoint IP</label>
+                                    <label className="text-[9px] font-black text-slate-600  tracking-widest ml-1 group-focus-within:text-brand-green transition-colors">Target Endpoint IP</label>
                                     <input
                                         type="text"
                                         value={ip}
@@ -179,7 +179,7 @@ export default function ModbusTestPage() {
 
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-3 group">
-                                        <label className="text-[9px] font-black text-slate-600 uppercase tracking-widest ml-1 group-focus-within:text-brand-green transition-colors">Port</label>
+                                        <label className="text-[9px] font-black text-slate-600  tracking-widest ml-1 group-focus-within:text-brand-green transition-colors">Port</label>
                                         <input
                                             type="text"
                                             value={port}
@@ -188,7 +188,7 @@ export default function ModbusTestPage() {
                                         />
                                     </div>
                                     <div className="space-y-3 group">
-                                        <label className="text-[9px] font-black text-slate-600 uppercase tracking-widest ml-1 group-focus-within:text-brand-green transition-colors">Slave ID</label>
+                                        <label className="text-[9px] font-black text-slate-600  tracking-widest ml-1 group-focus-within:text-brand-green transition-colors">Slave ID</label>
                                         <input
                                             type="text"
                                             value={slaveId}
@@ -209,7 +209,7 @@ export default function ModbusTestPage() {
 
                             <div className="space-y-6">
                                 <div className="space-y-3 group">
-                                    <label className="text-[9px] font-black text-slate-600 uppercase tracking-widest ml-1 group-focus-within:text-brand-green transition-colors">Function_Code</label>
+                                    <label className="text-[9px] font-black text-slate-600  tracking-widest ml-1 group-focus-within:text-brand-green transition-colors">Function_Code</label>
                                     <div className="relative">
                                         <select
                                             value={functionCode}
@@ -226,7 +226,7 @@ export default function ModbusTestPage() {
                                 </div>
 
                                 <div className="space-y-3 group">
-                                    <label className="text-[9px] font-black text-slate-600 uppercase tracking-widest ml-1 group-focus-within:text-brand-green transition-colors">Start Address</label>
+                                    <label className="text-[9px] font-black text-slate-600  tracking-widest ml-1 group-focus-within:text-brand-green transition-colors">Start Address</label>
                                     <input
                                         type="text"
                                         value={address}
@@ -239,7 +239,7 @@ export default function ModbusTestPage() {
                                     <button
                                         onClick={handleRunTest}
                                         disabled={isTesting}
-                                        className={`flex-1 h-14 rounded-xl flex items-center justify-center gap-3 transition-all font-black text-[11px] uppercase tracking-widest ${isTesting
+                                        className={`flex-1 h-14 rounded-xl flex items-center justify-center gap-3 transition-all font-black text-[11px]  tracking-widest ${isTesting
                                                 ? 'bg-slate-800 text-slate-600 cursor-not-allowed'
                                                 : 'bg-brand-green text-white shadow-2xl shadow-brand-green/20 hover:scale-[1.02] active:scale-[0.98]'
                                             }`}
@@ -268,8 +268,8 @@ export default function ModbusTestPage() {
                                         <Terminal size={14} className="text-brand-green" />
                                     </div>
                                     <div className="space-y-0.5">
-                                        <span className="text-[10px] font-black text-white tracking-[0.3em] uppercase block leading-none">System Identity Logs</span>
-                                        <span className="text-[8px] font-mono text-slate-700 uppercase">Interactive Terminal _v1.0.4</span>
+                                        <span className="text-[10px] font-black text-white tracking-[0.3em]  block leading-none">System Identity Logs</span>
+                                        <span className="text-[8px] font-mono text-slate-700 ">Interactive Terminal _v1.0.4</span>
                                     </div>
                                 </div>
                                 <button
@@ -325,7 +325,7 @@ export default function ModbusTestPage() {
                                             <div className="relative group">
                                                 <div className="absolute inset-0 bg-brand-green/20 blur-2xl rounded-full opacity-50 group-hover:opacity-100 transition-opacity"></div>
                                                 <div className="p-5 bg-slate-950 border border-brand-green/30 rounded-2xl flex flex-col items-center justify-center min-w-[120px] relative z-10">
-                                                    <span className="text-[9px] text-brand-green font-black tracking-[0.2em] mb-2 uppercase">Reg_Hex</span>
+                                                    <span className="text-[9px] text-brand-green font-black tracking-[0.2em] mb-2 ">Reg_Hex</span>
                                                     <span className="text-4xl font-black text-white italic tracking-tighter tabular-nums">
                                                         {results.values[0]}
                                                     </span>
@@ -339,17 +339,17 @@ export default function ModbusTestPage() {
                                                     ))}
                                                 </div>
                                                 <div className="space-y-1">
-                                                    <p className="text-xs font-black text-brand-green italic tracking-widest uppercase">Payload Integrity: Compliant</p>
+                                                    <p className="text-xs font-black text-brand-green italic tracking-widest ">Payload Integrity: Compliant</p>
                                                     <div className="flex items-center gap-3">
                                                         <div className="w-2 h-2 bg-brand-green rounded-full animate-ping"></div>
-                                                        <span className="text-[10px] font-mono text-slate-700 uppercase tracking-widest">Realtime Stream Bitrate_0.4kbps</span>
+                                                        <span className="text-[10px] font-mono text-slate-700  tracking-widest">Realtime Stream Bitrate_0.4kbps</span>
                                                     </div>
                                                 </div>
                                             </div>
                                         </div>
 
                                         <div className="text-right flex flex-col items-end gap-2 w-full md:w-auto">
-                                            <span className="px-3 py-1 bg-slate-950 border border-slate-800 rounded-lg text-[8px] font-black text-slate-600 tracking-[0.3em] uppercase">Protocol Shell v2.4</span>
+                                            <span className="px-3 py-1 bg-slate-950 border border-slate-800 rounded-lg text-[8px] font-black text-slate-600 tracking-[0.3em] ">Protocol Shell v2.4</span>
                                             <span className="text-2xl font-black text-white italic tracking-tighter tabular-nums">{ip}</span>
                                             <div className="h-px w-20 bg-slate-800 my-1"></div>
                                             <span className="text-tech-label text-slate-800">AES_256 NODE ENCRYPTION ACTIVE</span>
@@ -380,24 +380,24 @@ export default function ModbusTestPage() {
                     <div className="flex items-center gap-10">
                         <div className="flex items-center gap-3">
                             <Server size={14} className="text-brand-green/40" />
-                            <span className="text-[9px] font-black text-slate-700 tracking-[0.2em] uppercase">Core Srv Reachable</span>
+                            <span className="text-[9px] font-black text-slate-700 tracking-[0.2em] ">Core Srv Reachable</span>
                         </div>
                         <div className="flex items-center gap-3">
                             <Database size={14} className="text-brand-green/40" />
-                            <span className="text-[9px] font-black text-slate-700 tracking-[0.2em] uppercase">Redis Sync Stable</span>
+                            <span className="text-[9px] font-black text-slate-700 tracking-[0.2em] ">Redis Sync Stable</span>
                         </div>
                     </div>
                     <div className="flex flex-wrap justify-center items-center gap-8">
                         <div className="space-y-1 text-right">
-                            <p className="text-[8px] font-black text-slate-800 uppercase tracking-widest leading-none">CPU_LOAD</p>
+                            <p className="text-[8px] font-black text-slate-800  tracking-widest leading-none">CPU_LOAD</p>
                             <p className="text-[12px] font-black text-slate-600 italic tracking-tighter tabular-nums leading-none">12.4%</p>
                         </div>
                         <div className="space-y-1 text-right">
-                            <p className="text-[8px] font-black text-slate-800 uppercase tracking-widest leading-none">MEM_USAGE</p>
+                            <p className="text-[8px] font-black text-slate-800  tracking-widest leading-none">MEM_USAGE</p>
                             <p className="text-[12px] font-black text-slate-600 italic tracking-tighter tabular-nums leading-none">256MB</p>
                         </div>
                         <div className="h-8 w-px bg-slate-900/50 hidden md:block"></div>
-                        <span className="text-[10px] font-black italic tracking-[0.4em] text-brand-green shadow-brand-green/20 uppercase">Encryption Active</span>
+                        <span className="text-[10px] font-black italic tracking-[0.4em] text-brand-green shadow-brand-green/20 ">Encryption Active</span>
                     </div>
                 </div>
             </div>

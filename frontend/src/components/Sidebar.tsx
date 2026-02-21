@@ -72,8 +72,8 @@ export default function Sidebar() {
                     <Activity size={18} strokeWidth={3} />
                 </div>
                 <div className="flex flex-col">
-                    <h1 className="text-sm font-black text-white tracking-tight uppercase">X-SCADA</h1>
-                    <span className="text-[9px] font-bold text-brand-green uppercase tracking-widest">Enterprise</span>
+                    <h1 className="text-sm font-black text-white tracking-tight ">X-SCADA</h1>
+                    <span className="text-[9px] font-bold text-brand-green  tracking-widest">Enterprise</span>
                 </div>
             </div>
 
@@ -84,7 +84,7 @@ export default function Sidebar() {
 
                     return (
                         <div key={idx} className="space-y-1.5">
-                            <h3 className="px-3 text-[10px] font-bold text-foreground/40 uppercase tracking-[0.2em] mb-2">
+                            <h3 className="px-3 text-[10px] font-bold text-foreground/40  tracking-[0.2em] mb-2">
                                 {group.label}
                             </h3>
                             <div className="space-y-0.5">
@@ -123,19 +123,19 @@ export default function Sidebar() {
             <div className="p-3 border-t border-border bg-background/30">
                 <div className="mb-4 px-3 py-3 rounded-lg bg-white/5 border border-border/50">
                     <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-background border border-border flex items-center justify-center text-[10px] font-bold text-white uppercase">
+                        <div className="w-8 h-8 rounded-full bg-background border border-border flex items-center justify-center text-[10px] font-bold text-white ">
                             {user?.name?.substring(0, 2).toUpperCase() || 'OP'}
                         </div>
                         <div className="flex flex-col min-w-0">
                             <span className="text-xs font-bold text-white truncate">{user?.name || 'Operator'}</span>
-                            <span className="text-[10px] text-foreground/40 font-mono truncate uppercase">{user?.role || 'GUEST'}</span>
+                            <span className="text-[10px] text-foreground/40 font-mono truncate ">{user?.role || 'GUEST'}</span>
                         </div>
                     </div>
                 </div>
 
                 <button
                     onClick={logout}
-                    className="w-full h-10 flex items-center justify-center gap-2 rounded-lg text-foreground/40 hover:bg-red-500 hover:text-white transition-all text-[10px] font-bold uppercase tracking-wider"
+                    className="w-full h-10 flex items-center justify-center gap-2 rounded-lg text-foreground/40 hover:bg-red-500 hover:text-white transition-all text-[10px] font-bold  tracking-wider"
                 >
                     <LogOut size={16} />
                     Logout

@@ -69,7 +69,7 @@ export default function AlarmsPage() {
                 <div className="space-y-2">
                     <div className="flex items-center gap-4">
                         <div className="w-1.5 h-8 bg-red-500 rounded-full shadow-[0_0_20px_rgba(239,68,68,0.4)]"></div>
-                        <h1 className="text-3xl font-black text-white tracking-tight uppercase">Alarm Logs</h1>
+                        <h1 className="text-3xl font-black text-white tracking-tight ">Alarm Logs</h1>
                     </div>
                     <p className="text-sm text-slate-500 ml-6">Monitor and manage alarm events from communication protocols</p>
                 </div>
@@ -77,7 +77,7 @@ export default function AlarmsPage() {
                 {activeCount > 0 && (
                     <div className="flex items-center gap-3 px-4 py-3 bg-red-500/5 rounded-xl border border-red-500/20">
                         <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse shadow-[0_0_10px_rgba(239,68,68,0.6)]"></div>
-                        <span className="text-xs font-bold text-red-400 uppercase tracking-widest">{activeCount} Active Alarms</span>
+                        <span className="text-xs font-bold text-red-400  tracking-widest">{activeCount} Active Alarms</span>
                     </div>
                 )}
             </div>
@@ -94,7 +94,7 @@ export default function AlarmsPage() {
                             <stat.icon size={20} />
                         </div>
                         <div>
-                            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{stat.label}</p>
+                            <p className="text-[10px] font-bold text-slate-500  tracking-widest">{stat.label}</p>
                             <p className={`text-3xl font-black tabular-nums ${stat.color}`}>{stat.val}</p>
                         </div>
                     </div>
@@ -108,14 +108,14 @@ export default function AlarmsPage() {
                         <div className="p-2 rounded-lg bg-slate-950 border border-slate-800 text-red-400">
                             <AlertTriangle size={18} />
                         </div>
-                        <h3 className="text-sm font-bold text-white uppercase">Event Log</h3>
+                        <h3 className="text-sm font-bold text-white ">Event Log</h3>
                     </div>
                     <div className="flex gap-2">
                         {(['ALL', 'ACTIVE', 'RESOLVED'] as const).map(f => (
                             <button
                                 key={f}
                                 onClick={() => setFilter(f)}
-                                className={`px-4 py-2 rounded-lg text-[10px] font-bold uppercase tracking-widest border transition-all ${filter === f
+                                className={`px-4 py-2 rounded-lg text-[10px] font-bold  tracking-widest border transition-all ${filter === f
                                     ? 'border-brand-green/30 bg-brand-green/10 text-brand-green'
                                     : 'border-slate-800 bg-slate-900/60 text-slate-600 hover:text-white'
                                     }`}
@@ -129,7 +129,7 @@ export default function AlarmsPage() {
                 <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse">
                         <thead>
-                            <tr className="text-[10px] font-bold text-slate-500 uppercase tracking-widest border-b border-slate-800/40 bg-slate-900/20">
+                            <tr className="text-[10px] font-bold text-slate-500  tracking-widest border-b border-slate-800/40 bg-slate-900/20">
                                 <th className="px-6 py-4">Status</th>
                                 <th className="px-6 py-4">Severity</th>
                                 <th className="px-6 py-4">Message</th>
@@ -151,13 +151,13 @@ export default function AlarmsPage() {
                                         <td className="px-6 py-4">
                                             <div className="flex items-center gap-2">
                                                 <div className={`w-2 h-2 rounded-full ${alarm.resolved ? 'bg-brand-green' : `${sev.dot} animate-pulse`}`} />
-                                                <span className={`text-[10px] font-bold uppercase ${alarm.resolved ? 'text-brand-green' : 'text-slate-400'}`}>
+                                                <span className={`text-[10px] font-bold  ${alarm.resolved ? 'text-brand-green' : 'text-slate-400'}`}>
                                                     {alarm.resolved ? 'Resolved' : 'Active'}
                                                 </span>
                                             </div>
                                         </td>
                                         <td className="px-6 py-4">
-                                            <span className={`px-2 py-1 rounded-md text-[10px] font-bold uppercase border ${sev.bg} ${sev.color} ${sev.border}`}>
+                                            <span className={`px-2 py-1 rounded-md text-[10px] font-bold  border ${sev.bg} ${sev.color} ${sev.border}`}>
                                                 {alarm.severity}
                                             </span>
                                         </td>
@@ -173,7 +173,7 @@ export default function AlarmsPage() {
                                             {!alarm.resolved && (
                                                 <button
                                                     onClick={() => handleResolve(alarm.id)}
-                                                    className="px-3 py-1.5 bg-slate-950 border border-slate-800 text-[10px] font-bold text-slate-500 rounded hover:text-brand-green hover:border-brand-green/30 transition-all uppercase opacity-0 group-hover:opacity-100"
+                                                    className="px-3 py-1.5 bg-slate-950 border border-slate-800 text-[10px] font-bold text-slate-500 rounded hover:text-brand-green hover:border-brand-green/30 transition-all  opacity-0 group-hover:opacity-100"
                                                 >
                                                     Resolve
                                                 </button>

@@ -53,7 +53,7 @@ export default function RealtimeCard({ commProtocolId, label, unit }: RealtimeCa
                 </div>
                 <div className="flex items-center gap-2 px-2.5 py-1 rounded-full bg-slate-950/60 border border-slate-800/50">
                     <div className={`status-indicator ${isLive ? 'bg-brand-green shadow-[0_0_10px_rgba(16,185,129,0.5)] animate-pulse' : 'bg-slate-700'}`} />
-                    <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">{isLive ? 'Live' : 'Offline'}</span>
+                    <span className="text-[9px] font-black text-slate-500  tracking-widest">{isLive ? 'Live' : 'Offline'}</span>
                 </div>
             </div>
 
@@ -68,7 +68,7 @@ export default function RealtimeCard({ commProtocolId, label, unit }: RealtimeCa
                         <span className="text-tech-value text-4xl">
                             {value !== null ? value.toFixed(2) : '--.--'}
                         </span>
-                        <span className="text-xs font-black text-brand-green/60 uppercase tracking-widest">{unit}</span>
+                        <span className="text-xs font-black text-brand-green/60  tracking-widest">{unit}</span>
                     </motion.div>
                 </AnimatePresence>
             </div>
@@ -78,7 +78,7 @@ export default function RealtimeCard({ commProtocolId, label, unit }: RealtimeCa
                     {isUp ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
                     <span className="tabular-nums">{(Math.abs(delta) || 0).toFixed(3)}</span>
                 </div>
-                <div className="px-2 py-0.5 rounded bg-slate-950/60 text-[8px] font-mono font-bold text-slate-500 border border-slate-800/50 uppercase tracking-tighter truncate max-w-[100px]">
+                <div className="px-2 py-0.5 rounded bg-slate-950/60 text-[8px] font-mono font-bold text-slate-500 border border-slate-800/50  tracking-tighter truncate max-w-[100px]">
                     {commProtocolId.substring(0, 8)}
                 </div>
             </div>

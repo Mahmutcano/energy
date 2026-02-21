@@ -99,7 +99,7 @@ export default function SettingsPage() {
                 <div className="space-y-2">
                     <div className="flex items-center gap-4">
                         <div className="w-1.5 h-8 bg-brand-green rounded-full shadow-[0_0_20px_rgba(16,185,129,0.4)]"></div>
-                        <h1 className="text-4xl font-black text-white tracking-tighter uppercase italic">System Settings</h1>
+                        <h1 className="text-4xl font-black text-white tracking-tighter  italic">System Settings</h1>
                     </div>
                     <div className="flex items-center gap-3">
                         <span className="text-tech-label text-brand-green/80 tracking-[0.4em]">Core Configuration</span>
@@ -108,7 +108,7 @@ export default function SettingsPage() {
                     </div>
                 </div>
 
-                <div className="flex items-center gap-4 text-[10px] font-black text-slate-500 uppercase tracking-widest px-6 py-3 bg-slate-950/40 rounded-xl border border-slate-800/40">
+                <div className="flex items-center gap-4 text-[10px] font-black text-slate-500  tracking-widest px-6 py-3 bg-slate-950/40 rounded-xl border border-slate-800/40">
                     <span>Host: SCADA Kernel v1.0.4</span>
                     <div className="w-2 h-2 rounded-full bg-brand-green shadow-[0_0_10px_rgba(16,185,129,0.5)]"></div>
                 </div>
@@ -123,7 +123,7 @@ export default function SettingsPage() {
                                 <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 text-brand-green">
                                     <Palette size={20} />
                                 </div>
-                                <h3 className="text-lg font-black text-white uppercase tracking-tight">UI Theme Subsystem</h3>
+                                <h3 className="text-lg font-black text-white  tracking-tight">UI Theme Subsystem</h3>
                             </div>
                         </div>
 
@@ -143,7 +143,7 @@ export default function SettingsPage() {
                                                 className="w-4 h-4 rounded-full border border-white/10 shadow-lg"
                                                 style={{ backgroundColor: t.color }}
                                             />
-                                            <span className={`text-xs font-black tracking-widest uppercase ${theme === t.id ? 'text-white' : 'text-slate-500'}`}>
+                                            <span className={`text-xs font-black tracking-widest  ${theme === t.id ? 'text-white' : 'text-slate-500'}`}>
                                                 {t.name.replace(/_/g, ' ')}
                                             </span>
                                         </div>
@@ -153,7 +153,7 @@ export default function SettingsPage() {
                                             </div>
                                         )}
                                     </div>
-                                    <p className="text-[10px] text-slate-500 font-bold uppercase tracking-tight leading-relaxed">
+                                    <p className="text-[10px] text-slate-500 font-bold  tracking-tight leading-relaxed">
                                         {t.desc}
                                     </p>
                                 </button>
@@ -167,7 +167,7 @@ export default function SettingsPage() {
                                 <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 text-brand-green">
                                     <Zap size={20} />
                                 </div>
-                                <h3 className="text-lg font-black text-white uppercase tracking-tight">System Deployment Core</h3>
+                                <h3 className="text-lg font-black text-white  tracking-tight">System Deployment Core</h3>
                             </div>
                         </div>
                         <div className="p-10 grid grid-cols-1 md:grid-cols-2 gap-10 relative z-10">
@@ -183,13 +183,13 @@ export default function SettingsPage() {
                             </div>
                             <div className="space-y-6 border-l border-slate-800/40 pl-10">
                                 <div className="p-5 bg-brand-green/5 border border-brand-green/10 rounded-2xl">
-                                    <p className="text-[10px] font-black text-brand-green mb-2 uppercase tracking-widest">Discovery Status</p>
+                                    <p className="text-[10px] font-black text-brand-green mb-2  tracking-widest">Discovery Status</p>
                                     <p className="text-base font-black text-white italic tracking-tighter">Listening on Port 2404</p>
                                     <div className="mt-4 h-1.5 w-full bg-slate-900 rounded-full overflow-hidden">
                                         <div className="h-full bg-brand-green w-1/3 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.5)]"></div>
                                     </div>
                                 </div>
-                                <button className="w-full py-4 bg-brand-green text-white rounded-xl text-xs font-black shadow-2xl shadow-brand-green/20 hover:scale-[1.01] transition-all uppercase tracking-[0.2em]">
+                                <button className="w-full py-4 bg-brand-green text-white rounded-xl text-xs font-black shadow-2xl shadow-brand-green/20 hover:scale-[1.01] transition-all  tracking-[0.2em]">
                                     Save System Overrides
                                 </button>
                             </div>
@@ -208,11 +208,11 @@ export default function SettingsPage() {
                         </div>
                         <div className="space-y-4">
                             <div className="p-5 border border-slate-800 bg-slate-900/20 rounded-xl">
-                                <p className="text-[9px] text-slate-600 font-black mb-2 uppercase tracking-widest leading-none">Uplink Cipher</p>
-                                <p className="text-xs text-white font-black italic uppercase tracking-tight">AES-256 GCM [Verified]</p>
+                                <p className="text-[9px] text-slate-600 font-black mb-2  tracking-widest leading-none">Uplink Cipher</p>
+                                <p className="text-xs text-white font-black italic  tracking-tight">AES-256 GCM [Verified]</p>
                             </div>
                             <div className="p-5 border border-slate-800 bg-slate-900/20 rounded-xl">
-                                <p className="text-[9px] text-slate-600 font-black mb-2 uppercase tracking-widest leading-none">Identity Token</p>
+                                <p className="text-[9px] text-slate-600 font-black mb-2  tracking-widest leading-none">Identity Token</p>
                                 <p className="text-[10px] text-slate-400 font-mono italic truncate">SCADA_SESSION_EYJ0...</p>
                             </div>
                         </div>
@@ -233,7 +233,7 @@ export default function SettingsPage() {
                             ].map((s) => (
                                 <div key={s.label} className="flex justify-between items-center border-b border-slate-800/40 pb-4 last:border-0 last:pb-0">
                                     <div>
-                                        <p className="text-xs font-black text-white uppercase tracking-tight">{s.label}</p>
+                                        <p className="text-xs font-black text-white  tracking-tight">{s.label}</p>
                                         <p className={`text-[9px] font-black tracking-widest mt-1 opacity-80 ${s.color}`}>{s.state}</p>
                                     </div>
                                     <span className="text-xs font-black italic text-slate-600 tabular-nums">{s.util}</span>

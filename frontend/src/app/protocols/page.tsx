@@ -143,14 +143,14 @@ export default function ProtocolsPage() {
                 <div className="space-y-2">
                     <div className="flex items-center gap-4">
                         <div className="w-1.5 h-8 bg-brand-green rounded-full shadow-[0_0_20px_rgba(16,185,129,0.4)]"></div>
-                        <h1 className="text-3xl font-black text-white tracking-tight uppercase">Communication Protocols</h1>
+                        <h1 className="text-3xl font-black text-white tracking-tight ">Communication Protocols</h1>
                     </div>
                     <p className="text-sm text-slate-500 ml-6">Configure Modbus and IEC 104 endpoints for devices</p>
                 </div>
 
                 <button
                     onClick={() => setIsModalOpen(true)}
-                    className="flex items-center gap-3 px-6 py-3 bg-brand-green text-white rounded-xl text-xs font-bold shadow-lg shadow-brand-green/20 hover:scale-[1.02] transition-all uppercase tracking-widest"
+                    className="flex items-center gap-3 px-6 py-3 bg-brand-green text-white rounded-xl text-xs font-bold shadow-lg shadow-brand-green/20 hover:scale-[1.02] transition-all  tracking-widest"
                 >
                     <Plus size={16} strokeWidth={3} /> New Protocol
                 </button>
@@ -168,7 +168,7 @@ export default function ProtocolsPage() {
                             <stat.icon size={20} />
                         </div>
                         <div>
-                            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{stat.label}</p>
+                            <p className="text-[10px] font-bold text-slate-500  tracking-widest">{stat.label}</p>
                             <p className="text-2xl font-black text-white tabular-nums">{stat.val}</p>
                         </div>
                     </div>
@@ -182,14 +182,14 @@ export default function ProtocolsPage() {
                         <div className="p-2 rounded-lg bg-slate-950 border border-slate-800 text-brand-green">
                             <Network size={18} />
                         </div>
-                        <h3 className="text-sm font-bold text-white uppercase">Protocol Registry</h3>
+                        <h3 className="text-sm font-bold text-white ">Protocol Registry</h3>
                     </div>
                 </div>
 
                 <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse">
                         <thead>
-                            <tr className="text-[10px] font-bold text-slate-500 uppercase tracking-widest border-b border-slate-800/40 bg-slate-900/20">
+                            <tr className="text-[10px] font-bold text-slate-500  tracking-widest border-b border-slate-800/40 bg-slate-900/20">
                                 <th className="px-6 py-4">Type</th>
                                 <th className="px-6 py-4">Config Name</th>
                                 <th className="px-6 py-4">Plant</th>
@@ -206,7 +206,7 @@ export default function ProtocolsPage() {
                             ) : protocols.map((proto) => (
                                 <tr key={proto.id} className="border-b border-slate-800/30 hover:bg-slate-800/20 transition-all">
                                     <td className="px-6 py-4">
-                                        <span className={`px-2 py-1 rounded-md text-[10px] font-bold uppercase border ${proto.protocolType === 'MODBUS'
+                                        <span className={`px-2 py-1 rounded-md text-[10px] font-bold  border ${proto.protocolType === 'MODBUS'
                                             ? 'bg-blue-500/10 text-blue-400 border-blue-500/20'
                                             : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
                                             }`}>
@@ -264,7 +264,7 @@ export default function ProtocolsPage() {
                                     </div>
                                     <div>
                                         <h2 className="text-lg font-bold text-white">New Protocol</h2>
-                                        <p className="text-[10px] text-slate-500 uppercase tracking-widest">Configure communication endpoint</p>
+                                        <p className="text-[10px] text-slate-500  tracking-widest">Configure communication endpoint</p>
                                     </div>
                                 </div>
                                 <button onClick={() => setIsModalOpen(false)} className="p-2 text-slate-500 hover:text-white transition-colors">
@@ -276,7 +276,7 @@ export default function ProtocolsPage() {
                                 {/* Configuration Name & Plant */}
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-2">
-                                        <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Config Name</label>
+                                        <label className="text-xs font-bold text-slate-400  tracking-widest">Config Name</label>
                                         <input
                                             type="text"
                                             value={formData.configName}
@@ -287,7 +287,7 @@ export default function ProtocolsPage() {
                                         />
                                     </div>
                                     <div className="space-y-2">
-                                        <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Plant</label>
+                                        <label className="text-xs font-bold text-slate-400  tracking-widest">Plant</label>
                                         <select
                                             value={formData.plantId}
                                             onChange={(e) => setFormData({ ...formData, plantId: e.target.value })}
@@ -304,14 +304,14 @@ export default function ProtocolsPage() {
 
                                 {/* Protocol Type */}
                                 <div className="space-y-2">
-                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Protocol Type</label>
+                                    <label className="text-xs font-bold text-slate-400  tracking-widest">Protocol Type</label>
                                     <div className="grid grid-cols-2 gap-3">
                                         {(['MODBUS', 'IEC104'] as const).map((type) => (
                                             <button
                                                 key={type}
                                                 type="button"
                                                 onClick={() => setFormData({ ...formData, protocolType: type })}
-                                                className={`p-3 rounded-xl border text-sm font-bold uppercase transition-all ${formData.protocolType === type
+                                                className={`p-3 rounded-xl border text-sm font-bold  transition-all ${formData.protocolType === type
                                                     ? 'bg-brand-green/10 border-brand-green/30 text-brand-green'
                                                     : 'bg-slate-900/30 border-slate-800 text-slate-500 hover:border-slate-700'
                                                     }`}
@@ -326,7 +326,7 @@ export default function ProtocolsPage() {
                                 <div className="p-4 bg-slate-900/30 rounded-xl border border-slate-800/40 space-y-4">
                                     <div className="flex items-center gap-2 mb-2">
                                         <Settings2 size={14} className="text-brand-green" />
-                                        <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                                        <span className="text-xs font-bold text-slate-400  tracking-widest">
                                             {formData.protocolType === 'MODBUS' ? 'Modbus Configuration' : 'IEC 104 Configuration'}
                                         </span>
                                     </div>
@@ -335,7 +335,7 @@ export default function ProtocolsPage() {
                                         <>
                                             <div className="grid grid-cols-2 gap-3">
                                                 <div className="space-y-1">
-                                                    <label className="text-[10px] font-bold text-slate-500 uppercase">IP Address</label>
+                                                    <label className="text-[10px] font-bold text-slate-500 ">IP Address</label>
                                                     <input
                                                         type="text"
                                                         value={formData.ipAddress}
@@ -344,7 +344,7 @@ export default function ProtocolsPage() {
                                                     />
                                                 </div>
                                                 <div className="space-y-1">
-                                                    <label className="text-[10px] font-bold text-slate-500 uppercase">Port</label>
+                                                    <label className="text-[10px] font-bold text-slate-500 ">Port</label>
                                                     <input
                                                         type="number"
                                                         value={formData.port}
@@ -355,7 +355,7 @@ export default function ProtocolsPage() {
                                             </div>
                                             <div className="grid grid-cols-3 gap-3">
                                                 <div className="space-y-1">
-                                                    <label className="text-[10px] font-bold text-slate-500 uppercase">Slave ID</label>
+                                                    <label className="text-[10px] font-bold text-slate-500 ">Slave ID</label>
                                                     <input
                                                         type="number"
                                                         value={formData.slaveId}
@@ -364,7 +364,7 @@ export default function ProtocolsPage() {
                                                     />
                                                 </div>
                                                 <div className="space-y-1">
-                                                    <label className="text-[10px] font-bold text-slate-500 uppercase">Timeout (ms)</label>
+                                                    <label className="text-[10px] font-bold text-slate-500 ">Timeout (ms)</label>
                                                     <input
                                                         type="number"
                                                         value={formData.timeout}
@@ -373,7 +373,7 @@ export default function ProtocolsPage() {
                                                     />
                                                 </div>
                                                 <div className="space-y-1">
-                                                    <label className="text-[10px] font-bold text-slate-500 uppercase">Retry Count</label>
+                                                    <label className="text-[10px] font-bold text-slate-500 ">Retry Count</label>
                                                     <input
                                                         type="number"
                                                         value={formData.retryCount}
@@ -387,7 +387,7 @@ export default function ProtocolsPage() {
                                         <>
                                             <div className="grid grid-cols-3 gap-3">
                                                 <div className="space-y-1 col-span-2">
-                                                    <label className="text-[10px] font-bold text-slate-500 uppercase">IP Address</label>
+                                                    <label className="text-[10px] font-bold text-slate-500 ">IP Address</label>
                                                     <input
                                                         type="text"
                                                         value={formData.iecIpAddress}
@@ -396,7 +396,7 @@ export default function ProtocolsPage() {
                                                     />
                                                 </div>
                                                 <div className="space-y-1">
-                                                    <label className="text-[10px] font-bold text-slate-500 uppercase">Port</label>
+                                                    <label className="text-[10px] font-bold text-slate-500 ">Port</label>
                                                     <input
                                                         type="number"
                                                         value={formData.iecPort}
@@ -407,7 +407,7 @@ export default function ProtocolsPage() {
                                             </div>
                                             <div className="grid grid-cols-4 gap-3">
                                                 <div className="space-y-1">
-                                                    <label className="text-[10px] font-bold text-slate-500 uppercase">ASDU Auth</label>
+                                                    <label className="text-[10px] font-bold text-slate-500 ">ASDU Auth</label>
                                                     <input
                                                         type="number"
                                                         value={formData.asduAddr}
@@ -416,7 +416,7 @@ export default function ProtocolsPage() {
                                                     />
                                                 </div>
                                                 <div className="space-y-1">
-                                                    <label className="text-[10px] font-bold text-slate-500 uppercase">T0 Timeout</label>
+                                                    <label className="text-[10px] font-bold text-slate-500 ">T0 Timeout</label>
                                                     <input
                                                         type="number"
                                                         value={formData.t0}
@@ -425,7 +425,7 @@ export default function ProtocolsPage() {
                                                     />
                                                 </div>
                                                 <div className="space-y-1">
-                                                    <label className="text-[10px] font-bold text-slate-500 uppercase">T1 Limit</label>
+                                                    <label className="text-[10px] font-bold text-slate-500 ">T1 Limit</label>
                                                     <input
                                                         type="number"
                                                         value={formData.t1}
@@ -434,7 +434,7 @@ export default function ProtocolsPage() {
                                                     />
                                                 </div>
                                                 <div className="space-y-1">
-                                                    <label className="text-[10px] font-bold text-slate-500 uppercase">T2 Lim</label>
+                                                    <label className="text-[10px] font-bold text-slate-500 ">T2 Lim</label>
                                                     <input
                                                         type="number"
                                                         value={formData.t2}
@@ -445,7 +445,7 @@ export default function ProtocolsPage() {
                                             </div>
                                             <div className="grid grid-cols-3 gap-3">
                                                 <div className="space-y-1">
-                                                    <label className="text-[10px] font-bold text-slate-500 uppercase">T3 Lim</label>
+                                                    <label className="text-[10px] font-bold text-slate-500 ">T3 Lim</label>
                                                     <input
                                                         type="number"
                                                         value={formData.t3}
@@ -454,7 +454,7 @@ export default function ProtocolsPage() {
                                                     />
                                                 </div>
                                                 <div className="space-y-1">
-                                                    <label className="text-[10px] font-bold text-slate-500 uppercase">K Window</label>
+                                                    <label className="text-[10px] font-bold text-slate-500 ">K Window</label>
                                                     <input
                                                         type="number"
                                                         value={formData.k}
@@ -463,7 +463,7 @@ export default function ProtocolsPage() {
                                                     />
                                                 </div>
                                                 <div className="space-y-1">
-                                                    <label className="text-[10px] font-bold text-slate-500 uppercase">W Window</label>
+                                                    <label className="text-[10px] font-bold text-slate-500 ">W Window</label>
                                                     <input
                                                         type="number"
                                                         value={formData.w}
@@ -478,7 +478,7 @@ export default function ProtocolsPage() {
 
                                 <button
                                     type="submit"
-                                    className="w-full py-4 bg-brand-green text-white font-bold uppercase tracking-widest text-xs rounded-xl shadow-lg shadow-brand-green/20 hover:scale-[1.01] transition-all"
+                                    className="w-full py-4 bg-brand-green text-white font-bold  tracking-widest text-xs rounded-xl shadow-lg shadow-brand-green/20 hover:scale-[1.01] transition-all"
                                 >
                                     Create Protocol
                                 </button>

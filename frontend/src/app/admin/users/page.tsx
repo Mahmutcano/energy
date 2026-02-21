@@ -89,14 +89,14 @@ export default function UsersPage() {
                 <div className="space-y-2">
                     <div className="flex items-center gap-4">
                         <div className="w-1.5 h-8 bg-brand-green rounded-full shadow-[0_0_20px_rgba(16,185,129,0.4)]"></div>
-                        <h1 className="text-3xl font-black text-white tracking-tight uppercase">User Management</h1>
+                        <h1 className="text-3xl font-black text-white tracking-tight ">User Management</h1>
                     </div>
                     <p className="text-sm text-slate-500 ml-6">Manage system users and role assignments</p>
                 </div>
 
                 <button
                     onClick={() => setIsModalOpen(true)}
-                    className="flex items-center gap-3 px-6 py-3 bg-brand-green text-white rounded-xl text-xs font-bold shadow-lg shadow-brand-green/20 hover:scale-[1.02] transition-all uppercase tracking-widest"
+                    className="flex items-center gap-3 px-6 py-3 bg-brand-green text-white rounded-xl text-xs font-bold shadow-lg shadow-brand-green/20 hover:scale-[1.02] transition-all  tracking-widest"
                 >
                     <Plus size={16} strokeWidth={3} /> New User
                 </button>
@@ -110,7 +110,7 @@ export default function UsersPage() {
                             <Users size={18} />
                         </div>
                         <div>
-                            <h3 className="text-sm font-bold text-white uppercase">User Registry</h3>
+                            <h3 className="text-sm font-bold text-white ">User Registry</h3>
                             <p className="text-[10px] text-slate-500">{users.length} users</p>
                         </div>
                     </div>
@@ -119,7 +119,7 @@ export default function UsersPage() {
                 <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse">
                         <thead>
-                            <tr className="text-[10px] font-bold text-slate-500 uppercase tracking-widest border-b border-slate-800/40 bg-slate-900/20">
+                            <tr className="text-[10px] font-bold text-slate-500  tracking-widest border-b border-slate-800/40 bg-slate-900/20">
                                 <th className="px-6 py-4">Name</th>
                                 <th className="px-6 py-4">Email</th>
                                 <th className="px-6 py-4">Role</th>
@@ -136,7 +136,7 @@ export default function UsersPage() {
                                 <tr key={user.id} className="border-b border-slate-800/30 hover:bg-slate-800/20 transition-all">
                                     <td className="px-6 py-4">
                                         <div className="flex items-center gap-3">
-                                            <div className="w-8 h-8 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center text-[10px] font-bold text-white uppercase">
+                                            <div className="w-8 h-8 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center text-[10px] font-bold text-white ">
                                                 {user.name?.substring(0, 2) || 'N/A'}
                                             </div>
                                             <span className="text-sm font-bold text-white">{user.name || 'Unnamed'}</span>
@@ -144,7 +144,7 @@ export default function UsersPage() {
                                     </td>
                                     <td className="px-6 py-4 text-sm text-slate-400">{user.email}</td>
                                     <td className="px-6 py-4">
-                                        <span className={`px-2 py-1 rounded-md text-[10px] font-bold uppercase border ${roleColors[user.role]}`}>
+                                        <span className={`px-2 py-1 rounded-md text-[10px] font-bold  border ${roleColors[user.role]}`}>
                                             {user.role}
                                         </span>
                                     </td>
@@ -178,7 +178,7 @@ export default function UsersPage() {
                                     </div>
                                     <div>
                                         <h2 className="text-lg font-bold text-white">New User</h2>
-                                        <p className="text-[10px] text-slate-500 uppercase tracking-widest">Create user account</p>
+                                        <p className="text-[10px] text-slate-500  tracking-widest">Create user account</p>
                                     </div>
                                 </div>
                                 <button onClick={() => setIsModalOpen(false)} className="p-2 text-slate-500 hover:text-white transition-colors">
@@ -187,7 +187,7 @@ export default function UsersPage() {
                             </div>
                             <form onSubmit={handleCreate} className="p-6 space-y-4">
                                 <div className="space-y-2">
-                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Name</label>
+                                    <label className="text-xs font-bold text-slate-400  tracking-widest">Name</label>
                                     <input
                                         type="text"
                                         value={formData.name}
@@ -197,7 +197,7 @@ export default function UsersPage() {
                                     />
                                 </div>
                                 <div className="space-y-2">
-                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Email</label>
+                                    <label className="text-xs font-bold text-slate-400  tracking-widest">Email</label>
                                     <input
                                         type="email"
                                         value={formData.email}
@@ -208,7 +208,7 @@ export default function UsersPage() {
                                     />
                                 </div>
                                 <div className="space-y-2">
-                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Password</label>
+                                    <label className="text-xs font-bold text-slate-400  tracking-widest">Password</label>
                                     <input
                                         type="password"
                                         value={formData.password}
@@ -220,7 +220,7 @@ export default function UsersPage() {
                                 </div>
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-2">
-                                        <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Role</label>
+                                        <label className="text-xs font-bold text-slate-400  tracking-widest">Role</label>
                                         <select
                                             value={formData.role}
                                             onChange={(e) => setFormData({ ...formData, role: e.target.value as any })}
@@ -232,7 +232,7 @@ export default function UsersPage() {
                                         </select>
                                     </div>
                                     <div className="space-y-2">
-                                        <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Company</label>
+                                        <label className="text-xs font-bold text-slate-400  tracking-widest">Company</label>
                                         <select
                                             value={formData.companyProfileId}
                                             onChange={(e) => setFormData({ ...formData, companyProfileId: e.target.value })}
@@ -247,7 +247,7 @@ export default function UsersPage() {
                                 </div>
                                 <button
                                     type="submit"
-                                    className="w-full py-4 bg-brand-green text-white font-bold uppercase tracking-widest text-xs rounded-xl shadow-lg shadow-brand-green/20 hover:scale-[1.01] transition-all"
+                                    className="w-full py-4 bg-brand-green text-white font-bold  tracking-widest text-xs rounded-xl shadow-lg shadow-brand-green/20 hover:scale-[1.01] transition-all"
                                 >
                                     Create User
                                 </button>

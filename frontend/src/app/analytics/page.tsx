@@ -23,16 +23,16 @@ export default function Analytics() {
                 <div className="space-y-2">
                     <div className="flex items-center gap-4">
                         <div className="w-1.5 h-8 bg-brand-green rounded-full shadow-[0_0_20px_rgba(16,185,129,0.4)]"></div>
-                        <h1 className="text-3xl font-black text-white tracking-tight uppercase">System Analytics</h1>
+                        <h1 className="text-3xl font-black text-white tracking-tight ">System Analytics</h1>
                     </div>
                     <p className="text-sm text-slate-500 ml-6">Historical telemetry data and performance metrics</p>
                 </div>
 
                 <div className="flex items-center gap-4">
-                    <button className="flex items-center gap-3 px-6 py-3.5 bg-slate-950 border border-slate-800 rounded-xl text-[10px] font-black text-slate-400 hover:text-white uppercase tracking-widest hover:border-brand-green/30 transition-all">
+                    <button className="flex items-center gap-3 px-6 py-3.5 bg-slate-950 border border-slate-800 rounded-xl text-[10px] font-black text-slate-400 hover:text-white  tracking-widest hover:border-brand-green/30 transition-all">
                         <Calendar size={14} className="text-brand-green" /> Last 24 Hours
                     </button>
-                    <button className="flex items-center gap-3 px-8 py-4 bg-brand-green text-white rounded-xl text-xs font-black shadow-2xl shadow-brand-green/20 hover:scale-[1.02] transition-all uppercase tracking-[0.2em]">
+                    <button className="flex items-center gap-3 px-8 py-4 bg-brand-green text-white rounded-xl text-xs font-black shadow-2xl shadow-brand-green/20 hover:scale-[1.02] transition-all  tracking-[0.2em]">
                         <Download size={16} strokeWidth={3} /> Export Report
                     </button>
                 </div>
@@ -48,7 +48,7 @@ export default function Analytics() {
                                     <TrendingUp size={24} className="text-brand-green" />
                                 </div>
                                 <div>
-                                    <h3 className="text-lg font-black text-white uppercase tracking-tight">Active Power Consumption</h3>
+                                    <h3 className="text-lg font-black text-white  tracking-tight">Active Power Consumption</h3>
                                     <p className="text-tech-label mt-1 text-slate-600">Grid Resource Usage - Vector 01</p>
                                 </div>
                             </div>
@@ -102,8 +102,8 @@ export default function Analytics() {
                                 <Layers size={22} className="text-brand-green" />
                             </div>
                             <div>
-                                <h3 className="text-xs font-black text-white uppercase tracking-[0.4em]">Statistical Engine</h3>
-                                <p className="text-[8px] font-mono text-slate-600 mt-1 uppercase">Analysis Core V4.2</p>
+                                <h3 className="text-xs font-black text-white  tracking-[0.4em]">Statistical Engine</h3>
+                                <p className="text-[8px] font-mono text-slate-600 mt-1 ">Analysis Core V4.2</p>
                             </div>
                         </div>
 
@@ -123,7 +123,7 @@ export default function Analytics() {
                                     transition={{ delay: i * 0.1 }}
                                     className="p-5 rounded-xl bg-slate-900/40 border border-slate-800/40 hover:border-brand-green/30 transition-all group"
                                 >
-                                    <p className="text-[9px] font-black text-slate-600 uppercase tracking-widest mb-3 leading-none italic">{stat.label}</p>
+                                    <p className="text-[9px] font-black text-slate-600  tracking-widest mb-3 leading-none italic">{stat.label}</p>
                                     <div className="flex justify-between items-end">
                                         <p className="text-2xl font-black text-white tabular-nums tracking-tighter leading-none">{stat.val}</p>
                                         <div className={`flex items-center gap-1.5 text-[10px] font-black px-2 py-1 rounded-full border ${stat.type === 'up' ? 'text-red-500 border-red-500/20 bg-red-500/5' :
@@ -134,13 +134,13 @@ export default function Analytics() {
                                             {stat.trend}
                                         </div>
                                     </div>
-                                    <p className="text-[8px] font-mono text-slate-700 mt-3 uppercase tracking-tighter">Event Time: {stat.time}</p>
+                                    <p className="text-[8px] font-mono text-slate-700 mt-3  tracking-tighter">Event Time: {stat.time}</p>
                                 </motion.div>
                             ))}
                         </div>
 
                         <div className="p-8 bg-slate-900/30 border-t border-slate-800/60">
-                            <button className="w-full py-4 bg-slate-950 border border-slate-800 text-slate-300 rounded-xl text-xs font-black shadow-xl hover:text-white hover:border-brand-green/30 transition-all uppercase tracking-widest">
+                            <button className="w-full py-4 bg-slate-950 border border-slate-800 text-slate-300 rounded-xl text-xs font-black shadow-xl hover:text-white hover:border-brand-green/30 transition-all  tracking-widest">
                                 Comprehensive Report
                             </button>
                         </div>

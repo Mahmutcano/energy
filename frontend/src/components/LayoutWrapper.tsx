@@ -27,7 +27,7 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
             <div className="h-screen w-full flex items-center justify-center bg-background">
                 <div className="flex flex-col items-center gap-4">
                     <div className="w-12 h-12 border-4 border-border border-t-brand-green rounded-full animate-spin"></div>
-                    <p className="text-[11px] font-bold text-foreground/40 uppercase tracking-widest animate-pulse">Initializing System...</p>
+                    <p className="text-[11px] font-bold text-foreground/40  tracking-widest animate-pulse">Initializing System...</p>
                 </div>
             </div>
         );
@@ -46,10 +46,10 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
                     <div className="flex items-center gap-4">
                         <div className="flex items-center gap-2 text-foreground/40">
                             <Activity size={16} className="text-brand-green" />
-                            <span className="text-[10px] font-bold uppercase tracking-widest">Active_Session</span>
+                            <span className="text-[10px] font-bold  tracking-widest">Active_Session</span>
                         </div>
                         <div className="h-4 w-px bg-border mx-2"></div>
-                        <h2 className="text-sm font-bold text-foreground uppercase tracking-tight">
+                        <h2 className="text-sm font-bold text-foreground  tracking-tight">
                             {pathname === '/' ? 'System Metrics' : pathname.slice(1).replace('-', ' ')}
                         </h2>
                     </div>

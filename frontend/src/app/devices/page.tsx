@@ -96,14 +96,14 @@ export default function DevicesPage() {
                 <div className="space-y-2">
                     <div className="flex items-center gap-4">
                         <div className="w-1.5 h-8 bg-brand-green rounded-full shadow-[0_0_20px_rgba(16,185,129,0.4)]"></div>
-                        <h1 className="text-3xl font-black text-white tracking-tight uppercase">Devices</h1>
+                        <h1 className="text-3xl font-black text-white tracking-tight ">Devices</h1>
                     </div>
                     <p className="text-sm text-slate-500 ml-6">Manage device inventory and assignments</p>
                 </div>
 
                 <button
                     onClick={() => setIsModalOpen(true)}
-                    className="flex items-center gap-3 px-6 py-3 bg-brand-green text-white rounded-xl text-xs font-bold shadow-lg shadow-brand-green/20 hover:scale-[1.02] transition-all uppercase tracking-widest"
+                    className="flex items-center gap-3 px-6 py-3 bg-brand-green text-white rounded-xl text-xs font-bold shadow-lg shadow-brand-green/20 hover:scale-[1.02] transition-all  tracking-widest"
                 >
                     <Plus size={16} strokeWidth={3} /> New Device
                 </button>
@@ -131,7 +131,7 @@ export default function DevicesPage() {
                             <Cpu size={18} />
                         </div>
                         <div>
-                            <h3 className="text-sm font-bold text-white uppercase">Device Registry</h3>
+                            <h3 className="text-sm font-bold text-white ">Device Registry</h3>
                             <p className="text-[10px] text-slate-500">{filteredDevices.length} devices found</p>
                         </div>
                     </div>
@@ -140,7 +140,7 @@ export default function DevicesPage() {
                 <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse">
                         <thead>
-                            <tr className="text-[10px] font-bold text-slate-500 uppercase tracking-widest border-b border-slate-800/40 bg-slate-900/20">
+                            <tr className="text-[10px] font-bold text-slate-500  tracking-widest border-b border-slate-800/40 bg-slate-900/20">
                                 <th className="px-6 py-4">Device Name</th>
                                 <th className="px-6 py-4">Type</th>
                                 <th className="px-6 py-4">Protocol Config</th>
@@ -177,7 +177,7 @@ export default function DevicesPage() {
                                     <td className="px-6 py-4">
                                         <div className="flex items-center gap-2">
                                             <div className={`w-2 h-2 rounded-full ${device.isActive ? 'bg-brand-green shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-slate-700'}`} />
-                                            <span className={`text-[10px] font-bold uppercase ${device.isActive ? 'text-brand-green' : 'text-slate-600'}`}>
+                                            <span className={`text-[10px] font-bold  ${device.isActive ? 'text-brand-green' : 'text-slate-600'}`}>
                                                 {device.isActive ? 'Active' : 'Inactive'}
                                             </span>
                                         </div>
@@ -209,7 +209,7 @@ export default function DevicesPage() {
                                     </div>
                                     <div>
                                         <h2 className="text-lg font-bold text-white">New Device</h2>
-                                        <p className="text-[10px] text-slate-500 uppercase tracking-widest">Register a new device</p>
+                                        <p className="text-[10px] text-slate-500  tracking-widest">Register a new device</p>
                                     </div>
                                 </div>
                                 <button onClick={() => setIsModalOpen(false)} className="p-2 text-slate-500 hover:text-white transition-colors">
@@ -218,7 +218,7 @@ export default function DevicesPage() {
                             </div>
                             <form onSubmit={handleCreate} className="p-6 space-y-5">
                                 <div className="space-y-2">
-                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Protocol Configuration</label>
+                                    <label className="text-xs font-bold text-slate-400  tracking-widest">Protocol Configuration</label>
                                     <select
                                         value={formData.protocolConfigId}
                                         onChange={(e) => setFormData({ ...formData, protocolConfigId: e.target.value })}
@@ -232,7 +232,7 @@ export default function DevicesPage() {
                                     </select>
                                 </div>
                                 <div className="space-y-2">
-                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Device Type</label>
+                                    <label className="text-xs font-bold text-slate-400  tracking-widest">Device Type</label>
                                     <select
                                         value={formData.deviceType}
                                         onChange={(e) => setFormData({ ...formData, deviceType: e.target.value as any })}
@@ -245,7 +245,7 @@ export default function DevicesPage() {
                                     </select>
                                 </div>
                                 <div className="space-y-2">
-                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Device Name</label>
+                                    <label className="text-xs font-bold text-slate-400  tracking-widest">Device Name</label>
                                     <input
                                         type="text"
                                         value={formData.deviceName}
@@ -256,7 +256,7 @@ export default function DevicesPage() {
                                     />
                                 </div>
                                 <div className="flex items-center justify-between p-4 bg-slate-900/30 rounded-xl border border-slate-800/40">
-                                    <span className="text-xs font-bold text-slate-400 uppercase">Active Status</span>
+                                    <span className="text-xs font-bold text-slate-400 ">Active Status</span>
                                     <button
                                         type="button"
                                         onClick={() => setFormData({ ...formData, isActive: !formData.isActive })}
@@ -267,7 +267,7 @@ export default function DevicesPage() {
                                 </div>
                                 <button
                                     type="submit"
-                                    className="w-full py-4 bg-brand-green text-white font-bold uppercase tracking-widest text-xs rounded-xl shadow-lg shadow-brand-green/20 hover:scale-[1.01] transition-all"
+                                    className="w-full py-4 bg-brand-green text-white font-bold  tracking-widest text-xs rounded-xl shadow-lg shadow-brand-green/20 hover:scale-[1.01] transition-all"
                                 >
                                     Create Device
                                 </button>

@@ -50,7 +50,7 @@ export default function LoginPage() {
                             <Activity size={56} className="text-brand-green relative z-10" strokeWidth={2.5} />
                         </div>
                         <div>
-                            <h1 className="text-6xl font-black text-white tracking-tighter uppercase italic leading-none">ENERGY</h1>
+                            <h1 className="text-6xl font-black text-white tracking-tighter  italic leading-none">ENERGY</h1>
                             <div className="flex items-center gap-3 mt-2">
                                 <span className="text-tech-label text-brand-green tracking-[0.4em]">SCADA Platform</span>
                                 <div className="h-px w-8 bg-slate-800"></div>
@@ -64,7 +64,7 @@ export default function LoginPage() {
                         transition={{ delay: 0.1 }}
                         className="space-y-8"
                     >
-                        <h2 className="text-5xl font-black text-white leading-[1.1] tracking-tight italic uppercase">Elite Control for Global Energy Grids.</h2>
+                        <h2 className="text-5xl font-black text-white leading-[1.1] tracking-tight italic ">Elite Control for Global Energy Grids.</h2>
                         <p className="text-lg text-slate-500 leading-relaxed font-medium">Secure, high-precision SCADA infrastructure for monitoring complex telemetry and industrial operations in real-time. Engineered for 99.999% uptime.</p>
                     </motion.div>
 
@@ -81,7 +81,7 @@ export default function LoginPage() {
                             <div key={i} className="card-base p-6 bg-slate-900/40 border-slate-800/60">
                                 <p className="text-tech-label mb-2">{item.label}</p>
                                 <p className="text-xl font-black text-white italic tracking-tight">{item.val}</p>
-                                <p className="text-[10px] text-slate-600 font-bold uppercase mt-2 tracking-widest">{item.sub}</p>
+                                <p className="text-[10px] text-slate-600 font-bold  mt-2 tracking-widest">{item.sub}</p>
                             </div>
                         ))}
                     </motion.div>
@@ -97,7 +97,7 @@ export default function LoginPage() {
                 >
                     <div className="card-base p-12 bg-slate-900/40 border-slate-800 shadow-2xl backdrop-blur-xl">
                         <div className="space-y-3 mb-12">
-                            <h3 className="text-3xl font-black text-white uppercase tracking-tighter italic">Access Node</h3>
+                            <h3 className="text-3xl font-black text-white  tracking-tighter italic">Access Node</h3>
                             <div className="flex items-center gap-3">
                                 <span className="text-tech-label text-slate-600 tracking-[0.2em]">Operator Identification Required</span>
                             </div>
@@ -140,7 +140,7 @@ export default function LoginPage() {
                                 <motion.div
                                     initial={{ opacity: 0, y: -10 }}
                                     animate={{ opacity: 1, y: 0 }}
-                                    className="p-5 bg-danger/5 border border-danger/20 text-danger rounded-2xl text-[11px] font-black uppercase tracking-tight flex items-start gap-4"
+                                    className="p-5 bg-danger/5 border border-danger/20 text-danger rounded-2xl text-[11px] font-black  tracking-tight flex items-start gap-4"
                                 >
                                     <div className="w-1.5 h-1.5 rounded-full bg-danger mt-1.5 shadow-[0_0_8px_rgba(239,68,68,0.5)]"></div>
                                     <span className="flex-1 leading-relaxed">{error}</span>
@@ -150,7 +150,7 @@ export default function LoginPage() {
                             <button
                                 type="submit"
                                 disabled={loading}
-                                className="w-full h-16 bg-brand-green text-white rounded-2xl shadow-2xl shadow-brand-green/20 font-black uppercase tracking-[0.3em] text-xs transition-all flex items-center justify-center gap-4 disabled:opacity-50 disabled:cursor-not-allowed group active:scale-[0.98]"
+                                className="w-full h-16 bg-brand-green text-white rounded-2xl shadow-2xl shadow-brand-green/20 font-black  tracking-[0.3em] text-xs transition-all flex items-center justify-center gap-4 disabled:opacity-50 disabled:cursor-not-allowed group active:scale-[0.98]"
                             >
                                 {loading ? (
                                     <div className="w-6 h-6 border-3 border-white/20 border-t-white rounded-full animate-spin"></div>
@@ -164,12 +164,12 @@ export default function LoginPage() {
                         </form>
 
                         <div className="mt-12 pt-8 border-t border-slate-800 flex flex-col items-center gap-4">
-                            <p className="text-xs font-black text-slate-600 uppercase tracking-widest">
+                            <p className="text-xs font-black text-slate-600  tracking-widest">
                                 New unit? <Link href="/register" className="text-brand-green hover:underline">Register Personnel</Link>
                             </p>
                             <div className="flex items-center gap-3">
                                 <div className="h-px w-8 bg-slate-800"></div>
-                                <span className="text-[10px] font-mono text-slate-800 uppercase tracking-widest">Kernel Shell v1.4</span>
+                                <span className="text-[10px] font-mono text-slate-800  tracking-widest">Kernel Shell v1.4</span>
                                 <div className="h-px w-8 bg-slate-800"></div>
                             </div>
                         </div>

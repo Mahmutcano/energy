@@ -79,7 +79,7 @@ export default function Dashboard() {
         <div className="space-y-2">
           <div className="flex items-center gap-4">
             <div className="w-1.5 h-8 bg-brand-green rounded-full shadow-[0_0_20px_rgba(16,185,129,0.4)]"></div>
-            <h1 className="text-3xl font-black text-white tracking-tight uppercase">Operations Center</h1>
+            <h1 className="text-3xl font-black text-white tracking-tight ">Operations Center</h1>
           </div>
           <p className="text-sm text-slate-500 ml-6">Live system overview and telemetry monitoring</p>
         </div>
@@ -94,7 +94,7 @@ export default function Dashboard() {
                 <stat.icon size={14} className={stat.color} />
               </div>
               <div className="flex flex-col leading-none">
-                <span className="text-[9px] font-bold text-slate-600 uppercase tracking-widest mb-1">{stat.label}</span>
+                <span className="text-[9px] font-bold text-slate-600  tracking-widest mb-1">{stat.label}</span>
                 <span className="text-sm font-black text-white tabular-nums">{stat.val}</span>
               </div>
             </div>
@@ -115,7 +115,7 @@ export default function Dashboard() {
               <div className={`p-2 rounded-lg bg-slate-950 border border-slate-800 ${stat.color}`}>
                 <stat.icon size={16} />
               </div>
-              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{stat.label}</span>
+              <span className="text-[10px] font-bold text-slate-500  tracking-widest">{stat.label}</span>
             </div>
             <p className={`text-3xl font-black tabular-nums ${stat.color}`}>{typeof stat.val === 'number' ? stat.val.toString().padStart(2, '0') : stat.val}</p>
           </div>
@@ -128,11 +128,11 @@ export default function Dashboard() {
           <div className="p-2 rounded-lg bg-brand-green/10 border border-brand-green/20">
             <Database size={16} className="text-brand-green" />
           </div>
-          <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest">Live Telemetry Feed</h3>
+          <h3 className="text-xs font-bold text-slate-500  tracking-widest">Live Telemetry Feed</h3>
           <div className="h-px flex-1 bg-gradient-to-r from-slate-800 to-transparent"></div>
           <div className="flex items-center gap-2 px-3 py-1 bg-slate-950 border border-slate-800 rounded-lg">
             <div className="w-2 h-2 rounded-full bg-brand-green animate-pulse"></div>
-            <span className="text-[9px] font-bold text-slate-500 uppercase">Realtime</span>
+            <span className="text-[9px] font-bold text-slate-500 ">Realtime</span>
           </div>
         </div>
 
@@ -171,7 +171,7 @@ export default function Dashboard() {
                   <BarChart3 size={20} className="text-brand-green" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-bold text-white uppercase tracking-tight">System Analysis</h3>
+                  <h3 className="text-sm font-bold text-white  tracking-tight">System Analysis</h3>
                   <p className="text-[10px] text-slate-600 mt-0.5">Performance metrics overview</p>
                 </div>
               </div>
@@ -185,7 +185,7 @@ export default function Dashboard() {
               ].map((metric, i) => (
                 <div key={i} className="space-y-3">
                   <div className="flex justify-between items-end">
-                    <span className="text-[10px] font-bold text-slate-600 uppercase tracking-widest">{metric.label}</span>
+                    <span className="text-[10px] font-bold text-slate-600  tracking-widest">{metric.label}</span>
                     <span className="text-sm font-black text-white font-mono">{metric.val}%</span>
                   </div>
                   <div className="h-1.5 bg-slate-950 rounded-full border border-slate-800/50 overflow-hidden p-0.5">
@@ -206,7 +206,7 @@ export default function Dashboard() {
                 <div className="p-2 rounded-lg bg-slate-950 border border-slate-800">
                   <Zap size={14} className="text-brand-green" />
                 </div>
-                <h3 className="text-xs font-bold text-white uppercase tracking-widest">Quick Stats</h3>
+                <h3 className="text-xs font-bold text-white  tracking-widest">Quick Stats</h3>
               </div>
               <div className="space-y-1">
                 {[
@@ -215,7 +215,7 @@ export default function Dashboard() {
                   { label: 'Alarm Events', val: stats.activeAlarms.toString() },
                 ].map((row, i) => (
                   <div key={i} className="flex justify-between items-center py-3 px-2 hover:bg-slate-800/30 rounded-lg transition-all border-b border-slate-800/30 last:border-none">
-                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{row.label}</span>
+                    <span className="text-[10px] font-bold text-slate-500  tracking-widest">{row.label}</span>
                     <span className="text-lg font-black text-white tabular-nums">{row.val}</span>
                   </div>
                 ))}
@@ -227,7 +227,7 @@ export default function Dashboard() {
                 <div className="p-2 rounded-lg bg-slate-950 border border-slate-800">
                   <Network size={14} className="text-brand-green" />
                 </div>
-                <h3 className="text-xs font-bold text-white uppercase tracking-widest">Protocol Summary</h3>
+                <h3 className="text-xs font-bold text-white  tracking-widest">Protocol Summary</h3>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 {[
@@ -237,10 +237,10 @@ export default function Dashboard() {
                   { label: 'WebSocket', status: 'Ready', col: 'text-brand-green' },
                 ].map((hw, i) => (
                   <div key={i} className="p-3 rounded-xl border border-slate-800 bg-slate-950/60 hover:border-brand-green/30 transition-all">
-                    <p className="text-[9px] font-bold text-slate-600 uppercase tracking-widest mb-2">{hw.label}</p>
+                    <p className="text-[9px] font-bold text-slate-600  tracking-widest mb-2">{hw.label}</p>
                     <div className="flex items-center gap-2">
                       <div className={`w-1.5 h-1.5 rounded-full ${hw.col === 'text-brand-green' ? 'bg-brand-green shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-slate-700'}`}></div>
-                      <span className={`text-[10px] font-bold ${hw.col} uppercase`}>{hw.status}</span>
+                      <span className={`text-[10px] font-bold ${hw.col} `}>{hw.status}</span>
                     </div>
                   </div>
                 ))}
@@ -260,8 +260,8 @@ export default function Dashboard() {
                   <Terminal size={16} className="text-brand-green" />
                 </div>
                 <div>
-                  <h3 className="text-xs font-bold text-white uppercase tracking-widest">Event Log</h3>
-                  <p className="text-[8px] font-mono text-slate-600 mt-0.5 uppercase">Recent system events</p>
+                  <h3 className="text-xs font-bold text-white  tracking-widest">Event Log</h3>
+                  <p className="text-[8px] font-mono text-slate-600 mt-0.5 ">Recent system events</p>
                 </div>
               </div>
             </div>
@@ -278,7 +278,7 @@ export default function Dashboard() {
                   <div className="flex justify-between items-center mb-2">
                     <div className="flex items-center gap-2">
                       <div className={`w-1 h-3 rounded-full ${log.type === 'warning' ? 'bg-orange-500' : log.type === 'danger' ? 'bg-red-500' : 'bg-brand-green'}`} />
-                      <span className={`text-[10px] font-bold uppercase tracking-widest ${log.type === 'warning' ? 'text-orange-500' : log.type === 'danger' ? 'text-red-500' : 'text-brand-green'}`}>
+                      <span className={`text-[10px] font-bold  tracking-widest ${log.type === 'warning' ? 'text-orange-500' : log.type === 'danger' ? 'text-red-500' : 'text-brand-green'}`}>
                         {log.event}
                       </span>
                     </div>
@@ -296,14 +296,14 @@ export default function Dashboard() {
         <div className="flex items-center gap-8">
           <div className="flex items-center gap-2">
             <Database size={12} className="text-brand-green" />
-            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">PostgreSQL Online</span>
+            <span className="text-[10px] font-bold text-slate-500  tracking-widest">PostgreSQL Online</span>
           </div>
           <div className="flex items-center gap-2">
             <AlertTriangle size={12} className={stats.activeAlarms > 0 ? 'text-amber-400' : 'text-brand-green'} />
-            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{stats.activeAlarms} Active Alerts</span>
+            <span className="text-[10px] font-bold text-slate-500  tracking-widest">{stats.activeAlarms} Active Alerts</span>
           </div>
         </div>
-        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">X-SCADA Enterprise v1.0</p>
+        <p className="text-[9px] font-bold text-slate-400  tracking-widest">X-SCADA Enterprise v1.0</p>
       </footer>
     </div>
   );

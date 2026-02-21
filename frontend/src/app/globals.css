@@ -169,7 +169,7 @@
 
 /* Standardized Technical Typography */
 .text-tech-label {
-  @apply text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em];
+  @apply text-[10px] font-bold text-slate-500  tracking-[0.2em];
 }
 
 .text-tech-value {
@@ -192,7 +192,7 @@
 }
 
 .scada-table th {
-  @apply px-4 py-3 text-[11px] font-bold text-slate-500 uppercase tracking-widest border-b border-border bg-muted/50;
+  @apply px-4 py-3 text-[11px] font-bold text-slate-500  tracking-widest border-b border-border bg-muted/50;
 }
 
 .scada-table td {
@@ -201,7 +201,7 @@
 
 /* Status Indicator */
 .status-pill {
-  @apply inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-tight;
+  @apply inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold  tracking-tight;
 }
 
 /* Specialized Scada Text */

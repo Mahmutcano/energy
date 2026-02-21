@@ -49,8 +49,8 @@ export default function RegisterPage() {
                         <Activity size={32} className="text-brand-green" />
                     </div>
                     <div>
-                        <h1 className="text-3xl font-black text-white italic tracking-tighter uppercase leading-none">ENERGY</h1>
-                        <span className="text-[10px] font-black text-slate-700 tracking-[0.4em] uppercase mt-1 block">SCADA Platform</span>
+                        <h1 className="text-3xl font-black text-white italic tracking-tighter  leading-none">ENERGY</h1>
+                        <span className="text-[10px] font-black text-slate-700 tracking-[0.4em]  mt-1 block">SCADA Platform</span>
                     </div>
                 </motion.div>
 
@@ -59,7 +59,7 @@ export default function RegisterPage() {
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.1 }}
-                        className="text-5xl font-black text-white tracking-tight leading-[1.1] italic uppercase"
+                        className="text-5xl font-black text-white tracking-tight leading-[1.1] italic "
                     >
                         Join the <br /> <span className="text-brand-green">Industrial Grid.</span>
                     </motion.h2>
@@ -79,7 +79,7 @@ export default function RegisterPage() {
                                     <item.icon size={20} />
                                 </div>
                                 <div className="space-y-1">
-                                    <p className="text-sm font-black text-white uppercase tracking-widest leading-none">{item.title}</p>
+                                    <p className="text-sm font-black text-white  tracking-widest leading-none">{item.title}</p>
                                     <p className="text-xs text-slate-500 font-medium leading-relaxed max-w-[280px]">{item.desc}</p>
                                 </div>
                             </motion.div>
@@ -87,7 +87,7 @@ export default function RegisterPage() {
                     </div>
                 </div>
 
-                <div className="text-[10px] font-black text-slate-800 uppercase tracking-[0.5em] italic">
+                <div className="text-[10px] font-black text-slate-800  tracking-[0.5em] italic">
                     Personnel Management Shell v1.4
                 </div>
             </div>
@@ -105,7 +105,7 @@ export default function RegisterPage() {
                         </div>
 
                         <div className="space-y-3 mb-12 relative z-10">
-                            <h3 className="text-4xl font-black text-white uppercase tracking-tighter italic">Onboard Personnel</h3>
+                            <h3 className="text-4xl font-black text-white  tracking-tighter italic">Onboard Personnel</h3>
                             <div className="flex items-center gap-3">
                                 <span className="text-tech-label text-slate-600 tracking-[0.2em]">Initialize Authorized Operator Profile</span>
                             </div>
@@ -163,7 +163,7 @@ export default function RegisterPage() {
                                 <motion.div
                                     initial={{ opacity: 0, y: -10 }}
                                     animate={{ opacity: 1, y: 0 }}
-                                    className="p-5 bg-danger/5 border border-danger/20 text-danger rounded-2xl text-[11px] font-black uppercase tracking-tight flex items-start gap-4"
+                                    className="p-5 bg-danger/5 border border-danger/20 text-danger rounded-2xl text-[11px] font-black  tracking-tight flex items-start gap-4"
                                 >
                                     <div className="w-1.5 h-1.5 rounded-full bg-danger mt-1.5 shadow-[0_0_8px_rgba(239,68,68,0.5)]"></div>
                                     <span className="flex-1">{error}</span>
@@ -173,7 +173,7 @@ export default function RegisterPage() {
                             <button
                                 type="submit"
                                 disabled={loading}
-                                className="w-full h-16 bg-brand-green text-white rounded-2xl shadow-2xl shadow-brand-green/20 font-black uppercase tracking-[0.3em] text-xs transition-all flex items-center justify-center gap-4 disabled:opacity-50 disabled:cursor-not-allowed group active:scale-[0.98]"
+                                className="w-full h-16 bg-brand-green text-white rounded-2xl shadow-2xl shadow-brand-green/20 font-black  tracking-[0.3em] text-xs transition-all flex items-center justify-center gap-4 disabled:opacity-50 disabled:cursor-not-allowed group active:scale-[0.98]"
                             >
                                 {loading ? (
                                     <div className="w-6 h-6 border-3 border-white/20 border-t-white rounded-full animate-spin"></div>
@@ -187,7 +187,7 @@ export default function RegisterPage() {
                         </form>
 
                         <div className="mt-12 pt-8 border-t border-slate-800 flex flex-col items-center gap-4 relative z-10">
-                            <p className="text-xs font-black text-slate-600 uppercase tracking-widest">
+                            <p className="text-xs font-black text-slate-600  tracking-widest">
                                 Already registered? <Link href="/login" className="text-brand-green hover:underline">Access Authorized Portal</Link>
                             </p>
                         </div>

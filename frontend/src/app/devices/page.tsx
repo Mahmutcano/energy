@@ -1,35 +1,37 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { Cpu, Plus, Search, X, HardDrive, Tag, ToggleLeft, ToggleRight } from 'lucide-react';
+import { Cpu, Plus, Search, X, HardDrive, Tag, ToggleLeft, ToggleRight, Network } from 'lucide-react';
 import { apiRequest } from '@/lib/api';
 import { motion, AnimatePresence } from 'framer-motion';
 
-interface DeviceCategory {
+interface ProtocolConfig {
     id: string;
-    categoryName: string;
-    isActive: boolean;
+    configName: string;
+    protocolType: string;
+    plant?: { plantName: string };
 }
 
 interface Device {
     id: string;
-    categoryId: string;
+    protocol_config_id: string;
     deviceName: string;
+    deviceType: 'INVERTER' | 'ANALYZER' | 'RELAY';
     isActive: boolean;
-    category?: DeviceCategory;
-    commProtocols?: any[];
+    protocol?: ProtocolConfig;
     createdAt: string;
 }
 
 export default function DevicesPage() {
     const [devices, setDevices] = useState<Device[]>([]);
-    const [categories, setCategories] = useState<DeviceCategory[]>([]);
+    const [protocols, setProtocols] = useState<ProtocolConfig[]>([]);
     const [loading, setLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [formData, setFormData] = useState({
-        categoryId: '',
+        protocolConfigId: '',
         deviceName: '',
+        deviceType: 'INVERTER' as 'INVERTER' | 'ANALYZER' | 'RELAY',
         isActive: true
     });
 
@@ -47,21 +49,21 @@ export default function DevicesPage() {
         }
     };
 
-    const fetchCategories = async () => {
+    const fetchProtocols = async () => {
         try {
-            const res = await apiRequest('/api/device-categories');
+            const res = await apiRequest('/api/comm-protocols');
             if (res.ok) {
                 const data = await res.json();
-                setCategories(data);
+                setProtocols(data);
             }
         } catch (err) {
-            console.error('Failed to fetch categories:', err);
+            console.error('Failed to fetch protocols:', err);
         }
     };
 
     useEffect(() => {
         fetchDevices();
-        fetchCategories();
+        fetchProtocols();
     }, []);
 
     const handleCreate = async (e: React.FormEvent) => {
@@ -73,7 +75,7 @@ export default function DevicesPage() {
             });
             if (res.ok) {
                 setIsModalOpen(false);
-                setFormData({ categoryId: '', deviceName: '', isActive: true });
+                setFormData({ protocolConfigId: '', deviceName: '', deviceType: 'INVERTER', isActive: true });
                 fetchDevices();
             }
         } catch (err) {
@@ -83,7 +85,8 @@ export default function DevicesPage() {
 
     const filteredDevices = devices.filter(d =>
         d.deviceName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        d.category?.categoryName.toLowerCase().includes(searchQuery.toLowerCase())
+        d.deviceType.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        d.protocol?.configName.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
     return (
@@ -95,7 +98,7 @@ export default function DevicesPage() {
                         <div className="w-1.5 h-8 bg-brand-green rounded-full shadow-[0_0_20px_rgba(16,185,129,0.4)]"></div>
                         <h1 className="text-3xl font-black text-white tracking-tight uppercase">Devices</h1>
                     </div>
-                    <p className="text-sm text-slate-500 ml-6">Manage device inventory and category assignments</p>
+                    <p className="text-sm text-slate-500 ml-6">Manage device inventory and assignments</p>
                 </div>
 
                 <button
@@ -114,7 +117,7 @@ export default function DevicesPage() {
                         type="text"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        placeholder="Search by device name or category..."
+                        placeholder="Search by device name, type or protocol..."
                         className="w-full pl-12 pr-4 py-3 bg-transparent border-none text-sm text-white focus:outline-none placeholder:text-slate-700"
                     />
                 </div>
@@ -139,8 +142,8 @@ export default function DevicesPage() {
                         <thead>
                             <tr className="text-[10px] font-bold text-slate-500 uppercase tracking-widest border-b border-slate-800/40 bg-slate-900/20">
                                 <th className="px-6 py-4">Device Name</th>
-                                <th className="px-6 py-4">Category</th>
-                                <th className="px-6 py-4">Protocols</th>
+                                <th className="px-6 py-4">Type</th>
+                                <th className="px-6 py-4">Protocol Config</th>
                                 <th className="px-6 py-4">Status</th>
                                 <th className="px-6 py-4">Created</th>
                             </tr>
@@ -160,11 +163,16 @@ export default function DevicesPage() {
                                     </td>
                                     <td className="px-6 py-4">
                                         <span className="px-2 py-1 rounded-md text-[10px] font-bold bg-slate-950 border border-slate-800 text-slate-400">
-                                            {device.category?.categoryName || 'N/A'}
+                                            {device.deviceType}
                                         </span>
                                     </td>
                                     <td className="px-6 py-4 text-sm font-mono text-slate-400 tabular-nums">
-                                        {device.commProtocols?.length || 0}
+                                        {device.protocol ? (
+                                            <div className="text-[10px] space-y-0.5 text-slate-400">
+                                                <p><span className="text-white font-bold">{device.protocol.configName}</span></p>
+                                                <p className="text-[8px] tracking-[0.05em]">{device.protocol.plant?.plantName} / {device.protocol.protocolType}</p>
+                                            </div>
+                                        ) : 'N/A'}
                                     </td>
                                     <td className="px-6 py-4">
                                         <div className="flex items-center gap-2">
@@ -210,17 +218,30 @@ export default function DevicesPage() {
                             </div>
                             <form onSubmit={handleCreate} className="p-6 space-y-5">
                                 <div className="space-y-2">
-                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Category</label>
+                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Protocol Configuration</label>
                                     <select
-                                        value={formData.categoryId}
-                                        onChange={(e) => setFormData({ ...formData, categoryId: e.target.value })}
+                                        value={formData.protocolConfigId}
+                                        onChange={(e) => setFormData({ ...formData, protocolConfigId: e.target.value })}
                                         className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none"
                                         required
                                     >
-                                        <option value="">Select Category...</option>
-                                        {categories.map(c => (
-                                            <option key={c.id} value={c.id}>{c.categoryName}</option>
+                                        <option value="">Select Protocol Config...</option>
+                                        {protocols.map(p => (
+                                            <option key={p.id} value={p.id}>{p.configName} ({p.plant?.plantName})</option>
                                         ))}
+                                    </select>
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Device Type</label>
+                                    <select
+                                        value={formData.deviceType}
+                                        onChange={(e) => setFormData({ ...formData, deviceType: e.target.value as any })}
+                                        className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none"
+                                        required
+                                    >
+                                        <option value="INVERTER">Inverter</option>
+                                        <option value="ANALYZER">Analyzer</option>
+                                        <option value="RELAY">Relay</option>
                                     </select>
                                 </div>
                                 <div className="space-y-2">

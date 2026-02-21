@@ -8,7 +8,7 @@ interface User {
     id: string;
     email: string;
     name?: string;
-    role: 'SUPER_ADMIN' | 'ADMIN' | 'CUSTOMER';
+    role: 'SUPER_ADMIN' | 'COMPANY_ADMIN' | 'NORMAL_USER';
     companyProfileId?: string;
 }
 

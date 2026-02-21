@@ -12,7 +12,8 @@ interface Plant {
     latitude: number | null;
     longitude: number | null;
     company?: { id: string; name: string };
-    commProtocols?: any[];
+    protocols?: any[];
+    plantType: 'SOLAR' | 'WIND' | 'HYDRO';
     createdAt: string;
 }
 
@@ -30,7 +31,8 @@ export default function PlantsPage() {
         companyId: '',
         plantName: '',
         latitude: '',
-        longitude: ''
+        longitude: '',
+        plantType: 'SOLAR' as 'SOLAR' | 'WIND' | 'HYDRO'
     });
 
     const fetchPlants = async () => {
@@ -72,6 +74,7 @@ export default function PlantsPage() {
                 plantName: formData.plantName,
                 latitude: formData.latitude ? parseFloat(formData.latitude) : null,
                 longitude: formData.longitude ? parseFloat(formData.longitude) : null,
+                plantType: formData.plantType,
             };
             const res = await apiRequest('/api/plants', {
                 method: 'POST',
@@ -79,7 +82,7 @@ export default function PlantsPage() {
             });
             if (res.ok) {
                 setIsModalOpen(false);
-                setFormData({ companyId: '', plantName: '', latitude: '', longitude: '' });
+                setFormData({ companyId: '', plantName: '', latitude: '', longitude: '', plantType: 'SOLAR' });
                 fetchPlants();
             }
         } catch (err) {
@@ -111,7 +114,7 @@ export default function PlantsPage() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {[
                     { label: 'Total Plants', val: plants.length.toString(), icon: Factory, color: 'text-brand-green' },
-                    { label: 'Total Protocols', val: plants.reduce((sum, p) => sum + (p.commProtocols?.length || 0), 0).toString(), icon: Cpu, color: 'text-blue-400' },
+                    { label: 'Total Protocols', val: plants.reduce((sum, p) => sum + (p.protocols?.length || 0), 0).toString(), icon: Cpu, color: 'text-blue-400' },
                     { label: 'Companies', val: companies.length.toString(), icon: Building2, color: 'text-amber-400' },
                 ].map((stat, i) => (
                     <div key={i} className="card-base p-6 flex items-center gap-4">
@@ -159,7 +162,7 @@ export default function PlantsPage() {
                         <div className="grid grid-cols-3 gap-4 mt-4 pt-4 border-t border-slate-800/40">
                             <div>
                                 <p className="text-[10px] font-bold text-slate-600 uppercase tracking-widest mb-1">Protocols</p>
-                                <p className="text-sm font-bold text-white tabular-nums">{plant.commProtocols?.length || 0}</p>
+                                <p className="text-sm font-bold text-white tabular-nums">{plant.protocols?.length || 0}</p>
                             </div>
                             <div>
                                 <p className="text-[10px] font-bold text-slate-600 uppercase tracking-widest mb-1">Latitude</p>
@@ -223,6 +226,19 @@ export default function PlantsPage() {
                                         placeholder="e.g. Solar Plant Alpha"
                                         required
                                     />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Type</label>
+                                    <select
+                                        value={formData.plantType}
+                                        onChange={(e) => setFormData({ ...formData, plantType: e.target.value as any })}
+                                        className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none"
+                                        required
+                                    >
+                                        <option value="SOLAR">Solar Power</option>
+                                        <option value="WIND">Wind Farm</option>
+                                        <option value="HYDRO">Hydroelectric</option>
+                                    </select>
                                 </div>
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-2">

@@ -7,50 +7,58 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 interface CommProtocol {
     id: string;
-    deviceId: string;
-    plantId: string;
+    plant_id: string;
+    configName: string;
     protocolType: 'MODBUS' | 'IEC104';
-    ipAddress: string | null;
-    device?: { id: string; deviceName: string };
     plant?: { id: string; plantName: string };
+    devices?: any[];
     modbusConfig?: {
-        id: string;
+        ipAddress: string;
+        port: number;
         slaveId: number;
-        regAddress: number;
-        dataType: string;
+        timeout: number;
+        retryCount: number;
     } | null;
     iec104Config?: {
-        id: string;
-        asduAddress: number;
-        t0_timeout: number;
-        k_window: number;
+        ipAddress: string;
+        port: number;
+        asduAddr: number;
+        t0: number;
+        t1: number;
+        t2: number;
+        t3: number;
+        k: number;
+        w: number;
     } | null;
-    telemetry?: any[];
-    thresholds?: any[];
     createdAt: string;
 }
 
 export default function ProtocolsPage() {
     const [protocols, setProtocols] = useState<CommProtocol[]>([]);
-    const [devices, setDevices] = useState<any[]>([]);
     const [plants, setPlants] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [selectedType, setSelectedType] = useState<'MODBUS' | 'IEC104'>('MODBUS');
 
     const [formData, setFormData] = useState({
-        deviceId: '',
+        configName: '',
         plantId: '',
         protocolType: 'MODBUS' as 'MODBUS' | 'IEC104',
-        ipAddress: '',
         // Modbus fields
+        ipAddress: '192.168.1.100',
+        port: 502,
         slaveId: 1,
-        regAddress: 0,
-        dataType: 'FLOAT32',
+        timeout: 1000,
+        retryCount: 3,
         // IEC104 fields
-        asduAddress: 1,
-        t0_timeout: 30,
-        k_window: 12,
+        iecIpAddress: '192.168.1.101',
+        iecPort: 2404,
+        asduAddr: 1,
+        t0: 30,
+        t1: 15,
+        t2: 10,
+        t3: 20,
+        k: 12,
+        w: 8,
     });
 
     const fetchProtocols = async () => {
@@ -67,13 +75,9 @@ export default function ProtocolsPage() {
         }
     };
 
-    const fetchDevicesAndPlants = async () => {
+    const fetchPlants = async () => {
         try {
-            const [devRes, plantRes] = await Promise.all([
-                apiRequest('/api/devices'),
-                apiRequest('/api/plants'),
-            ]);
-            if (devRes.ok) setDevices(await devRes.json());
+            const plantRes = await apiRequest('/api/plants');
             if (plantRes.ok) setPlants(await plantRes.json());
         } catch (err) {
             console.error('Failed to fetch:', err);
@@ -82,30 +86,37 @@ export default function ProtocolsPage() {
 
     useEffect(() => {
         fetchProtocols();
-        fetchDevicesAndPlants();
+        fetchPlants();
     }, []);
 
     const handleCreate = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
             const body: any = {
-                deviceId: formData.deviceId,
+                configName: formData.configName,
                 plantId: formData.plantId,
                 protocolType: formData.protocolType,
-                ipAddress: formData.ipAddress || null,
             };
 
             if (formData.protocolType === 'MODBUS') {
                 body.modbusConfig = {
+                    ipAddress: formData.ipAddress,
+                    port: formData.port,
                     slaveId: formData.slaveId,
-                    regAddress: formData.regAddress,
-                    dataType: formData.dataType,
+                    timeout: formData.timeout,
+                    retryCount: formData.retryCount,
                 };
             } else {
                 body.iec104Config = {
-                    asduAddress: formData.asduAddress,
-                    t0_timeout: formData.t0_timeout,
-                    k_window: formData.k_window,
+                    ipAddress: formData.iecIpAddress,
+                    port: formData.iecPort,
+                    asduAddr: formData.asduAddr,
+                    t0: formData.t0,
+                    t1: formData.t1,
+                    t2: formData.t2,
+                    t3: formData.t3,
+                    k: formData.k,
+                    w: formData.w,
                 };
             }
 
@@ -180,11 +191,11 @@ export default function ProtocolsPage() {
                         <thead>
                             <tr className="text-[10px] font-bold text-slate-500 uppercase tracking-widest border-b border-slate-800/40 bg-slate-900/20">
                                 <th className="px-6 py-4">Type</th>
-                                <th className="px-6 py-4">Device</th>
+                                <th className="px-6 py-4">Config Name</th>
                                 <th className="px-6 py-4">Plant</th>
                                 <th className="px-6 py-4">IP Address</th>
                                 <th className="px-6 py-4">Config Details</th>
-                                <th className="px-6 py-4">Telemetry</th>
+                                <th className="px-6 py-4">Devices</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -203,31 +214,31 @@ export default function ProtocolsPage() {
                                         </span>
                                     </td>
                                     <td className="px-6 py-4 text-sm font-bold text-white">
-                                        {proto.device?.deviceName || 'N/A'}
+                                        {proto.configName || 'N/A'}
                                     </td>
                                     <td className="px-6 py-4 text-sm text-slate-400">
                                         {proto.plant?.plantName || 'N/A'}
                                     </td>
                                     <td className="px-6 py-4 text-sm font-mono text-brand-green">
-                                        {proto.ipAddress || '—'}
+                                        {proto.protocolType === 'MODBUS' ? proto.modbusConfig?.ipAddress : proto.iec104Config?.ipAddress || '—'}
                                     </td>
                                     <td className="px-6 py-4">
                                         {proto.protocolType === 'MODBUS' && proto.modbusConfig ? (
                                             <div className="text-[10px] space-y-0.5 text-slate-400">
-                                                <p>Slave: <span className="text-white font-bold">{proto.modbusConfig.slaveId}</span></p>
-                                                <p>Reg: <span className="text-white font-bold">{proto.modbusConfig.regAddress}</span> • {proto.modbusConfig.dataType}</p>
+                                                <p>Port: <span className="text-white font-bold">{proto.modbusConfig.port}</span></p>
+                                                <p>Slave ID: <span className="text-white font-bold">{proto.modbusConfig.slaveId}</span></p>
                                             </div>
                                         ) : proto.protocolType === 'IEC104' && proto.iec104Config ? (
                                             <div className="text-[10px] space-y-0.5 text-slate-400">
-                                                <p>ASDU: <span className="text-white font-bold">{proto.iec104Config.asduAddress}</span></p>
-                                                <p>T0: {proto.iec104Config.t0_timeout}s • K: {proto.iec104Config.k_window}</p>
+                                                <p>Port: <span className="text-white font-bold">{proto.iec104Config.port}</span></p>
+                                                <p>ASDU: <span className="text-white font-bold">{proto.iec104Config.asduAddr}</span></p>
                                             </div>
                                         ) : (
                                             <span className="text-xs text-slate-600">No config</span>
                                         )}
                                     </td>
                                     <td className="px-6 py-4 text-sm font-mono text-slate-400 tabular-nums">
-                                        {proto.telemetry?.length || 0} records
+                                        {proto.devices?.length || 0}
                                     </td>
                                 </tr>
                             ))}
@@ -262,6 +273,35 @@ export default function ProtocolsPage() {
                             </div>
 
                             <form onSubmit={handleCreate} className="p-6 space-y-5">
+                                {/* Configuration Name & Plant */}
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Config Name</label>
+                                        <input
+                                            type="text"
+                                            value={formData.configName}
+                                            onChange={(e) => setFormData({ ...formData, configName: e.target.value })}
+                                            className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none"
+                                            placeholder="e.g. Inverter Array 1 HTTP"
+                                            required
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Plant</label>
+                                        <select
+                                            value={formData.plantId}
+                                            onChange={(e) => setFormData({ ...formData, plantId: e.target.value })}
+                                            className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none"
+                                            required
+                                        >
+                                            <option value="">Select...</option>
+                                            {plants.map((p: any) => (
+                                                <option key={p.id} value={p.id}>{p.plantName}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                </div>
+
                                 {/* Protocol Type */}
                                 <div className="space-y-2">
                                     <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Protocol Type</label>
@@ -282,50 +322,6 @@ export default function ProtocolsPage() {
                                     </div>
                                 </div>
 
-                                {/* Device + Plant */}
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="space-y-2">
-                                        <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Device</label>
-                                        <select
-                                            value={formData.deviceId}
-                                            onChange={(e) => setFormData({ ...formData, deviceId: e.target.value })}
-                                            className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none"
-                                            required
-                                        >
-                                            <option value="">Select...</option>
-                                            {devices.map((d: any) => (
-                                                <option key={d.id} value={d.id}>{d.deviceName}</option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                    <div className="space-y-2">
-                                        <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Plant</label>
-                                        <select
-                                            value={formData.plantId}
-                                            onChange={(e) => setFormData({ ...formData, plantId: e.target.value })}
-                                            className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none"
-                                            required
-                                        >
-                                            <option value="">Select...</option>
-                                            {plants.map((p: any) => (
-                                                <option key={p.id} value={p.id}>{p.plantName}</option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                </div>
-
-                                {/* IP Address */}
-                                <div className="space-y-2">
-                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">IP Address</label>
-                                    <input
-                                        type="text"
-                                        value={formData.ipAddress}
-                                        onChange={(e) => setFormData({ ...formData, ipAddress: e.target.value })}
-                                        className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm font-mono text-brand-green focus:border-brand-green/50 outline-none"
-                                        placeholder="192.168.1.100"
-                                    />
-                                </div>
-
                                 {/* Config Section */}
                                 <div className="p-4 bg-slate-900/30 rounded-xl border border-slate-800/40 space-y-4">
                                     <div className="flex items-center gap-2 mb-2">
@@ -336,68 +332,147 @@ export default function ProtocolsPage() {
                                     </div>
 
                                     {formData.protocolType === 'MODBUS' ? (
-                                        <div className="grid grid-cols-3 gap-3">
-                                            <div className="space-y-1">
-                                                <label className="text-[10px] font-bold text-slate-500 uppercase">Slave ID</label>
-                                                <input
-                                                    type="number"
-                                                    value={formData.slaveId}
-                                                    onChange={(e) => setFormData({ ...formData, slaveId: parseInt(e.target.value) })}
-                                                    className="w-full px-3 py-2 bg-slate-950/50 border border-slate-800 rounded-lg text-sm text-white outline-none tabular-nums"
-                                                />
+                                        <>
+                                            <div className="grid grid-cols-2 gap-3">
+                                                <div className="space-y-1">
+                                                    <label className="text-[10px] font-bold text-slate-500 uppercase">IP Address</label>
+                                                    <input
+                                                        type="text"
+                                                        value={formData.ipAddress}
+                                                        onChange={(e) => setFormData({ ...formData, ipAddress: e.target.value })}
+                                                        className="w-full px-3 py-2 bg-slate-950/50 border border-slate-800 rounded-lg text-sm text-white outline-none"
+                                                    />
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <label className="text-[10px] font-bold text-slate-500 uppercase">Port</label>
+                                                    <input
+                                                        type="number"
+                                                        value={formData.port}
+                                                        onChange={(e) => setFormData({ ...formData, port: parseInt(e.target.value) })}
+                                                        className="w-full px-3 py-2 bg-slate-950/50 border border-slate-800 rounded-lg text-sm text-white outline-none tabular-nums"
+                                                    />
+                                                </div>
                                             </div>
-                                            <div className="space-y-1">
-                                                <label className="text-[10px] font-bold text-slate-500 uppercase">Register</label>
-                                                <input
-                                                    type="number"
-                                                    value={formData.regAddress}
-                                                    onChange={(e) => setFormData({ ...formData, regAddress: parseInt(e.target.value) })}
-                                                    className="w-full px-3 py-2 bg-slate-950/50 border border-slate-800 rounded-lg text-sm text-white outline-none tabular-nums"
-                                                />
+                                            <div className="grid grid-cols-3 gap-3">
+                                                <div className="space-y-1">
+                                                    <label className="text-[10px] font-bold text-slate-500 uppercase">Slave ID</label>
+                                                    <input
+                                                        type="number"
+                                                        value={formData.slaveId}
+                                                        onChange={(e) => setFormData({ ...formData, slaveId: parseInt(e.target.value) })}
+                                                        className="w-full px-3 py-2 bg-slate-950/50 border border-slate-800 rounded-lg text-sm text-white outline-none tabular-nums"
+                                                    />
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <label className="text-[10px] font-bold text-slate-500 uppercase">Timeout (ms)</label>
+                                                    <input
+                                                        type="number"
+                                                        value={formData.timeout}
+                                                        onChange={(e) => setFormData({ ...formData, timeout: parseInt(e.target.value) })}
+                                                        className="w-full px-3 py-2 bg-slate-950/50 border border-slate-800 rounded-lg text-sm text-white outline-none tabular-nums"
+                                                    />
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <label className="text-[10px] font-bold text-slate-500 uppercase">Retry Count</label>
+                                                    <input
+                                                        type="number"
+                                                        value={formData.retryCount}
+                                                        onChange={(e) => setFormData({ ...formData, retryCount: parseInt(e.target.value) })}
+                                                        className="w-full px-3 py-2 bg-slate-950/50 border border-slate-800 rounded-lg text-sm text-white outline-none tabular-nums"
+                                                    />
+                                                </div>
                                             </div>
-                                            <div className="space-y-1">
-                                                <label className="text-[10px] font-bold text-slate-500 uppercase">Data Type</label>
-                                                <select
-                                                    value={formData.dataType}
-                                                    onChange={(e) => setFormData({ ...formData, dataType: e.target.value })}
-                                                    className="w-full px-3 py-2 bg-slate-950/50 border border-slate-800 rounded-lg text-sm text-white outline-none"
-                                                >
-                                                    {['INT16', 'UINT16', 'INT32', 'UINT32', 'FLOAT32', 'BOOLEAN'].map(t => (
-                                                        <option key={t} value={t}>{t}</option>
-                                                    ))}
-                                                </select>
-                                            </div>
-                                        </div>
+                                        </>
                                     ) : (
-                                        <div className="grid grid-cols-3 gap-3">
-                                            <div className="space-y-1">
-                                                <label className="text-[10px] font-bold text-slate-500 uppercase">ASDU Addr</label>
-                                                <input
-                                                    type="number"
-                                                    value={formData.asduAddress}
-                                                    onChange={(e) => setFormData({ ...formData, asduAddress: parseInt(e.target.value) })}
-                                                    className="w-full px-3 py-2 bg-slate-950/50 border border-slate-800 rounded-lg text-sm text-white outline-none tabular-nums"
-                                                />
+                                        <>
+                                            <div className="grid grid-cols-3 gap-3">
+                                                <div className="space-y-1 col-span-2">
+                                                    <label className="text-[10px] font-bold text-slate-500 uppercase">IP Address</label>
+                                                    <input
+                                                        type="text"
+                                                        value={formData.iecIpAddress}
+                                                        onChange={(e) => setFormData({ ...formData, iecIpAddress: e.target.value })}
+                                                        className="w-full px-3 py-2 bg-slate-950/50 border border-slate-800 rounded-lg text-sm text-white outline-none"
+                                                    />
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <label className="text-[10px] font-bold text-slate-500 uppercase">Port</label>
+                                                    <input
+                                                        type="number"
+                                                        value={formData.iecPort}
+                                                        onChange={(e) => setFormData({ ...formData, iecPort: parseInt(e.target.value) })}
+                                                        className="w-full px-3 py-2 bg-slate-950/50 border border-slate-800 rounded-lg text-sm text-white outline-none tabular-nums"
+                                                    />
+                                                </div>
                                             </div>
-                                            <div className="space-y-1">
-                                                <label className="text-[10px] font-bold text-slate-500 uppercase">T0 Timeout</label>
-                                                <input
-                                                    type="number"
-                                                    value={formData.t0_timeout}
-                                                    onChange={(e) => setFormData({ ...formData, t0_timeout: parseInt(e.target.value) })}
-                                                    className="w-full px-3 py-2 bg-slate-950/50 border border-slate-800 rounded-lg text-sm text-white outline-none tabular-nums"
-                                                />
+                                            <div className="grid grid-cols-4 gap-3">
+                                                <div className="space-y-1">
+                                                    <label className="text-[10px] font-bold text-slate-500 uppercase">ASDU Auth</label>
+                                                    <input
+                                                        type="number"
+                                                        value={formData.asduAddr}
+                                                        onChange={(e) => setFormData({ ...formData, asduAddr: parseInt(e.target.value) })}
+                                                        className="w-full px-3 py-2 bg-slate-950/50 border border-slate-800 rounded-lg text-sm text-white outline-none tabular-nums"
+                                                    />
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <label className="text-[10px] font-bold text-slate-500 uppercase">T0 Timeout</label>
+                                                    <input
+                                                        type="number"
+                                                        value={formData.t0}
+                                                        onChange={(e) => setFormData({ ...formData, t0: parseInt(e.target.value) })}
+                                                        className="w-full px-3 py-2 bg-slate-950/50 border border-slate-800 rounded-lg text-sm text-white outline-none tabular-nums"
+                                                    />
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <label className="text-[10px] font-bold text-slate-500 uppercase">T1 Limit</label>
+                                                    <input
+                                                        type="number"
+                                                        value={formData.t1}
+                                                        onChange={(e) => setFormData({ ...formData, t1: parseInt(e.target.value) })}
+                                                        className="w-full px-3 py-2 bg-slate-950/50 border border-slate-800 rounded-lg text-sm text-white outline-none tabular-nums"
+                                                    />
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <label className="text-[10px] font-bold text-slate-500 uppercase">T2 Lim</label>
+                                                    <input
+                                                        type="number"
+                                                        value={formData.t2}
+                                                        onChange={(e) => setFormData({ ...formData, t2: parseInt(e.target.value) })}
+                                                        className="w-full px-3 py-2 bg-slate-950/50 border border-slate-800 rounded-lg text-sm text-white outline-none tabular-nums"
+                                                    />
+                                                </div>
                                             </div>
-                                            <div className="space-y-1">
-                                                <label className="text-[10px] font-bold text-slate-500 uppercase">K Window</label>
-                                                <input
-                                                    type="number"
-                                                    value={formData.k_window}
-                                                    onChange={(e) => setFormData({ ...formData, k_window: parseInt(e.target.value) })}
-                                                    className="w-full px-3 py-2 bg-slate-950/50 border border-slate-800 rounded-lg text-sm text-white outline-none tabular-nums"
-                                                />
+                                            <div className="grid grid-cols-3 gap-3">
+                                                <div className="space-y-1">
+                                                    <label className="text-[10px] font-bold text-slate-500 uppercase">T3 Lim</label>
+                                                    <input
+                                                        type="number"
+                                                        value={formData.t3}
+                                                        onChange={(e) => setFormData({ ...formData, t3: parseInt(e.target.value) })}
+                                                        className="w-full px-3 py-2 bg-slate-950/50 border border-slate-800 rounded-lg text-sm text-white outline-none tabular-nums"
+                                                    />
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <label className="text-[10px] font-bold text-slate-500 uppercase">K Window</label>
+                                                    <input
+                                                        type="number"
+                                                        value={formData.k}
+                                                        onChange={(e) => setFormData({ ...formData, k: parseInt(e.target.value) })}
+                                                        className="w-full px-3 py-2 bg-slate-950/50 border border-slate-800 rounded-lg text-sm text-white outline-none tabular-nums"
+                                                    />
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <label className="text-[10px] font-bold text-slate-500 uppercase">W Window</label>
+                                                    <input
+                                                        type="number"
+                                                        value={formData.w}
+                                                        onChange={(e) => setFormData({ ...formData, w: parseInt(e.target.value) })}
+                                                        className="w-full px-3 py-2 bg-slate-950/50 border border-slate-800 rounded-lg text-sm text-white outline-none tabular-nums"
+                                                    />
+                                                </div>
                                             </div>
-                                        </div>
+                                        </>
                                     )}
                                 </div>
 

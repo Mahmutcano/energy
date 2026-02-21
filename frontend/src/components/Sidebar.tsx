@@ -49,7 +49,6 @@ const MENU_GROUPS = [
         items: [
             { name: 'Companies', href: '/admin/companies', icon: Building2 },
             { name: 'Users', href: '/admin/users', icon: ShieldCheck },
-            { name: 'Device Categories', href: '/admin/categories', icon: Layers },
             { name: 'Modbus Test', href: '/admin/modbus-test', icon: Terminal },
         ]
     },
@@ -81,7 +80,7 @@ export default function Sidebar() {
             {/* Navigation */}
             <nav className="flex-1 overflow-y-auto py-6 px-3 space-y-8 scrollbar-hide font-sans">
                 {MENU_GROUPS.map((group, idx) => {
-                    if (group.adminOnly && user?.role !== 'SUPER_ADMIN' && user?.role !== 'ADMIN') return null;
+                    if (group.adminOnly && user?.role !== 'SUPER_ADMIN' && user?.role !== 'COMPANY_ADMIN') return null;
 
                     return (
                         <div key={idx} className="space-y-1.5">

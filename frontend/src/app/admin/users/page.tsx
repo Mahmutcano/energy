@@ -9,7 +9,7 @@ interface User {
     id: string;
     email: string;
     name: string | null;
-    role: 'SUPER_ADMIN' | 'ADMIN' | 'CUSTOMER';
+    role: 'SUPER_ADMIN' | 'COMPANY_ADMIN' | 'NORMAL_USER';
     companyProfileId: string | null;
     companyProfile?: { id: string; name: string } | null;
     createdAt: string;
@@ -24,7 +24,7 @@ export default function UsersPage() {
         email: '',
         password: '',
         name: '',
-        role: 'CUSTOMER' as 'SUPER_ADMIN' | 'ADMIN' | 'CUSTOMER',
+        role: 'NORMAL_USER' as 'SUPER_ADMIN' | 'COMPANY_ADMIN' | 'NORMAL_USER',
         companyProfileId: '',
     });
 
@@ -68,7 +68,7 @@ export default function UsersPage() {
             });
             if (res.ok) {
                 setIsModalOpen(false);
-                setFormData({ email: '', password: '', name: '', role: 'CUSTOMER', companyProfileId: '' });
+                setFormData({ email: '', password: '', name: '', role: 'NORMAL_USER', companyProfileId: '' });
                 fetchUsers();
             }
         } catch (err) {
@@ -78,8 +78,8 @@ export default function UsersPage() {
 
     const roleColors: Record<string, string> = {
         SUPER_ADMIN: 'text-red-400 bg-red-500/10 border-red-500/20',
-        ADMIN: 'text-amber-400 bg-amber-500/10 border-amber-500/20',
-        CUSTOMER: 'text-brand-green bg-brand-green/10 border-brand-green/20',
+        COMPANY_ADMIN: 'text-amber-400 bg-amber-500/10 border-amber-500/20',
+        NORMAL_USER: 'text-brand-green bg-brand-green/10 border-brand-green/20',
     };
 
     return (
@@ -226,8 +226,8 @@ export default function UsersPage() {
                                             onChange={(e) => setFormData({ ...formData, role: e.target.value as any })}
                                             className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none"
                                         >
-                                            <option value="CUSTOMER">Customer</option>
-                                            <option value="ADMIN">Admin</option>
+                                            <option value="NORMAL_USER">Customer / Normal User</option>
+                                            <option value="COMPANY_ADMIN">Company Admin</option>
                                             <option value="SUPER_ADMIN">Super Admin</option>
                                         </select>
                                     </div>

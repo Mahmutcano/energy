@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, Suspense } from 'react';
-import { FileText, Plus, Search, X, Tag, ToggleLeft, ToggleRight, Pencil, Trash2, ArrowLeft } from 'lucide-react';
+import { FileText, Plus, Search, X, Tag, ToggleLeft, ToggleRight, Pencil, Trash2, ArrowLeft, Cpu } from 'lucide-react';
 import { apiRequest } from '@/lib/api';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -63,6 +63,7 @@ function DataSheetsContent() {
     const deviceId = searchParams?.get('deviceId') || '';
 
     const [device, setDevice] = useState<Device | null>(null);
+    const [allDevices, setAllDevices] = useState<Device[]>([]);
     const [dataSheets, setDataSheets] = useState<DataSheet[]>([]);
     const [loading, setLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -73,21 +74,24 @@ function DataSheetsContent() {
     const submittingRef = React.useRef(false);
 
     useEffect(() => {
-        if (!deviceId) return;
-
         const fetchData = async () => {
             try {
                 const devRes = await apiRequest('/api/devices');
                 if (devRes.ok) {
                     const devs = await devRes.json();
-                    const d = devs.find((x: any) => x.id === deviceId);
-                    if (d) setDevice(d);
+                    setAllDevices(devs);
+                    if (deviceId) {
+                        const d = devs.find((x: any) => x.id === deviceId);
+                        if (d) setDevice(d);
+                    }
                 }
 
-                const sheetRes = await apiRequest(`/api/datasheets?deviceId=${deviceId}`);
-                if (sheetRes.ok) {
-                    const sheets = await sheetRes.json();
-                    setDataSheets(sheets);
+                if (deviceId) {
+                    const sheetRes = await apiRequest(`/api/datasheets?deviceId=${deviceId}`);
+                    if (sheetRes.ok) {
+                        const sheets = await sheetRes.json();
+                        setDataSheets(sheets);
+                    }
                 }
             } catch (err) {
                 console.error("Failed to fetch datasheets:", err);
@@ -216,7 +220,48 @@ function DataSheetsContent() {
     );
 
     if (!deviceId) {
-        return <div className="p-8 text-white">Device ID is required to view datasheets.</div>;
+        return (
+            <div className="space-y-8 pb-16 animate-in-up font-sans">
+                <div className="flex items-center gap-4">
+                    <div className="w-1.5 h-8 bg-brand-green rounded-full shadow-[0_0_20px_rgba(16,185,129,0.4)]"></div>
+                    <div>
+                        <h1 className="text-3xl font-black text-white tracking-tight">Datasheets</h1>
+                        <p className="text-sm text-slate-500">Select a device to view and manage its data points</p>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {loading ? (
+                        <div className="col-span-full p-8 text-center text-slate-500 animate-pulse">Loading devices...</div>
+                    ) : allDevices.length === 0 ? (
+                        <div className="col-span-full p-8 text-center text-slate-500">No devices found. Create a device first.</div>
+                    ) : allDevices.map(dev => (
+                        <button
+                            key={dev.id}
+                            onClick={() => router.push(`/devices/datasheets?deviceId=${dev.id}`)}
+                            className="flex flex-col items-start p-6 card-base bg-slate-900/40 hover:bg-slate-800/60 transition-all group text-left border border-slate-800/40 hover:border-brand-green/30 relative overflow-hidden"
+                        >
+                            <div className="absolute top-0 left-0 w-1 h-full bg-brand-green/0 group-hover:bg-brand-green transition-all" />
+                            <div className="flex items-center gap-4 mb-4">
+                                <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 group-hover:border-brand-green/30 transition-colors">
+                                    <Cpu size={24} className="text-slate-400 group-hover:text-brand-green transition-colors" />
+                                </div>
+                                <div>
+                                    <h3 className="text-lg font-bold text-white group-hover:text-brand-green transition-colors">{dev.deviceName}</h3>
+                                    <span className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">
+                                        {dev.protocol?.protocolType || 'UNKNOWN'} PROTOCOL
+                                    </span>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-2 mt-2 pt-4 border-t border-slate-800/40 w-full">
+                                <span className="text-xs font-bold text-slate-400 group-hover:text-white transition-colors">Manage Points</span>
+                                <ArrowLeft size={14} className="text-slate-500 group-hover:text-white transition-colors rotate-180" />
+                            </div>
+                        </button>
+                    ))}
+                </div>
+            </div>
+        );
     }
 
     return (

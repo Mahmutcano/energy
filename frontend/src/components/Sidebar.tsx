@@ -16,7 +16,8 @@ import {
     Factory,
     Building2,
     Network,
-    Layers
+    Layers,
+    FileText
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { clsx, type ClassValue } from 'clsx';
@@ -39,6 +40,7 @@ const MENU_GROUPS = [
         items: [
             { name: 'Plants', href: '/plants', icon: Factory },
             { name: 'Devices', href: '/devices', icon: Cpu },
+            { name: 'Datasheets', href: '/devices/datasheets', icon: FileText },
             { name: 'Protocols', href: '/protocols', icon: Network },
             { name: 'Alarms', href: '/alarms', icon: AlertTriangle },
         ]

@@ -5,10 +5,11 @@ import { Prisma } from '@prisma/client';
  * Veriyi Veritabanı (PostgreSQL) üzerine kaydeder.
  * Prisma üzerinden standard bir veritabanı kaydı olarak tutulur.
  */
-export const saveTelemetry = async (dataSheetId: string, value: number) => {
+export const saveTelemetry = async (deviceId: string, pointId: string, value: number) => {
     try {
         const data: Prisma.TelemetryValueUncheckedCreateInput = {
-            dataSheetId,
+            device_id: deviceId,
+            pointId: pointId,
             valueNumeric: value,
             measurementTime: new Date()
         };
@@ -21,13 +22,14 @@ export const saveTelemetry = async (dataSheetId: string, value: number) => {
 /**
  * Geçmiş veriyi sorgular (Grafikler için)
  */
-export const queryTelemetry = async (dataSheetId: string, hours: number = 1) => {
+export const queryTelemetry = async (deviceId: string, pointId: string, hours: number = 1) => {
     try {
         const startTime = new Date(Date.now() - hours * 60 * 60 * 1000);
 
         const results = await prisma.telemetryValue.findMany({
             where: {
-                dataSheetId,
+                device_id: deviceId,
+                pointId: pointId,
                 measurementTime: {
                     gte: startTime
                 }
@@ -40,7 +42,8 @@ export const queryTelemetry = async (dataSheetId: string, hours: number = 1) => 
         return results.map(r => ({
             time: r.measurementTime,
             value: r.valueNumeric,
-            dataSheetId: r.dataSheetId
+            deviceId: r.device_id,
+            pointId: r.pointId
         }));
     } catch (err) {
         console.error('[TELEMETRY] Query Error:', err);

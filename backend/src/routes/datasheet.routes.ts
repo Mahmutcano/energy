@@ -1,12 +1,22 @@
 import { Router } from 'express';
-import { getDataSheets, createDataSheet, updateDataSheet, deleteDataSheet } from '../controllers/datasheet.controller';
+import {
+    getDatasheetProfiles, createDatasheetProfile, updateDatasheetProfile, deleteDatasheetProfile,
+    getDatasheetPoints, createDatasheetPoint, updateDatasheetPoint, deleteDatasheetPoint
+} from '../controllers/datasheet.controller';
 import { authenticate, authorize } from '../middleware/auth';
 
 const router = Router();
 
-router.get('/datasheets', authenticate, authorize(['SUPER_ADMIN', 'COMPANY_ADMIN', 'NORMAL_USER']), getDataSheets);
-router.post('/datasheets', authenticate, authorize(['SUPER_ADMIN', 'COMPANY_ADMIN']), createDataSheet);
-router.patch('/datasheets/:id', authenticate, authorize(['SUPER_ADMIN', 'COMPANY_ADMIN']), updateDataSheet);
-router.delete('/datasheets/:id', authenticate, authorize(['SUPER_ADMIN', 'COMPANY_ADMIN']), deleteDataSheet);
+// Profiles
+router.get('/datasheet-profiles', authenticate, authorize(['SUPER_ADMIN', 'COMPANY_ADMIN', 'NORMAL_USER']), getDatasheetProfiles);
+router.post('/datasheet-profiles', authenticate, authorize(['SUPER_ADMIN', 'COMPANY_ADMIN']), createDatasheetProfile);
+router.patch('/datasheet-profiles/:id', authenticate, authorize(['SUPER_ADMIN', 'COMPANY_ADMIN']), updateDatasheetProfile);
+router.delete('/datasheet-profiles/:id', authenticate, authorize(['SUPER_ADMIN', 'COMPANY_ADMIN']), deleteDatasheetProfile);
+
+// Points
+router.get('/datasheets', authenticate, authorize(['SUPER_ADMIN', 'COMPANY_ADMIN', 'NORMAL_USER']), getDatasheetPoints);
+router.post('/datasheets', authenticate, authorize(['SUPER_ADMIN', 'COMPANY_ADMIN']), createDatasheetPoint);
+router.patch('/datasheets/:id', authenticate, authorize(['SUPER_ADMIN', 'COMPANY_ADMIN']), updateDatasheetPoint);
+router.delete('/datasheets/:id', authenticate, authorize(['SUPER_ADMIN', 'COMPANY_ADMIN']), deleteDatasheetPoint);
 
 export default router;

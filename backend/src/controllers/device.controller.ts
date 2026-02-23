@@ -9,6 +9,7 @@ const createDeviceSchema = z.object({
     deviceType: z.nativeEnum(DeviceType),
     isActive: z.boolean().optional(),
     createdAt: z.string().datetime().optional().nullable(),
+    datasheetProfileId: z.string().uuid("Invalid Profile ID").optional().nullable(),
 });
 
 export const getDevices = async (req: Request, res: Response) => {
@@ -17,7 +18,8 @@ export const getDevices = async (req: Request, res: Response) => {
             include: {
                 protocol: {
                     include: { plant: true } // Include plant info from protocols
-                }
+                },
+                datasheetProfile: true
             }
         });
         res.json(devices);
@@ -37,6 +39,7 @@ export const createDevice = async (req: Request, res: Response) => {
             deviceType: data.deviceType,
             isActive: data.isActive ?? true,
             createdAt: data.createdAt ? new Date(data.createdAt) : undefined,
+            datasheet_profile_id: data.datasheetProfileId || undefined,
         };
 
         const device = await prisma.device.create({
@@ -59,14 +62,13 @@ export const updateDevice = async (req: Request, res: Response) => {
     try {
         const data = createDeviceSchema.partial().parse(req.body);
 
-        let updateData: any = { ...data };
-        if (data.protocolConfigId) {
-            updateData.protocol_config_id = data.protocolConfigId;
-            delete updateData.protocolConfigId;
-        }
-        if (data.createdAt) {
-            updateData.createdAt = new Date(data.createdAt);
-        }
+        const updateData: any = {};
+        if (data.protocolConfigId !== undefined) updateData.protocol_config_id = data.protocolConfigId;
+        if (data.deviceName !== undefined) updateData.deviceName = data.deviceName;
+        if (data.deviceType !== undefined) updateData.deviceType = data.deviceType;
+        if (data.isActive !== undefined) updateData.isActive = data.isActive;
+        if (data.createdAt !== undefined) updateData.createdAt = data.createdAt ? new Date(data.createdAt) : undefined;
+        if (data.datasheetProfileId !== undefined) updateData.datasheet_profile_id = data.datasheetProfileId;
 
         const device = await prisma.device.update({
             where: { id: String(id) },

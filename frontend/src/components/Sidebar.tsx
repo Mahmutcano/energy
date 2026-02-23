@@ -40,7 +40,7 @@ const MENU_GROUPS = [
         items: [
             { name: 'Plants', href: '/plants', icon: Factory },
             { name: 'Devices', href: '/devices', icon: Cpu },
-            { name: 'Datasheets', href: '/devices/datasheets', icon: FileText },
+            { name: 'Datasheets', href: '/datasheets', icon: FileText },
             { name: 'Protocols', href: '/protocols', icon: Network },
             { name: 'Alarms', href: '/alarms', icon: AlertTriangle },
         ]

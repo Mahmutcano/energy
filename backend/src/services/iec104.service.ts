@@ -3,7 +3,7 @@ import redisService from './redis.service';
 import prisma from '../lib/prisma';
 
 interface IOAMapEntry {
-    dataSheetId: string;
+    pointId: string;
     deviceId: string;
     description: string;
     unit: string;
@@ -29,9 +29,11 @@ export class IEC104Service {
                             isActive: true
                         },
                         include: {
-                            dataSheets: {
-                                where: {
-                                    isActive: true
+                            datasheetProfile: {
+                                include: {
+                                    points: {
+                                        where: { isActive: true }
+                                    }
                                 }
                             }
                         }
@@ -50,16 +52,18 @@ export class IEC104Service {
                 let totalDataSheets = 0;
 
                 for (const device of protocol.devices) {
-                    for (const dataSheet of device.dataSheets) {
-                        // SCADA ADRESİ = IOA address from the data sheet Excel
-                        if (dataSheet.scadaAddress !== null && dataSheet.scadaAddress !== undefined) {
-                            ioaMap.set(dataSheet.scadaAddress, {
-                                dataSheetId: dataSheet.id,
-                                deviceId: device.id,
-                                description: dataSheet.signalDescription || dataSheet.dataName || 'Unknown',
-                                unit: dataSheet.dataType || 'UNIT'
-                            });
-                            totalDataSheets++;
+                    if (device.datasheetProfile) {
+                        for (const dataSheet of device.datasheetProfile.points) {
+                            // SCADA ADRESİ = IOA address from the data sheet Excel
+                            if (dataSheet.scadaAddress !== null && dataSheet.scadaAddress !== undefined) {
+                                ioaMap.set(dataSheet.scadaAddress, {
+                                    pointId: dataSheet.id,
+                                    deviceId: device.id,
+                                    description: dataSheet.signalDescription || dataSheet.dataName || 'Unknown',
+                                    unit: dataSheet.dataType || 'UNIT'
+                                });
+                                totalDataSheets++;
+                            }
                         }
                     }
                 }
@@ -99,7 +103,7 @@ export class IEC104Service {
                         const payload = {
                             protocolId: protocolId,
                             deviceId: ioaEntry.deviceId,
-                            dataSheetId: ioaEntry.dataSheetId,
+                            pointId: ioaEntry.pointId,
                             ioa: item.IOA,
                             value: value,
                             unit: ioaEntry.unit,

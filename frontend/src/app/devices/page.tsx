@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, Suspense } from 'react';
-import { Cpu, Plus, Search, X, HardDrive, Tag, ToggleLeft, ToggleRight, Network, Pencil, Trash2, FileText } from 'lucide-react';
+import { Cpu, Plus, Search, X, HardDrive, Tag, ToggleLeft, ToggleRight, Network, Pencil, Trash2, FileText, FileJson } from 'lucide-react';
 import { apiRequest } from '@/lib/api';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -13,15 +13,22 @@ interface ProtocolConfig {
     plant?: { plantName: string };
 }
 
+interface DatasheetProfile {
+    id: string;
+    name: string;
+    protocolType: string;
+}
+
 interface Device {
     id: string;
     protocol_config_id: string;
+    datasheet_profile_id?: string;
     deviceName: string;
     deviceType: 'INVERTER' | 'ANALYZER' | 'RELAY';
     isActive: boolean;
     protocol?: ProtocolConfig;
+    datasheetProfile?: DatasheetProfile;
     createdAt?: string;
-    dataSheets?: any[];
 }
 
 function DevicesContent() {
@@ -31,6 +38,7 @@ function DevicesContent() {
 
     const [devices, setDevices] = useState<Device[]>([]);
     const [protocols, setProtocols] = useState<ProtocolConfig[]>([]);
+    const [profiles, setProfiles] = useState<DatasheetProfile[]>([]);
     const [loading, setLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -38,6 +46,7 @@ function DevicesContent() {
     const [searchQuery, setSearchQuery] = useState('');
     const [formData, setFormData] = useState({
         protocolConfigId: initialProtocolId,
+        datasheetProfileId: '',
         deviceName: '',
         deviceType: 'INVERTER' as 'INVERTER' | 'ANALYZER' | 'RELAY',
         isActive: true,
@@ -74,9 +83,22 @@ function DevicesContent() {
         }
     };
 
+    const fetchProfiles = async () => {
+        try {
+            const res = await apiRequest('/api/datasheet-profiles');
+            if (res.ok) {
+                const data = await res.json();
+                setProfiles(data);
+            }
+        } catch (err) {
+            console.error('Failed to fetch profiles:', err);
+        }
+    };
+
     useEffect(() => {
         fetchDevices();
         fetchProtocols();
+        fetchProfiles();
     }, [initialProtocolId]);
 
 
@@ -84,6 +106,7 @@ function DevicesContent() {
         setEditingDevice(null);
         setFormData({
             protocolConfigId: initialProtocolId || (protocols.length > 0 ? protocols[0].id : ''),
+            datasheetProfileId: '',
             deviceName: '',
             deviceType: 'INVERTER',
             isActive: true,
@@ -96,6 +119,7 @@ function DevicesContent() {
         setEditingDevice(device);
         setFormData({
             protocolConfigId: device.protocol_config_id || '',
+            datasheetProfileId: device.datasheet_profile_id || '',
             deviceName: device.deviceName || '',
             deviceType: device.deviceType || 'INVERTER',
             isActive: device.isActive,
@@ -124,6 +148,7 @@ function DevicesContent() {
         try {
             const body: any = {
                 protocolConfigId: formData.protocolConfigId,
+                datasheetProfileId: formData.datasheetProfileId || null,
                 deviceName: formData.deviceName,
                 deviceType: formData.deviceType,
                 isActive: formData.isActive
@@ -143,6 +168,7 @@ function DevicesContent() {
                 setIsModalOpen(false);
                 setFormData({
                     protocolConfigId: initialProtocolId,
+                    datasheetProfileId: '',
                     deviceName: '',
                     deviceType: 'INVERTER',
                     isActive: true,
@@ -223,8 +249,8 @@ function DevicesContent() {
                                 <th className="px-6 py-4">Device Name</th>
                                 <th className="px-6 py-4">Type</th>
                                 <th className="px-6 py-4">Protocol Config</th>
+                                <th className="px-6 py-4">Datasheet Profile</th>
                                 <th className="px-6 py-4">Status</th>
-                                <th className="px-6 py-4">Created Date</th>
                                 <th className="px-6 py-4 text-right">Actions</th>
                             </tr>
                         </thead>
@@ -254,6 +280,18 @@ function DevicesContent() {
                                             </div>
                                         ) : 'N/A'}
                                     </td>
+                                    <td className="px-6 py-4 text-sm font-mono text-slate-400 tabular-nums">
+                                        {device.datasheetProfile ? (
+                                            <div className="flex items-center gap-2">
+                                                <div className="p-1 rounded bg-slate-950 border border-slate-800">
+                                                    <FileJson size={14} className="text-brand-green" />
+                                                </div>
+                                                <span className="text-sm font-bold text-white">{device.datasheetProfile.name}</span>
+                                            </div>
+                                        ) : (
+                                            <span className="text-xs text-slate-600 italic">No Profile Assigned</span>
+                                        )}
+                                    </td>
                                     <td className="px-6 py-4">
                                         <div className="flex items-center gap-2">
                                             <div className={`w-2 h-2 rounded-full ${device.isActive ? 'bg-brand-green shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-slate-700'}`} />
@@ -262,14 +300,8 @@ function DevicesContent() {
                                             </span>
                                         </div>
                                     </td>
-                                    <td className="px-6 py-4 text-xs font-mono text-slate-600 tabular-nums">
-                                        {device.createdAt ? new Date(device.createdAt).toLocaleString() : '—'}
-                                    </td>
                                     <td className="px-6 py-4">
                                         <div className="flex justify-end gap-2">
-                                            <button title="Datasheets" onClick={() => router.push(`/devices/datasheets?deviceId=${device.id}`)} className="p-2 rounded-md bg-slate-900 border border-slate-700 hover:text-brand-green hover:border-brand-green/50 transition-colors text-slate-400">
-                                                <FileText size={14} />
-                                            </button>
                                             <button title="Edit" onClick={() => openEditModal(device)} className="p-2 rounded-md bg-slate-900 border border-slate-700 hover:text-brand-green hover:border-brand-green/50 transition-colors text-slate-400">
                                                 <Pencil size={14} />
                                             </button>
@@ -288,12 +320,12 @@ function DevicesContent() {
             {/* Create / Edit Modal */}
             <AnimatePresence>
                 {isModalOpen && (
-                    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+                    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md overflow-y-auto">
                         <motion.div
                             initial={{ scale: 0.95, opacity: 0 }}
                             animate={{ scale: 1, opacity: 1 }}
                             exit={{ scale: 0.95, opacity: 0 }}
-                            className="card-base w-full max-w-lg bg-slate-950 border-slate-800 overflow-hidden shadow-2xl"
+                            className="card-base w-full max-w-lg bg-slate-950 border-slate-800 overflow-hidden shadow-2xl my-8"
                         >
                             <div className="p-6 border-b border-slate-800 flex justify-between items-center bg-slate-900/30">
                                 <div className="flex items-center gap-3">
@@ -309,7 +341,7 @@ function DevicesContent() {
                                     <X size={20} />
                                 </button>
                             </div>
-                            <form onSubmit={handleSubmit} className="p-6 space-y-5">
+                            <form onSubmit={handleSubmit} className="p-6 space-y-5 max-h-[80vh] overflow-y-auto">
                                 <div className="space-y-2">
                                     <label className="text-xs font-bold text-slate-400  tracking-widest">Protocol Configuration</label>
                                     <select
@@ -321,6 +353,19 @@ function DevicesContent() {
                                         <option value="">Select Protocol Config...</option>
                                         {protocols.map(p => (
                                             <option key={p.id} value={p.id}>{p.configName} ({p.plant?.plantName})</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-xs font-bold text-slate-400  tracking-widest">Datasheet Profile</label>
+                                    <select
+                                        value={formData.datasheetProfileId}
+                                        onChange={(e) => setFormData({ ...formData, datasheetProfileId: e.target.value })}
+                                        className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none"
+                                    >
+                                        <option value="">No Profile Assigned</option>
+                                        {profiles.map(p => (
+                                            <option key={p.id} value={p.id}>{p.name} ({p.protocolType})</option>
                                         ))}
                                     </select>
                                 </div>
@@ -387,7 +432,7 @@ function DevicesContent() {
 
 export default function DevicesPage() {
     return (
-        <Suspense fallback={<div>Loading...</div>}>
+        <Suspense fallback={<div className="p-8 text-white">Loading...</div>}>
             <DevicesContent />
         </Suspense>
     );

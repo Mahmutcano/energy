@@ -1,17 +1,15 @@
 "use client";
 
 import React, { useState, useEffect, Suspense } from 'react';
-import { FileText, Plus, Search, X, Tag, ToggleLeft, ToggleRight, Pencil, Trash2, ArrowLeft, Cpu } from 'lucide-react';
+import { FileText, Plus, Search, X, Tag, ToggleLeft, ToggleRight, Pencil, Trash2, ArrowLeft } from 'lucide-react';
 import { apiRequest } from '@/lib/api';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter, useSearchParams } from 'next/navigation';
 
-interface Device {
+interface DatasheetProfile {
     id: string;
-    deviceName: string;
-    protocol?: {
-        protocolType: string;
-    }
+    name: string;
+    protocolType: string;
 }
 
 interface DataSheet {
@@ -60,10 +58,10 @@ const defaultFormData = {
 function DataSheetsContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
-    const deviceId = searchParams?.get('deviceId') || '';
+    const profileId = searchParams?.get('profileId') || '';
+    const queryProtocolType = searchParams?.get('protocolType') || 'MODBUS';
 
-    const [device, setDevice] = useState<Device | null>(null);
-    const [allDevices, setAllDevices] = useState<Device[]>([]);
+    const [profile, setProfile] = useState<DatasheetProfile | null>(null);
     const [dataSheets, setDataSheets] = useState<DataSheet[]>([]);
     const [loading, setLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -74,24 +72,21 @@ function DataSheetsContent() {
     const submittingRef = React.useRef(false);
 
     useEffect(() => {
+        if (!profileId) return;
+
         const fetchData = async () => {
             try {
-                const devRes = await apiRequest('/api/devices');
-                if (devRes.ok) {
-                    const devs = await devRes.json();
-                    setAllDevices(devs);
-                    if (deviceId) {
-                        const d = devs.find((x: any) => x.id === deviceId);
-                        if (d) setDevice(d);
-                    }
+                const profileRes = await apiRequest('/api/datasheet-profiles');
+                if (profileRes.ok) {
+                    const profiles = await profileRes.json();
+                    const p = profiles.find((x: any) => x.id === profileId);
+                    if (p) setProfile(p);
                 }
 
-                if (deviceId) {
-                    const sheetRes = await apiRequest(`/api/datasheets?deviceId=${deviceId}`);
-                    if (sheetRes.ok) {
-                        const sheets = await sheetRes.json();
-                        setDataSheets(sheets);
-                    }
+                const sheetRes = await apiRequest(`/api/datasheets?profileId=${profileId}`);
+                if (sheetRes.ok) {
+                    const sheets = await sheetRes.json();
+                    setDataSheets(sheets);
                 }
             } catch (err) {
                 console.error("Failed to fetch datasheets:", err);
@@ -101,9 +96,9 @@ function DataSheetsContent() {
         };
 
         fetchData();
-    }, [deviceId]);
+    }, [profileId]);
 
-    const protocolType = device?.protocol?.protocolType || 'MODBUS';
+    const protocolType = profile?.protocolType || queryProtocolType;
     const isModbus = protocolType === 'MODBUS';
 
     const openCreateModal = () => {
@@ -138,7 +133,7 @@ function DataSheetsContent() {
     };
 
     const handleDelete = async (id: string) => {
-        if (!confirm('Are you sure you want to delete this datasheet item?')) return;
+        if (!confirm('Are you sure you want to delete this datasheet point?')) return;
         try {
             const res = await apiRequest(`/api/datasheets/${id}`, { method: 'DELETE' });
             if (res.ok) {
@@ -159,7 +154,7 @@ function DataSheetsContent() {
             const int = (val: string) => val ? parseInt(val, 10) : undefined;
 
             const body: any = {
-                device_id: deviceId,
+                profile_id: profileId,
                 dataName: formData.dataName,
                 dataValue: formData.dataValue || undefined,
                 registerAddress: int(formData.registerAddress),
@@ -219,54 +214,18 @@ function DataSheetsContent() {
         (s.signalDescription && s.signalDescription.toLowerCase().includes(searchQuery.toLowerCase()))
     );
 
-    if (!deviceId) {
+    if (!profileId) {
         return (
-            <div className="space-y-8 pb-16 animate-in-up font-sans">
-                <div className="flex items-center gap-4">
-                    <div className="w-1.5 h-8 bg-brand-green rounded-full shadow-[0_0_20px_rgba(16,185,129,0.4)]"></div>
-                    <div>
-                        <h1 className="text-3xl font-black text-white tracking-tight">Datasheets</h1>
-                        <p className="text-sm text-slate-500">Select a device to view and manage its data points</p>
-                    </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {loading ? (
-                        <div className="col-span-full p-8 text-center text-slate-500 animate-pulse">Loading devices...</div>
-                    ) : allDevices.length === 0 ? (
-                        <div className="col-span-full p-8 text-center text-slate-500">No devices found. Create a device first.</div>
-                    ) : allDevices.map(dev => (
-                        <button
-                            key={dev.id}
-                            onClick={() => router.push(`/devices/datasheets?deviceId=${dev.id}`)}
-                            className="flex flex-col items-start p-6 card-base bg-slate-900/40 hover:bg-slate-800/60 transition-all group text-left border border-slate-800/40 hover:border-brand-green/30 relative overflow-hidden"
-                        >
-                            <div className="absolute top-0 left-0 w-1 h-full bg-brand-green/0 group-hover:bg-brand-green transition-all" />
-                            <div className="flex items-center gap-4 mb-4">
-                                <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 group-hover:border-brand-green/30 transition-colors">
-                                    <Cpu size={24} className="text-slate-400 group-hover:text-brand-green transition-colors" />
-                                </div>
-                                <div>
-                                    <h3 className="text-lg font-bold text-white group-hover:text-brand-green transition-colors">{dev.deviceName}</h3>
-                                    <span className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">
-                                        {dev.protocol?.protocolType || 'UNKNOWN'} PROTOCOL
-                                    </span>
-                                </div>
-                            </div>
-                            <div className="flex items-center gap-2 mt-2 pt-4 border-t border-slate-800/40 w-full">
-                                <span className="text-xs font-bold text-slate-400 group-hover:text-white transition-colors">Manage Points</span>
-                                <ArrowLeft size={14} className="text-slate-500 group-hover:text-white transition-colors rotate-180" />
-                            </div>
-                        </button>
-                    ))}
-                </div>
+            <div className="p-8 text-white space-y-4">
+                <h1 className="text-2xl font-bold">Error</h1>
+                <p>Profile ID is required to view datasheet points.</p>
+                <button onClick={() => router.back()} className="px-4 py-2 bg-slate-800 rounded-lg">Go Back</button>
             </div>
         );
     }
 
     return (
         <div className="space-y-8 pb-16 animate-in-up font-sans">
-            {/* Header */}
             <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-8">
                 <div className="space-y-2">
                     <div className="flex items-center gap-4">
@@ -275,10 +234,10 @@ function DataSheetsContent() {
                         </button>
                         <div className="w-1.5 h-8 bg-brand-green rounded-full shadow-[0_0_20px_rgba(16,185,129,0.4)]"></div>
                         <h1 className="text-3xl font-black text-white tracking-tight ">
-                            {device ? `${device.deviceName} Datasheet` : 'Loading...'}
+                            {profile ? `${profile.name} Points` : 'Loading...'}
                         </h1>
                     </div>
-                    <p className="text-sm text-slate-500 ml-16">Manage data points for this device ({protocolType})</p>
+                    <p className="text-sm text-slate-500 ml-16">Manage data mapping points for the {protocolType} profile.</p>
                 </div>
 
                 <button
@@ -289,7 +248,6 @@ function DataSheetsContent() {
                 </button>
             </div>
 
-            {/* Search */}
             <div className="card-base p-2 bg-slate-900/40">
                 <div className="relative">
                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
@@ -303,7 +261,6 @@ function DataSheetsContent() {
                 </div>
             </div>
 
-            {/* Table */}
             <div className="card-base overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse">
@@ -329,9 +286,9 @@ function DataSheetsContent() {
                         </thead>
                         <tbody>
                             {loading ? (
-                                <tr><td colSpan={6} className="px-6 py-12 text-center text-sm text-slate-500 animate-pulse">Loading datasheets...</td></tr>
+                                <tr><td colSpan={6} className="px-6 py-12 text-center text-sm text-slate-500 animate-pulse">Loading points...</td></tr>
                             ) : filteredSheets.length === 0 ? (
-                                <tr><td colSpan={6} className="px-6 py-12 text-center text-sm text-slate-500">No datasheet points found</td></tr>
+                                <tr><td colSpan={6} className="px-6 py-12 text-center text-sm text-slate-500">No data points found in this profile.</td></tr>
                             ) : filteredSheets.map((sheet) => (
                                 <tr key={sheet.id} className="border-b border-slate-800/30 hover:bg-slate-800/20 transition-all">
                                     <td className="px-6 py-4">
@@ -378,7 +335,6 @@ function DataSheetsContent() {
                 </div>
             </div>
 
-            {/* Create / Edit Modal */}
             <AnimatePresence>
                 {isModalOpen && (
                     <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md overflow-y-auto">
@@ -395,7 +351,7 @@ function DataSheetsContent() {
                                     </div>
                                     <div>
                                         <h2 className="text-lg font-bold text-white">{editingSheet ? 'Edit Point' : 'Add Point'}</h2>
-                                        <p className="text-[10px] text-slate-500 tracking-widest">{protocolType} Data Point</p>
+                                        <p className="text-[10px] text-slate-500 tracking-widest">{protocolType} Data Point for {profile?.name}</p>
                                     </div>
                                 </div>
                                 <button type="button" onClick={() => setIsModalOpen(false)} className="p-2 text-slate-500 hover:text-white transition-colors">

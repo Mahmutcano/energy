@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect } from 'react';
-import { Factory, Plus, Search, MapPin, X, Building2, Cpu, Activity } from 'lucide-react';
+import React, { useState, useEffect, Suspense } from 'react';
+import { Factory, Plus, Search, MapPin, X, Building2, Cpu, Activity, Pencil, Trash2, Settings } from 'lucide-react';
 import { apiRequest } from '@/lib/api';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 interface Plant {
     id: string;
@@ -22,24 +23,36 @@ interface CompanyProfile {
     name: string;
 }
 
-export default function PlantsPage() {
+const defaultFormData = {
+    companyId: '',
+    plantName: '',
+    latitude: '',
+    longitude: '',
+    plantType: 'SOLAR' as 'SOLAR' | 'WIND' | 'HYDRO'
+};
+
+function PlantsContent() {
+    const router = useRouter();
+    const searchParams = useSearchParams();
+    const initialCompanyId = searchParams?.get('companyId') || '';
+
     const [plants, setPlants] = useState<Plant[]>([]);
     const [companies, setCompanies] = useState<CompanyProfile[]>([]);
     const [loading, setLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [formData, setFormData] = useState({
-        companyId: '',
-        plantName: '',
-        latitude: '',
-        longitude: '',
-        plantType: 'SOLAR' as 'SOLAR' | 'WIND' | 'HYDRO'
-    });
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [editingPlant, setEditingPlant] = useState<Plant | null>(null);
+    const [formData, setFormData] = useState({ ...defaultFormData, companyId: initialCompanyId });
+    const submittingRef = React.useRef(false);
 
     const fetchPlants = async () => {
         try {
             const res = await apiRequest('/api/plants');
             if (res.ok) {
-                const data = await res.json();
+                let data = await res.json();
+                if (initialCompanyId) {
+                    data = data.filter((p: Plant) => p.companyId === initialCompanyId);
+                }
                 setPlants(data);
             }
         } catch (err) {
@@ -64,10 +77,43 @@ export default function PlantsPage() {
     useEffect(() => {
         fetchPlants();
         fetchCompanies();
-    }, []);
+    }, [initialCompanyId]);
 
-    const handleCreate = async (e: React.FormEvent) => {
+    const openCreateModal = () => {
+        setEditingPlant(null);
+        setFormData({ ...defaultFormData, companyId: initialCompanyId || (companies.length > 0 ? companies[0].id : '') });
+        setIsModalOpen(true);
+    };
+
+    const openEditModal = (plant: Plant) => {
+        setEditingPlant(plant);
+        setFormData({
+            companyId: plant.companyId || '',
+            plantName: plant.plantName || '',
+            latitude: plant.latitude ? plant.latitude.toString() : '',
+            longitude: plant.longitude ? plant.longitude.toString() : '',
+            plantType: plant.plantType || 'SOLAR'
+        });
+        setIsModalOpen(true);
+    };
+
+    const handleDelete = async (id: string) => {
+        if (!confirm('Are you sure you want to delete this plant?')) return;
+        try {
+            const res = await apiRequest(`/api/plants/${id}`, { method: 'DELETE' });
+            if (res.ok) {
+                fetchPlants();
+            }
+        } catch (err) {
+            console.error('Delete error:', err);
+        }
+    };
+
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (submittingRef.current) return;
+        submittingRef.current = true;
+        setIsSubmitting(true);
         try {
             const body = {
                 companyId: formData.companyId,
@@ -76,17 +122,29 @@ export default function PlantsPage() {
                 longitude: formData.longitude ? parseFloat(formData.longitude) : null,
                 plantType: formData.plantType,
             };
-            const res = await apiRequest('/api/plants', {
-                method: 'POST',
+
+            const url = editingPlant ? `/api/plants/${editingPlant.id}` : '/api/plants';
+            const method = editingPlant ? 'PATCH' : 'POST';
+
+            const res = await apiRequest(url, {
+                method,
                 body: JSON.stringify(body)
             });
+
             if (res.ok) {
                 setIsModalOpen(false);
-                setFormData({ companyId: '', plantName: '', latitude: '', longitude: '', plantType: 'SOLAR' });
+                setFormData({ ...defaultFormData, companyId: initialCompanyId });
+                setEditingPlant(null);
                 fetchPlants();
+            } else {
+                const data = await res.json();
+                alert(data.error || 'Operation failed');
             }
         } catch (err) {
-            console.error('Create error:', err);
+            console.error('Submit error:', err);
+        } finally {
+            setIsSubmitting(false);
+            submittingRef.current = false;
         }
     };
 
@@ -103,7 +161,7 @@ export default function PlantsPage() {
                 </div>
 
                 <button
-                    onClick={() => setIsModalOpen(true)}
+                    onClick={openCreateModal}
                     className="flex items-center gap-3 px-6 py-3 bg-brand-green text-white rounded-xl text-xs font-bold shadow-lg shadow-brand-green/20 hover:scale-[1.02] transition-all  tracking-widest"
                 >
                     <Plus size={16} strokeWidth={3} /> New Plant
@@ -159,7 +217,7 @@ export default function PlantsPage() {
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-3 gap-4 mt-4 pt-4 border-t border-slate-800/40">
+                        <div className="grid grid-cols-4 gap-4 mt-4 pt-4 border-t border-slate-800/40">
                             <div>
                                 <p className="text-[10px] font-bold text-slate-600  tracking-widest mb-1">Protocols</p>
                                 <p className="text-sm font-bold text-white tabular-nums">{plant.protocols?.length || 0}</p>
@@ -172,12 +230,23 @@ export default function PlantsPage() {
                                 <p className="text-[10px] font-bold text-slate-600  tracking-widest mb-1">Longitude</p>
                                 <p className="text-sm font-mono text-slate-400">{plant.longitude ? Number(plant.longitude).toFixed(4) : '—'}</p>
                             </div>
+                            <div className="flex justify-end gap-2 items-end">
+                                <button title="Protocols" onClick={() => router.push(`/protocols?plantId=${plant.id}`)} className="p-2 rounded-lg bg-slate-950 border border-slate-800 text-slate-600 hover:text-brand-green hover:border-brand-green/30 transition-all">
+                                    <Settings size={14} />
+                                </button>
+                                <button title="Edit" onClick={() => openEditModal(plant)} className="p-2 rounded-lg bg-slate-950 border border-slate-800 text-slate-600 hover:text-brand-green hover:border-brand-green/30 transition-all">
+                                    <Pencil size={14} />
+                                </button>
+                                <button title="Delete" onClick={() => handleDelete(plant.id)} className="p-2 rounded-lg bg-slate-950 border border-slate-800 text-slate-600 hover:text-red-500 hover:border-red-500/30 transition-all">
+                                    <Trash2 size={14} />
+                                </button>
+                            </div>
                         </div>
                     </div>
                 ))}
             </div>
 
-            {/* Create Modal */}
+            {/* Create / Edit Modal */}
             <AnimatePresence>
                 {isModalOpen && (
                     <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
@@ -193,15 +262,15 @@ export default function PlantsPage() {
                                         <Factory size={18} className="text-brand-green" />
                                     </div>
                                     <div>
-                                        <h2 className="text-lg font-bold text-white">New Plant</h2>
-                                        <p className="text-[10px] text-slate-500  tracking-widest">Register a new power plant</p>
+                                        <h2 className="text-lg font-bold text-white">{editingPlant ? 'Edit Plant' : 'New Plant'}</h2>
+                                        <p className="text-[10px] text-slate-500  tracking-widest">{editingPlant ? 'Update plant details' : 'Register a new power plant'}</p>
                                     </div>
                                 </div>
                                 <button onClick={() => setIsModalOpen(false)} className="p-2 text-slate-500 hover:text-white transition-colors">
                                     <X size={20} />
                                 </button>
                             </div>
-                            <form onSubmit={handleCreate} className="p-6 space-y-5">
+                            <form onSubmit={handleSubmit} className="p-6 space-y-5">
                                 <div className="space-y-2">
                                     <label className="text-xs font-bold text-slate-400  tracking-widest">Company</label>
                                     <select
@@ -266,9 +335,10 @@ export default function PlantsPage() {
                                 </div>
                                 <button
                                     type="submit"
-                                    className="w-full py-4 bg-brand-green text-white font-bold  tracking-widest text-xs rounded-xl shadow-lg shadow-brand-green/20 hover:scale-[1.01] transition-all"
+                                    disabled={isSubmitting}
+                                    className="w-full py-4 bg-brand-green disabled:bg-brand-green/50 text-white font-bold  tracking-widest text-xs rounded-xl shadow-lg shadow-brand-green/20 hover:scale-[1.01] transition-all"
                                 >
-                                    Create Plant
+                                    {isSubmitting ? 'Saving...' : editingPlant ? 'Update Plant' : 'Create Plant'}
                                 </button>
                             </form>
                         </motion.div>
@@ -276,5 +346,13 @@ export default function PlantsPage() {
                 )}
             </AnimatePresence>
         </div>
+    );
+}
+
+export default function PlantsPage() {
+    return (
+        <Suspense fallback={<div>Loading...</div>}>
+            <PlantsContent />
+        </Suspense>
     );
 }

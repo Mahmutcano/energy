@@ -4,7 +4,7 @@ import { authenticate, authorize } from '../middleware/auth';
 
 const router = Router();
 
-router.get('/alarms', authenticate, getAlarms);
-router.patch('/alarms/:id/resolve', authenticate, authorize(['SUPER_ADMIN', 'ADMIN', 'CUSTOMER']), resolveAlarm);
+router.get('/alarms', authenticate, authorize(['SUPER_ADMIN', 'COMPANY_ADMIN', 'NORMAL_USER']), getAlarms);
+router.patch('/alarms/:id/resolve', authenticate, authorize(['SUPER_ADMIN', 'COMPANY_ADMIN', 'NORMAL_USER']), resolveAlarm);
 
 export default router;

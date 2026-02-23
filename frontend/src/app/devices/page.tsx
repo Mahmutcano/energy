@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect } from 'react';
-import { Cpu, Plus, Search, X, HardDrive, Tag, ToggleLeft, ToggleRight, Network } from 'lucide-react';
+import React, { useState, useEffect, Suspense } from 'react';
+import { Cpu, Plus, Search, X, HardDrive, Tag, ToggleLeft, ToggleRight, Network, Pencil, Trash2, FileText } from 'lucide-react';
 import { apiRequest } from '@/lib/api';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 interface ProtocolConfig {
     id: string;
@@ -19,27 +20,39 @@ interface Device {
     deviceType: 'INVERTER' | 'ANALYZER' | 'RELAY';
     isActive: boolean;
     protocol?: ProtocolConfig;
-    createdAt: string;
+    createdAt?: string;
+    dataSheets?: any[];
 }
 
-export default function DevicesPage() {
+function DevicesContent() {
+    const router = useRouter();
+    const searchParams = useSearchParams();
+    const initialProtocolId = searchParams?.get('protocolId') || '';
+
     const [devices, setDevices] = useState<Device[]>([]);
     const [protocols, setProtocols] = useState<ProtocolConfig[]>([]);
     const [loading, setLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [editingDevice, setEditingDevice] = useState<Device | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [formData, setFormData] = useState({
-        protocolConfigId: '',
+        protocolConfigId: initialProtocolId,
         deviceName: '',
         deviceType: 'INVERTER' as 'INVERTER' | 'ANALYZER' | 'RELAY',
-        isActive: true
+        isActive: true,
+        createdAt: ''
     });
+    const submittingRef = React.useRef(false);
 
     const fetchDevices = async () => {
         try {
             const res = await apiRequest('/api/devices');
             if (res.ok) {
-                const data = await res.json();
+                let data = await res.json();
+                if (initialProtocolId) {
+                    data = data.filter((d: Device) => d.protocol_config_id === initialProtocolId);
+                }
                 setDevices(data);
             }
         } catch (err) {
@@ -64,22 +77,88 @@ export default function DevicesPage() {
     useEffect(() => {
         fetchDevices();
         fetchProtocols();
-    }, []);
+    }, [initialProtocolId]);
 
-    const handleCreate = async (e: React.FormEvent) => {
-        e.preventDefault();
+
+    const openCreateModal = () => {
+        setEditingDevice(null);
+        setFormData({
+            protocolConfigId: initialProtocolId || (protocols.length > 0 ? protocols[0].id : ''),
+            deviceName: '',
+            deviceType: 'INVERTER',
+            isActive: true,
+            createdAt: ''
+        });
+        setIsModalOpen(true);
+    };
+
+    const openEditModal = (device: Device) => {
+        setEditingDevice(device);
+        setFormData({
+            protocolConfigId: device.protocol_config_id || '',
+            deviceName: device.deviceName || '',
+            deviceType: device.deviceType || 'INVERTER',
+            isActive: device.isActive,
+            createdAt: device.createdAt ? new Date(device.createdAt).toISOString().slice(0, 16) : ''
+        });
+        setIsModalOpen(true);
+    };
+
+    const handleDelete = async (id: string) => {
+        if (!confirm('Are you sure you want to delete this device?')) return;
         try {
-            const res = await apiRequest('/api/devices', {
-                method: 'POST',
-                body: JSON.stringify(formData)
-            });
+            const res = await apiRequest(`/api/devices/${id}`, { method: 'DELETE' });
             if (res.ok) {
-                setIsModalOpen(false);
-                setFormData({ protocolConfigId: '', deviceName: '', deviceType: 'INVERTER', isActive: true });
                 fetchDevices();
             }
         } catch (err) {
-            console.error('Create error:', err);
+            console.error('Delete error:', err);
+        }
+    };
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (submittingRef.current) return;
+        submittingRef.current = true;
+        setIsSubmitting(true);
+        try {
+            const body: any = {
+                protocolConfigId: formData.protocolConfigId,
+                deviceName: formData.deviceName,
+                deviceType: formData.deviceType,
+                isActive: formData.isActive
+            };
+            if (editingDevice && formData.createdAt) {
+                body.createdAt = new Date(formData.createdAt).toISOString();
+            }
+
+            const url = editingDevice ? `/api/devices/${editingDevice.id}` : '/api/devices';
+            const method = editingDevice ? 'PATCH' : 'POST';
+
+            const res = await apiRequest(url, {
+                method,
+                body: JSON.stringify(body)
+            });
+            if (res.ok) {
+                setIsModalOpen(false);
+                setFormData({
+                    protocolConfigId: initialProtocolId,
+                    deviceName: '',
+                    deviceType: 'INVERTER',
+                    isActive: true,
+                    createdAt: ''
+                });
+                setEditingDevice(null);
+                fetchDevices();
+            } else {
+                const data = await res.json();
+                alert(data.error || 'Operation failed');
+            }
+        } catch (err) {
+            console.error('Create/Update error:', err);
+        } finally {
+            setIsSubmitting(false);
+            submittingRef.current = false;
         }
     };
 
@@ -102,7 +181,7 @@ export default function DevicesPage() {
                 </div>
 
                 <button
-                    onClick={() => setIsModalOpen(true)}
+                    onClick={openCreateModal}
                     className="flex items-center gap-3 px-6 py-3 bg-brand-green text-white rounded-xl text-xs font-bold shadow-lg shadow-brand-green/20 hover:scale-[1.02] transition-all  tracking-widest"
                 >
                     <Plus size={16} strokeWidth={3} /> New Device
@@ -145,14 +224,15 @@ export default function DevicesPage() {
                                 <th className="px-6 py-4">Type</th>
                                 <th className="px-6 py-4">Protocol Config</th>
                                 <th className="px-6 py-4">Status</th>
-                                <th className="px-6 py-4">Created</th>
+                                <th className="px-6 py-4">Created Date</th>
+                                <th className="px-6 py-4 text-right">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
                             {loading ? (
-                                <tr><td colSpan={5} className="px-6 py-12 text-center text-sm text-slate-500 animate-pulse">Loading devices...</td></tr>
+                                <tr><td colSpan={6} className="px-6 py-12 text-center text-sm text-slate-500 animate-pulse">Loading devices...</td></tr>
                             ) : filteredDevices.length === 0 ? (
-                                <tr><td colSpan={5} className="px-6 py-12 text-center text-sm text-slate-500">No devices found</td></tr>
+                                <tr><td colSpan={6} className="px-6 py-12 text-center text-sm text-slate-500">No devices found</td></tr>
                             ) : filteredDevices.map((device) => (
                                 <tr key={device.id} className="border-b border-slate-800/30 hover:bg-slate-800/20 transition-all">
                                     <td className="px-6 py-4">
@@ -162,7 +242,7 @@ export default function DevicesPage() {
                                         </div>
                                     </td>
                                     <td className="px-6 py-4">
-                                        <span className="px-2 py-1 rounded-md text-[10px] font-bold bg-slate-950 border border-slate-800 text-slate-400">
+                                        <span className={`px-2 py-1 rounded-md text-[10px] font-bold bg-slate-950 border border-slate-800 text-slate-400`}>
                                             {device.deviceType}
                                         </span>
                                     </td>
@@ -183,7 +263,20 @@ export default function DevicesPage() {
                                         </div>
                                     </td>
                                     <td className="px-6 py-4 text-xs font-mono text-slate-600 tabular-nums">
-                                        {new Date(device.createdAt).toLocaleDateString()}
+                                        {device.createdAt ? new Date(device.createdAt).toLocaleString() : '—'}
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        <div className="flex justify-end gap-2">
+                                            <button title="Datasheets" onClick={() => router.push(`/devices/datasheets?deviceId=${device.id}`)} className="p-2 rounded-md bg-slate-900 border border-slate-700 hover:text-brand-green hover:border-brand-green/50 transition-colors text-slate-400">
+                                                <FileText size={14} />
+                                            </button>
+                                            <button title="Edit" onClick={() => openEditModal(device)} className="p-2 rounded-md bg-slate-900 border border-slate-700 hover:text-brand-green hover:border-brand-green/50 transition-colors text-slate-400">
+                                                <Pencil size={14} />
+                                            </button>
+                                            <button title="Delete" onClick={() => handleDelete(device.id)} className="p-2 rounded-md bg-slate-900 border border-slate-700 hover:text-red-500 hover:border-red-500/50 transition-colors text-slate-400">
+                                                <Trash2 size={14} />
+                                            </button>
+                                        </div>
                                     </td>
                                 </tr>
                             ))}
@@ -192,7 +285,7 @@ export default function DevicesPage() {
                 </div>
             </div>
 
-            {/* Create Modal */}
+            {/* Create / Edit Modal */}
             <AnimatePresence>
                 {isModalOpen && (
                     <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
@@ -208,15 +301,15 @@ export default function DevicesPage() {
                                         <Cpu size={18} className="text-brand-green" />
                                     </div>
                                     <div>
-                                        <h2 className="text-lg font-bold text-white">New Device</h2>
-                                        <p className="text-[10px] text-slate-500  tracking-widest">Register a new device</p>
+                                        <h2 className="text-lg font-bold text-white">{editingDevice ? 'Edit Device' : 'New Device'}</h2>
+                                        <p className="text-[10px] text-slate-500  tracking-widest">{editingDevice ? 'Update device details' : 'Register a new device'}</p>
                                     </div>
                                 </div>
                                 <button onClick={() => setIsModalOpen(false)} className="p-2 text-slate-500 hover:text-white transition-colors">
                                     <X size={20} />
                                 </button>
                             </div>
-                            <form onSubmit={handleCreate} className="p-6 space-y-5">
+                            <form onSubmit={handleSubmit} className="p-6 space-y-5">
                                 <div className="space-y-2">
                                     <label className="text-xs font-bold text-slate-400  tracking-widest">Protocol Configuration</label>
                                     <select
@@ -255,6 +348,17 @@ export default function DevicesPage() {
                                         required
                                     />
                                 </div>
+                                {editingDevice && (
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-bold text-slate-400  tracking-widest">Created Date</label>
+                                        <input
+                                            type="datetime-local"
+                                            value={formData.createdAt}
+                                            onChange={(e) => setFormData({ ...formData, createdAt: e.target.value })}
+                                            className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none"
+                                        />
+                                    </div>
+                                )}
                                 <div className="flex items-center justify-between p-4 bg-slate-900/30 rounded-xl border border-slate-800/40">
                                     <span className="text-xs font-bold text-slate-400 ">Active Status</span>
                                     <button
@@ -267,9 +371,10 @@ export default function DevicesPage() {
                                 </div>
                                 <button
                                     type="submit"
-                                    className="w-full py-4 bg-brand-green text-white font-bold  tracking-widest text-xs rounded-xl shadow-lg shadow-brand-green/20 hover:scale-[1.01] transition-all"
+                                    disabled={isSubmitting}
+                                    className="w-full py-4 bg-brand-green disabled:bg-brand-green/50 text-white font-bold  tracking-widest text-xs rounded-xl shadow-lg shadow-brand-green/20 hover:scale-[1.01] transition-all"
                                 >
-                                    Create Device
+                                    {isSubmitting ? 'Saving...' : editingDevice ? 'Update Device' : 'Create Device'}
                                 </button>
                             </form>
                         </motion.div>
@@ -277,5 +382,13 @@ export default function DevicesPage() {
                 )}
             </AnimatePresence>
         </div>
+    );
+}
+
+export default function DevicesPage() {
+    return (
+        <Suspense fallback={<div>Loading...</div>}>
+            <DevicesContent />
+        </Suspense>
     );
 }

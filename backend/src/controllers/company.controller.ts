@@ -5,6 +5,11 @@ import { z } from 'zod';
 const createCompanySchema = z.object({
     name: z.string().min(1, "Name is required"),
     address: z.string().optional().nullable(),
+    phone: z.string().optional().nullable(),
+    email: z.string().optional().nullable(),
+    representative: z.string().optional().nullable(),
+    taxOffice: z.string().optional().nullable(),
+    taxNumber: z.number().optional().nullable(),
     isActive: z.boolean().optional(),
 });
 
@@ -27,12 +32,19 @@ export const createCompany = async (req: Request, res: Response) => {
     try {
         const data = createCompanySchema.parse(req.body);
 
+        const createData: any = {
+            name: data.name,
+            address: data.address,
+            phone: data.phone,
+            email: data.email,
+            representative: data.representative,
+            taxOffice: data.taxOffice,
+            taxNumber: data.taxNumber,
+            isActive: data.isActive ?? true,
+        };
+
         const company = await prisma.companyProfile.create({
-            data: {
-                name: data.name,
-                address: data.address,
-                isActive: data.isActive ?? true,
-            }
+            data: createData
         });
 
         res.status(201).json(company);

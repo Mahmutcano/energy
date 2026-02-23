@@ -56,6 +56,8 @@ model CompanyProfile {
   phone          String?
   email          String?
   representative String?
+  taxOffice      String?
+  taxNumber      Int?
   isActive       Boolean          @default(true)
   plants         Plant[]
   userProfiles   AppUserProfile[]
@@ -151,6 +153,7 @@ model Device {
   deviceName         String
   deviceType         DeviceType
   isActive           Boolean        @default(true)
+  createdAt          DateTime       @default(now())
 
   dataSheets   DeviceDataSheet[]
   userProfiles AppUserProfile[]

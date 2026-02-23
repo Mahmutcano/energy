@@ -8,6 +8,7 @@ const createDeviceSchema = z.object({
     deviceName: z.string().min(1, "Device name is required"),
     deviceType: z.nativeEnum(DeviceType),
     isActive: z.boolean().optional(),
+    createdAt: z.string().datetime().optional().nullable(),
 });
 
 export const getDevices = async (req: Request, res: Response) => {
@@ -30,13 +31,16 @@ export const createDevice = async (req: Request, res: Response) => {
     try {
         const data = createDeviceSchema.parse(req.body);
 
+        const createData: any = {
+            protocol_config_id: data.protocolConfigId,
+            deviceName: data.deviceName,
+            deviceType: data.deviceType,
+            isActive: data.isActive ?? true,
+            createdAt: data.createdAt ? new Date(data.createdAt) : undefined,
+        };
+
         const device = await prisma.device.create({
-            data: {
-                protocol_config_id: data.protocolConfigId,
-                deviceName: data.deviceName,
-                deviceType: data.deviceType,
-                isActive: data.isActive ?? true,
-            }
+            data: createData
         });
 
         res.status(201).json(device);
@@ -47,6 +51,31 @@ export const createDevice = async (req: Request, res: Response) => {
             console.error('createDevice error:', error);
             res.status(500).json({ error: 'Failed to create device' });
         }
+    }
+};
+
+export const updateDevice = async (req: Request, res: Response) => {
+    const { id } = req.params;
+    try {
+        const data = createDeviceSchema.partial().parse(req.body);
+
+        let updateData: any = { ...data };
+        if (data.protocolConfigId) {
+            updateData.protocol_config_id = data.protocolConfigId;
+            delete updateData.protocolConfigId;
+        }
+        if (data.createdAt) {
+            updateData.createdAt = new Date(data.createdAt);
+        }
+
+        const device = await prisma.device.update({
+            where: { id: String(id) },
+            data: updateData
+        });
+        res.json(device);
+    } catch (error) {
+        console.error('updateDevice error:', error);
+        res.status(500).json({ error: 'Failed to update device' });
     }
 };
 

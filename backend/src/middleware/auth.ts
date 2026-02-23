@@ -3,7 +3,9 @@ import jwt from 'jsonwebtoken';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-key-123456';
 
-export type Role = 'SUPER_ADMIN' | 'ADMIN' | 'CUSTOMER';
+import { AdminType } from '@prisma/client';
+
+export type Role = AdminType;
 
 export interface AuthRequest extends Request {
     user?: {

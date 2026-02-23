@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from 'react';
-import { Users, Plus, X, ShieldCheck, Mail, Building2 } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Users, Plus, X, ShieldCheck, Mail, Building2, Trash2 } from 'lucide-react';
 import { apiRequest } from '@/lib/api';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -12,7 +12,7 @@ interface User {
     role: 'SUPER_ADMIN' | 'COMPANY_ADMIN' | 'NORMAL_USER';
     companyProfileId: string | null;
     companyProfile?: { id: string; name: string } | null;
-    createdAt: string;
+    createdAt?: string;
 }
 
 export default function UsersPage() {
@@ -20,6 +20,7 @@ export default function UsersPage() {
     const [companies, setCompanies] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const [formData, setFormData] = useState({
         email: '',
         password: '',
@@ -27,6 +28,7 @@ export default function UsersPage() {
         role: 'NORMAL_USER' as 'SUPER_ADMIN' | 'COMPANY_ADMIN' | 'NORMAL_USER',
         companyProfileId: '',
     });
+    const submittingRef = React.useRef(false);
 
     const fetchUsers = async () => {
         try {
@@ -56,13 +58,31 @@ export default function UsersPage() {
         fetchCompanies();
     }, []);
 
+    const handleDelete = async (id: string) => {
+        if (!confirm('Are you sure you want to delete this user?')) return;
+        try {
+            const res = await apiRequest(`/api/users/${id}`, { method: 'DELETE' });
+            if (res.ok) {
+                fetchUsers();
+            }
+        } catch (err) {
+            console.error('Delete error:', err);
+        }
+    };
+
     const handleCreate = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (submittingRef.current) return;
+        submittingRef.current = true;
+        setIsSubmitting(true);
         try {
             const res = await apiRequest('/api/users', {
                 method: 'POST',
                 body: JSON.stringify({
-                    ...formData,
+                    email: formData.email,
+                    password: formData.password,
+                    name: formData.name,
+                    role: formData.role,
                     companyProfileId: formData.companyProfileId || null,
                 })
             });
@@ -70,9 +90,15 @@ export default function UsersPage() {
                 setIsModalOpen(false);
                 setFormData({ email: '', password: '', name: '', role: 'NORMAL_USER', companyProfileId: '' });
                 fetchUsers();
+            } else {
+                const data = await res.json();
+                alert(data.error || 'Operation failed');
             }
         } catch (err) {
             console.error('Create error:', err);
+        } finally {
+            setIsSubmitting(false);
+            submittingRef.current = false;
         }
     };
 
@@ -124,7 +150,7 @@ export default function UsersPage() {
                                 <th className="px-6 py-4">Email</th>
                                 <th className="px-6 py-4">Role</th>
                                 <th className="px-6 py-4">Company</th>
-                                <th className="px-6 py-4">Created</th>
+                                <th className="px-6 py-4 text-center">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -151,8 +177,12 @@ export default function UsersPage() {
                                     <td className="px-6 py-4 text-sm text-slate-400">
                                         {user.companyProfile?.name || '—'}
                                     </td>
-                                    <td className="px-6 py-4 text-xs font-mono text-slate-600 tabular-nums">
-                                        {new Date(user.createdAt).toLocaleDateString()}
+                                    <td className="px-6 py-4 text-center">
+                                        <div className="flex justify-center">
+                                            <button title="Delete" onClick={() => handleDelete(user.id)} className="p-2 rounded-md bg-slate-900 border border-slate-700 hover:text-red-500 hover:border-red-500/50 transition-colors text-slate-400">
+                                                <Trash2 size={14} />
+                                            </button>
+                                        </div>
                                     </td>
                                 </tr>
                             ))}
@@ -194,6 +224,7 @@ export default function UsersPage() {
                                         onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                                         className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none"
                                         placeholder="Full name"
+                                        required
                                     />
                                 </div>
                                 <div className="space-y-2">
@@ -247,9 +278,10 @@ export default function UsersPage() {
                                 </div>
                                 <button
                                     type="submit"
-                                    className="w-full py-4 bg-brand-green text-white font-bold  tracking-widest text-xs rounded-xl shadow-lg shadow-brand-green/20 hover:scale-[1.01] transition-all"
+                                    disabled={isSubmitting}
+                                    className="w-full py-4 bg-brand-green disabled:bg-brand-green/50 text-white font-bold  tracking-widest text-xs rounded-xl shadow-lg shadow-brand-green/20 hover:scale-[1.01] transition-all"
                                 >
-                                    Create User
+                                    {isSubmitting ? 'Creating...' : 'Create User'}
                                 </button>
                             </form>
                         </motion.div>

@@ -90,9 +90,53 @@ export const createProtocol = async (req: Request, res: Response) => {
     }
 };
 
+export const updateProtocol = async (req: Request, res: Response) => {
+    const { id } = req.params;
+    try {
+        const data = createProtocolSchema.partial().parse(req.body);
+
+        let updateData: any = {};
+        if (data.configName) updateData.configName = data.configName;
+        if (data.plantId) updateData.plant_id = data.plantId;
+        if (data.protocolType) updateData.protocolType = data.protocolType;
+
+        if (data.protocolType === 'MODBUS' && data.modbusConfig) {
+            updateData.modbusConfig = {
+                upsert: {
+                    create: data.modbusConfig,
+                    update: data.modbusConfig,
+                }
+            };
+        } else if (data.protocolType === 'IEC104' && data.iec104Config) {
+            updateData.iec104Config = {
+                upsert: {
+                    create: data.iec104Config,
+                    update: data.iec104Config,
+                }
+            };
+        }
+
+        const protocol = await prisma.protocolConfig.update({
+            where: { id: String(id) },
+            data: updateData,
+            include: {
+                modbusConfig: true,
+                iec104Config: true,
+            }
+        });
+
+        res.json(protocol);
+    } catch (error) {
+        console.error('updateProtocol error:', error);
+        res.status(500).json({ error: 'Failed to update protocol' });
+    }
+};
+
 export const deleteProtocol = async (req: Request, res: Response) => {
     const { id } = req.params;
     try {
+        await prisma.modbusConfig.deleteMany({ where: { protocol_id: String(id) } });
+        await prisma.iEC104Config.deleteMany({ where: { protocol_id: String(id) } });
         await prisma.protocolConfig.delete({ where: { id: String(id) } });
         res.status(204).send();
     } catch (error) {

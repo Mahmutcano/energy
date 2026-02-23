@@ -4,8 +4,8 @@ import { authenticate, authorize } from '../middleware/auth';
 
 const router = Router();
 
-router.get('/users', authenticate, authorize(['SUPER_ADMIN', 'ADMIN']), getUsers);
-router.post('/users', authenticate, authorize(['SUPER_ADMIN', 'ADMIN']), createUser);
+router.get('/users', authenticate, authorize(['SUPER_ADMIN', 'COMPANY_ADMIN']), getUsers);
+router.post('/users', authenticate, authorize(['SUPER_ADMIN', 'COMPANY_ADMIN']), createUser);
 router.delete('/users/:id', authenticate, authorize(['SUPER_ADMIN']), deleteUser);
 
 export default router;

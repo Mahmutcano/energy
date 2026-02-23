@@ -4,21 +4,36 @@ import { z } from 'zod';
 import { AdminType } from '@prisma/client';
 
 const createUserSchema = z.object({
-    userCode: z.string(),
-    firstName: z.string().min(1),
-    lastName: z.string().min(1),
+    name: z.string().min(1),
     email: z.string().email(),
-    adminType: z.nativeEnum(AdminType),
+    role: z.nativeEnum(AdminType),
+    password: z.string().optional(),
+    companyProfileId: z.string().optional().nullable()
 });
 
 export const getUsers = async (req: Request, res: Response) => {
     try {
         const users = await prisma.appUser.findMany({
             include: {
-                profiles: true,
+                profiles: {
+                    include: {
+                        company: true
+                    }
+                }
             }
         });
-        res.json(users);
+
+        // Flatten for frontend
+        const mappedUsers = users.map(u => ({
+            id: u.id,
+            email: u.email,
+            name: `${u.firstName} ${u.lastName}`.trim(),
+            role: u.adminType,
+            companyProfileId: u.profiles?.[0]?.company_id || null,
+            companyProfile: u.profiles?.[0]?.company || null,
+        }));
+
+        res.json(mappedUsers);
     } catch (error) {
         console.error('getUsers error:', error);
         res.status(500).json({ error: 'Failed to fetch users' });
@@ -29,15 +44,29 @@ export const createUser = async (req: Request, res: Response) => {
     try {
         const data = createUserSchema.parse(req.body);
 
+        const nameParts = data.name.split(' ');
+        const firstName = nameParts[0];
+        const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : 'User';
+
         const user = await prisma.appUser.create({
             data: {
-                userCode: data.userCode,
-                firstName: data.firstName,
-                lastName: data.lastName,
+                userCode: Math.random().toString(36).substring(7),
+                firstName,
+                lastName,
                 email: data.email,
-                adminType: data.adminType,
+                adminType: data.role,
             }
         });
+
+        if (data.companyProfileId) {
+            await prisma.appUserProfile.create({
+                data: {
+                    user_id: user.id,
+                    company_id: data.companyProfileId,
+                    permissionLevel: 'READ'
+                }
+            });
+        }
 
         res.status(201).json(user);
     } catch (error) {

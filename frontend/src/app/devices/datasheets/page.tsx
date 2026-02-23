@@ -28,7 +28,11 @@ interface DataSheet {
     signalDescription: string | null;
     dataType: string | null;
     signalSource: string | null;
+    componentId: string | null;
+    componentText: string | null;
     ioa1ObjectAddress: number | null;
+    ioa2CellNo: number | null;
+    ioa3VoltageLevel: number | null;
     scadaAddress: number | null;
 }
 
@@ -45,7 +49,11 @@ const defaultFormData = {
     signalDescription: '',
     dataType: '',
     signalSource: '',
+    componentId: '',
+    componentText: '',
     ioa1ObjectAddress: '',
+    ioa2CellNo: '',
+    ioa3VoltageLevel: '',
     scadaAddress: '',
 };
 
@@ -115,7 +123,11 @@ function DataSheetsContent() {
             signalDescription: sheet.signalDescription || '',
             dataType: sheet.dataType || '',
             signalSource: sheet.signalSource || '',
+            componentId: sheet.componentId || '',
+            componentText: sheet.componentText || '',
             ioa1ObjectAddress: sheet.ioa1ObjectAddress?.toString() || '',
+            ioa2CellNo: sheet.ioa2CellNo?.toString() || '',
+            ioa3VoltageLevel: sheet.ioa3VoltageLevel?.toString() || '',
             scadaAddress: sheet.scadaAddress?.toString() || '',
         });
         setIsModalOpen(true);
@@ -160,7 +172,11 @@ function DataSheetsContent() {
                 body.signalDescription = formData.signalDescription || null;
                 body.dataType = formData.dataType || null;
                 body.signalSource = formData.signalSource || null;
+                body.componentId = formData.componentId || null;
+                body.componentText = formData.componentText || null;
                 body.ioa1ObjectAddress = int(formData.ioa1ObjectAddress);
+                body.ioa2CellNo = int(formData.ioa2CellNo);
+                body.ioa3VoltageLevel = int(formData.ioa3VoltageLevel);
                 body.scadaAddress = int(formData.scadaAddress);
             }
 
@@ -461,6 +477,51 @@ function DataSheetsContent() {
                                                 type="text"
                                                 value={formData.feederName}
                                                 onChange={(e) => setFormData({ ...formData, feederName: e.target.value })}
+                                                className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none"
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-xs font-bold text-slate-400 tracking-widest">IOA 2 (Cell No)</label>
+                                            <input
+                                                type="number"
+                                                value={formData.ioa2CellNo}
+                                                onChange={(e) => setFormData({ ...formData, ioa2CellNo: e.target.value })}
+                                                className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none tabular-nums"
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-xs font-bold text-slate-400 tracking-widest">IOA 3 (Voltage Lvl)</label>
+                                            <input
+                                                type="number"
+                                                value={formData.ioa3VoltageLevel}
+                                                onChange={(e) => setFormData({ ...formData, ioa3VoltageLevel: e.target.value })}
+                                                className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none tabular-nums"
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-xs font-bold text-slate-400 tracking-widest">Signal Source</label>
+                                            <input
+                                                type="text"
+                                                value={formData.signalSource}
+                                                onChange={(e) => setFormData({ ...formData, signalSource: e.target.value })}
+                                                className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none"
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-xs font-bold text-slate-400 tracking-widest">Component ID</label>
+                                            <input
+                                                type="text"
+                                                value={formData.componentId}
+                                                onChange={(e) => setFormData({ ...formData, componentId: e.target.value })}
+                                                className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none"
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-xs font-bold text-slate-400 tracking-widest">Component Text</label>
+                                            <input
+                                                type="text"
+                                                value={formData.componentText}
+                                                onChange={(e) => setFormData({ ...formData, componentText: e.target.value })}
                                                 className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none"
                                             />
                                         </div>

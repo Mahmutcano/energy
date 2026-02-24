@@ -16,6 +16,7 @@ import alarmRoutes from './routes/alarm.routes';
 import userRoutes from './routes/user.routes';
 import companyRoutes from './routes/company.routes';
 import datasheetRoutes from './routes/datasheet.routes';
+import systemRoutes from './routes/system.routes';
 
 const app = express();
 app.use(cors());
@@ -34,6 +35,7 @@ app.use('/api', alarmRoutes);
 app.use('/api', userRoutes);
 app.use('/api', companyRoutes);
 app.use('/api', datasheetRoutes);
+app.use('/api/system', systemRoutes);
 
 const server = http.createServer(app);
 const io = new Server(server, {

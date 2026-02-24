@@ -35,10 +35,14 @@ export const getProtocols = async (req: Request, res: Response) => {
     try {
         const protocols = await prisma.protocolConfig.findMany({
             include: {
-                plant: true,
+                plant: {
+                    select: { id: true, plantName: true }
+                },
                 modbusConfig: true,
                 iec104Config: true,
-                devices: true,
+                _count: {
+                    select: { devices: true }
+                }
             },
         });
         res.json(protocols);

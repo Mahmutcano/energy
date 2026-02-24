@@ -15,8 +15,12 @@ export const getPlants = async (req: Request, res: Response) => {
     try {
         const plants = await prisma.plant.findMany({
             include: {
-                company: true,
-                protocols: true,
+                company: {
+                    select: { id: true, name: true }
+                },
+                protocols: {
+                    select: { id: true, configName: true, protocolType: true }
+                },
             }
         });
         res.json(plants);

@@ -96,9 +96,7 @@ function DevicesContent() {
     };
 
     useEffect(() => {
-        fetchDevices();
-        fetchProtocols();
-        fetchProfiles();
+        Promise.all([fetchDevices(), fetchProtocols(), fetchProfiles()]);
     }, [initialProtocolId]);
 
 

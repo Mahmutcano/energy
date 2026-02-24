@@ -17,8 +17,12 @@ export const getCompanies = async (req: Request, res: Response) => {
     try {
         const companies = await prisma.companyProfile.findMany({
             include: {
-                plants: true,
-                userProfiles: true,
+                plants: {
+                    select: { id: true, plantName: true, plantType: true }
+                },
+                _count: {
+                    select: { userProfiles: true }
+                }
             }
         });
         res.json(companies);

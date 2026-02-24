@@ -16,9 +16,13 @@ export const getUsers = async (req: Request, res: Response) => {
         const users = await prisma.appUser.findMany({
             include: {
                 profiles: {
-                    include: {
-                        company: true
-                    }
+                    select: {
+                        company_id: true,
+                        company: {
+                            select: { id: true, name: true }
+                        }
+                    },
+                    take: 1
                 }
             }
         });

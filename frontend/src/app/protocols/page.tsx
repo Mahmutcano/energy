@@ -12,7 +12,7 @@ interface CommProtocol {
     configName: string;
     protocolType: 'MODBUS' | 'IEC104';
     plant?: { id: string; plantName: string };
-    devices?: any[];
+    _count?: { devices: number };
     modbusConfig?: {
         ipAddress: string;
         port: number;
@@ -95,8 +95,7 @@ function ProtocolsContent() {
     };
 
     useEffect(() => {
-        fetchProtocols();
-        fetchPlants();
+        Promise.all([fetchProtocols(), fetchPlants()]);
     }, [initialPlantId]);
 
     const openCreateModal = () => {
@@ -312,7 +311,7 @@ function ProtocolsContent() {
                                         )}
                                     </td>
                                     <td className="px-6 py-4 text-sm font-mono text-slate-400 tabular-nums text-center">
-                                        {proto.devices?.length || 0}
+                                        {proto._count?.devices || 0}
                                     </td>
                                     <td className="px-6 py-4">
                                         <div className="flex justify-end gap-2">

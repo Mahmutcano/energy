@@ -75,8 +75,7 @@ function PlantsContent() {
     };
 
     useEffect(() => {
-        fetchPlants();
-        fetchCompanies();
+        Promise.all([fetchPlants(), fetchCompanies()]);
     }, [initialCompanyId]);
 
     const openCreateModal = () => {

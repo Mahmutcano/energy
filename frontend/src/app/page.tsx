@@ -44,20 +44,24 @@ export default function Dashboard() {
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
-        const [devRes, alarmRes, protoRes] = await Promise.all([
+        const [devRes, alarmRes, protoRes, compRes, plantRes] = await Promise.all([
           apiRequest('/api/devices'),
           apiRequest('/api/alarms'),
           apiRequest('/api/comm-protocols'),
+          apiRequest('/api/companies'),
+          apiRequest('/api/plants'),
         ]);
 
         const devices = devRes.ok ? await devRes.json() : [];
         const alarms = alarmRes.ok ? await alarmRes.json() : [];
         const protos = protoRes.ok ? await protoRes.json() : [];
+        const companies = compRes.ok ? await compRes.json() : [];
+        const plants = plantRes.ok ? await plantRes.json() : [];
 
-        setProtocols(protos.slice(0, 4)); // Show first 4 protocols for realtime cards
+        setProtocols(protos.slice(0, 4));
         setStats({
-          companies: 0, // Will be populated if API exists
-          plants: 0,
+          companies: companies.length,
+          plants: plants.length,
           devices: devices.length,
           protocols: protos.length,
           activeAlarms: alarms.filter((a: any) => !a.resolved).length,

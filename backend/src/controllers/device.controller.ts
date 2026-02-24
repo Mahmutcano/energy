@@ -17,9 +17,18 @@ export const getDevices = async (req: Request, res: Response) => {
         const devices = await prisma.device.findMany({
             include: {
                 protocol: {
-                    include: { plant: true } // Include plant info from protocols
+                    select: {
+                        id: true,
+                        configName: true,
+                        protocolType: true,
+                        plant: {
+                            select: { id: true, plantName: true }
+                        }
+                    }
                 },
-                datasheetProfile: true
+                datasheetProfile: {
+                    select: { id: true, name: true, protocolType: true }
+                }
             }
         });
         res.json(devices);

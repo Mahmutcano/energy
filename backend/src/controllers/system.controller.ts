@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import prisma from '../lib/prisma';
+import { AppError, ErrorCode, handleErrorResponse } from '../utils/errors';
 
 export const getSchemaStats = async (req: Request, res: Response) => {
     try {
@@ -36,7 +37,6 @@ export const getSchemaStats = async (req: Request, res: Response) => {
 
         res.json(schema);
     } catch (error) {
-        console.error('getSchemaStats error:', error);
-        res.status(500).json({ error: 'Failed to fetch schema stats' });
+        return handleErrorResponse(res, error);
     }
 };

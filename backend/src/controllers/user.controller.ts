@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import prisma from '../lib/prisma';
 import { z } from 'zod';
 import { AdminType } from '@prisma/client';
+import { AppError, ErrorCode, handleErrorResponse } from '../utils/errors';
 
 const createUserSchema = z.object({
     name: z.string().min(1),
@@ -39,8 +40,7 @@ export const getUsers = async (req: Request, res: Response) => {
 
         res.json(mappedUsers);
     } catch (error) {
-        console.error('getUsers error:', error);
-        res.status(500).json({ error: 'Failed to fetch users' });
+        return handleErrorResponse(res, error);
     }
 };
 
@@ -51,6 +51,17 @@ export const createUser = async (req: Request, res: Response) => {
         const nameParts = data.name.split(' ');
         const firstName = nameParts[0];
         const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : 'User';
+
+        const existingEmail = await prisma.appUser.findUnique({
+            where: { email: data.email }
+        });
+        if (existingEmail) {
+            throw new AppError(
+                ErrorCode.USER_EMAIL_EXISTS,
+                `Bu email adresi zaten kullanılıyor. / Email already exists.`,
+                409
+            );
+        }
 
         const user = await prisma.appUser.create({
             data: {
@@ -74,25 +85,17 @@ export const createUser = async (req: Request, res: Response) => {
 
         res.status(201).json(user);
     } catch (error) {
-        if (error instanceof z.ZodError) {
-            res.status(400).json({ error: (error as any).errors });
-        } else {
-            console.error('createUser error:', error);
-            if ((error as any).code === 'P2002') {
-                return res.status(400).json({ error: 'Email already exists' });
-            }
-            res.status(500).json({ error: 'Failed to create user' });
-        }
+        return handleErrorResponse(res, error);
     }
 };
 
 export const deleteUser = async (req: Request, res: Response) => {
     const { id } = req.params;
     try {
+        await prisma.appUserProfile.deleteMany({ where: { user_id: String(id) } });
         await prisma.appUser.delete({ where: { id: String(id) } });
         res.status(204).send();
     } catch (error) {
-        console.error('deleteUser error:', error);
-        res.status(500).json({ error: 'Failed to delete user' });
+        return handleErrorResponse(res, error);
     }
 };

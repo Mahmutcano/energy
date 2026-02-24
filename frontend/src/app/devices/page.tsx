@@ -1,10 +1,11 @@
 "use client";
 
 import React, { useState, useEffect, Suspense } from 'react';
-import { Cpu, Plus, Search, X, HardDrive, Tag, ToggleLeft, ToggleRight, Network, Pencil, Trash2, FileText, FileJson } from 'lucide-react';
+import { Cpu, Plus, Search, X, HardDrive, Tag, ToggleLeft, ToggleRight, Network, Pencil, Trash2, FileText, FileJson, AlertTriangle } from 'lucide-react';
 import { apiRequest } from '@/lib/api';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter, useSearchParams } from 'next/navigation';
+import toast from 'react-hot-toast';
 
 interface ProtocolConfig {
     id: string;
@@ -52,6 +53,8 @@ function DevicesContent() {
         isActive: true,
         createdAt: ''
     });
+    const [deviceToDelete, setDeviceToDelete] = useState<Device | null>(null);
+    const [isDeleting, setIsDeleting] = useState(false);
     const submittingRef = React.useRef(false);
 
     const fetchDevices = async () => {
@@ -126,15 +129,28 @@ function DevicesContent() {
         setIsModalOpen(true);
     };
 
-    const handleDelete = async (id: string) => {
-        if (!confirm('Are you sure you want to delete this device?')) return;
+    const handleDeleteClick = (device: Device) => {
+        setDeviceToDelete(device);
+    };
+
+    const confirmDelete = async () => {
+        if (!deviceToDelete) return;
+        setIsDeleting(true);
         try {
-            const res = await apiRequest(`/api/devices/${id}`, { method: 'DELETE' });
+            const res = await apiRequest(`/api/devices/${deviceToDelete.id}`, { method: 'DELETE' });
             if (res.ok) {
+                toast.success('Cihaz başarıyla silindi');
+                setDeviceToDelete(null);
                 fetchDevices();
+            } else {
+                const data = await res.json();
+                toast.error(data.error || 'Silme işlemi başarısız');
             }
         } catch (err) {
             console.error('Delete error:', err);
+            toast.error('Bir hata oluştu');
+        } finally {
+            setIsDeleting(false);
         }
     };
 
@@ -163,6 +179,7 @@ function DevicesContent() {
                 body: JSON.stringify(body)
             });
             if (res.ok) {
+                toast.success(editingDevice ? 'Cihaz güncellendi' : 'Cihaz oluşturuldu');
                 setIsModalOpen(false);
                 setFormData({
                     protocolConfigId: initialProtocolId,
@@ -176,7 +193,7 @@ function DevicesContent() {
                 fetchDevices();
             } else {
                 const data = await res.json();
-                alert(data.error || 'Operation failed');
+                toast.error(data.error || 'İşlem başarısız');
             }
         } catch (err) {
             console.error('Create/Update error:', err);
@@ -303,7 +320,7 @@ function DevicesContent() {
                                             <button title="Edit" onClick={() => openEditModal(device)} className="p-2 rounded-md bg-slate-900 border border-slate-700 hover:text-brand-green hover:border-brand-green/50 transition-colors text-slate-400">
                                                 <Pencil size={14} />
                                             </button>
-                                            <button title="Delete" onClick={() => handleDelete(device.id)} className="p-2 rounded-md bg-slate-900 border border-slate-700 hover:text-red-500 hover:border-red-500/50 transition-colors text-slate-400">
+                                            <button title="Delete" onClick={() => handleDeleteClick(device)} className="p-2 rounded-md bg-slate-900 border border-slate-700 hover:text-red-500 hover:border-red-500/50 transition-colors text-slate-400">
                                                 <Trash2 size={14} />
                                             </button>
                                         </div>
@@ -420,6 +437,57 @@ function DevicesContent() {
                                     {isSubmitting ? 'Saving...' : editingDevice ? 'Update Device' : 'Create Device'}
                                 </button>
                             </form>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+
+            {/* Delete Confirmation Modal */}
+            <AnimatePresence>
+                {deviceToDelete && (
+                    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+                        <motion.div
+                            initial={{ scale: 0.95, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.95, opacity: 0 }}
+                            className="card-base w-full max-w-sm bg-slate-950 border-red-500/30 overflow-hidden shadow-2xl shadow-red-500/10"
+                        >
+                            <div className="p-6 text-center space-y-4">
+                                <div className="w-16 h-16 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-500 flex items-center justify-center mx-auto mb-6">
+                                    <AlertTriangle size={32} />
+                                </div>
+
+                                <div>
+                                    <h3 className="text-lg font-bold text-white tracking-tight">Cihazı Sil</h3>
+                                    <p className="text-sm text-slate-400 mt-2 leading-relaxed">
+                                        <span className="font-bold text-white">{deviceToDelete.deviceName}</span> cihazını silmek istediğinize emin misiniz? Bu işlem geri alınamaz.
+                                    </p>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-3 pt-4">
+                                    <button
+                                        onClick={() => setDeviceToDelete(null)}
+                                        disabled={isDeleting}
+                                        className="py-3 px-4 rounded-xl border border-slate-800 text-slate-400 font-bold text-xs hover:bg-slate-900 transition-colors disabled:opacity-50 tracking-widest uppercase"
+                                    >
+                                        İptal
+                                    </button>
+                                    <button
+                                        onClick={confirmDelete}
+                                        disabled={isDeleting}
+                                        className="py-3 px-4 rounded-xl bg-red-500 text-white font-bold text-xs hover:bg-red-600 shadow-lg shadow-red-500/20 transition-all disabled:opacity-50 tracking-widest uppercase flex items-center justify-center gap-2"
+                                    >
+                                        {isDeleting ? (
+                                            <>
+                                                <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                                Siliniyor...
+                                            </>
+                                        ) : (
+                                            'Evet, Sil'
+                                        )}
+                                    </button>
+                                </div>
+                            </div>
                         </motion.div>
                     </div>
                 )}

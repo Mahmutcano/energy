@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import prisma from '../lib/prisma';
 import { z } from 'zod';
+import { AppError, ErrorCode, handleErrorResponse } from '../utils/errors';
 
 const createCompanySchema = z.object({
     name: z.string().min(1, "Name is required"),
@@ -27,8 +28,7 @@ export const getCompanies = async (req: Request, res: Response) => {
         });
         res.json(companies);
     } catch (error) {
-        console.error('getCompanies error:', error);
-        res.status(500).json({ error: 'Failed to fetch companies' });
+        return handleErrorResponse(res, error);
     }
 };
 
@@ -53,12 +53,7 @@ export const createCompany = async (req: Request, res: Response) => {
 
         res.status(201).json(company);
     } catch (error) {
-        if (error instanceof z.ZodError) {
-            res.status(400).json({ error: (error as any).errors });
-        } else {
-            console.error('createCompany error:', error);
-            res.status(500).json({ error: 'Failed to create company' });
-        }
+        return handleErrorResponse(res, error);
     }
 };
 
@@ -74,18 +69,34 @@ export const updateCompany = async (req: Request, res: Response) => {
 
         res.json(company);
     } catch (error) {
-        console.error('updateCompany error:', error);
-        res.status(500).json({ error: 'Failed to update company' });
+        return handleErrorResponse(res, error);
     }
 };
 
 export const deleteCompany = async (req: Request, res: Response) => {
     const { id } = req.params;
     try {
+        const plantsCount = await prisma.plant.count({ where: { company_id: String(id) } });
+        if (plantsCount > 0) {
+            throw new AppError(
+                ErrorCode.COMPANY_HAS_PLANTS,
+                `Bu firmaya bağlı ${plantsCount} santral bulunuyor. Önce santralleri silmelisiniz. / Company has ${plantsCount} connected plants.`,
+                400
+            );
+        }
+
+        const usersCount = await prisma.appUserProfile.count({ where: { company_id: String(id) } });
+        if (usersCount > 0) {
+            throw new AppError(
+                ErrorCode.COMPANY_HAS_USERS,
+                `Bu firmaya bağlı ${usersCount} kullanıcı bulunuyor. Önce kullanıcı yetkilerini silmelisiniz. / Company has ${usersCount} connected users.`,
+                400
+            );
+        }
+
         await prisma.companyProfile.delete({ where: { id: String(id) } });
         res.status(204).send();
     } catch (error) {
-        console.error('deleteCompany error:', error);
-        res.status(500).json({ error: 'Failed to delete company' });
+        return handleErrorResponse(res, error);
     }
 };

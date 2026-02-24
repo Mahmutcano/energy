@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import prisma from '../lib/prisma';
 import { z } from 'zod';
 import { DeviceType } from '@prisma/client';
+import { AppError, ErrorCode, handleErrorResponse } from '../utils/errors';
 
 const createDeviceSchema = z.object({
     protocolConfigId: z.string().uuid("Invalid Protocol Config ID"),
@@ -33,8 +34,7 @@ export const getDevices = async (req: Request, res: Response) => {
         });
         res.json(devices);
     } catch (error) {
-        console.error('getDevices error:', error);
-        res.status(500).json({ error: 'Failed to fetch devices' });
+        return handleErrorResponse(res, error);
     }
 };
 
@@ -57,12 +57,7 @@ export const createDevice = async (req: Request, res: Response) => {
 
         res.status(201).json(device);
     } catch (error) {
-        if (error instanceof z.ZodError) {
-            res.status(400).json({ error: (error as any).errors });
-        } else {
-            console.error('createDevice error:', error);
-            res.status(500).json({ error: 'Failed to create device' });
-        }
+        return handleErrorResponse(res, error);
     }
 };
 
@@ -85,18 +80,28 @@ export const updateDevice = async (req: Request, res: Response) => {
         });
         res.json(device);
     } catch (error) {
-        console.error('updateDevice error:', error);
-        res.status(500).json({ error: 'Failed to update device' });
+        return handleErrorResponse(res, error);
     }
 };
 
 export const deleteDevice = async (req: Request, res: Response) => {
     const { id } = req.params;
     try {
+        const telemetryCount = await prisma.telemetryValue.count({
+            where: { device_id: String(id) }
+        });
+
+        if (telemetryCount > 0) {
+            throw new AppError(
+                ErrorCode.DEVICE_HAS_TELEMETRY,
+                `Bu cihaza ait ${telemetryCount} telemetri kaydı bulunuyor. Önce verileri silmelisiniz. / Device has ${telemetryCount} telemetry records.`,
+                400
+            );
+        }
+
         await prisma.device.delete({ where: { id: String(id) } });
         res.status(204).send();
     } catch (error) {
-        console.error('deleteDevice error:', error);
-        res.status(500).json({ error: 'Failed to delete device' });
+        return handleErrorResponse(res, error);
     }
 };

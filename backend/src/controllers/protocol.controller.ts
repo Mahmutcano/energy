@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import prisma from '../lib/prisma';
 import { z } from 'zod';
 import { ProtocolType } from '@prisma/client';
+import { AppError, ErrorCode, handleErrorResponse } from '../utils/errors';
 
 const modbusConfigSchema = z.object({
     ipAddress: z.string(),
@@ -47,8 +48,7 @@ export const getProtocols = async (req: Request, res: Response) => {
         });
         res.json(protocols);
     } catch (error) {
-        console.error('getProtocols error:', error);
-        res.status(500).json({ error: 'Failed to fetch protocols' });
+        return handleErrorResponse(res, error);
     }
 };
 
@@ -60,10 +60,10 @@ export const createProtocol = async (req: Request, res: Response) => {
         let iecCreate;
 
         if (data.protocolType === 'MODBUS') {
-            if (!data.modbusConfig) throw new Error('Modbus config required for MODBUS type');
+            if (!data.modbusConfig) throw new AppError(ErrorCode.VALIDATION_FAILED, 'Modbus config required for MODBUS type', 400);
             modbusCreate = { create: data.modbusConfig };
         } else if (data.protocolType === 'IEC104') {
-            if (!data.iec104Config) throw new Error('IEC104 config required for IEC104 type');
+            if (!data.iec104Config) throw new AppError(ErrorCode.VALIDATION_FAILED, 'IEC104 config required for IEC104 type', 400);
             iecCreate = { create: data.iec104Config };
         }
 
@@ -83,14 +83,7 @@ export const createProtocol = async (req: Request, res: Response) => {
 
         res.status(201).json(protocol);
     } catch (error) {
-        if (error instanceof z.ZodError) {
-            res.status(400).json({ error: (error as any).errors });
-        } else if (error instanceof Error) {
-            res.status(400).json({ error: error.message });
-        } else {
-            console.error('createProtocol error:', error);
-            res.status(500).json({ error: 'Failed to create protocol' });
-        }
+        return handleErrorResponse(res, error);
     }
 };
 
@@ -131,20 +124,30 @@ export const updateProtocol = async (req: Request, res: Response) => {
 
         res.json(protocol);
     } catch (error) {
-        console.error('updateProtocol error:', error);
-        res.status(500).json({ error: 'Failed to update protocol' });
+        return handleErrorResponse(res, error);
     }
 };
 
 export const deleteProtocol = async (req: Request, res: Response) => {
     const { id } = req.params;
     try {
+        const devicesCount = await prisma.device.count({
+            where: { protocol_config_id: String(id) }
+        });
+
+        if (devicesCount > 0) {
+            throw new AppError(
+                ErrorCode.PROTOCOL_HAS_DEVICES,
+                `Bu protokole bağlı ${devicesCount} cihaz bulunuyor. Önce cihazları silmelisiniz. / Protocol has ${devicesCount} devices connected.`,
+                400
+            );
+        }
+
         await prisma.modbusConfig.deleteMany({ where: { protocol_id: String(id) } });
         await prisma.iEC104Config.deleteMany({ where: { protocol_id: String(id) } });
         await prisma.protocolConfig.delete({ where: { id: String(id) } });
         res.status(204).send();
     } catch (error) {
-        console.error('deleteProtocol error:', error);
-        res.status(500).json({ error: 'Failed to delete protocol' });
+        return handleErrorResponse(res, error);
     }
 };

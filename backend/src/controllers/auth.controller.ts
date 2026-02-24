@@ -3,6 +3,7 @@ import { z } from 'zod';
 import jwt from 'jsonwebtoken';
 import prisma from '../lib/prisma';
 import { AdminType } from '@prisma/client';
+import { AppError, ErrorCode, handleErrorResponse } from '../utils/errors';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-key-123456';
 
@@ -24,7 +25,7 @@ export const register = async (req: Request, res: Response) => {
 
         const existingUser = await prisma.appUser.findUnique({ where: { email } });
         if (existingUser) {
-            return res.status(400).json({ message: 'Bu kullanıcı adı zaten kullanımda' });
+            throw new AppError(ErrorCode.USER_EMAIL_EXISTS, 'Bu kullanıcı adı zaten kullanımda / Email already in use', 400);
         }
 
         const user = await prisma.appUser.create({
@@ -52,8 +53,8 @@ export const register = async (req: Request, res: Response) => {
                 role: user.adminType
             }
         });
-    } catch (err: any) {
-        res.status(400).json({ error: err.errors || err.message });
+    } catch (error) {
+        return handleErrorResponse(res, error);
     }
 };
 
@@ -65,7 +66,7 @@ export const login = async (req: Request, res: Response) => {
         const user = await prisma.appUser.findUnique({ where: { email } });
         console.log(`[AUTH] User found: ${!!user}`);
         if (!user) {
-            return res.status(401).json({ message: 'Geçersiz kullanıcı adı veya şifre' });
+            throw new AppError(ErrorCode.INVALID_CREDENTIALS, 'Geçersiz kullanıcı adı veya şifre / Invalid credentials', 401);
         }
 
         // Warning: Password validation is currently skipped because the password field does not exist in the new schema.
@@ -85,7 +86,7 @@ export const login = async (req: Request, res: Response) => {
                 role: user.adminType,
             }
         });
-    } catch (err: any) {
-        res.status(400).json({ error: err.errors || err.message });
+    } catch (error) {
+        return handleErrorResponse(res, error);
     }
 };

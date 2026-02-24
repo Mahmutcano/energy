@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import prisma from '../lib/prisma';
 import { z } from 'zod';
+import { AppError, ErrorCode, handleErrorResponse } from '../utils/errors';
 
 // ============================================================
 // Profile Schemas & Controllers
@@ -24,8 +25,7 @@ export const getDatasheetProfiles = async (req: Request, res: Response) => {
         });
         res.json(profiles);
     } catch (error) {
-        console.error('getDatasheetProfiles error:', error);
-        res.status(500).json({ error: 'Profiller alınamadı' });
+        return handleErrorResponse(res, error);
     }
 };
 
@@ -38,19 +38,17 @@ export const createDatasheetProfile = async (req: Request, res: Response) => {
             where: { name: data.name }
         });
         if (existing) {
-            res.status(409).json({ error: `"${data.name}" adında bir profil zaten mevcut` });
-            return;
+            throw new AppError(
+                ErrorCode.VALIDATION_FAILED,
+                `"${data.name}" adında bir profil zaten mevcut / Profile already exists`,
+                409
+            );
         }
 
         const profile = await prisma.datasheetProfile.create({ data });
         res.status(201).json(profile);
     } catch (error) {
-        if (error instanceof z.ZodError) {
-            res.status(400).json({ error: error.issues });
-        } else {
-            console.error('createDatasheetProfile error:', error);
-            res.status(500).json({ error: 'Profil oluşturulamadı' });
-        }
+        return handleErrorResponse(res, error);
     }
 };
 
@@ -64,8 +62,7 @@ export const updateDatasheetProfile = async (req: Request, res: Response) => {
         });
         res.json(profile);
     } catch (error) {
-        console.error('updateDatasheetProfile error:', error);
-        res.status(500).json({ error: 'Profil güncellenemedi' });
+        return handleErrorResponse(res, error);
     }
 };
 
@@ -77,15 +74,17 @@ export const deleteDatasheetProfile = async (req: Request, res: Response) => {
             where: { datasheet_profile_id: String(id) }
         });
         if (linkedDevices > 0) {
-            res.status(400).json({ error: `Bu profile ${linkedDevices} cihaz bağlı. Önce cihazların profil bağlantısını kaldırın.` });
-            return;
+            throw new AppError(
+                ErrorCode.DATASHEET_HAS_DEVICES,
+                `Bu profile ${linkedDevices} cihaz bağlı. Önce cihazların profil bağlantısını kaldırın. / Profile is linked to ${linkedDevices} devices.`,
+                400
+            );
         }
 
         await prisma.datasheetProfile.delete({ where: { id: String(id) } });
         res.status(204).send();
     } catch (error) {
-        console.error('deleteDatasheetProfile error:', error);
-        res.status(500).json({ error: 'Profil silinemedi' });
+        return handleErrorResponse(res, error);
     }
 };
 
@@ -139,8 +138,7 @@ export const getDatasheetPoints = async (req: Request, res: Response) => {
         });
         res.json(points);
     } catch (error) {
-        console.error('getDatasheetPoints error:', error);
-        res.status(500).json({ error: 'Veri noktaları alınamadı' });
+        return handleErrorResponse(res, error);
     }
 };
 
@@ -153,8 +151,7 @@ export const createDatasheetPoint = async (req: Request, res: Response) => {
             where: { id: data.profile_id }
         });
         if (!profile) {
-            res.status(404).json({ error: 'Profil bulunamadı' });
-            return;
+            throw new AppError(ErrorCode.DATASHEET_NOT_FOUND, 'Profil bulunamadı / Profile not found', 404);
         }
 
         // Aynı profilde aynı dataName var mı kontrol et
@@ -165,22 +162,17 @@ export const createDatasheetPoint = async (req: Request, res: Response) => {
             }
         });
         if (existingPoint) {
-            res.status(409).json({ error: `"${data.dataName}" adında bir veri noktası bu profilde zaten mevcut` });
-            return;
+            throw new AppError(
+                ErrorCode.VALIDATION_FAILED,
+                `"${data.dataName}" adında bir veri noktası bu profilde zaten mevcut / Data point name already exists in profile`,
+                409
+            );
         }
 
-        const point = await prisma.datasheetPoint.create({
-            data
-        });
-
+        const point = await prisma.datasheetPoint.create({ data });
         res.status(201).json(point);
     } catch (error) {
-        if (error instanceof z.ZodError) {
-            res.status(400).json({ error: error.issues });
-        } else {
-            console.error('createDatasheetPoint error:', error);
-            res.status(500).json({ error: 'Veri noktası oluşturulamadı' });
-        }
+        return handleErrorResponse(res, error);
     }
 };
 
@@ -195,8 +187,7 @@ export const updateDatasheetPoint = async (req: Request, res: Response) => {
         });
         res.json(point);
     } catch (error) {
-        console.error('updateDatasheetPoint error:', error);
-        res.status(500).json({ error: 'Veri noktası güncellenemedi' });
+        return handleErrorResponse(res, error);
     }
 };
 
@@ -208,14 +199,16 @@ export const deleteDatasheetPoint = async (req: Request, res: Response) => {
             where: { pointId: String(id) }
         });
         if (telemetryCount > 0) {
-            res.status(400).json({ error: `Bu veri noktasına ${telemetryCount} telemetri kaydı bağlı. Önce telemetri verilerini silmeniz gerekir.` });
-            return;
+            throw new AppError(
+                ErrorCode.VALIDATION_FAILED, // or a specific one
+                `Bu veri noktasına ${telemetryCount} telemetri kaydı bağlı. Önce telemetri verilerini silmeniz gerekir. / Telemetry records exist.`,
+                400
+            );
         }
 
         await prisma.datasheetPoint.delete({ where: { id: String(id) } });
         res.status(204).send();
     } catch (error) {
-        console.error('deleteDatasheetPoint error:', error);
-        res.status(500).json({ error: 'Veri noktası silinemedi' });
+        return handleErrorResponse(res, error);
     }
 };

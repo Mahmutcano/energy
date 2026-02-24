@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import prisma from '../lib/prisma';
 import { z } from 'zod';
 import { PlantType } from '@prisma/client';
+import { AppError, ErrorCode, handleErrorResponse } from '../utils/errors';
 
 const createPlantSchema = z.object({
     companyId: z.string(),
@@ -25,8 +26,7 @@ export const getPlants = async (req: Request, res: Response) => {
         });
         res.json(plants);
     } catch (error) {
-        console.error('getPlants error:', error);
-        res.status(500).json({ error: 'Failed to fetch plants' });
+        return handleErrorResponse(res, error);
     }
 };
 
@@ -46,12 +46,7 @@ export const createPlant = async (req: Request, res: Response) => {
 
         res.status(201).json(plant);
     } catch (error) {
-        if (error instanceof z.ZodError) {
-            res.status(400).json({ error: (error as any).errors });
-        } else {
-            console.error('createPlant error:', error);
-            res.status(500).json({ error: 'Failed to create plant' });
-        }
+        return handleErrorResponse(res, error);
     }
 };
 
@@ -72,18 +67,38 @@ export const updatePlant = async (req: Request, res: Response) => {
         });
         res.json(plant);
     } catch (error) {
-        console.error('updatePlant error:', error);
-        res.status(500).json({ error: 'Failed to update plant' });
+        return handleErrorResponse(res, error);
     }
 };
 
 export const deletePlant = async (req: Request, res: Response) => {
     const { id } = req.params;
     try {
+        const protocolsCount = await prisma.protocolConfig.count({
+            where: { plant_id: String(id) }
+        });
+        if (protocolsCount > 0) {
+            throw new AppError(
+                ErrorCode.PLANT_HAS_PROTOCOLS,
+                `Bu santrale bağlı ${protocolsCount} protokol bulunuyor. Önce protokolleri silmeniz gerekmektedir. / Plant has ${protocolsCount} protocols.`,
+                400
+            );
+        }
+
+        const userProfilesCount = await prisma.appUserProfile.count({
+            where: { plant_id: String(id) }
+        });
+        if (userProfilesCount > 0) {
+            throw new AppError(
+                ErrorCode.PLANT_HAS_USERS,
+                `Bu santrale bağlı ${userProfilesCount} kullanıcı yetkisi bulunuyor. Önce yetkileri silmeniz gerekmektedir. / Plant has ${userProfilesCount} users.`,
+                400
+            );
+        }
+
         await prisma.plant.delete({ where: { id: String(id) } });
         res.status(204).send();
     } catch (error) {
-        console.error('deletePlant error:', error);
-        res.status(500).json({ error: 'Failed to delete plant' });
+        return handleErrorResponse(res, error);
     }
 };

@@ -19,6 +19,12 @@ export default function SettingsPage() {
 
     const themes = [
         {
+            id: 'light-pure',
+            name: 'PURE_WHITE_TECH',
+            color: '#f8fafc',
+            desc: 'Ultra-clean energy monitoring laboratory aesthetic'
+        },
+        {
             id: 'industrial-emerald',
             name: 'INDUSTRIAL_EMERALD',
             color: '#10b981',

@@ -14,7 +14,8 @@ type Theme =
     | 'toxic-waste'
     | 'monokai-pro'
     | 'matrix-overload'
-    | 'frost-bit';
+    | 'frost-bit'
+    | 'light-pure';
 
 interface ThemeContextType {
     theme: Theme;

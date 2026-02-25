@@ -176,6 +176,58 @@ export const createDatasheetPoint = async (req: Request, res: Response) => {
     }
 };
 
+export const bulkCreateDatasheetPoints = async (req: Request, res: Response) => {
+    const { profileId, points } = req.body;
+    try {
+        if (!profileId || !Array.isArray(points)) {
+            throw new AppError(ErrorCode.VALIDATION_FAILED, 'Profile ID and points array are required', 400);
+        }
+
+        const profile = await prisma.datasheetProfile.findUnique({
+            where: { id: profileId }
+        });
+        if (!profile) {
+            throw new AppError(ErrorCode.DATASHEET_NOT_FOUND, 'Profile not found', 404);
+        }
+
+        // Transaction to ensure atomicity
+        const result = await prisma.$transaction(async (tx) => {
+            const createdPoints = [];
+            for (const pointData of points) {
+                // Validate individual point schema
+                const validated = createDataPointSchema.parse({ ...pointData, profile_id: profileId });
+
+                // Check if already exists in this transaction (using tx)
+                const existing = await tx.datasheetPoint.findFirst({
+                    where: {
+                        profile_id: profileId,
+                        dataName: validated.dataName
+                    }
+                });
+
+                if (existing) {
+                    // Update existing or skip? Let's update for Excel import logic
+                    const updated = await tx.datasheetPoint.update({
+                        where: { id: existing.id },
+                        data: validated
+                    });
+                    createdPoints.push(updated);
+                } else {
+                    const created = await tx.datasheetPoint.create({
+                        data: validated
+                    });
+                    createdPoints.push(created);
+                }
+            }
+            return createdPoints;
+        });
+
+        res.status(201).json(result);
+    } catch (error) {
+        return handleErrorResponse(res, error);
+    }
+};
+
 export const updateDatasheetPoint = async (req: Request, res: Response) => {
     const { id } = req.params;
     try {

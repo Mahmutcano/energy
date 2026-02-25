@@ -44,9 +44,9 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
                 {/* Top Control Header */}
                 <header className="h-14 bg-card border-b border-border flex items-center justify-between px-8 z-50 shrink-0">
                     <div className="flex items-center gap-4">
-                        <div className="flex items-center gap-2 text-foreground/40">
-                            <Activity size={16} className="text-brand-green" />
-                            <span className="text-[10px] font-bold  tracking-widest">Active_Session</span>
+                        <div className="flex items-center gap-2 text-foreground/40 group">
+                            <Activity size={16} className="text-brand-green animate-pulse" />
+                            <span className="text-[10px] font-bold tracking-widest">LIVE MONITOR</span>
                         </div>
                         <div className="h-4 w-px bg-border mx-2"></div>
                         <h2 className="text-sm font-bold text-foreground  tracking-tight">

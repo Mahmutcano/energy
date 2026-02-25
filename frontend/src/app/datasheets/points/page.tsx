@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useState, useEffect, Suspense } from 'react';
-import { FileText, Plus, Search, X, Tag, ToggleLeft, ToggleRight, Pencil, Trash2, ArrowLeft, AlertCircle, AlertTriangle } from 'lucide-react';
+import { FileText, Plus, Search, X, Tag, ToggleLeft, ToggleRight, Pencil, Trash2, ArrowLeft, AlertCircle, AlertTriangle, Upload, Download } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import { apiRequest } from '@/lib/api';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -116,6 +117,8 @@ function DataSheetsContent() {
     const [serverError, setServerError] = useState('');
     const [pointToDelete, setPointToDelete] = useState<DataSheet | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
+    const [isImporting, setIsImporting] = useState(false);
+    const fileInputRef = React.useRef<HTMLInputElement>(null);
     const handleCloseModal = React.useCallback(() => {
         setIsModalOpen(false);
     }, []);
@@ -353,6 +356,128 @@ function DataSheetsContent() {
         }
     };
 
+    const handleExcelImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        setIsImporting(true);
+        const reader = new FileReader();
+
+        reader.onload = async (event) => {
+            try {
+                const data = new Uint8Array(event.target?.result as ArrayBuffer);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const firstSheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[firstSheetName];
+                const jsonData: any[] = XLSX.utils.sheet_to_json(worksheet);
+
+                if (jsonData.length === 0) {
+                    toast.error('Excel file is empty');
+                    setIsImporting(false);
+                    return;
+                }
+
+                // Map Excel columns to our model
+                // Support both Turkish and English headers
+                const mappedPoints = jsonData.map((row: any) => {
+                    if (isModbus) {
+                        return {
+                            dataName: row['Data Name'] || row['Veri Adı'] || row['Name'] || row['Adı'],
+                            dataValue: row['Unit'] || row['Birim'] || row['Value'] || row['Değer'],
+                            registerAddress: row['Address'] || row['Adres'] || row['Register'],
+                            functionCode: row['FC'] || row['Function'] || row['Fonksiyon'],
+                            multiplier: row['Multiplier'] || row['Çarpan'],
+                            wordSwap: row['Swap'] || row['Word Swap'] === 'YES' || row['Word Swap'] === 'EVET' || row['Swap'] === true,
+                            isActive: true
+                        };
+                    } else {
+                        return {
+                            feederName: row['Feeder'] || row['Fider'] || row['Hücre Adı'] || row['Hücre'],
+                            signalType: row['Signal Type'] || row['Sinyal Tipi'] || row['Tip'],
+                            signalDescription: row['Signal Description'] || row['Sinyal Açıklaması'] || row['Açıklama'],
+                            dataType: row['Data Type'] || row['Veri Tipi'],
+                            signalSource: row['Source'] || row['Kaynak'] || row['Sinyal Kaynağı'],
+                            componentId: row['Component ID'] || row['Komponent ID'],
+                            componentText: row['Component Text'] || row['Komponent Metni'],
+                            ioa1ObjectAddress: row['IOA1'] || row['IOA Object Address'] || row['Obje Adresi'] || row['IOA'],
+                            ioa2CellNo: row['IOA2'] || row['IOA Cell No'] || row['Hücre No'],
+                            ioa3VoltageLevel: row['IOA3'] || row['IOA Voltage Level'] || row['Gerilim Seviyesi'],
+                            scadaAddress: row['SCADA Address'] || row['SCADA Adresi'],
+                            isActive: true
+                        };
+                    }
+                });
+
+                // Clean data (remove undefined and convert types)
+                const finalPoints = mappedPoints.filter(p => isModbus ? p.dataName : (p.signalDescription || p.ioa1ObjectAddress)).map(p => {
+                    const cleaned: any = { ...p };
+                    if (cleaned.registerAddress) cleaned.registerAddress = parseInt(cleaned.registerAddress);
+                    if (cleaned.functionCode) cleaned.functionCode = parseInt(cleaned.functionCode);
+                    if (cleaned.multiplier) cleaned.multiplier = parseFloat(cleaned.multiplier);
+                    if (cleaned.ioa1ObjectAddress) cleaned.ioa1ObjectAddress = parseInt(cleaned.ioa1ObjectAddress);
+                    if (cleaned.ioa2CellNo) cleaned.ioa2CellNo = parseInt(cleaned.ioa2CellNo);
+                    if (cleaned.ioa3VoltageLevel) cleaned.ioa3VoltageLevel = parseInt(cleaned.ioa3VoltageLevel);
+                    if (cleaned.scadaAddress) cleaned.scadaAddress = parseInt(cleaned.scadaAddress);
+
+                    // Specific logic for IEC104 dataName
+                    if (!isModbus && !p.dataName) {
+                        cleaned.dataName = p.signalDescription || p.componentId || 'IEC104-Point';
+                    }
+
+                    return cleaned;
+                });
+
+                if (finalPoints.length === 0) {
+                    toast.error('No valid data points found in Excel');
+                    setIsImporting(false);
+                    return;
+                }
+
+                // Send to bulk endpoint
+                const res = await apiRequest('/api/datasheets/bulk', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        profileId,
+                        points: finalPoints
+                    })
+                });
+
+                if (res.ok) {
+                    const result = await res.json();
+                    toast.success(`Successfully imported ${result.length} data points`);
+                    // Refresh data
+                    const refreshRes = await apiRequest(`/api/datasheets?profileId=${profileId}`);
+                    if (refreshRes.ok) {
+                        const sheets = await refreshRes.json();
+                        setDataSheets(sheets);
+                    }
+                } else {
+                    const error = await res.json();
+                    toast.error(error.error || 'Import failed');
+                }
+            } catch (err) {
+                console.error('Import error:', err);
+                toast.error('Failed to parse Excel file');
+            } finally {
+                setIsImporting(false);
+                if (fileInputRef.current) fileInputRef.current.value = '';
+            }
+        };
+
+        reader.readAsArrayBuffer(file);
+    };
+
+    const downloadTemplate = () => {
+        const headers = isModbus
+            ? [['Data Name', 'Unit', 'Address', 'FC', 'Multiplier', 'Word Swap']]
+            : [['Feeder', 'Signal Type', 'Signal Description', 'Data Type', 'Source', 'Component ID', 'Component Text', 'IOA1', 'IOA2', 'IOA3', 'SCADA Address']];
+
+        const ws = XLSX.utils.aoa_to_sheet(headers);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Template");
+        XLSX.writeFile(wb, `${protocolType}_Template.xlsx`);
+    };
+
     const filteredSheets = dataSheets.filter(s =>
         s.dataName.toLowerCase().includes(searchQuery.toLowerCase()) ||
         (s.dataValue && s.dataValue.toLowerCase().includes(searchQuery.toLowerCase())) ||
@@ -392,12 +517,35 @@ function DataSheetsContent() {
                     <p className="text-sm text-slate-500 ml-16">Manage data mapping points for {protocolType} profile.</p>
                 </div>
 
-                <button
-                    onClick={openCreateModal}
-                    className="flex items-center gap-3 px-6 py-3 bg-brand-green text-white rounded-xl text-xs font-bold shadow-lg shadow-brand-green/20 hover:scale-[1.02] transition-all tracking-widest"
-                >
-                    <Plus size={16} strokeWidth={3} /> Add Point
-                </button>
+                <div className="flex items-center gap-3">
+                    <input
+                        type="file"
+                        ref={fileInputRef}
+                        onChange={handleExcelImport}
+                        accept=".xlsx, .xls"
+                        className="hidden"
+                    />
+                    <button
+                        onClick={downloadTemplate}
+                        className="flex items-center gap-2 px-4 py-3 bg-slate-900 text-slate-400 rounded-xl text-xs font-bold border border-slate-800 hover:text-white transition-all shadow-lg"
+                        title="Download Excel Template"
+                    >
+                        <Download size={16} /> Template
+                    </button>
+                    <button
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={isImporting}
+                        className="flex items-center gap-2 px-4 py-3 bg-blue-600/10 text-blue-400 rounded-xl text-xs font-bold border border-blue-500/30 hover:bg-blue-600/20 transition-all shadow-lg disabled:opacity-50"
+                    >
+                        <Upload size={16} /> {isImporting ? 'Importing...' : 'Import Excel'}
+                    </button>
+                    <button
+                        onClick={openCreateModal}
+                        className="flex items-center gap-3 px-6 py-3 bg-brand-green text-white rounded-xl text-xs font-bold shadow-lg shadow-brand-green/20 hover:scale-[1.02] transition-all tracking-widest"
+                    >
+                        <Plus size={16} strokeWidth={3} /> Add Point
+                    </button>
+                </div>
             </div>
 
             {/* Search */}

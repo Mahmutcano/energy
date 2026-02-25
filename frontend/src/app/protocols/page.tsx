@@ -133,7 +133,7 @@ function ProtocolsContent() {
         let updatedForm = {
             ...defaultFormData,
             configName: proto.configName || '',
-            plantId: proto.plant_id || '',
+            plantId: proto.plant_id || (proto as any).plantId || '',
             protocolType: proto.protocolType,
         };
 
@@ -223,7 +223,7 @@ function ProtocolsContent() {
                 body: JSON.stringify(body)
             });
             if (res.ok) {
-                toast.success(editingProtocol ? 'Protokol güncellendi' : 'Protokol oluşturuldu');
+                toast.success(editingProtocol ? 'Protocol updated' : 'Protocol created');
                 setIsModalOpen(false);
                 setFormData({ ...defaultFormData, plantId: initialPlantId });
                 setEditingProtocol(null);
@@ -234,7 +234,7 @@ function ProtocolsContent() {
             }
         } catch (err) {
             console.error('Create error:', err);
-            toast.error('Bir hata oluştu');
+            toast.error('An error occurred');
         } finally {
             setIsSubmitting(false);
             submittingRef.current = false;
@@ -257,16 +257,16 @@ function ProtocolsContent() {
             });
             if (res.ok) {
                 const newPlant = await res.json();
-                toast.success('Santral oluşturuldu');
+                toast.success('Plant created');
                 await fetchPlants();
                 setFormData({ ...formData, plantId: newPlant.id });
                 setIsPlantModalOpen(false);
             } else {
                 const data = await res.json();
-                toast.error(data.error || 'Santral oluşturulamadı');
+                toast.error(data.error || 'Plant creation failed');
             }
         } catch (err) {
-            toast.error('Bir hata oluştu');
+            toast.error('An error occurred');
         } finally {
             setIsCreatingPlant(false);
         }
@@ -442,7 +442,7 @@ function ProtocolsContent() {
                                 {plants.map((p: any) => (
                                     <option key={p.id} value={p.id}>{p.plantName}</option>
                                 ))}
-                                <option value="ADD_NEW" className="font-bold text-brand-green bg-brand-green/10">+ Yeni Santral Ekle</option>
+                                <option value="ADD_NEW" className="font-bold text-brand-green bg-brand-green/10">+ Add New Plant</option>
                             </select>
                         </div>
                     </div>
@@ -651,9 +651,9 @@ function ProtocolsContent() {
                                 </div>
 
                                 <div>
-                                    <h3 className="text-lg font-bold text-white tracking-tight">Protokolü Sil</h3>
+                                    <h3 className="text-lg font-bold text-white tracking-tight">Delete Protocol</h3>
                                     <p className="text-sm text-slate-400 mt-2 leading-relaxed">
-                                        <span className="font-bold text-white">{protocolToDelete.configName || protocolToDelete.protocolType}</span> protokolünü silmek istediğinize emin misiniz? Bu işlem geri alınamaz.
+                                        Are you sure you want to delete <span className="font-bold text-white">{protocolToDelete.configName || protocolToDelete.protocolType}</span>? This action cannot be undone.
                                     </p>
                                 </div>
 
@@ -663,7 +663,7 @@ function ProtocolsContent() {
                                         disabled={isDeleting}
                                         className="py-3 px-4 rounded-xl border border-slate-800 text-slate-400 font-bold text-xs hover:bg-slate-900 transition-colors disabled:opacity-50 tracking-widest uppercase"
                                     >
-                                        İptal
+                                        Cancel
                                     </button>
                                     <button
                                         onClick={confirmDelete}
@@ -673,10 +673,10 @@ function ProtocolsContent() {
                                         {isDeleting ? (
                                             <>
                                                 <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                                Siliniyor...
+                                                Deleting...
                                             </>
                                         ) : (
-                                            'Evet, Sil'
+                                            'Yes, Delete'
                                         )}
                                     </button>
                                 </div>
@@ -690,16 +690,17 @@ function ProtocolsContent() {
             <Modal
                 isOpen={isPlantModalOpen}
                 onClose={() => setIsPlantModalOpen(false)}
-                title="Yeni Santral Ekle"
+                title="Add New Plant"
                 icon={Factory}
                 maxWidth="5xl"
                 zIndex={250}
             >
                 <PlantForm
+                    key="inline-plant-form"
                     companies={companies.map(c => ({ id: c.id, name: c.name }))}
                     onSubmit={handlePlantSubmit}
                     isSubmitting={isCreatingPlant}
-                    submitLabel="Santral Ekle"
+                    submitLabel="Add Plant"
                 />
             </Modal>
         </div>

@@ -39,6 +39,19 @@ export default function PlantForm({
         plantType: initialData?.plantType || 'SOLAR',
     });
 
+    // Sync state with initialData when it changes (important for Modal reuse)
+    React.useEffect(() => {
+        if (initialData) {
+            setFormData({
+                companyId: initialData.companyId || '',
+                plantName: initialData.plantName || '',
+                latitude: initialData.latitude || '',
+                longitude: initialData.longitude || '',
+                plantType: initialData.plantType || 'SOLAR',
+            });
+        }
+    }, [initialData]);
+
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         onSubmit(formData);
@@ -81,7 +94,7 @@ export default function PlantForm({
                             ))}
                             {onAddNewCompany && (
                                 <option value="ADD_NEW" className="font-bold text-brand-green bg-brand-green/10">
-                                    + Yeni Şirket Ekle
+                                    + Add New Company
                                 </option>
                             )}
                         </select>

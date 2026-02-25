@@ -169,16 +169,16 @@ function DevicesContent() {
         try {
             const res = await apiRequest(`/api/devices/${deviceToDelete.id}`, { method: 'DELETE' });
             if (res.ok) {
-                toast.success('Cihaz başarıyla silindi');
+                toast.success('Device deleted successfully');
                 setDeviceToDelete(null);
                 fetchDevices();
             } else {
                 const data = await res.json();
-                toast.error(data.error || 'Silme işlemi başarısız');
+                toast.error(data.error || 'Delete failed');
             }
         } catch (err) {
             console.error('Delete error:', err);
-            toast.error('Bir hata oluştu');
+            toast.error('An error occurred');
         } finally {
             setIsDeleting(false);
         }
@@ -209,7 +209,7 @@ function DevicesContent() {
                 body: JSON.stringify(body)
             });
             if (res.ok) {
-                toast.success(editingDevice ? 'Cihaz güncellendi' : 'Cihaz oluşturuldu');
+                toast.success(editingDevice ? 'Device updated' : 'Device created');
                 setIsModalOpen(false);
                 setFormData({
                     protocolConfigId: initialProtocolId,
@@ -223,7 +223,7 @@ function DevicesContent() {
                 fetchDevices();
             } else {
                 const data = await res.json();
-                toast.error(data.error || 'İşlem başarısız');
+                toast.error(data.error || 'Operation failed');
             }
         } catch (err) {
             console.error('Create/Update error:', err);
@@ -261,16 +261,16 @@ function DevicesContent() {
             });
             if (res.ok) {
                 const newProto = await res.json();
-                toast.success('Protokol oluşturuldu');
+                toast.success('Protocol created');
                 await fetchProtocols();
                 setFormData({ ...formData, protocolConfigId: newProto.id });
                 setIsProtocolModalOpen(false);
             } else {
                 const data = await res.json();
-                toast.error(data.error || 'Protokol oluşturulamadı');
+                toast.error(data.error || 'Protocol creation failed');
             }
         } catch (err) {
-            toast.error('Bir hata oluştu');
+            toast.error('An error occurred');
         } finally {
             setIsCreatingProtocol(false);
         }
@@ -286,17 +286,17 @@ function DevicesContent() {
             });
             if (res.ok) {
                 const newProf = await res.json();
-                toast.success('Datasheet Profili oluşturuldu');
+                toast.success('Datasheet profile created');
                 await fetchProfiles();
                 setFormData({ ...formData, datasheetProfileId: newProf.id });
                 setIsProfileModalOpen(false);
                 setNewProfileData({ name: '', protocolType: 'MODBUS' });
             } else {
                 const data = await res.json();
-                toast.error(data.error || 'Profil oluşturulamadı');
+                toast.error(data.error || 'Profile creation failed');
             }
         } catch (err) {
-            toast.error('Bir hata oluştu');
+            toast.error('An error occurred');
         } finally {
             setIsCreatingProfile(false);
         }
@@ -475,7 +475,7 @@ function DevicesContent() {
                                         {protocols.map(p => (
                                             <option key={p.id} value={p.id}>{p.configName} ({p.plant?.plantName})</option>
                                         ))}
-                                        <option value="ADD_NEW" className="font-bold text-brand-green bg-brand-green/10">+ Yeni Protokol Ekle</option>
+                                        <option value="ADD_NEW" className="font-bold text-brand-green bg-brand-green/10">+ Add New Protocol</option>
                                     </select>
                                 </div>
                                 <div className="space-y-2">
@@ -495,7 +495,7 @@ function DevicesContent() {
                                         {profiles.map(p => (
                                             <option key={p.id} value={p.id}>{p.name} ({p.protocolType})</option>
                                         ))}
-                                        <option value="ADD_NEW" className="font-bold text-brand-green bg-brand-green/10">+ Yeni Profil Ekle</option>
+                                        <option value="ADD_NEW" className="font-bold text-brand-green bg-brand-green/10">+ Add New Profile</option>
                                     </select>
                                 </div>
                                 <div className="space-y-2">
@@ -572,9 +572,9 @@ function DevicesContent() {
                                 </div>
 
                                 <div>
-                                    <h3 className="text-lg font-bold text-white tracking-tight">Cihazı Sil</h3>
+                                    <h3 className="text-lg font-bold text-white tracking-tight">Delete Device</h3>
                                     <p className="text-sm text-slate-400 mt-2 leading-relaxed">
-                                        <span className="font-bold text-white">{deviceToDelete.deviceName}</span> cihazını silmek istediğinize emin misiniz? Bu işlem geri alınamaz.
+                                        Are you sure you want to delete <span className="font-bold text-white">{deviceToDelete.deviceName}</span>? This action cannot be undone.
                                     </p>
                                 </div>
 
@@ -584,7 +584,7 @@ function DevicesContent() {
                                         disabled={isDeleting}
                                         className="py-3 px-4 rounded-xl border border-slate-800 text-slate-400 font-bold text-xs hover:bg-slate-900 transition-colors disabled:opacity-50 tracking-widest uppercase"
                                     >
-                                        İptal
+                                        Cancel
                                     </button>
                                     <button
                                         onClick={confirmDelete}
@@ -594,10 +594,10 @@ function DevicesContent() {
                                         {isDeleting ? (
                                             <>
                                                 <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                                Siliniyor...
+                                                Deleting...
                                             </>
                                         ) : (
-                                            'Evet, Sil'
+                                            'Yes, Delete'
                                         )}
                                     </button>
                                 </div>
@@ -618,26 +618,26 @@ function DevicesContent() {
                             className="card-base w-full max-w-lg bg-slate-950 border-slate-800 overflow-hidden shadow-2xl my-8"
                         >
                             <div className="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-900/30">
-                                <h2 className="text-lg font-bold text-white">Yeni Protokol Ekle</h2>
+                                <h2 className="text-lg font-bold text-white">Add New Protocol</h2>
                                 <button onClick={() => setIsProtocolModalOpen(false)} className="p-2 text-slate-500 hover:text-white transition-colors">
                                     <X size={20} />
                                 </button>
                             </div>
                             <form onSubmit={handleCreateProtocol} className="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
                                 <div className="space-y-2">
-                                    <label className="text-xs font-bold text-slate-400 tracking-widest">Santral (Plant)</label>
+                                    <label className="text-xs font-bold text-slate-400 tracking-widest">Plant</label>
                                     <select
                                         value={newProtocolData.plantId}
                                         onChange={(e) => setNewProtocolData({ ...newProtocolData, plantId: e.target.value })}
                                         className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none"
                                         required
                                     >
-                                        {plants.length === 0 && <option value="">Önce Santral Ekleyin</option>}
+                                        {plants.length === 0 && <option value="">Add a Plant First</option>}
                                         {plants.map(p => <option key={p.id} value={p.id}>{p.plantName}</option>)}
                                     </select>
                                 </div>
                                 <div className="space-y-2">
-                                    <label className="text-xs font-bold text-slate-400 tracking-widest">Config Adı</label>
+                                    <label className="text-xs font-bold text-slate-400 tracking-widest">Config Name</label>
                                     <input
                                         type="text"
                                         value={newProtocolData.configName}
@@ -647,7 +647,7 @@ function DevicesContent() {
                                     />
                                 </div>
                                 <div className="space-y-2">
-                                    <label className="text-xs font-bold text-slate-400 tracking-widest">Protokol Türü</label>
+                                    <label className="text-xs font-bold text-slate-400 tracking-widest">Protocol Type</label>
                                     <select
                                         value={newProtocolData.protocolType}
                                         onChange={(e) => setNewProtocolData({ ...newProtocolData, protocolType: e.target.value })}
@@ -694,7 +694,7 @@ function DevicesContent() {
                                     disabled={iscreatingProtocol}
                                     className="w-full py-4 bg-brand-green disabled:bg-brand-green/50 text-white font-bold tracking-widest text-xs rounded-xl shadow-lg shadow-brand-green/20 hover:scale-[1.01] transition-all"
                                 >
-                                    {iscreatingProtocol ? 'Kaydediliyor...' : 'Kaydet'}
+                                    {iscreatingProtocol ? 'Saving...' : 'Save'}
                                 </button>
                             </form>
                         </motion.div>
@@ -713,7 +713,7 @@ function DevicesContent() {
                             className="card-base w-full max-w-sm bg-slate-950 border-slate-800 overflow-hidden shadow-2xl"
                         >
                             <div className="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-900/30">
-                                <h2 className="text-lg font-bold text-white">Yeni Profil Ekle</h2>
+                                <h2 className="text-lg font-bold text-white">Add New Profile</h2>
                                 <button onClick={() => setIsProfileModalOpen(false)} className="p-2 text-slate-500 hover:text-white transition-colors">
                                     <X size={20} />
                                 </button>
@@ -745,7 +745,7 @@ function DevicesContent() {
                                     disabled={isCreatingProfile}
                                     className="w-full py-4 bg-brand-green disabled:bg-brand-green/50 text-white font-bold tracking-widest text-xs rounded-xl shadow-lg shadow-brand-green/20 hover:scale-[1.01] transition-all"
                                 >
-                                    {isCreatingProfile ? 'Kaydediliyor...' : 'Kaydet'}
+                                    {isCreatingProfile ? 'Saving...' : 'Save'}
                                 </button>
                             </form>
                         </motion.div>

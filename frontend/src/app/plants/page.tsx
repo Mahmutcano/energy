@@ -12,6 +12,7 @@ import CompanyForm, { CompanyFormData } from '@/components/forms/CompanyForm';
 
 interface Plant {
     id: string;
+    company_id?: string;
     companyId: string;
     plantName: string;
     latitude: number | null;
@@ -98,7 +99,7 @@ function PlantsContent() {
     const openEditModal = (plant: Plant) => {
         setEditingPlant(plant);
         setFormData({
-            companyId: plant.companyId || '',
+            companyId: plant.company_id || plant.companyId || '',
             plantName: plant.plantName || '',
             latitude: plant.latitude ? plant.latitude.toString() : '',
             longitude: plant.longitude ? plant.longitude.toString() : '',
@@ -117,16 +118,16 @@ function PlantsContent() {
         try {
             const res = await apiRequest(`/api/plants/${plantToDelete.id}`, { method: 'DELETE' });
             if (res.ok) {
-                toast.success('Santral başarıyla silindi');
+                toast.success('Plant deleted successfully');
                 setPlantToDelete(null);
                 fetchPlants();
             } else {
                 const data = await res.json();
-                toast.error(data.error || 'Silme işlemi başarısız');
+                toast.error(data.error || 'Delete failed');
             }
         } catch (err) {
             console.error('Delete error:', err);
-            toast.error('Bir hata oluştu');
+            toast.error('An error occurred');
         } finally {
             setIsDeleting(false);
         }
@@ -154,17 +155,17 @@ function PlantsContent() {
             });
 
             if (res.ok) {
-                toast.success(editingPlant ? 'Santral güncellendi' : 'Santral oluşturuldu');
+                toast.success(editingPlant ? 'Plant updated' : 'Plant created');
                 setIsModalOpen(false);
                 setEditingPlant(null);
                 fetchPlants();
             } else {
                 const data = await res.json();
-                toast.error(data.error || 'İşlem başarısız');
+                toast.error(data.error || 'Operation failed');
             }
         } catch (err) {
             console.error('Submit error:', err);
-            toast.error('Bir hata oluştu');
+            toast.error('An error occurred');
         } finally {
             setIsSubmitting(false);
             submittingRef.current = false;
@@ -184,18 +185,18 @@ function PlantsContent() {
             });
             if (res.ok) {
                 const newCompany = await res.json();
-                toast.success('Şirket oluşturuldu');
+                toast.success('Company created');
                 await fetchCompanies();
                 setEditingPlant(prev => prev ? { ...prev, companyId: newCompany.id } : null);
                 setFormData(prev => ({ ...prev, companyId: newCompany.id }));
                 setIsCompanyModalOpen(false);
             } else {
                 const data = await res.json();
-                toast.error(data.error || 'Şirket oluşturulamadı');
+                toast.error(data.error || 'Company creation failed');
             }
         } catch (err) {
             console.error('Create company error:', err);
-            toast.error('Bir hata oluştu');
+            toast.error('An error occurred');
         } finally {
             setIsCreatingCompany(false);
         }
@@ -309,8 +310,9 @@ function PlantsContent() {
                 maxWidth="5xl"
             >
                 <PlantForm
+                    key={editingPlant?.id || 'new'}
                     initialData={editingPlant ? {
-                        companyId: editingPlant.companyId,
+                        companyId: editingPlant.company_id || editingPlant.companyId,
                         plantName: editingPlant.plantName,
                         latitude: editingPlant.latitude ? editingPlant.latitude.toString() : '',
                         longitude: editingPlant.longitude ? editingPlant.longitude.toString() : '',
@@ -340,9 +342,9 @@ function PlantsContent() {
                                 </div>
 
                                 <div>
-                                    <h3 className="text-lg font-bold text-white tracking-tight">Santrali Sil</h3>
+                                    <h3 className="text-lg font-bold text-white tracking-tight">Delete Plant</h3>
                                     <p className="text-sm text-slate-400 mt-2 leading-relaxed">
-                                        <span className="font-bold text-white">{plantToDelete.plantName}</span> santralini silmek istediğinize emin misiniz? Bu işlem geri alınamaz.
+                                        Are you sure you want to delete <span className="font-bold text-white">{plantToDelete.plantName}</span>? This action cannot be undone.
                                     </p>
                                 </div>
 
@@ -352,7 +354,7 @@ function PlantsContent() {
                                         disabled={isDeleting}
                                         className="py-3 px-4 rounded-xl border border-slate-800 text-slate-400 font-bold text-xs hover:bg-slate-900 transition-colors disabled:opacity-50 tracking-widest uppercase"
                                     >
-                                        İptal
+                                        Cancel
                                     </button>
                                     <button
                                         onClick={confirmDelete}
@@ -362,10 +364,10 @@ function PlantsContent() {
                                         {isDeleting ? (
                                             <>
                                                 <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                                Siliniyor...
+                                                Deleting...
                                             </>
                                         ) : (
-                                            'Evet, Sil'
+                                            'Yes, Delete'
                                         )}
                                     </button>
                                 </div>
@@ -379,7 +381,7 @@ function PlantsContent() {
             <Modal
                 isOpen={isCompanyModalOpen}
                 onClose={() => setIsCompanyModalOpen(false)}
-                title="Yeni Şirket Ekle"
+                title="Add New Company"
                 icon={Building2}
                 maxWidth="xl"
                 zIndex={250}
@@ -387,7 +389,7 @@ function PlantsContent() {
                 <CompanyForm
                     onSubmit={handleCompanySubmit}
                     isSubmitting={isCreatingCompany}
-                    submitLabel="Şirketi Ekle"
+                    submitLabel="Add Company"
                 />
             </Modal>
         </div>

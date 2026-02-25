@@ -108,7 +108,7 @@ export default function CompaniesPage() {
             });
 
             if (res.ok) {
-                toast.success(editingCompany ? 'Şirket güncellendi' : 'Şirket oluşturuldu');
+                toast.success(editingCompany ? 'Company updated' : 'Company created');
                 setIsModalOpen(false);
                 setEditingCompany(null);
                 fetchCompanies();
@@ -118,7 +118,7 @@ export default function CompaniesPage() {
             }
         } catch (err) {
             console.error('Submit error:', err);
-            toast.error('Bir hata oluştu');
+            toast.error('An error occurred');
         } finally {
             setIsSubmitting(false);
             submittingRef.current = false;
@@ -219,6 +219,7 @@ export default function CompaniesPage() {
                 maxWidth="xl"
             >
                 <CompanyForm
+                    key={editingCompany?.id || 'new'}
                     initialData={editingCompany ? {
                         name: editingCompany.name,
                         address: editingCompany.address,
@@ -251,9 +252,9 @@ export default function CompaniesPage() {
                                 </div>
 
                                 <div>
-                                    <h3 className="text-lg font-bold text-white tracking-tight">Şirketi Sil</h3>
+                                    <h3 className="text-lg font-bold text-white tracking-tight">Delete Company</h3>
                                     <p className="text-sm text-slate-400 mt-2 leading-relaxed">
-                                        <span className="font-bold text-white">{companyToDelete.name}</span> şirketini silmek istediğinize emin misiniz? Bu işlem geri alınamaz.
+                                        Are you sure you want to delete <span className="font-bold text-white">{companyToDelete.name}</span>? This action cannot be undone.
                                     </p>
                                 </div>
 
@@ -263,7 +264,7 @@ export default function CompaniesPage() {
                                         disabled={isDeleting}
                                         className="py-3 px-4 rounded-xl border border-slate-800 text-slate-400 font-bold text-xs hover:bg-slate-900 transition-colors disabled:opacity-50 tracking-widest uppercase"
                                     >
-                                        İptal
+                                        Cancel
                                     </button>
                                     <button
                                         onClick={confirmDelete}
@@ -273,10 +274,10 @@ export default function CompaniesPage() {
                                         {isDeleting ? (
                                             <>
                                                 <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                                Siliniyor...
+                                                Deleting...
                                             </>
                                         ) : (
-                                            'Evet, Sil'
+                                            'Yes, Delete'
                                         )}
                                     </button>
                                 </div>

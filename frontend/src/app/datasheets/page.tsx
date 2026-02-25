@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { FileText, Plus, Pencil, Trash2, Tag, Cpu, ArrowRight, AlertTriangle } from 'lucide-react';
+import { FileText, Plus, Pencil, Trash2, Tag, Cpu, ArrowRight, AlertTriangle, X } from 'lucide-react';
 import { apiRequest } from '@/lib/api';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter } from 'next/navigation';
@@ -27,6 +27,9 @@ export default function DatasheetProfilesPage() {
     const [formData, setFormData] = useState({ name: '', protocolType: 'MODBUS' });
     const [profileToDelete, setProfileToDelete] = useState<DatasheetProfile | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
+    const handleCloseModal = React.useCallback(() => {
+        setIsModalOpen(false);
+    }, []);
     const submittingRef = React.useRef(false);
 
     useEffect(() => {
@@ -69,16 +72,16 @@ export default function DatasheetProfilesPage() {
         try {
             const res = await apiRequest(`/api/datasheet-profiles/${profileToDelete.id}`, { method: 'DELETE' });
             if (res.ok) {
-                toast.success('Profil başarıyla silindi');
+                toast.success('Profile deleted successfully');
                 setProfiles(profiles.filter(p => p.id !== profileToDelete.id));
                 setProfileToDelete(null);
             } else {
                 const data = await res.json();
-                toast.error(data.error || 'Silme işlemi başarısız');
+                toast.error(data.error || 'Delete failed');
             }
         } catch (err) {
             console.error('Delete error:', err);
-            toast.error('Bir hata oluştu');
+            toast.error('An error occurred');
         } finally {
             setIsDeleting(false);
         }
@@ -100,12 +103,12 @@ export default function DatasheetProfilesPage() {
             });
 
             if (res.ok) {
-                toast.success(editingProfile ? 'Profil güncellendi' : 'Profil oluşturuldu');
+                toast.success(editingProfile ? 'Profile updated' : 'Profile created');
                 setIsModalOpen(false);
                 fetchProfiles();
             } else {
                 const data = await res.json();
-                toast.error(data.error || 'İşlem başarısız');
+                toast.error(data.error || 'Operation failed');
             }
         } catch (err) {
             console.error('Save error:', err);
@@ -147,17 +150,17 @@ export default function DatasheetProfilesPage() {
                                     <FileText size={24} className="text-brand-green" />
                                 </div>
                                 <div>
-                                    <h3 className="text-lg font-bold text-white">{profile.name}</h3>
+                                    <h3 className="text-lg font-bold text-white uppercase tracking-tight">{profile.name}</h3>
                                     <span className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">
                                         {profile.protocolType} PROTOCOL
                                     </span>
                                 </div>
                             </div>
                             <div className="flex gap-2">
-                                <button title="Edit" onClick={() => openEditModal(profile)} className="p-2 rounded-md bg-slate-900 hover:text-brand-green transition-colors text-slate-400">
+                                <button title="Edit" onClick={() => openEditModal(profile)} className="p-2 rounded-md bg-slate-900 border border-slate-800/40 hover:text-brand-green hover:border-brand-green/50 transition-colors text-slate-400">
                                     <Pencil size={14} />
                                 </button>
-                                <button title="Delete" onClick={() => handleDeleteClick(profile)} className="p-2 rounded-md bg-slate-900 hover:text-red-500 transition-colors text-slate-400">
+                                <button title="Delete" onClick={() => handleDeleteClick(profile)} className="p-2 rounded-md bg-slate-900 border border-slate-800/40 hover:text-red-500 hover:border-red-500/50 transition-colors text-slate-400">
                                     <Trash2 size={14} />
                                 </button>
                             </div>
@@ -174,9 +177,9 @@ export default function DatasheetProfilesPage() {
 
                         <button
                             onClick={() => router.push(`/datasheets/points?profileId=${profile.id}&protocolType=${profile.protocolType}`)}
-                            className="flex items-center justify-center gap-2 w-full py-3 bg-slate-800/40 hover:bg-brand-green hover:text-white transition-all rounded-xl text-xs font-bold tracking-widest text-slate-400 border border-slate-800 hover:border-brand-green"
+                            className="flex items-center justify-center gap-2 w-full py-3 bg-slate-800/40 hover:bg-brand-green hover:text-white transition-all rounded-xl text-xs font-bold tracking-widest text-slate-400 border border-slate-800/80 hover:border-brand-green"
                         >
-                            Manage Data Points <ArrowRight size={14} />
+                            MANAGE DATA POINTS <ArrowRight size={14} />
                         </button>
                     </div>
                 ))}
@@ -191,47 +194,56 @@ export default function DatasheetProfilesPage() {
                             exit={{ scale: 0.95, opacity: 0 }}
                             className="card-base w-full max-w-md bg-slate-950 border-slate-800 overflow-hidden shadow-2xl"
                         >
-                            <div className="p-6 border-b border-slate-800 bg-slate-900/30">
-                                <h2 className="text-lg font-bold text-white">{editingProfile ? 'Edit Profile' : 'Create Profile'}</h2>
+                            <div className="p-6 border-b border-slate-800 bg-slate-900/30 flex justify-between items-center">
+                                <div>
+                                    <h2 className="text-lg font-bold text-white tracking-tight">{editingProfile ? 'Edit Profile' : 'Create Profile'}</h2>
+                                    <p className="text-[10px] text-slate-500 tracking-widest uppercase mt-0.5">Profile Configuration</p>
+                                </div>
+                                <button onClick={handleCloseModal} className="text-slate-500 hover:text-white transition-colors">
+                                    <X size={20} />
+                                </button>
                             </div>
                             <form onSubmit={handleSubmit} className="p-6 space-y-5">
-                                <div className="space-y-2">
-                                    <label className="text-xs font-bold text-slate-400 tracking-widest">Profile Name</label>
+                                <div className="space-y-1.5">
+                                    <label className="text-[10px] font-bold text-slate-500 tracking-widest uppercase mb-1.5 block">PROFILE NAME</label>
                                     <input
                                         type="text"
+                                        autoFocus
                                         value={formData.name}
                                         onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                        className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none"
+                                        className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 focus:ring-4 focus:ring-brand-green/10 outline-none transition-all"
                                         placeholder="e.g. Huawei SUN2000"
                                         required
                                     />
                                 </div>
-                                <div className="space-y-2">
-                                    <label className="text-xs font-bold text-slate-400 tracking-widest">Protocol Type</label>
+                                <div className="space-y-1.5">
+                                    <label className="text-[10px] font-bold text-slate-500 tracking-widest uppercase mb-1.5 block">PROTOCOL TYPE</label>
                                     <select
                                         value={formData.protocolType}
                                         onChange={(e) => setFormData({ ...formData, protocolType: e.target.value })}
-                                        className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none"
+                                        className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 focus:ring-4 focus:ring-brand-green/10 outline-none transition-all cursor-pointer"
                                         required
                                     >
                                         <option value="MODBUS">MODBUS</option>
                                         <option value="IEC104">IEC 104</option>
                                     </select>
                                 </div>
-                                <button
-                                    type="submit"
-                                    disabled={isSubmitting}
-                                    className="w-full py-4 bg-brand-green text-white font-bold tracking-widest text-xs rounded-xl hover:scale-[1.01] transition-all"
-                                >
-                                    {isSubmitting ? 'Saving...' : 'Save Profile'}
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => setIsModalOpen(false)}
-                                    className="w-full py-3 bg-transparent text-slate-500 font-bold tracking-widest text-xs hover:text-white transition-all"
-                                >
-                                    Cancel
-                                </button>
+                                <div className="pt-2 space-y-3">
+                                    <button
+                                        type="submit"
+                                        disabled={isSubmitting}
+                                        className="w-full py-4 bg-brand-green text-white font-black tracking-[0.2em] text-xs rounded-xl hover:scale-[1.01] active:scale-[0.99] transition-all uppercase shadow-lg shadow-brand-green/20"
+                                    >
+                                        {isSubmitting ? 'SAVING...' : editingProfile ? 'UPDATE PROFILE' : 'CREATE PROFILE'}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={handleCloseModal}
+                                        className="w-full py-3 bg-transparent text-slate-500 font-bold tracking-widest text-xs hover:text-white transition-all uppercase"
+                                    >
+                                        Cancel
+                                    </button>
+                                </div>
                             </form>
                         </motion.div>
                     </div>
@@ -246,7 +258,7 @@ export default function DatasheetProfilesPage() {
                             initial={{ scale: 0.95, opacity: 0 }}
                             animate={{ scale: 1, opacity: 1 }}
                             exit={{ scale: 0.95, opacity: 0 }}
-                            className="card-base w-full max-w-sm bg-slate-950 border-red-500/30 overflow-hidden shadow-2xl shadow-red-500/10"
+                            className="card-base w-full max-w-sm bg-slate-950 border-slate-800 overflow-hidden shadow-2xl shadow-red-500/10"
                         >
                             <div className="p-6 text-center space-y-4">
                                 <div className="w-16 h-16 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-500 flex items-center justify-center mx-auto mb-6">
@@ -254,9 +266,9 @@ export default function DatasheetProfilesPage() {
                                 </div>
 
                                 <div>
-                                    <h3 className="text-lg font-bold text-white tracking-tight">Profili Sil</h3>
+                                    <h3 className="text-lg font-bold text-white tracking-tight">Delete Profile</h3>
                                     <p className="text-sm text-slate-400 mt-2 leading-relaxed">
-                                        <span className="font-bold text-white">{profileToDelete.name}</span> profilini silmek istediğinize emin misiniz? Bu işlem geri alınamaz.
+                                        Are you sure you want to delete <span className="font-bold text-white">{profileToDelete.name}</span>? This action cannot be undone.
                                     </p>
                                 </div>
 
@@ -266,7 +278,7 @@ export default function DatasheetProfilesPage() {
                                         disabled={isDeleting}
                                         className="py-3 px-4 rounded-xl border border-slate-800 text-slate-400 font-bold text-xs hover:bg-slate-900 transition-colors disabled:opacity-50 tracking-widest uppercase"
                                     >
-                                        İptal
+                                        Cancel
                                     </button>
                                     <button
                                         onClick={confirmDelete}
@@ -276,10 +288,10 @@ export default function DatasheetProfilesPage() {
                                         {isDeleting ? (
                                             <>
                                                 <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                                Siliniyor...
+                                                Deleting...
                                             </>
                                         ) : (
-                                            'Evet, Sil'
+                                            'Yes, Delete'
                                         )}
                                     </button>
                                 </div>

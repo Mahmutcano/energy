@@ -36,6 +36,22 @@ export default function CompanyForm({
         isActive: initialData?.isActive ?? true,
     });
 
+    // Sync state with initialData when it changes (important for Modal reuse)
+    React.useEffect(() => {
+        if (initialData) {
+            setFormData({
+                name: initialData.name || '',
+                address: initialData.address || '',
+                phone: initialData.phone || '',
+                email: initialData.email || '',
+                representative: initialData.representative || '',
+                taxOffice: initialData.taxOffice || '',
+                taxNumber: initialData.taxNumber || '',
+                isActive: initialData.isActive ?? true,
+            });
+        }
+    }, [initialData]);
+
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         onSubmit(formData);

@@ -1,6 +1,7 @@
 import * as Modbus from 'jsmodbus';
 import * as net from 'net';
 import redisService from './redis.service';
+import prisma from '../lib/prisma';
 
 export class ModbusService {
     private static instance: ModbusService;
@@ -15,36 +16,92 @@ export class ModbusService {
         return ModbusService.instance;
     }
 
-    public start() {
-        console.log('Modbus TCP Master Service Started');
-        // Initial connections can be loaded from DB here if needed
-        // For now, we still connect to the simulator by default or wait for user input
-        this.connectToDevice('modbus-sim-device', '127.0.0.1', 5020);
+    public async start() {
+        console.log('[MODBUS] Master Service Started. Fetching configs from DB...');
+
+        try {
+            const protocols = await prisma.protocolConfig.findMany({
+                where: {
+                    protocolType: 'MODBUS',
+                    isActive: true
+                },
+                include: {
+                    modbusConfig: true,
+                    devices: {
+                        where: { isActive: true },
+                        include: {
+                            datasheetProfile: {
+                                include: {
+                                    points: { where: { isActive: true } }
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Fallback for simulation if no DB records found yet or to keep it active
+            this.connectToDevice('modbus-sim-device', '127.0.0.1', 5020, 1, []);
+
+            for (const protocol of protocols) {
+                if (!protocol.modbusConfig) continue;
+
+                const config = protocol.modbusConfig;
+                const pointsToPoll: any[] = [];
+
+                for (const device of protocol.devices) {
+                    if (device.datasheetProfile) {
+                        for (const point of device.datasheetProfile.points) {
+                            if (point.registerAddress !== null) {
+                                pointsToPoll.push({
+                                    address: point.registerAddress,
+                                    deviceId: device.id,
+                                    pointId: point.id,
+                                    name: point.dataName,
+                                    unit: point.dataValue || 'UNIT'
+                                });
+                            }
+                        }
+                    }
+                }
+
+                if (pointsToPoll.length > 0) {
+                    this.connectToDevice(
+                        protocol.id,
+                        config.ipAddress,
+                        config.port,
+                        config.slaveId,
+                        pointsToPoll
+                    );
+                }
+            }
+        } catch (error) {
+            console.error('[MODBUS] Failed to load configs from DB:', error);
+        }
     }
 
-    public connectToDevice(deviceId: string, ip: string, port: number) {
-        if (this.clients.has(deviceId)) {
-            console.log(`[Modbus] Device ${deviceId} already connecting/connected. skipping.`);
+    public connectToDevice(protocolId: string, ip: string, port: number, slaveId: number, points: any[]) {
+        if (this.clients.has(protocolId)) {
             return;
         }
 
-        console.log(`[Modbus] Attempting connection to ${deviceId} at ${ip}:${port}...`);
+        console.log(`[Modbus] Connecting to ${ip}:${port} (Slave: ${slaveId}) for Protocol ${protocolId}`);
 
         const socket = new net.Socket();
-        const client = new Modbus.client.TCP(socket);
+        const client = new Modbus.client.TCP(socket, slaveId);
 
         socket.on('connect', () => {
-            console.log(`[Modbus] ✅ Connected to ${deviceId} (${ip}:${port})`);
-            this.startPolling(deviceId, client);
+            console.log(`[Modbus] ✅ Connected to Protocol ${protocolId} at ${ip}:${port}`);
+            this.startPolling(protocolId, client, points);
         });
 
         socket.on('error', (err) => {
-            console.error(`[Modbus] ❌ Connection error for ${deviceId}:`, err.message);
+            // console.error(`[Modbus] ❌ Error for ${protocolId}:`, err.message);
         });
 
         socket.on('close', () => {
-            console.log(`[Modbus] ⚠️ Connection closed for ${deviceId}. Reconnecting in 5s...`);
-            const clientData = this.clients.get(deviceId);
+            console.log(`[Modbus] ⚠️ Connection closed for ${protocolId}. Retrying...`);
+            const clientData = this.clients.get(protocolId);
             if (clientData) {
                 if (clientData.pollingInterval) clearInterval(clientData.pollingInterval);
                 setTimeout(() => socket.connect({ host: ip, port: port }), 5000);
@@ -52,55 +109,44 @@ export class ModbusService {
         });
 
         socket.connect({ host: ip, port: port });
-        this.clients.set(deviceId, { client, socket });
+        this.clients.set(protocolId, { client, socket });
     }
 
-    private startPolling(deviceId: string, client: any) {
-        // Polling loop for Holding Registers
-        const pollingInterval = setInterval(async () => {
-            try {
-                const resp = await client.readHoldingRegisters(0, 10);
-                const values = resp.response._body._values;
-
-                values.forEach((val: number, index: number) => {
-                    const address = index;
-                    const payload = {
-                        deviceId,
-                        ioa: address,
-                        value: val,
-                        unit: this.getUnitForAddress(address),
-                        name: this.getNameForAddress(address),
-                        timestamp: new Date()
-                    };
-                    redisService.pushTelemetry(payload);
-                });
-            } catch (err) {
-                // console.error(`[Modbus] Polling fail for ${deviceId}:`, err);
-            }
-        }, 5000);
-
-        const clientData = this.clients.get(deviceId);
-        if (clientData) {
-            clientData.pollingInterval = pollingInterval;
+    private startPolling(protocolId: string, client: any, points: any[]) {
+        if (points.length === 0 && protocolId === 'modbus-sim-device') {
+            // Simulator defaults if no points mapped
+            points = [
+                { address: 0, deviceId: 'modbus-sim-device', pointId: 'sim-v', name: 'Voltage', unit: 'V' },
+                { address: 2, deviceId: 'modbus-sim-device', pointId: 'sim-i', name: 'Current', unit: 'A' },
+                { address: 4, deviceId: 'modbus-sim-device', pointId: 'sim-p', name: 'Power', unit: 'kW' }
+            ];
         }
-    }
 
-    private getUnitForAddress(address: number): string {
-        const units: Record<number, string> = {
-            0: 'V',
-            1: 'A',
-            2: 'kW'
-        };
-        return units[address] || 'UNIT';
-    }
+        const pollingInterval = setInterval(async () => {
+            for (const point of points) {
+                try {
+                    // Small delay between reads to prevent overlapping
+                    const resp = await client.readHoldingRegisters(point.address, 1);
+                    const val = resp.response._body._values[0];
 
-    private getNameForAddress(address: number): string {
-        const names: Record<number, string> = {
-            0: 'Modbus Voltage',
-            1: 'Modbus Current',
-            2: 'Modbus Power'
-        };
-        return names[address] || `Register ${address}`;
+                    redisService.pushTelemetry({
+                        protocolId,
+                        deviceId: point.deviceId,
+                        pointId: point.pointId,
+                        ioa: point.address,
+                        value: val,
+                        unit: point.unit,
+                        name: point.name,
+                        timestamp: new Date()
+                    });
+                } catch (err) {
+                    // Fail silently for individual register errors
+                }
+            }
+        }, 3000);
+
+        const clientData = this.clients.get(protocolId);
+        if (clientData) clientData.pollingInterval = pollingInterval;
     }
     public async testModbusConnection(params: {
         ip: string,

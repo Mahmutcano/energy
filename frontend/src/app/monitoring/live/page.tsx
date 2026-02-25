@@ -48,7 +48,9 @@ interface DataPoint {
     dataName: string;
     dataValue: string | null;
     registerAddress: number | null;
+    scadaAddress: number | null;
     ioa1ObjectAddress: number | null;
+    signalDescription: string | null;
     isActive: boolean;
 }
 
@@ -57,23 +59,20 @@ const GlobalStream = () => {
     const [logs, setLogs] = useState<any[]>([]);
 
     useEffect(() => {
-        // Listen to everything by catching any telemetry:* event
-        // Note: Socket.io doesn't support wildcards on client easily, 
-        // but our server emits specifically. To see everything, 
-        // the server would need a 'telemetry:*' broadcast or we'd need to know IDs.
-        // For testing, we'll listen to the main simulator ID
-        const topic = `telemetry:modbus-sim-device`;
+        const topics = [`telemetry:modbus-sim-device`, `telemetry:RTU_SIM`, `telemetry:iec104-sim-device`];
+
         const handleData = (data: any) => {
             setLogs(prev => [{
                 id: Date.now(),
                 time: new Date().toLocaleTimeString(),
-                message: `[RECV] ID:${data.deviceId.substring(0, 8)} ADDR:${data.ioa} VAL:${data.value}`,
+                message: `[RECV] ID:${data.deviceId?.substring(0, 8) || 'SIM'} ADDR:${data.ioa} VAL:${typeof data.value === 'number' ? data.value.toFixed(2) : data.value}`,
                 data
             }, ...prev].slice(0, 20));
         };
-        socket.on(topic, handleData);
+
+        topics.forEach(t => socket.on(t, handleData));
         return () => {
-            socket.off(topic, handleData);
+            topics.forEach(t => socket.off(t, handleData));
         };
     }, []);
 
@@ -112,12 +111,12 @@ const PointCard = ({ deviceId, point, protocolType }: { deviceId: string, point:
 
     useEffect(() => {
         const primaryTopic = `telemetry:${deviceId}`;
-        const fallbackTopic = `telemetry:modbus-sim-device`;
+        const fallbackTopics = [`telemetry:modbus-sim-device`, `telemetry:RTU_SIM`, `telemetry:iec104-sim-device`];
 
         const handleData = (data: any) => {
             const isMatch = protocolType === 'MODBUS'
                 ? data.ioa === point.registerAddress
-                : data.ioa === point.ioa1ObjectAddress;
+                : (data.ioa === point.scadaAddress || data.ioa === point.ioa1ObjectAddress);
 
             if (isMatch) {
                 setValue(current => {
@@ -130,12 +129,12 @@ const PointCard = ({ deviceId, point, protocolType }: { deviceId: string, point:
         };
 
         socket.on(primaryTopic, handleData);
-        socket.on(fallbackTopic, handleData);
+        fallbackTopics.forEach(t => socket.on(t, handleData));
         setIsLive(socket.connected);
 
         return () => {
             socket.off(primaryTopic, handleData);
-            socket.off(fallbackTopic, handleData);
+            fallbackTopics.forEach(t => socket.off(t, handleData));
         };
     }, [deviceId, point, protocolType]);
 
@@ -158,7 +157,7 @@ const PointCard = ({ deviceId, point, protocolType }: { deviceId: string, point:
                     <span className="text-[10px] font-black text-slate-500 tracking-[0.2em] uppercase">{point.dataName}</span>
                     <div className="flex items-center gap-2">
                         <span className="text-[9px] font-mono text-slate-600 bg-slate-950 px-1.5 py-0.5 rounded border border-slate-800">
-                            ADDR: {protocolType === 'MODBUS' ? point.registerAddress : point.ioa1ObjectAddress}
+                            ADDR: {protocolType === 'MODBUS' ? point.registerAddress : (point.scadaAddress || point.ioa1ObjectAddress)}
                         </span>
                     </div>
                 </div>
@@ -268,7 +267,7 @@ export default function LiveMonitoringPage() {
         const fetchPoints = async () => {
             try {
                 if (selectedDevice.protocol_config_id) {
-                    const protoRes = await apiRequest('/api/protocols');
+                    const protoRes = await apiRequest('/api/comm-protocols');
                     if (protoRes.ok) {
                         const protos = await protoRes.json();
                         const proto = protos.find((p: any) => p.id === selectedDevice.protocol_config_id);

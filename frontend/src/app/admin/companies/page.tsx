@@ -6,6 +6,8 @@ import { apiRequest } from '@/lib/api';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { useRouter } from 'next/navigation';
+import Modal from '@/components/Modal';
+import CompanyForm, { CompanyFormData } from '@/components/forms/CompanyForm';
 
 interface CompanyProfile {
     id: string;
@@ -23,13 +25,6 @@ interface CompanyProfile {
 }
 
 const defaultFormData = {
-    name: '',
-    address: '',
-    phone: '',
-    email: '',
-    representative: '',
-    taxOffice: '',
-    taxNumber: '',
     isActive: true,
 };
 
@@ -40,7 +35,6 @@ export default function CompaniesPage() {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [editingCompany, setEditingCompany] = useState<CompanyProfile | null>(null);
-    const [formData, setFormData] = useState(defaultFormData);
     const submittingRef = React.useRef(false);
     const [companyToDelete, setCompanyToDelete] = useState<CompanyProfile | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
@@ -65,22 +59,11 @@ export default function CompaniesPage() {
 
     const openCreateModal = () => {
         setEditingCompany(null);
-        setFormData(defaultFormData);
         setIsModalOpen(true);
     };
 
     const openEditModal = (company: CompanyProfile) => {
         setEditingCompany(company);
-        setFormData({
-            name: company.name || '',
-            address: company.address || '',
-            phone: company.phone || '',
-            email: company.email || '',
-            representative: company.representative || '',
-            taxOffice: company.taxOffice || '',
-            taxNumber: company.taxNumber ? company.taxNumber.toString() : '',
-            isActive: company.isActive,
-        });
         setIsModalOpen(true);
     };
 
@@ -106,21 +89,14 @@ export default function CompaniesPage() {
         }
     };
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
+    const handleFormSubmit = async (data: CompanyFormData) => {
         if (submittingRef.current) return;
         submittingRef.current = true;
         setIsSubmitting(true);
         try {
             const body = {
-                name: formData.name,
-                address: formData.address || null,
-                phone: formData.phone || null,
-                email: formData.email || null,
-                representative: formData.representative || null,
-                taxOffice: formData.taxOffice || null,
-                taxNumber: formData.taxNumber ? parseInt(formData.taxNumber) : null,
-                isActive: formData.isActive,
+                ...data,
+                taxNumber: data.taxNumber ? parseInt(data.taxNumber) : null,
             };
 
             const url = editingCompany ? `/api/companies/${editingCompany.id}` : '/api/companies';
@@ -132,8 +108,8 @@ export default function CompaniesPage() {
             });
 
             if (res.ok) {
+                toast.success(editingCompany ? 'Şirket güncellendi' : 'Şirket oluşturuldu');
                 setIsModalOpen(false);
-                setFormData(defaultFormData);
                 setEditingCompany(null);
                 fetchCompanies();
             } else {
@@ -142,6 +118,7 @@ export default function CompaniesPage() {
             }
         } catch (err) {
             console.error('Submit error:', err);
+            toast.error('Bir hata oluştu');
         } finally {
             setIsSubmitting(false);
             submittingRef.current = false;
@@ -233,124 +210,30 @@ export default function CompaniesPage() {
             </div>
 
             {/* Create / Edit Modal */}
-            <AnimatePresence>
-                {isModalOpen && (
-                    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md overflow-y-auto">
-                        <motion.div
-                            initial={{ scale: 0.95, opacity: 0 }}
-                            animate={{ scale: 1, opacity: 1 }}
-                            exit={{ scale: 0.95, opacity: 0 }}
-                            className="card-base w-full max-w-xl bg-slate-950 border-slate-800 shadow-2xl my-8"
-                        >
-                            <div className="p-6 border-b border-slate-800 flex justify-between items-center bg-slate-900/30">
-                                <div className="flex items-center gap-3">
-                                    <div className="p-2 rounded-lg bg-slate-950 border border-slate-800">
-                                        <Building2 size={18} className="text-brand-green" />
-                                    </div>
-                                    <div>
-                                        <h2 className="text-lg font-bold text-white">{editingCompany ? 'Edit Company' : 'New Company'}</h2>
-                                        <p className="text-[10px] text-slate-500  tracking-widest">{editingCompany ? 'Update company details' : 'Register a new company profile'}</p>
-                                    </div>
-                                </div>
-                                <button onClick={() => setIsModalOpen(false)} className="p-2 text-slate-500 hover:text-white transition-colors">
-                                    <X size={20} />
-                                </button>
-                            </div>
-                            <form onSubmit={handleSubmit} className="p-6 space-y-4">
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="space-y-2 col-span-2">
-                                        <label className="text-xs font-bold text-slate-400  tracking-widest">Company Name</label>
-                                        <input
-                                            type="text"
-                                            value={formData.name}
-                                            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                            className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none"
-                                            placeholder="e.g. Enerji Corp."
-                                            required
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <label className="text-xs font-bold text-slate-400  tracking-widest">Tax Office</label>
-                                        <input
-                                            type="text"
-                                            value={formData.taxOffice}
-                                            onChange={(e) => setFormData({ ...formData, taxOffice: e.target.value })}
-                                            className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none"
-                                            placeholder="Tax Office"
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <label className="text-xs font-bold text-slate-400  tracking-widest">Tax Number</label>
-                                        <input
-                                            type="number"
-                                            value={formData.taxNumber}
-                                            onChange={(e) => setFormData({ ...formData, taxNumber: e.target.value })}
-                                            className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none"
-                                            placeholder="Tax Number"
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <label className="text-xs font-bold text-slate-400  tracking-widest">Email</label>
-                                        <input
-                                            type="email"
-                                            value={formData.email}
-                                            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                                            className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none"
-                                            placeholder="Email"
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <label className="text-xs font-bold text-slate-400  tracking-widest">Phone</label>
-                                        <input
-                                            type="text"
-                                            value={formData.phone}
-                                            onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                                            className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none"
-                                            placeholder="Phone"
-                                        />
-                                    </div>
-                                    <div className="space-y-2 col-span-2">
-                                        <label className="text-xs font-bold text-slate-400  tracking-widest">Representative</label>
-                                        <input
-                                            type="text"
-                                            value={formData.representative}
-                                            onChange={(e) => setFormData({ ...formData, representative: e.target.value })}
-                                            className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none"
-                                            placeholder="Representative Name"
-                                        />
-                                    </div>
-                                    <div className="space-y-2 col-span-2">
-                                        <label className="text-xs font-bold text-slate-400  tracking-widest">Address</label>
-                                        <textarea
-                                            value={formData.address}
-                                            onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                                            className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none resize-none h-16"
-                                            placeholder="Company address"
-                                        />
-                                    </div>
-                                </div>
-                                <div className="flex items-center justify-between p-4 bg-slate-900/30 rounded-xl border border-slate-800/40">
-                                    <span className="text-xs font-bold text-slate-400 ">Active Status</span>
-                                    <button
-                                        type="button"
-                                        onClick={() => setFormData({ ...formData, isActive: !formData.isActive })}
-                                        className="text-brand-green"
-                                    >
-                                        {formData.isActive ? <ToggleRight size={28} /> : <ToggleLeft size={28} className="text-slate-600" />}
-                                    </button>
-                                </div>
-                                <button
-                                    type="submit"
-                                    disabled={isSubmitting}
-                                    className="w-full py-4 bg-brand-green disabled:bg-brand-green/50 text-white font-bold  tracking-widest text-xs rounded-xl shadow-lg shadow-brand-green/20 hover:scale-[1.01] transition-all"
-                                >
-                                    {isSubmitting ? 'Saving...' : editingCompany ? 'Update Company' : 'Create Company'}
-                                </button>
-                            </form>
-                        </motion.div>
-                    </div>
-                )}
-            </AnimatePresence>
+            <Modal
+                isOpen={isModalOpen}
+                onClose={() => setIsModalOpen(false)}
+                title={editingCompany ? 'Edit Company' : 'New Company'}
+                subtitle={editingCompany ? 'Update company details' : 'Register a new company profile'}
+                icon={Building2}
+                maxWidth="xl"
+            >
+                <CompanyForm
+                    initialData={editingCompany ? {
+                        name: editingCompany.name,
+                        address: editingCompany.address,
+                        phone: editingCompany.phone,
+                        email: editingCompany.email,
+                        representative: editingCompany.representative,
+                        taxOffice: editingCompany.taxOffice,
+                        taxNumber: editingCompany.taxNumber ? editingCompany.taxNumber.toString() : '',
+                        isActive: editingCompany.isActive
+                    } : undefined}
+                    onSubmit={handleFormSubmit}
+                    isSubmitting={isSubmitting}
+                    submitLabel={editingCompany ? 'Update Company' : 'Create Company'}
+                />
+            </Modal>
 
             {/* Delete Confirmation Modal */}
             <AnimatePresence>

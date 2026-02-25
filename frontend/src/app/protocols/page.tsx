@@ -6,6 +6,8 @@ import { apiRequest } from '@/lib/api';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter, useSearchParams } from 'next/navigation';
 import toast from 'react-hot-toast';
+import Modal from '@/components/Modal';
+import PlantForm, { PlantFormData } from '@/components/forms/PlantForm';
 
 interface CommProtocol {
     id: string;
@@ -239,13 +241,19 @@ function ProtocolsContent() {
         }
     };
 
-    const handleCreatePlant = async (e: React.FormEvent) => {
-        e.preventDefault();
+    const handlePlantSubmit = async (data: PlantFormData) => {
         setIsCreatingPlant(true);
         try {
+            const body = {
+                companyId: data.companyId,
+                plantName: data.plantName,
+                plantType: data.plantType,
+                latitude: data.latitude ? parseFloat(data.latitude) : null,
+                longitude: data.longitude ? parseFloat(data.longitude) : null,
+            };
             const res = await apiRequest('/api/plants', {
                 method: 'POST',
-                body: JSON.stringify(newPlantData)
+                body: JSON.stringify(body)
             });
             if (res.ok) {
                 const newPlant = await res.json();
@@ -253,7 +261,6 @@ function ProtocolsContent() {
                 await fetchPlants();
                 setFormData({ ...formData, plantId: newPlant.id });
                 setIsPlantModalOpen(false);
-                setNewPlantData({ plantName: '', companyId: '', plantType: 'SOLAR' });
             } else {
                 const data = await res.json();
                 toast.error(data.error || 'Santral oluşturulamadı');
@@ -394,258 +401,239 @@ function ProtocolsContent() {
             </div>
 
             {/* Create / Edit Modal */}
-            <AnimatePresence>
-                {isModalOpen && (
-                    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md overflow-y-auto">
-                        <motion.div
-                            initial={{ scale: 0.95, opacity: 0 }}
-                            animate={{ scale: 1, opacity: 1 }}
-                            exit={{ scale: 0.95, opacity: 0 }}
-                            className="card-base w-full max-w-xl bg-slate-950 border-slate-800 overflow-hidden shadow-2xl my-8 mt-24"
-                        >
-                            <div className="p-6 border-b border-slate-800 flex justify-between items-center bg-slate-900/30">
-                                <div className="flex items-center gap-3">
-                                    <div className="p-2 rounded-lg bg-slate-950 border border-slate-800">
-                                        <Network size={18} className="text-brand-green" />
-                                    </div>
-                                    <div>
-                                        <h2 className="text-lg font-bold text-white">{editingProtocol ? 'Edit Protocol' : 'New Protocol'}</h2>
-                                        <p className="text-[10px] text-slate-500  tracking-widest">{editingProtocol ? 'Update protocol details' : 'Configure communication endpoint'}</p>
-                                    </div>
-                                </div>
-                                <button onClick={() => setIsModalOpen(false)} className="p-2 text-slate-500 hover:text-white transition-colors">
-                                    <X size={20} />
-                                </button>
-                            </div>
+            <Modal
+                isOpen={isModalOpen}
+                onClose={() => setIsModalOpen(false)}
+                title={editingProtocol ? 'Edit Protocol' : 'New Protocol'}
+                subtitle={editingProtocol ? 'Update protocol details' : 'Configure communication endpoint'}
+                icon={Network}
+                maxWidth="xl"
+            >
+                <form onSubmit={handleSubmit} className="space-y-5">
+                    {/* Configuration Name & Plant */}
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                            <label className="text-xs font-bold text-slate-400  tracking-widest">Config Name</label>
+                            <input
+                                type="text"
+                                value={formData.configName}
+                                onChange={(e) => setFormData({ ...formData, configName: e.target.value })}
+                                className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none"
+                                placeholder="e.g. Inverter Array 1 HTTP"
+                                required
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-xs font-bold text-slate-400  tracking-widest">Plant</label>
+                            <select
+                                value={formData.plantId}
+                                onChange={(e) => {
+                                    if (e.target.value === 'ADD_NEW') {
+                                        setIsPlantModalOpen(true);
+                                        setNewPlantData({ ...newPlantData, companyId: companies.length > 0 ? companies[0].id : '' });
+                                    } else {
+                                        setFormData({ ...formData, plantId: e.target.value });
+                                    }
+                                }}
+                                className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none"
+                                required
+                            >
+                                <option value="">Select...</option>
+                                {plants.map((p: any) => (
+                                    <option key={p.id} value={p.id}>{p.plantName}</option>
+                                ))}
+                                <option value="ADD_NEW" className="font-bold text-brand-green bg-brand-green/10">+ Yeni Santral Ekle</option>
+                            </select>
+                        </div>
+                    </div>
 
-                            <form onSubmit={handleSubmit} className="p-6 space-y-5">
-                                {/* Configuration Name & Plant */}
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="space-y-2">
-                                        <label className="text-xs font-bold text-slate-400  tracking-widest">Config Name</label>
+                    {/* Protocol Type */}
+                    <div className="space-y-2">
+                        <label className="text-xs font-bold text-slate-400  tracking-widest">Protocol Type</label>
+                        <div className="grid grid-cols-2 gap-3">
+                            {(['MODBUS', 'IEC104'] as const).map((type) => (
+                                <button
+                                    key={type}
+                                    type="button"
+                                    onClick={() => setFormData({ ...formData, protocolType: type })}
+                                    className={`p-3 rounded-xl border text-sm font-bold  transition-all ${formData.protocolType === type
+                                        ? 'bg-brand-green/10 border-brand-green/30 text-brand-green'
+                                        : 'bg-slate-900/30 border-slate-800 text-slate-500 hover:border-slate-700'
+                                        }`}
+                                >
+                                    {type === 'MODBUS' ? 'Modbus TCP' : 'IEC 60870-5-104'}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Config Section */}
+                    <div className="p-4 bg-slate-900/30 rounded-xl border border-slate-800/40 space-y-4">
+                        <div className="flex items-center gap-2 mb-2">
+                            <Settings2 size={14} className="text-brand-green" />
+                            <span className="text-xs font-bold text-slate-400  tracking-widest">
+                                {formData.protocolType === 'MODBUS' ? 'Modbus Configuration' : 'IEC 104 Configuration'}
+                            </span>
+                        </div>
+
+                        {formData.protocolType === 'MODBUS' ? (
+                            <>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="space-y-1">
+                                        <label className="text-[10px] font-bold text-slate-500 ">IP Address</label>
                                         <input
                                             type="text"
-                                            value={formData.configName}
-                                            onChange={(e) => setFormData({ ...formData, configName: e.target.value })}
-                                            className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none"
-                                            placeholder="e.g. Inverter Array 1 HTTP"
+                                            value={formData.ipAddress}
+                                            onChange={(e) => setFormData({ ...formData, ipAddress: e.target.value })}
+                                            className="w-full px-3 py-2 bg-slate-950/50 border border-slate-800 rounded-lg text-sm text-white outline-none"
                                             required
                                         />
                                     </div>
-                                    <div className="space-y-2">
-                                        <label className="text-xs font-bold text-slate-400  tracking-widest">Plant</label>
-                                        <select
-                                            value={formData.plantId}
-                                            onChange={(e) => {
-                                                if (e.target.value === 'ADD_NEW') {
-                                                    setIsPlantModalOpen(true);
-                                                    setNewPlantData({ ...newPlantData, companyId: companies.length > 0 ? companies[0].id : '' });
-                                                } else {
-                                                    setFormData({ ...formData, plantId: e.target.value });
-                                                }
-                                            }}
-                                            className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none"
+                                    <div className="space-y-1">
+                                        <label className="text-[10px] font-bold text-slate-500 ">Port</label>
+                                        <input
+                                            type="number"
+                                            value={formData.port}
+                                            onChange={(e) => setFormData({ ...formData, port: parseInt(e.target.value) })}
+                                            className="w-full px-3 py-2 bg-slate-950/50 border border-slate-800 rounded-lg text-sm text-white outline-none tabular-nums"
                                             required
-                                        >
-                                            <option value="">Select...</option>
-                                            {plants.map((p: any) => (
-                                                <option key={p.id} value={p.id}>{p.plantName}</option>
-                                            ))}
-                                            <option value="ADD_NEW" className="font-bold text-brand-green bg-brand-green/10">+ Yeni Santral Ekle</option>
-                                        </select>
+                                        />
                                     </div>
                                 </div>
-
-                                {/* Protocol Type */}
-                                <div className="space-y-2">
-                                    <label className="text-xs font-bold text-slate-400  tracking-widest">Protocol Type</label>
-                                    <div className="grid grid-cols-2 gap-3">
-                                        {(['MODBUS', 'IEC104'] as const).map((type) => (
-                                            <button
-                                                key={type}
-                                                type="button"
-                                                onClick={() => setFormData({ ...formData, protocolType: type })}
-                                                className={`p-3 rounded-xl border text-sm font-bold  transition-all ${formData.protocolType === type
-                                                    ? 'bg-brand-green/10 border-brand-green/30 text-brand-green'
-                                                    : 'bg-slate-900/30 border-slate-800 text-slate-500 hover:border-slate-700'
-                                                    }`}
-                                            >
-                                                {type === 'MODBUS' ? 'Modbus TCP' : 'IEC 60870-5-104'}
-                                            </button>
-                                        ))}
+                                <div className="grid grid-cols-3 gap-3">
+                                    <div className="space-y-1">
+                                        <label className="text-[10px] font-bold text-slate-500 ">Slave ID</label>
+                                        <input
+                                            type="number"
+                                            value={formData.slaveId}
+                                            onChange={(e) => setFormData({ ...formData, slaveId: parseInt(e.target.value) })}
+                                            className="w-full px-3 py-2 bg-slate-950/50 border border-slate-800 rounded-lg text-sm text-white outline-none tabular-nums"
+                                        />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-[10px] font-bold text-slate-500 ">Timeout (ms)</label>
+                                        <input
+                                            type="number"
+                                            value={formData.timeout}
+                                            onChange={(e) => setFormData({ ...formData, timeout: parseInt(e.target.value) })}
+                                            className="w-full px-3 py-2 bg-slate-950/50 border border-slate-800 rounded-lg text-sm text-white outline-none tabular-nums"
+                                        />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-[10px] font-bold text-slate-500 ">Retry Count</label>
+                                        <input
+                                            type="number"
+                                            value={formData.retryCount}
+                                            onChange={(e) => setFormData({ ...formData, retryCount: parseInt(e.target.value) })}
+                                            className="w-full px-3 py-2 bg-slate-950/50 border border-slate-800 rounded-lg text-sm text-white outline-none tabular-nums"
+                                        />
                                     </div>
                                 </div>
-
-                                {/* Config Section */}
-                                <div className="p-4 bg-slate-900/30 rounded-xl border border-slate-800/40 space-y-4">
-                                    <div className="flex items-center gap-2 mb-2">
-                                        <Settings2 size={14} className="text-brand-green" />
-                                        <span className="text-xs font-bold text-slate-400  tracking-widest">
-                                            {formData.protocolType === 'MODBUS' ? 'Modbus Configuration' : 'IEC 104 Configuration'}
-                                        </span>
+                            </>
+                        ) : (
+                            <>
+                                <div className="grid grid-cols-3 gap-3">
+                                    <div className="space-y-1 col-span-2">
+                                        <label className="text-[10px] font-bold text-slate-500 ">IP Address</label>
+                                        <input
+                                            type="text"
+                                            value={formData.iecIpAddress}
+                                            onChange={(e) => setFormData({ ...formData, iecIpAddress: e.target.value })}
+                                            className="w-full px-3 py-2 bg-slate-950/50 border border-slate-800 rounded-lg text-sm text-white outline-none"
+                                            required
+                                        />
                                     </div>
-
-                                    {formData.protocolType === 'MODBUS' ? (
-                                        <>
-                                            <div className="grid grid-cols-2 gap-3">
-                                                <div className="space-y-1">
-                                                    <label className="text-[10px] font-bold text-slate-500 ">IP Address</label>
-                                                    <input
-                                                        type="text"
-                                                        value={formData.ipAddress}
-                                                        onChange={(e) => setFormData({ ...formData, ipAddress: e.target.value })}
-                                                        className="w-full px-3 py-2 bg-slate-950/50 border border-slate-800 rounded-lg text-sm text-white outline-none"
-                                                        required
-                                                    />
-                                                </div>
-                                                <div className="space-y-1">
-                                                    <label className="text-[10px] font-bold text-slate-500 ">Port</label>
-                                                    <input
-                                                        type="number"
-                                                        value={formData.port}
-                                                        onChange={(e) => setFormData({ ...formData, port: parseInt(e.target.value) })}
-                                                        className="w-full px-3 py-2 bg-slate-950/50 border border-slate-800 rounded-lg text-sm text-white outline-none tabular-nums"
-                                                        required
-                                                    />
-                                                </div>
-                                            </div>
-                                            <div className="grid grid-cols-3 gap-3">
-                                                <div className="space-y-1">
-                                                    <label className="text-[10px] font-bold text-slate-500 ">Slave ID</label>
-                                                    <input
-                                                        type="number"
-                                                        value={formData.slaveId}
-                                                        onChange={(e) => setFormData({ ...formData, slaveId: parseInt(e.target.value) })}
-                                                        className="w-full px-3 py-2 bg-slate-950/50 border border-slate-800 rounded-lg text-sm text-white outline-none tabular-nums"
-                                                    />
-                                                </div>
-                                                <div className="space-y-1">
-                                                    <label className="text-[10px] font-bold text-slate-500 ">Timeout (ms)</label>
-                                                    <input
-                                                        type="number"
-                                                        value={formData.timeout}
-                                                        onChange={(e) => setFormData({ ...formData, timeout: parseInt(e.target.value) })}
-                                                        className="w-full px-3 py-2 bg-slate-950/50 border border-slate-800 rounded-lg text-sm text-white outline-none tabular-nums"
-                                                    />
-                                                </div>
-                                                <div className="space-y-1">
-                                                    <label className="text-[10px] font-bold text-slate-500 ">Retry Count</label>
-                                                    <input
-                                                        type="number"
-                                                        value={formData.retryCount}
-                                                        onChange={(e) => setFormData({ ...formData, retryCount: parseInt(e.target.value) })}
-                                                        className="w-full px-3 py-2 bg-slate-950/50 border border-slate-800 rounded-lg text-sm text-white outline-none tabular-nums"
-                                                    />
-                                                </div>
-                                            </div>
-                                        </>
-                                    ) : (
-                                        <>
-                                            <div className="grid grid-cols-3 gap-3">
-                                                <div className="space-y-1 col-span-2">
-                                                    <label className="text-[10px] font-bold text-slate-500 ">IP Address</label>
-                                                    <input
-                                                        type="text"
-                                                        value={formData.iecIpAddress}
-                                                        onChange={(e) => setFormData({ ...formData, iecIpAddress: e.target.value })}
-                                                        className="w-full px-3 py-2 bg-slate-950/50 border border-slate-800 rounded-lg text-sm text-white outline-none"
-                                                        required
-                                                    />
-                                                </div>
-                                                <div className="space-y-1">
-                                                    <label className="text-[10px] font-bold text-slate-500 ">Port</label>
-                                                    <input
-                                                        type="number"
-                                                        value={formData.iecPort}
-                                                        onChange={(e) => setFormData({ ...formData, iecPort: parseInt(e.target.value) })}
-                                                        className="w-full px-3 py-2 bg-slate-950/50 border border-slate-800 rounded-lg text-sm text-white outline-none tabular-nums"
-                                                        required
-                                                    />
-                                                </div>
-                                            </div>
-                                            <div className="grid grid-cols-4 gap-3">
-                                                <div className="space-y-1">
-                                                    <label className="text-[10px] font-bold text-slate-500 ">ASDU Auth</label>
-                                                    <input
-                                                        type="number"
-                                                        value={formData.asduAddr}
-                                                        onChange={(e) => setFormData({ ...formData, asduAddr: parseInt(e.target.value) })}
-                                                        className="w-full px-3 py-2 bg-slate-950/50 border border-slate-800 rounded-lg text-sm text-white outline-none tabular-nums"
-                                                    />
-                                                </div>
-                                                <div className="space-y-1">
-                                                    <label className="text-[10px] font-bold text-slate-500 ">T0 Timeout</label>
-                                                    <input
-                                                        type="number"
-                                                        value={formData.t0}
-                                                        onChange={(e) => setFormData({ ...formData, t0: parseInt(e.target.value) })}
-                                                        className="w-full px-3 py-2 bg-slate-950/50 border border-slate-800 rounded-lg text-sm text-white outline-none tabular-nums"
-                                                    />
-                                                </div>
-                                                <div className="space-y-1">
-                                                    <label className="text-[10px] font-bold text-slate-500 ">T1 Limit</label>
-                                                    <input
-                                                        type="number"
-                                                        value={formData.t1}
-                                                        onChange={(e) => setFormData({ ...formData, t1: parseInt(e.target.value) })}
-                                                        className="w-full px-3 py-2 bg-slate-950/50 border border-slate-800 rounded-lg text-sm text-white outline-none tabular-nums"
-                                                    />
-                                                </div>
-                                                <div className="space-y-1">
-                                                    <label className="text-[10px] font-bold text-slate-500 ">T2 Lim</label>
-                                                    <input
-                                                        type="number"
-                                                        value={formData.t2}
-                                                        onChange={(e) => setFormData({ ...formData, t2: parseInt(e.target.value) })}
-                                                        className="w-full px-3 py-2 bg-slate-950/50 border border-slate-800 rounded-lg text-sm text-white outline-none tabular-nums"
-                                                    />
-                                                </div>
-                                            </div>
-                                            <div className="grid grid-cols-3 gap-3">
-                                                <div className="space-y-1">
-                                                    <label className="text-[10px] font-bold text-slate-500 ">T3 Lim</label>
-                                                    <input
-                                                        type="number"
-                                                        value={formData.t3}
-                                                        onChange={(e) => setFormData({ ...formData, t3: parseInt(e.target.value) })}
-                                                        className="w-full px-3 py-2 bg-slate-950/50 border border-slate-800 rounded-lg text-sm text-white outline-none tabular-nums"
-                                                    />
-                                                </div>
-                                                <div className="space-y-1">
-                                                    <label className="text-[10px] font-bold text-slate-500 ">K Window</label>
-                                                    <input
-                                                        type="number"
-                                                        value={formData.k}
-                                                        onChange={(e) => setFormData({ ...formData, k: parseInt(e.target.value) })}
-                                                        className="w-full px-3 py-2 bg-slate-950/50 border border-slate-800 rounded-lg text-sm text-white outline-none tabular-nums"
-                                                    />
-                                                </div>
-                                                <div className="space-y-1">
-                                                    <label className="text-[10px] font-bold text-slate-500 ">W Window</label>
-                                                    <input
-                                                        type="number"
-                                                        value={formData.w}
-                                                        onChange={(e) => setFormData({ ...formData, w: parseInt(e.target.value) })}
-                                                        className="w-full px-3 py-2 bg-slate-950/50 border border-slate-800 rounded-lg text-sm text-white outline-none tabular-nums"
-                                                    />
-                                                </div>
-                                            </div>
-                                        </>
-                                    )}
+                                    <div className="space-y-1">
+                                        <label className="text-[10px] font-bold text-slate-500 ">Port</label>
+                                        <input
+                                            type="number"
+                                            value={formData.iecPort}
+                                            onChange={(e) => setFormData({ ...formData, iecPort: parseInt(e.target.value) })}
+                                            className="w-full px-3 py-2 bg-slate-950/50 border border-slate-800 rounded-lg text-sm text-white outline-none tabular-nums"
+                                            required
+                                        />
+                                    </div>
                                 </div>
-
-                                <button
-                                    type="submit"
-                                    disabled={isSubmitting}
-                                    className="w-full py-4 bg-brand-green disabled:bg-brand-green/50 text-white font-bold  tracking-widest text-xs rounded-xl shadow-lg shadow-brand-green/20 hover:scale-[1.01] transition-all"
-                                >
-                                    {isSubmitting ? 'Saving...' : editingProtocol ? 'Update Protocol' : 'Create Protocol'}
-                                </button>
-                            </form>
-                        </motion.div>
+                                <div className="grid grid-cols-4 gap-3">
+                                    <div className="space-y-1">
+                                        <label className="text-[10px] font-bold text-slate-500 ">ASDU Auth</label>
+                                        <input
+                                            type="number"
+                                            value={formData.asduAddr}
+                                            onChange={(e) => setFormData({ ...formData, asduAddr: parseInt(e.target.value) })}
+                                            className="w-full px-3 py-2 bg-slate-950/50 border border-slate-800 rounded-lg text-sm text-white outline-none tabular-nums"
+                                        />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-[10px] font-bold text-slate-500 ">T0 Timeout</label>
+                                        <input
+                                            type="number"
+                                            value={formData.t0}
+                                            onChange={(e) => setFormData({ ...formData, t0: parseInt(e.target.value) })}
+                                            className="w-full px-3 py-2 bg-slate-950/50 border border-slate-800 rounded-lg text-sm text-white outline-none tabular-nums"
+                                        />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-[10px] font-bold text-slate-500 ">T1 Limit</label>
+                                        <input
+                                            type="number"
+                                            value={formData.t1}
+                                            onChange={(e) => setFormData({ ...formData, t1: parseInt(e.target.value) })}
+                                            className="w-full px-3 py-2 bg-slate-950/50 border border-slate-800 rounded-lg text-sm text-white outline-none tabular-nums"
+                                        />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-[10px] font-bold text-slate-500 ">T2 Lim</label>
+                                        <input
+                                            type="number"
+                                            value={formData.t2}
+                                            onChange={(e) => setFormData({ ...formData, t2: parseInt(e.target.value) })}
+                                            className="w-full px-3 py-2 bg-slate-950/50 border border-slate-800 rounded-lg text-sm text-white outline-none tabular-nums"
+                                        />
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-3 gap-3">
+                                    <div className="space-y-1">
+                                        <label className="text-[10px] font-bold text-slate-500 ">T3 Lim</label>
+                                        <input
+                                            type="number"
+                                            value={formData.t3}
+                                            onChange={(e) => setFormData({ ...formData, t3: parseInt(e.target.value) })}
+                                            className="w-full px-3 py-2 bg-slate-950/50 border border-slate-800 rounded-lg text-sm text-white outline-none tabular-nums"
+                                        />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-[10px] font-bold text-slate-500 ">K Window</label>
+                                        <input
+                                            type="number"
+                                            value={formData.k}
+                                            onChange={(e) => setFormData({ ...formData, k: parseInt(e.target.value) })}
+                                            className="w-full px-3 py-2 bg-slate-950/50 border border-slate-800 rounded-lg text-sm text-white outline-none tabular-nums"
+                                        />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-[10px] font-bold text-slate-500 ">W Window</label>
+                                        <input
+                                            type="number"
+                                            value={formData.w}
+                                            onChange={(e) => setFormData({ ...formData, w: parseInt(e.target.value) })}
+                                            className="w-full px-3 py-2 bg-slate-950/50 border border-slate-800 rounded-lg text-sm text-white outline-none tabular-nums"
+                                        />
+                                    </div>
+                                </div>
+                            </>
+                        )}
                     </div>
-                )}
-            </AnimatePresence>
+
+                    <button
+                        type="submit"
+                        disabled={isSubmitting}
+                        className="w-full py-4 bg-brand-green disabled:bg-brand-green/50 text-white font-bold  tracking-widest text-xs rounded-xl shadow-lg shadow-brand-green/20 hover:scale-[1.01] transition-all"
+                    >
+                        {isSubmitting ? 'Saving...' : editingProtocol ? 'Update Protocol' : 'Create Protocol'}
+                    </button>
+                </form>
+            </Modal>
 
             {/* Delete Confirmation Modal */}
             <AnimatePresence>
@@ -699,69 +687,21 @@ function ProtocolsContent() {
             </AnimatePresence>
 
             {/* Inline Plant Modal */}
-            <AnimatePresence>
-                {isPlantModalOpen && (
-                    <div className="fixed inset-0 z-[250] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
-                        <motion.div
-                            initial={{ scale: 0.95, opacity: 0 }}
-                            animate={{ scale: 1, opacity: 1 }}
-                            exit={{ scale: 0.95, opacity: 0 }}
-                            className="card-base w-full max-w-sm bg-slate-950 border-slate-800 overflow-hidden shadow-2xl"
-                        >
-                            <div className="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-900/30">
-                                <h2 className="text-lg font-bold text-white">Yeni Santral Ekle</h2>
-                                <button onClick={() => setIsPlantModalOpen(false)} className="p-2 text-slate-500 hover:text-white transition-colors">
-                                    <X size={20} />
-                                </button>
-                            </div>
-                            <form onSubmit={handleCreatePlant} className="p-6 space-y-4">
-                                <div className="space-y-2">
-                                    <label className="text-xs font-bold text-slate-400 tracking-widest">Şirket</label>
-                                    <select
-                                        value={newPlantData.companyId}
-                                        onChange={(e) => setNewPlantData({ ...newPlantData, companyId: e.target.value })}
-                                        className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none"
-                                        required
-                                    >
-                                        {companies.length === 0 && <option value="">Önce Şirket Ekleyin</option>}
-                                        {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                                    </select>
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-xs font-bold text-slate-400 tracking-widest">Santral Adı</label>
-                                    <input
-                                        type="text"
-                                        value={newPlantData.plantName}
-                                        onChange={(e) => setNewPlantData({ ...newPlantData, plantName: e.target.value })}
-                                        className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none"
-                                        required
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-xs font-bold text-slate-400 tracking-widest">Type</label>
-                                    <select
-                                        value={newPlantData.plantType}
-                                        onChange={(e) => setNewPlantData({ ...newPlantData, plantType: e.target.value })}
-                                        className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none"
-                                        required
-                                    >
-                                        <option value="SOLAR">Solar Power</option>
-                                        <option value="WIND">Wind Farm</option>
-                                        <option value="HYDRO">Hydroelectric</option>
-                                    </select>
-                                </div>
-                                <button
-                                    type="submit"
-                                    disabled={isCreatingPlant}
-                                    className="w-full py-4 bg-brand-green disabled:bg-brand-green/50 text-white font-bold tracking-widest text-xs rounded-xl shadow-lg shadow-brand-green/20 hover:scale-[1.01] transition-all"
-                                >
-                                    {isCreatingPlant ? 'Kaydediliyor...' : 'Kaydet'}
-                                </button>
-                            </form>
-                        </motion.div>
-                    </div>
-                )}
-            </AnimatePresence>
+            <Modal
+                isOpen={isPlantModalOpen}
+                onClose={() => setIsPlantModalOpen(false)}
+                title="Yeni Santral Ekle"
+                icon={Factory}
+                maxWidth="5xl"
+                zIndex={250}
+            >
+                <PlantForm
+                    companies={companies.map(c => ({ id: c.id, name: c.name }))}
+                    onSubmit={handlePlantSubmit}
+                    isSubmitting={isCreatingPlant}
+                    submitLabel="Santral Ekle"
+                />
+            </Modal>
         </div>
     );
 }

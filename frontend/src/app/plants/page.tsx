@@ -6,6 +6,9 @@ import { apiRequest } from '@/lib/api';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter, useSearchParams } from 'next/navigation';
 import toast from 'react-hot-toast';
+import Modal from '@/components/Modal';
+import PlantForm, { PlantFormData } from '@/components/forms/PlantForm';
+import CompanyForm, { CompanyFormData } from '@/components/forms/CompanyForm';
 
 interface Plant {
     id: string;
@@ -49,7 +52,6 @@ function PlantsContent() {
 
     // Inline Company Creation State
     const [isCompanyModalOpen, setIsCompanyModalOpen] = useState(false);
-    const [newCompanyName, setNewCompanyName] = useState('');
     const [isCreatingCompany, setIsCreatingCompany] = useState(false);
 
     const submittingRef = React.useRef(false);
@@ -130,18 +132,17 @@ function PlantsContent() {
         }
     };
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
+    const handlePlantSubmit = async (data: PlantFormData) => {
         if (submittingRef.current) return;
         submittingRef.current = true;
         setIsSubmitting(true);
         try {
             const body = {
-                companyId: formData.companyId,
-                plantName: formData.plantName,
-                latitude: formData.latitude ? parseFloat(formData.latitude) : null,
-                longitude: formData.longitude ? parseFloat(formData.longitude) : null,
-                plantType: formData.plantType,
+                companyId: data.companyId,
+                plantName: data.plantName,
+                latitude: data.latitude ? parseFloat(data.latitude) : null,
+                longitude: data.longitude ? parseFloat(data.longitude) : null,
+                plantType: data.plantType,
             };
 
             const url = editingPlant ? `/api/plants/${editingPlant.id}` : '/api/plants';
@@ -155,7 +156,6 @@ function PlantsContent() {
             if (res.ok) {
                 toast.success(editingPlant ? 'Santral güncellendi' : 'Santral oluşturuldu');
                 setIsModalOpen(false);
-                setFormData({ ...defaultFormData, companyId: initialCompanyId });
                 setEditingPlant(null);
                 fetchPlants();
             } else {
@@ -164,28 +164,31 @@ function PlantsContent() {
             }
         } catch (err) {
             console.error('Submit error:', err);
+            toast.error('Bir hata oluştu');
         } finally {
             setIsSubmitting(false);
             submittingRef.current = false;
         }
     };
 
-    const handleCreateCompany = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!newCompanyName.trim()) return;
+    const handleCompanySubmit = async (data: CompanyFormData) => {
         setIsCreatingCompany(true);
         try {
+            const body = {
+                ...data,
+                taxNumber: data.taxNumber ? parseInt(data.taxNumber) : null,
+            };
             const res = await apiRequest('/api/companies', {
                 method: 'POST',
-                body: JSON.stringify({ name: newCompanyName.trim() })
+                body: JSON.stringify(body)
             });
             if (res.ok) {
                 const newCompany = await res.json();
                 toast.success('Şirket oluşturuldu');
                 await fetchCompanies();
-                setFormData({ ...formData, companyId: newCompany.id });
+                setEditingPlant(prev => prev ? { ...prev, companyId: newCompany.id } : null);
+                setFormData(prev => ({ ...prev, companyId: newCompany.id }));
                 setIsCompanyModalOpen(false);
-                setNewCompanyName('');
             } else {
                 const data = await res.json();
                 toast.error(data.error || 'Şirket oluşturulamadı');
@@ -297,113 +300,29 @@ function PlantsContent() {
             </div>
 
             {/* Create / Edit Modal */}
-            <AnimatePresence>
-                {isModalOpen && (
-                    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
-                        <motion.div
-                            initial={{ scale: 0.95, opacity: 0 }}
-                            animate={{ scale: 1, opacity: 1 }}
-                            exit={{ scale: 0.95, opacity: 0 }}
-                            className="card-base w-full max-w-lg bg-slate-950 border-slate-800 overflow-hidden shadow-2xl"
-                        >
-                            <div className="p-6 border-b border-slate-800 flex justify-between items-center bg-slate-900/30">
-                                <div className="flex items-center gap-3">
-                                    <div className="p-2 rounded-lg bg-slate-950 border border-slate-800">
-                                        <Factory size={18} className="text-brand-green" />
-                                    </div>
-                                    <div>
-                                        <h2 className="text-lg font-bold text-white">{editingPlant ? 'Edit Plant' : 'New Plant'}</h2>
-                                        <p className="text-[10px] text-slate-500  tracking-widest">{editingPlant ? 'Update plant details' : 'Register a new power plant'}</p>
-                                    </div>
-                                </div>
-                                <button onClick={() => setIsModalOpen(false)} className="p-2 text-slate-500 hover:text-white transition-colors">
-                                    <X size={20} />
-                                </button>
-                            </div>
-                            <form onSubmit={handleSubmit} className="p-6 space-y-5">
-                                <div className="space-y-2">
-                                    <label className="text-xs font-bold text-slate-400  tracking-widest">Company</label>
-                                    <select
-                                        value={formData.companyId}
-                                        onChange={(e) => {
-                                            if (e.target.value === 'ADD_NEW') {
-                                                setIsCompanyModalOpen(true);
-                                            } else {
-                                                setFormData({ ...formData, companyId: e.target.value });
-                                            }
-                                        }}
-                                        className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none"
-                                        required
-                                    >
-                                        <option value="">Select Company...</option>
-                                        {companies.map(c => (
-                                            <option key={c.id} value={c.id}>{c.name}</option>
-                                        ))}
-                                        <option value="ADD_NEW" className="font-bold text-brand-green bg-brand-green/10">
-                                            + Yeni Şirket Ekle
-                                        </option>
-                                    </select>
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-xs font-bold text-slate-400  tracking-widest">Plant Name</label>
-                                    <input
-                                        type="text"
-                                        value={formData.plantName}
-                                        onChange={(e) => setFormData({ ...formData, plantName: e.target.value })}
-                                        className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none"
-                                        placeholder="e.g. Solar Plant Alpha"
-                                        required
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-xs font-bold text-slate-400  tracking-widest">Type</label>
-                                    <select
-                                        value={formData.plantType}
-                                        onChange={(e) => setFormData({ ...formData, plantType: e.target.value as any })}
-                                        className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none"
-                                        required
-                                    >
-                                        <option value="SOLAR">Solar Power</option>
-                                        <option value="WIND">Wind Farm</option>
-                                        <option value="HYDRO">Hydroelectric</option>
-                                    </select>
-                                </div>
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="space-y-2">
-                                        <label className="text-xs font-bold text-slate-400  tracking-widest">Latitude</label>
-                                        <input
-                                            type="number"
-                                            step="any"
-                                            value={formData.latitude}
-                                            onChange={(e) => setFormData({ ...formData, latitude: e.target.value })}
-                                            className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none tabular-nums"
-                                            placeholder="38.4237"
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <label className="text-xs font-bold text-slate-400  tracking-widest">Longitude</label>
-                                        <input
-                                            type="number"
-                                            step="any"
-                                            value={formData.longitude}
-                                            onChange={(e) => setFormData({ ...formData, longitude: e.target.value })}
-                                            className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none tabular-nums"
-                                            placeholder="27.1428"
-                                        />
-                                    </div>
-                                </div>
-                                <button
-                                    type="submit"
-                                    disabled={isSubmitting}
-                                    className="w-full py-4 bg-brand-green disabled:bg-brand-green/50 text-white font-bold  tracking-widest text-xs rounded-xl shadow-lg shadow-brand-green/20 hover:scale-[1.01] transition-all"
-                                >
-                                    {isSubmitting ? 'Saving...' : editingPlant ? 'Update Plant' : 'Create Plant'}
-                                </button>
-                            </form>
-                        </motion.div>
-                    </div>
-                )}
-            </AnimatePresence>
+            <Modal
+                isOpen={isModalOpen}
+                onClose={() => setIsModalOpen(false)}
+                title={editingPlant ? 'Edit Plant' : 'New Plant'}
+                subtitle={editingPlant ? 'Update plant details' : 'Register a new power plant'}
+                icon={Factory}
+                maxWidth="5xl"
+            >
+                <PlantForm
+                    initialData={editingPlant ? {
+                        companyId: editingPlant.companyId,
+                        plantName: editingPlant.plantName,
+                        latitude: editingPlant.latitude ? editingPlant.latitude.toString() : '',
+                        longitude: editingPlant.longitude ? editingPlant.longitude.toString() : '',
+                        plantType: editingPlant.plantType
+                    } : { companyId: initialCompanyId }}
+                    companies={companies}
+                    onSubmit={handlePlantSubmit}
+                    onAddNewCompany={() => setIsCompanyModalOpen(true)}
+                    isSubmitting={isSubmitting}
+                    submitLabel={editingPlant ? 'Update Plant' : 'Create Plant'}
+                />
+            </Modal>
 
             {/* Delete Confirmation Modal */}
             <AnimatePresence>
@@ -457,52 +376,20 @@ function PlantsContent() {
             </AnimatePresence>
 
             {/* Inline Company Create Modal */}
-            <AnimatePresence>
-                {isCompanyModalOpen && (
-                    <div className="fixed inset-0 z-[250] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
-                        <motion.div
-                            initial={{ scale: 0.95, opacity: 0 }}
-                            animate={{ scale: 1, opacity: 1 }}
-                            exit={{ scale: 0.95, opacity: 0 }}
-                            className="card-base w-full max-w-md bg-slate-950 border-slate-800 overflow-hidden shadow-2xl"
-                        >
-                            <div className="p-6 border-b border-slate-800 flex justify-between items-center bg-slate-900/30">
-                                <div className="flex items-center gap-3">
-                                    <div className="p-2 rounded-lg bg-slate-950 border border-slate-800">
-                                        <Building2 size={18} className="text-brand-green" />
-                                    </div>
-                                    <div>
-                                        <h2 className="text-lg font-bold text-white">Yeni Şirket Ekle</h2>
-                                    </div>
-                                </div>
-                                <button onClick={() => setIsCompanyModalOpen(false)} className="p-2 text-slate-500 hover:text-white transition-colors">
-                                    <X size={20} />
-                                </button>
-                            </div>
-                            <form onSubmit={handleCreateCompany} className="p-6 space-y-5">
-                                <div className="space-y-2">
-                                    <label className="text-xs font-bold text-slate-400 tracking-widest">Şirket Adı</label>
-                                    <input
-                                        type="text"
-                                        value={newCompanyName}
-                                        onChange={(e) => setNewCompanyName(e.target.value)}
-                                        className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none"
-                                        placeholder="e.g. Energy Corp"
-                                        required
-                                    />
-                                </div>
-                                <button
-                                    type="submit"
-                                    disabled={isCreatingCompany}
-                                    className="w-full py-4 bg-brand-green disabled:bg-brand-green/50 text-white font-bold tracking-widest text-xs rounded-xl shadow-lg shadow-brand-green/20 hover:scale-[1.01] transition-all"
-                                >
-                                    {isCreatingCompany ? 'Ekleniyor...' : 'Şirketi Ekle'}
-                                </button>
-                            </form>
-                        </motion.div>
-                    </div>
-                )}
-            </AnimatePresence>
+            <Modal
+                isOpen={isCompanyModalOpen}
+                onClose={() => setIsCompanyModalOpen(false)}
+                title="Yeni Şirket Ekle"
+                icon={Building2}
+                maxWidth="xl"
+                zIndex={250}
+            >
+                <CompanyForm
+                    onSubmit={handleCompanySubmit}
+                    isSubmitting={isCreatingCompany}
+                    submitLabel="Şirketi Ekle"
+                />
+            </Modal>
         </div>
     );
 }

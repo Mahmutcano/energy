@@ -285,3 +285,101 @@
 .main-viewport {
   @apply h-[calc(100vh-3.5rem)] overflow-y-auto overflow-x-hidden;
 }
+
+/* 
+  ========================================
+  LEAFLET & GEOSEARCH DARK THEME 
+  ========================================
+*/
+.leaflet-container {
+  background: #020617 !important;
+  font-family: inherit !important;
+}
+
+.leaflet-geosearch-bar {
+  z-index: 1000 !important;
+  position: absolute !important;
+  top: 10px !important;
+  left: 50px !important;
+  right: 10px !important;
+  width: auto !important;
+}
+
+.leaflet-geosearch-bar form {
+  background-color: #0f172a !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -2px rgba(0, 0, 0, 0.2) !important;
+  padding: 4px 8px !important;
+  transition: all 0.2s ease !important;
+}
+
+.leaflet-geosearch-bar form:focus-within {
+  border-color: #10b981 !important;
+  box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.1) !important;
+}
+
+.leaflet-geosearch-bar form input {
+  color: white !important;
+  background: transparent !important;
+  font-size: 14px !important;
+  height: 40px !important;
+  padding-left: 10px !important;
+  width: 100% !important;
+}
+
+.leaflet-control-zoom {
+  border: none !important;
+  margin-top: 10px !important;
+  margin-left: 14px !important;
+}
+
+.leaflet-control-zoom a {
+  background-color: #0f172a !important;
+  color: white !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 10px !important;
+  margin-bottom: 6px !important;
+  width: 32px !important;
+  height: 32px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  transition: all 0.2s ease !important;
+}
+
+.leaflet-control-zoom a:hover {
+  background-color: #1e293b !important;
+  color: #10b981 !important;
+}
+
+.leaflet-geosearch-results {
+  background-color: rgba(15, 23, 42, 0.95) !important;
+  backdrop-filter: blur(12px) !important;
+  color: #94a3b8 !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 14px !important;
+  margin-top: 10px !important;
+  overflow: hidden !important;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5) !important;
+}
+
+.leaflet-geosearch-results>* {
+  padding: 12px 16px !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+  font-size: 13px !important;
+  cursor: pointer !important;
+  transition: all 0.15s ease !important;
+}
+
+.leaflet-geosearch-results>.active,
+.leaflet-geosearch-results> :hover {
+  background-color: rgba(30, 41, 59, 0.8) !important;
+  color: #10b981 !important;
+  padding-left: 20px !important;
+}
+
+.leaflet-bar {
+  border: none !important;
+  box-shadow: none !important;
+}

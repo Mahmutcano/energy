@@ -57,6 +57,7 @@ const MENU_GROUPS = [
         label: 'Monitoring',
         items: [
             { name: 'Dashboard', href: '/', icon: LayoutDashboard },
+            { name: 'Live Monitoring', href: '/monitoring/live', icon: Activity },
             { name: 'Analytics', href: '/analytics', icon: BarChart3 },
         ]
     },

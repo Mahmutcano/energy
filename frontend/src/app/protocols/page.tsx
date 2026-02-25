@@ -5,6 +5,7 @@ import { Network, Plus, X, Cpu, Factory, Wifi, Settings2, Pencil, Trash2, Cpu as
 import { apiRequest } from '@/lib/api';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter, useSearchParams } from 'next/navigation';
+import toast from 'react-hot-toast';
 
 interface CommProtocol {
     id: string;
@@ -61,6 +62,7 @@ function ProtocolsContent() {
 
     const [protocols, setProtocols] = useState<CommProtocol[]>([]);
     const [plants, setPlants] = useState<any[]>([]);
+    const [companies, setCompanies] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -69,6 +71,15 @@ function ProtocolsContent() {
     const submittingRef = React.useRef(false);
     const [protocolToDelete, setProtocolToDelete] = useState<CommProtocol | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
+
+    // Inline Plant Modal State
+    const [isPlantModalOpen, setIsPlantModalOpen] = useState(false);
+    const [isCreatingPlant, setIsCreatingPlant] = useState(false);
+    const [newPlantData, setNewPlantData] = useState({
+        plantName: '',
+        companyId: '',
+        plantType: 'SOLAR'
+    });
 
     const fetchProtocols = async () => {
         try {
@@ -92,12 +103,21 @@ function ProtocolsContent() {
             const plantRes = await apiRequest('/api/plants');
             if (plantRes.ok) setPlants(await plantRes.json());
         } catch (err) {
-            console.error('Failed to fetch:', err);
+            console.error('Failed to fetch plants:', err);
         }
     };
 
+    const fetchCompanies = async () => {
+        try {
+            const compRes = await apiRequest('/api/companies');
+            if (compRes.ok) setCompanies(await compRes.json());
+        } catch (err) {
+            console.error('Failed to fetch companies:', err);
+        }
+    }
+
     useEffect(() => {
-        Promise.all([fetchProtocols(), fetchPlants()]);
+        Promise.all([fetchProtocols(), fetchPlants(), fetchCompanies()]);
     }, [initialPlantId]);
 
     const openCreateModal = () => {
@@ -201,19 +221,47 @@ function ProtocolsContent() {
                 body: JSON.stringify(body)
             });
             if (res.ok) {
+                toast.success(editingProtocol ? 'Protokol güncellendi' : 'Protokol oluşturuldu');
                 setIsModalOpen(false);
                 setFormData({ ...defaultFormData, plantId: initialPlantId });
                 setEditingProtocol(null);
                 fetchProtocols();
             } else {
                 const data = await res.json();
-                alert(data.error || 'Operation failed');
+                toast.error(data.error || 'Operation failed');
             }
         } catch (err) {
             console.error('Create error:', err);
+            toast.error('Bir hata oluştu');
         } finally {
             setIsSubmitting(false);
             submittingRef.current = false;
+        }
+    };
+
+    const handleCreatePlant = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setIsCreatingPlant(true);
+        try {
+            const res = await apiRequest('/api/plants', {
+                method: 'POST',
+                body: JSON.stringify(newPlantData)
+            });
+            if (res.ok) {
+                const newPlant = await res.json();
+                toast.success('Santral oluşturuldu');
+                await fetchPlants();
+                setFormData({ ...formData, plantId: newPlant.id });
+                setIsPlantModalOpen(false);
+                setNewPlantData({ plantName: '', companyId: '', plantType: 'SOLAR' });
+            } else {
+                const data = await res.json();
+                toast.error(data.error || 'Santral oluşturulamadı');
+            }
+        } catch (err) {
+            toast.error('Bir hata oluştu');
+        } finally {
+            setIsCreatingPlant(false);
         }
     };
 
@@ -388,7 +436,14 @@ function ProtocolsContent() {
                                         <label className="text-xs font-bold text-slate-400  tracking-widest">Plant</label>
                                         <select
                                             value={formData.plantId}
-                                            onChange={(e) => setFormData({ ...formData, plantId: e.target.value })}
+                                            onChange={(e) => {
+                                                if (e.target.value === 'ADD_NEW') {
+                                                    setIsPlantModalOpen(true);
+                                                    setNewPlantData({ ...newPlantData, companyId: companies.length > 0 ? companies[0].id : '' });
+                                                } else {
+                                                    setFormData({ ...formData, plantId: e.target.value });
+                                                }
+                                            }}
                                             className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none"
                                             required
                                         >
@@ -396,6 +451,7 @@ function ProtocolsContent() {
                                             {plants.map((p: any) => (
                                                 <option key={p.id} value={p.id}>{p.plantName}</option>
                                             ))}
+                                            <option value="ADD_NEW" className="font-bold text-brand-green bg-brand-green/10">+ Yeni Santral Ekle</option>
                                         </select>
                                     </div>
                                 </div>
@@ -637,6 +693,71 @@ function ProtocolsContent() {
                                     </button>
                                 </div>
                             </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+
+            {/* Inline Plant Modal */}
+            <AnimatePresence>
+                {isPlantModalOpen && (
+                    <div className="fixed inset-0 z-[250] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+                        <motion.div
+                            initial={{ scale: 0.95, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.95, opacity: 0 }}
+                            className="card-base w-full max-w-sm bg-slate-950 border-slate-800 overflow-hidden shadow-2xl"
+                        >
+                            <div className="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-900/30">
+                                <h2 className="text-lg font-bold text-white">Yeni Santral Ekle</h2>
+                                <button onClick={() => setIsPlantModalOpen(false)} className="p-2 text-slate-500 hover:text-white transition-colors">
+                                    <X size={20} />
+                                </button>
+                            </div>
+                            <form onSubmit={handleCreatePlant} className="p-6 space-y-4">
+                                <div className="space-y-2">
+                                    <label className="text-xs font-bold text-slate-400 tracking-widest">Şirket</label>
+                                    <select
+                                        value={newPlantData.companyId}
+                                        onChange={(e) => setNewPlantData({ ...newPlantData, companyId: e.target.value })}
+                                        className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none"
+                                        required
+                                    >
+                                        {companies.length === 0 && <option value="">Önce Şirket Ekleyin</option>}
+                                        {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                    </select>
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-xs font-bold text-slate-400 tracking-widest">Santral Adı</label>
+                                    <input
+                                        type="text"
+                                        value={newPlantData.plantName}
+                                        onChange={(e) => setNewPlantData({ ...newPlantData, plantName: e.target.value })}
+                                        className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none"
+                                        required
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-xs font-bold text-slate-400 tracking-widest">Type</label>
+                                    <select
+                                        value={newPlantData.plantType}
+                                        onChange={(e) => setNewPlantData({ ...newPlantData, plantType: e.target.value })}
+                                        className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none"
+                                        required
+                                    >
+                                        <option value="SOLAR">Solar Power</option>
+                                        <option value="WIND">Wind Farm</option>
+                                        <option value="HYDRO">Hydroelectric</option>
+                                    </select>
+                                </div>
+                                <button
+                                    type="submit"
+                                    disabled={isCreatingPlant}
+                                    className="w-full py-4 bg-brand-green disabled:bg-brand-green/50 text-white font-bold tracking-widest text-xs rounded-xl shadow-lg shadow-brand-green/20 hover:scale-[1.01] transition-all"
+                                >
+                                    {isCreatingPlant ? 'Kaydediliyor...' : 'Kaydet'}
+                                </button>
+                            </form>
                         </motion.div>
                     </div>
                 )}

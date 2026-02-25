@@ -46,6 +46,12 @@ function PlantsContent() {
     const [formData, setFormData] = useState({ ...defaultFormData, companyId: initialCompanyId });
     const [plantToDelete, setPlantToDelete] = useState<Plant | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
+
+    // Inline Company Creation State
+    const [isCompanyModalOpen, setIsCompanyModalOpen] = useState(false);
+    const [newCompanyName, setNewCompanyName] = useState('');
+    const [isCreatingCompany, setIsCreatingCompany] = useState(false);
+
     const submittingRef = React.useRef(false);
 
     const fetchPlants = async () => {
@@ -161,6 +167,34 @@ function PlantsContent() {
         } finally {
             setIsSubmitting(false);
             submittingRef.current = false;
+        }
+    };
+
+    const handleCreateCompany = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!newCompanyName.trim()) return;
+        setIsCreatingCompany(true);
+        try {
+            const res = await apiRequest('/api/companies', {
+                method: 'POST',
+                body: JSON.stringify({ name: newCompanyName.trim() })
+            });
+            if (res.ok) {
+                const newCompany = await res.json();
+                toast.success('Şirket oluşturuldu');
+                await fetchCompanies();
+                setFormData({ ...formData, companyId: newCompany.id });
+                setIsCompanyModalOpen(false);
+                setNewCompanyName('');
+            } else {
+                const data = await res.json();
+                toast.error(data.error || 'Şirket oluşturulamadı');
+            }
+        } catch (err) {
+            console.error('Create company error:', err);
+            toast.error('Bir hata oluştu');
+        } finally {
+            setIsCreatingCompany(false);
         }
     };
 
@@ -291,7 +325,13 @@ function PlantsContent() {
                                     <label className="text-xs font-bold text-slate-400  tracking-widest">Company</label>
                                     <select
                                         value={formData.companyId}
-                                        onChange={(e) => setFormData({ ...formData, companyId: e.target.value })}
+                                        onChange={(e) => {
+                                            if (e.target.value === 'ADD_NEW') {
+                                                setIsCompanyModalOpen(true);
+                                            } else {
+                                                setFormData({ ...formData, companyId: e.target.value });
+                                            }
+                                        }}
                                         className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none"
                                         required
                                     >
@@ -299,6 +339,9 @@ function PlantsContent() {
                                         {companies.map(c => (
                                             <option key={c.id} value={c.id}>{c.name}</option>
                                         ))}
+                                        <option value="ADD_NEW" className="font-bold text-brand-green bg-brand-green/10">
+                                            + Yeni Şirket Ekle
+                                        </option>
                                     </select>
                                 </div>
                                 <div className="space-y-2">
@@ -408,6 +451,54 @@ function PlantsContent() {
                                     </button>
                                 </div>
                             </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+
+            {/* Inline Company Create Modal */}
+            <AnimatePresence>
+                {isCompanyModalOpen && (
+                    <div className="fixed inset-0 z-[250] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+                        <motion.div
+                            initial={{ scale: 0.95, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.95, opacity: 0 }}
+                            className="card-base w-full max-w-md bg-slate-950 border-slate-800 overflow-hidden shadow-2xl"
+                        >
+                            <div className="p-6 border-b border-slate-800 flex justify-between items-center bg-slate-900/30">
+                                <div className="flex items-center gap-3">
+                                    <div className="p-2 rounded-lg bg-slate-950 border border-slate-800">
+                                        <Building2 size={18} className="text-brand-green" />
+                                    </div>
+                                    <div>
+                                        <h2 className="text-lg font-bold text-white">Yeni Şirket Ekle</h2>
+                                    </div>
+                                </div>
+                                <button onClick={() => setIsCompanyModalOpen(false)} className="p-2 text-slate-500 hover:text-white transition-colors">
+                                    <X size={20} />
+                                </button>
+                            </div>
+                            <form onSubmit={handleCreateCompany} className="p-6 space-y-5">
+                                <div className="space-y-2">
+                                    <label className="text-xs font-bold text-slate-400 tracking-widest">Şirket Adı</label>
+                                    <input
+                                        type="text"
+                                        value={newCompanyName}
+                                        onChange={(e) => setNewCompanyName(e.target.value)}
+                                        className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none"
+                                        placeholder="e.g. Energy Corp"
+                                        required
+                                    />
+                                </div>
+                                <button
+                                    type="submit"
+                                    disabled={isCreatingCompany}
+                                    className="w-full py-4 bg-brand-green disabled:bg-brand-green/50 text-white font-bold tracking-widest text-xs rounded-xl shadow-lg shadow-brand-green/20 hover:scale-[1.01] transition-all"
+                                >
+                                    {isCreatingCompany ? 'Ekleniyor...' : 'Şirketi Ekle'}
+                                </button>
+                            </form>
                         </motion.div>
                     </div>
                 )}

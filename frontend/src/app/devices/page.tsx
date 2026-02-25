@@ -40,6 +40,7 @@ function DevicesContent() {
     const [devices, setDevices] = useState<Device[]>([]);
     const [protocols, setProtocols] = useState<ProtocolConfig[]>([]);
     const [profiles, setProfiles] = useState<DatasheetProfile[]>([]);
+    const [plants, setPlants] = useState<{ id: string; plantName: string }[]>([]);
     const [loading, setLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -55,6 +56,26 @@ function DevicesContent() {
     });
     const [deviceToDelete, setDeviceToDelete] = useState<Device | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
+
+    // Inline Modals State
+    const [isProtocolModalOpen, setIsProtocolModalOpen] = useState(false);
+    const [iscreatingProtocol, setIsCreatingProtocol] = useState(false);
+    const [newProtocolData, setNewProtocolData] = useState({
+        plantId: '',
+        configName: '',
+        protocolType: 'MODBUS',
+        ipAddress: '127.0.0.1',
+        port: 502,
+        slaveId: 1
+    });
+
+    const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+    const [isCreatingProfile, setIsCreatingProfile] = useState(false);
+    const [newProfileData, setNewProfileData] = useState({
+        name: '',
+        protocolType: 'MODBUS'
+    });
+
     const submittingRef = React.useRef(false);
 
     const fetchDevices = async () => {
@@ -98,8 +119,17 @@ function DevicesContent() {
         }
     };
 
+    const fetchPlants = async () => {
+        try {
+            const res = await apiRequest('/api/plants');
+            if (res.ok) setPlants(await res.json());
+        } catch (err) {
+            console.error('Failed to fetch plants:', err);
+        }
+    };
+
     useEffect(() => {
-        Promise.all([fetchDevices(), fetchProtocols(), fetchProfiles()]);
+        Promise.all([fetchDevices(), fetchProtocols(), fetchProfiles(), fetchPlants()]);
     }, [initialProtocolId]);
 
 
@@ -200,6 +230,75 @@ function DevicesContent() {
         } finally {
             setIsSubmitting(false);
             submittingRef.current = false;
+        }
+    };
+
+    const handleCreateProtocol = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setIsCreatingProtocol(true);
+        try {
+            const body = {
+                plantId: newProtocolData.plantId,
+                configName: newProtocolData.configName,
+                protocolType: newProtocolData.protocolType,
+                ...(newProtocolData.protocolType === 'MODBUS' ? {
+                    modbusConfig: {
+                        ipAddress: newProtocolData.ipAddress,
+                        port: Number(newProtocolData.port),
+                        slaveId: Number(newProtocolData.slaveId),
+                    }
+                } : {
+                    iec104Config: {
+                        ipAddress: newProtocolData.ipAddress,
+                        port: Number(newProtocolData.port),
+                        asduAddr: Number(newProtocolData.slaveId),
+                    }
+                })
+            };
+            const res = await apiRequest('/api/comm-protocols', {
+                method: 'POST',
+                body: JSON.stringify(body)
+            });
+            if (res.ok) {
+                const newProto = await res.json();
+                toast.success('Protokol oluşturuldu');
+                await fetchProtocols();
+                setFormData({ ...formData, protocolConfigId: newProto.id });
+                setIsProtocolModalOpen(false);
+            } else {
+                const data = await res.json();
+                toast.error(data.error || 'Protokol oluşturulamadı');
+            }
+        } catch (err) {
+            toast.error('Bir hata oluştu');
+        } finally {
+            setIsCreatingProtocol(false);
+        }
+    };
+
+    const handleCreateProfile = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setIsCreatingProfile(true);
+        try {
+            const res = await apiRequest('/api/datasheet-profiles', {
+                method: 'POST',
+                body: JSON.stringify(newProfileData)
+            });
+            if (res.ok) {
+                const newProf = await res.json();
+                toast.success('Datasheet Profili oluşturuldu');
+                await fetchProfiles();
+                setFormData({ ...formData, datasheetProfileId: newProf.id });
+                setIsProfileModalOpen(false);
+                setNewProfileData({ name: '', protocolType: 'MODBUS' });
+            } else {
+                const data = await res.json();
+                toast.error(data.error || 'Profil oluşturulamadı');
+            }
+        } catch (err) {
+            toast.error('Bir hata oluştu');
+        } finally {
+            setIsCreatingProfile(false);
         }
     };
 
@@ -361,7 +460,14 @@ function DevicesContent() {
                                     <label className="text-xs font-bold text-slate-400  tracking-widest">Protocol Configuration</label>
                                     <select
                                         value={formData.protocolConfigId}
-                                        onChange={(e) => setFormData({ ...formData, protocolConfigId: e.target.value })}
+                                        onChange={(e) => {
+                                            if (e.target.value === 'ADD_NEW') {
+                                                setIsProtocolModalOpen(true);
+                                                setNewProtocolData({ ...newProtocolData, plantId: plants.length > 0 ? plants[0].id : '' });
+                                            } else {
+                                                setFormData({ ...formData, protocolConfigId: e.target.value });
+                                            }
+                                        }}
                                         className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none"
                                         required
                                     >
@@ -369,19 +475,27 @@ function DevicesContent() {
                                         {protocols.map(p => (
                                             <option key={p.id} value={p.id}>{p.configName} ({p.plant?.plantName})</option>
                                         ))}
+                                        <option value="ADD_NEW" className="font-bold text-brand-green bg-brand-green/10">+ Yeni Protokol Ekle</option>
                                     </select>
                                 </div>
                                 <div className="space-y-2">
                                     <label className="text-xs font-bold text-slate-400  tracking-widest">Datasheet Profile</label>
                                     <select
                                         value={formData.datasheetProfileId}
-                                        onChange={(e) => setFormData({ ...formData, datasheetProfileId: e.target.value })}
+                                        onChange={(e) => {
+                                            if (e.target.value === 'ADD_NEW') {
+                                                setIsProfileModalOpen(true);
+                                            } else {
+                                                setFormData({ ...formData, datasheetProfileId: e.target.value });
+                                            }
+                                        }}
                                         className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none"
                                     >
                                         <option value="">No Profile Assigned</option>
                                         {profiles.map(p => (
                                             <option key={p.id} value={p.id}>{p.name} ({p.protocolType})</option>
                                         ))}
+                                        <option value="ADD_NEW" className="font-bold text-brand-green bg-brand-green/10">+ Yeni Profil Ekle</option>
                                     </select>
                                 </div>
                                 <div className="space-y-2">
@@ -488,6 +602,152 @@ function DevicesContent() {
                                     </button>
                                 </div>
                             </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+
+            {/* Inline Protocol Create Modal */}
+            <AnimatePresence>
+                {isProtocolModalOpen && (
+                    <div className="fixed inset-0 z-[250] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md overflow-y-auto">
+                        <motion.div
+                            initial={{ scale: 0.95, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.95, opacity: 0 }}
+                            className="card-base w-full max-w-lg bg-slate-950 border-slate-800 overflow-hidden shadow-2xl my-8"
+                        >
+                            <div className="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-900/30">
+                                <h2 className="text-lg font-bold text-white">Yeni Protokol Ekle</h2>
+                                <button onClick={() => setIsProtocolModalOpen(false)} className="p-2 text-slate-500 hover:text-white transition-colors">
+                                    <X size={20} />
+                                </button>
+                            </div>
+                            <form onSubmit={handleCreateProtocol} className="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
+                                <div className="space-y-2">
+                                    <label className="text-xs font-bold text-slate-400 tracking-widest">Santral (Plant)</label>
+                                    <select
+                                        value={newProtocolData.plantId}
+                                        onChange={(e) => setNewProtocolData({ ...newProtocolData, plantId: e.target.value })}
+                                        className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none"
+                                        required
+                                    >
+                                        {plants.length === 0 && <option value="">Önce Santral Ekleyin</option>}
+                                        {plants.map(p => <option key={p.id} value={p.id}>{p.plantName}</option>)}
+                                    </select>
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-xs font-bold text-slate-400 tracking-widest">Config Adı</label>
+                                    <input
+                                        type="text"
+                                        value={newProtocolData.configName}
+                                        onChange={(e) => setNewProtocolData({ ...newProtocolData, configName: e.target.value })}
+                                        className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none"
+                                        required
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-xs font-bold text-slate-400 tracking-widest">Protokol Türü</label>
+                                    <select
+                                        value={newProtocolData.protocolType}
+                                        onChange={(e) => setNewProtocolData({ ...newProtocolData, protocolType: e.target.value })}
+                                        className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none"
+                                    >
+                                        <option value="MODBUS">MODBUS</option>
+                                        <option value="IEC104">IEC104</option>
+                                    </select>
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-bold text-slate-400 tracking-widest">IP Address</label>
+                                        <input
+                                            type="text"
+                                            value={newProtocolData.ipAddress}
+                                            onChange={(e) => setNewProtocolData({ ...newProtocolData, ipAddress: e.target.value })}
+                                            className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none"
+                                            required
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-bold text-slate-400 tracking-widest">Port</label>
+                                        <input
+                                            type="number"
+                                            value={newProtocolData.port}
+                                            onChange={(e) => setNewProtocolData({ ...newProtocolData, port: Number(e.target.value) })}
+                                            className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none"
+                                            required
+                                        />
+                                    </div>
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-xs font-bold text-slate-400 tracking-widest">{newProtocolData.protocolType === 'MODBUS' ? 'Slave ID' : 'ASDU Address'}</label>
+                                    <input
+                                        type="number"
+                                        value={newProtocolData.slaveId}
+                                        onChange={(e) => setNewProtocolData({ ...newProtocolData, slaveId: Number(e.target.value) })}
+                                        className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none"
+                                        required
+                                    />
+                                </div>
+                                <button
+                                    type="submit"
+                                    disabled={iscreatingProtocol}
+                                    className="w-full py-4 bg-brand-green disabled:bg-brand-green/50 text-white font-bold tracking-widest text-xs rounded-xl shadow-lg shadow-brand-green/20 hover:scale-[1.01] transition-all"
+                                >
+                                    {iscreatingProtocol ? 'Kaydediliyor...' : 'Kaydet'}
+                                </button>
+                            </form>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+
+            {/* Inline Profile Create Modal */}
+            <AnimatePresence>
+                {isProfileModalOpen && (
+                    <div className="fixed inset-0 z-[250] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+                        <motion.div
+                            initial={{ scale: 0.95, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.95, opacity: 0 }}
+                            className="card-base w-full max-w-sm bg-slate-950 border-slate-800 overflow-hidden shadow-2xl"
+                        >
+                            <div className="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-900/30">
+                                <h2 className="text-lg font-bold text-white">Yeni Profil Ekle</h2>
+                                <button onClick={() => setIsProfileModalOpen(false)} className="p-2 text-slate-500 hover:text-white transition-colors">
+                                    <X size={20} />
+                                </button>
+                            </div>
+                            <form onSubmit={handleCreateProfile} className="p-6 space-y-4">
+                                <div className="space-y-2">
+                                    <label className="text-xs font-bold text-slate-400 tracking-widest">Profile Name</label>
+                                    <input
+                                        type="text"
+                                        value={newProfileData.name}
+                                        onChange={(e) => setNewProfileData({ ...newProfileData, name: e.target.value })}
+                                        className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none"
+                                        required
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-xs font-bold text-slate-400 tracking-widest">Protocol Type</label>
+                                    <select
+                                        value={newProfileData.protocolType}
+                                        onChange={(e) => setNewProfileData({ ...newProfileData, protocolType: e.target.value })}
+                                        className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none"
+                                    >
+                                        <option value="MODBUS">MODBUS</option>
+                                        <option value="IEC104">IEC104</option>
+                                    </select>
+                                </div>
+                                <button
+                                    type="submit"
+                                    disabled={isCreatingProfile}
+                                    className="w-full py-4 bg-brand-green disabled:bg-brand-green/50 text-white font-bold tracking-widest text-xs rounded-xl shadow-lg shadow-brand-green/20 hover:scale-[1.01] transition-all"
+                                >
+                                    {isCreatingProfile ? 'Kaydediliyor...' : 'Kaydet'}
+                                </button>
+                            </form>
                         </motion.div>
                     </div>
                 )}

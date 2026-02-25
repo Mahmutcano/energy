@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Building2, Plus, X, Users, Factory, ToggleLeft, ToggleRight, Pencil, Trash2, Settings, AlertTriangle } from 'lucide-react';
 import { apiRequest } from '@/lib/api';
 import { motion, AnimatePresence } from 'framer-motion';
+import toast from 'react-hot-toast';
 import { useRouter } from 'next/navigation';
 
 interface CompanyProfile {
@@ -137,7 +138,7 @@ export default function CompaniesPage() {
                 fetchCompanies();
             } else {
                 const data = await res.json();
-                alert(data.error || 'Operation failed');
+                toast.error(data.error || 'Operation failed');
             }
         } catch (err) {
             console.error('Submit error:', err);

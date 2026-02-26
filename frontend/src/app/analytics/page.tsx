@@ -29,51 +29,36 @@ export default function Analytics() {
     const [chartData, setChartData] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
 
-    // Initial load
     useEffect(() => {
         const fetchInitial = async () => {
             try {
                 const res = await apiRequest('/api/companies');
                 if (res.ok) setCompanies(await res.json());
-            } catch (err) {
-                console.error("Fetch companies error:", err);
-            }
+            } catch (err) { console.error("Fetch companies error:", err); }
         };
         fetchInitial();
     }, []);
 
-    // Fetch plants when company changes
     useEffect(() => {
         if (!selectedCompany) { setPlants([]); return; }
         const fetchPlants = async () => {
             const res = await apiRequest('/api/plants');
-            if (res.ok) {
-                const all = await res.json();
-                setPlants(all.filter((p: any) => p.company_id === selectedCompany));
-            }
+            if (res.ok) { const all = await res.json(); setPlants(all.filter((p: any) => p.company_id === selectedCompany)); }
         };
         fetchPlants();
-        setSelectedPlant('');
-        setSelectedDevice('');
-        setSelectedPoint('');
+        setSelectedPlant(''); setSelectedDevice(''); setSelectedPoint('');
     }, [selectedCompany]);
 
-    // Fetch devices when plant changes
     useEffect(() => {
         if (!selectedPlant) { setDevices([]); return; }
         const fetchDevices = async () => {
             const res = await apiRequest('/api/devices');
-            if (res.ok) {
-                const all = await res.json();
-                setDevices(all.filter((d: any) => d.protocol?.plant?.id === selectedPlant));
-            }
+            if (res.ok) { const all = await res.json(); setDevices(all.filter((d: any) => d.protocol?.plant?.id === selectedPlant)); }
         };
         fetchDevices();
-        setSelectedDevice('');
-        setSelectedPoint('');
+        setSelectedDevice(''); setSelectedPoint('');
     }, [selectedPlant]);
 
-    // Fetch points when device changes
     useEffect(() => {
         if (!selectedDevice) { setPoints([]); return; }
         const fetchPoints = async () => {
@@ -87,7 +72,6 @@ export default function Analytics() {
         setSelectedPoint('');
     }, [selectedDevice, devices]);
 
-    // Fetch historical data
     const fetchHistory = async () => {
         if (!selectedDevice || !selectedPoint) return;
         setLoading(true);
@@ -96,256 +80,225 @@ export default function Analytics() {
             if (startDate) url += `&startDate=${new Date(startDate).toISOString()}`;
             if (endDate) url += `&endDate=${new Date(endDate).toISOString()}`;
             if (!startDate && !endDate) url += `&hours=${hours}`;
-
             const res = await apiRequest(url);
             if (res.ok) {
                 const data = await res.json();
-
-                const formatted = data.map((d: any) => ({
-                    time: d.time,
-                    value: d.value
-                }));
-                setChartData(formatted);
-            } else {
-                toast.error("Failed to fetch history");
-            }
-        } catch (err) {
-            toast.error("Network error");
-        } finally {
-            setLoading(false);
-        }
+                setChartData(data.map((d: any) => ({ time: d.time, value: d.value })));
+            } else toast.error("Failed to fetch");
+        } catch { toast.error("Network error"); }
+        finally { setLoading(false); }
     };
 
-    useEffect(() => {
-        if (selectedPoint) fetchHistory();
-    }, [selectedPoint, hours, startDate, endDate]);
+    useEffect(() => { if (selectedPoint) fetchHistory(); }, [selectedPoint, hours, startDate, endDate]);
+
+    // Computed stats
+    const stats = chartData.length > 0 ? {
+        latest: chartData[chartData.length - 1].value.toFixed(2),
+        max: Math.max(...chartData.map(d => d.value)).toFixed(2),
+        min: Math.min(...chartData.map(d => d.value)).toFixed(2),
+        avg: (chartData.reduce((s, d) => s + d.value, 0) / chartData.length).toFixed(2),
+        count: chartData.length,
+    } : null;
+
+    const pointUnit = points.find(p => p.id === selectedPoint)?.unit || '';
 
     return (
-        <div className="space-y-8 pb-20 animate-in-up font-sans selection:bg-brand-green/30">
-            {/* Header */}
-            <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-10 relative">
-                <div className="space-y-3">
-                    <div className="flex items-center gap-5">
-                        <div className="w-1.5 h-10 bg-brand-green rounded-full shadow-[0_0_20px_rgba(16,185,129,0.5)]"></div>
-                        <div>
-                            <h1 className="text-4xl font-black text-white tracking-tight leading-none">Historical Analytics</h1>
-                            <p className="text-sm text-slate-500 mt-2 font-medium tracking-wide">Deep dive into telemetry performance and trends</p>
-                        </div>
+        <div className="space-y-3 pb-6 animate-in-up font-sans selection:bg-brand-green/30">
+            {/* Header + Controls Row */}
+            <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                    <div className="w-1 h-7 bg-brand-green rounded-full shadow-[0_0_12px_rgba(16,185,129,0.4)]"></div>
+                    <div>
+                        <h1 className="text-lg font-black text-white tracking-tight leading-none">Historical Analytics</h1>
+                        <p className="text-[9px] text-slate-500 font-medium mt-0.5">Telemetry performance & trends</p>
                     </div>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-4 w-full lg:w-auto">
-                    {/* Manual Date Selectors */}
-                    <div className="flex items-center gap-2 bg-slate-900/40 p-2 rounded-2xl border border-slate-800">
+                <div className="flex items-center gap-2">
+                    {/* Date Range */}
+                    <div className="flex items-center gap-1 bg-slate-900/60 px-2 py-1 rounded-lg border border-slate-800">
                         <div className="flex flex-col">
-                            <span className="text-[7px] font-black text-slate-500 uppercase tracking-widest ml-2 mb-1">Start</span>
-                            <input
-                                type="datetime-local"
-                                value={startDate}
-                                onChange={(e) => {
-                                    setStartDate(e.target.value);
-                                    if (e.target.value) setHours(0);
-                                }}
-                                className="bg-transparent border-none text-[10px] font-bold text-white outline-none px-2 py-1 appearance-none cursor-pointer hover:text-brand-green transition-colors"
-                            />
+                            <span className="text-[6px] font-bold text-slate-600 uppercase tracking-wider ml-1">From</span>
+                            <input type="datetime-local" value={startDate}
+                                onChange={(e) => { setStartDate(e.target.value); if (e.target.value) setHours(0); }}
+                                className="bg-transparent border-none text-[9px] font-bold text-white outline-none px-1 py-0.5 appearance-none cursor-pointer hover:text-brand-green transition-colors w-32" />
                         </div>
-                        <div className="w-px h-6 bg-slate-800 self-end mb-2"></div>
+                        <div className="w-px h-5 bg-slate-800"></div>
                         <div className="flex flex-col">
-                            <span className="text-[7px] font-black text-slate-500 uppercase tracking-widest ml-2 mb-1">End</span>
-                            <input
-                                type="datetime-local"
-                                value={endDate}
-                                onChange={(e) => {
-                                    setEndDate(e.target.value);
-                                    if (e.target.value) setHours(0);
-                                }}
-                                className="bg-transparent border-none text-[10px] font-bold text-white outline-none px-2 py-1 appearance-none cursor-pointer hover:text-brand-green transition-colors"
-                            />
+                            <span className="text-[6px] font-bold text-slate-600 uppercase tracking-wider ml-1">To</span>
+                            <input type="datetime-local" value={endDate}
+                                onChange={(e) => { setEndDate(e.target.value); if (e.target.value) setHours(0); }}
+                                className="bg-transparent border-none text-[9px] font-bold text-white outline-none px-1 py-0.5 appearance-none cursor-pointer hover:text-brand-green transition-colors w-32" />
                         </div>
                         {(startDate || endDate) && (
-                            <button
-                                onClick={() => { setStartDate(''); setEndDate(''); setHours(24); }}
-                                className="p-2 text-slate-500 hover:text-red-400 transition-colors"
-                            >
-                                <RefreshCw size={12} />
+                            <button onClick={() => { setStartDate(''); setEndDate(''); setHours(24); }} className="p-1 text-slate-500 hover:text-red-400 transition-colors">
+                                <RefreshCw size={9} />
                             </button>
                         )}
                     </div>
 
-                    <div className="relative group flex-1 lg:flex-none">
-                        <select
-                            value={hours}
-                            onChange={(e) => {
-                                setHours(Number(e.target.value));
-                                setStartDate('');
-                                setEndDate('');
-                            }}
-                            className="w-full bg-slate-900/80 backdrop-blur-md border border-slate-800 rounded-2xl px-6 py-4 text-xs font-black text-slate-300 outline-none hover:border-brand-green/30 hover:text-white transition-all appearance-none cursor-pointer pr-12 uppercase tracking-[0.15em] shadow-xl"
-                        >
-                            <option value={0} disabled={!startDate && !endDate}>Custom Range</option>
-                            <option value={1}>Last Hour</option>
-                            <option value={6}>Last 6 Hours</option>
-                            <option value={12}>Last 12 Hours</option>
-                            <option value={24}>Last 24 Hours</option>
-                            <option value={168}>Last 7 Days</option>
-                            <option value={720}>Last 30 Days</option>
+                    {/* Period Selector */}
+                    <div className="relative">
+                        <select value={hours} onChange={(e) => { setHours(Number(e.target.value)); setStartDate(''); setEndDate(''); }}
+                            className="bg-slate-900/80 border border-slate-800 rounded-lg px-3 py-2 text-[9px] font-bold text-slate-300 outline-none hover:border-brand-green/30 transition-all appearance-none cursor-pointer pr-7 uppercase tracking-wider">
+                            <option value={0} disabled={!startDate && !endDate}>Custom</option>
+                            <option value={1}>1 Hour</option>
+                            <option value={6}>6 Hours</option>
+                            <option value={12}>12 Hours</option>
+                            <option value={24}>24 Hours</option>
+                            <option value={168}>7 Days</option>
+                            <option value={720}>30 Days</option>
                         </select>
-                        <Calendar className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-600 group-hover:text-brand-green transition-colors" size={14} />
+                        <Calendar className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-600 pointer-events-none" size={10} />
                     </div>
 
-                    <button className="flex items-center justify-center gap-3 px-10 py-4 bg-brand-green text-white rounded-2xl text-xs font-black shadow-[0_20px_40px_rgba(16,185,129,0.15)] hover:bg-emerald-500 hover:scale-[1.03] active:scale-95 transition-all tracking-[0.2em] uppercase shrink-0">
-                        <Download size={16} strokeWidth={3} /> Export
+                    {/* Export */}
+                    <button className="flex items-center gap-1.5 px-3 py-2 bg-brand-green text-white rounded-lg text-[9px] font-bold shadow-md shadow-brand-green/10 hover:bg-emerald-500 transition-all uppercase tracking-wider">
+                        <Download size={11} /> Export
                     </button>
                 </div>
             </div>
 
-            {/* Premium Selector System */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 p-2">
+            {/* Selector Row - Inline */}
+            <div className="grid grid-cols-4 gap-3">
                 {[
-                    { label: 'Company', icon: Building2, state: selectedCompany, setState: setSelectedCompany, options: companies, displayKey: 'name', disabled: false, placeholder: 'Select Company' },
-                    { label: 'Plant', icon: Factory, state: selectedPlant, setState: setSelectedPlant, options: plants, displayKey: 'plantName', disabled: !selectedCompany, placeholder: 'Select Plant' },
-                    { label: 'Device', icon: Cpu, state: selectedDevice, setState: setSelectedDevice, options: devices, displayKey: 'deviceName', disabled: !selectedPlant, placeholder: 'Select Device' },
-                    { label: 'Data Point', icon: Database, state: selectedPoint, setState: setSelectedPoint, options: points, displayKey: 'dataName', disabled: !selectedDevice, placeholder: 'Select Point' },
-                ].map((selector) => (
-                    <div key={selector.label} className="group flex flex-col space-y-2">
-                        <span className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] ml-2 flex items-center gap-2 group-hover:text-slate-400 transition-colors">
-                            {React.createElement(selector.icon, { size: 12, className: selector.disabled ? 'text-slate-800' : 'text-brand-green' })}
-                            {selector.label}
+                    { label: 'Company', icon: Building2, state: selectedCompany, setState: setSelectedCompany, options: companies, displayKey: 'name', disabled: false, placeholder: 'Select...' },
+                    { label: 'Plant', icon: Factory, state: selectedPlant, setState: setSelectedPlant, options: plants, displayKey: 'plantName', disabled: !selectedCompany, placeholder: 'Select...' },
+                    { label: 'Device', icon: Cpu, state: selectedDevice, setState: setSelectedDevice, options: devices, displayKey: 'deviceName', disabled: !selectedPlant, placeholder: 'Select...' },
+                    { label: 'Point', icon: Database, state: selectedPoint, setState: setSelectedPoint, options: points, displayKey: 'dataName', disabled: !selectedDevice, placeholder: 'Select...' },
+                ].map((s) => (
+                    <div key={s.label} className="flex flex-col gap-1">
+                        <span className="text-[8px] font-bold text-slate-500 uppercase tracking-wider ml-1 flex items-center gap-1">
+                            {React.createElement(s.icon, { size: 9, className: s.disabled ? 'text-slate-800' : 'text-brand-green' })}
+                            {s.label}
                         </span>
                         <div className="relative">
-                            <select
-                                value={selector.state}
-                                onChange={(e) => selector.setState(e.target.value)}
-                                disabled={selector.disabled}
-                                className="w-full bg-slate-900/40 backdrop-blur-xl border border-slate-800/60 rounded-2xl px-6 py-4 text-xs font-bold text-white outline-none focus:border-brand-green/30 focus:shadow-[0_0_30px_rgba(16,185,129,0.1)] transition-all appearance-none cursor-pointer disabled:opacity-20 disabled:cursor-not-allowed group-hover:border-slate-700"
-                            >
-                                <option value="">{selector.placeholder}</option>
-                                {selector.options.map((opt: any) => (
-                                    <option key={opt.id} value={opt.id}>{(opt as any)[selector.displayKey]}</option>
-                                ))}
+                            <select value={s.state} onChange={(e) => s.setState(e.target.value)} disabled={s.disabled}
+                                className="w-full bg-slate-900/50 border border-slate-800/60 rounded-lg px-3 py-2 text-[10px] font-bold text-white outline-none focus:border-brand-green/30 transition-all appearance-none cursor-pointer disabled:opacity-20 disabled:cursor-not-allowed">
+                                <option value="">{s.placeholder}</option>
+                                {s.options.map((opt: any) => <option key={opt.id} value={opt.id}>{(opt as any)[s.displayKey]}</option>)}
                             </select>
-                            <Filter className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-700 pointer-events-none" size={12} />
+                            <Filter className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-700 pointer-events-none" size={9} />
                         </div>
                     </div>
                 ))}
             </div>
 
-            {/* Analytics Arena */}
-            <div className="flex flex-col xl:flex-row gap-8 min-h-[600px]">
-                {/* Main Visualizer */}
-                <div className="flex-1">
-                    <div className="h-full card-base bg-slate-950/40 border-slate-800/40 backdrop-blur-3xl overflow-hidden flex flex-col relative group">
-                        {/* Decorative background effects */}
-                        <div className="absolute inset-0 bg-gradient-to-br from-brand-green/5 to-transparent pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
-                        <div className="absolute -top-24 -right-24 w-96 h-96 bg-brand-green/5 blur-[120px] rounded-full pointer-events-none"></div>
+            {/* Main: Chart + Stats */}
+            <div className="flex gap-3 min-h-[420px]">
+                {/* Chart Panel */}
+                <div className="flex-1 card-base bg-slate-950/40 border-slate-800/40 overflow-hidden flex flex-col relative">
+                    <div className="absolute -top-16 -right-16 w-64 h-64 bg-brand-green/5 blur-[80px] rounded-full pointer-events-none"></div>
 
-                        <div className="p-10 flex items-center justify-between border-b border-white/[0.03] relative z-10">
-                            <div className="flex items-center gap-6">
-                                <div className="p-4 rounded-2xl bg-brand-green shadow-[0_10px_30px_rgba(16,185,129,0.2)]">
-                                    <Activity size={24} className="text-white" />
-                                </div>
-                                <div className="space-y-1">
-                                    <h3 className="text-xl font-black text-white tracking-tight">
-                                        {points.find(p => p.id === selectedPoint)?.dataName || 'Awaiting Point Selection'}
-                                    </h3>
-                                    <div className="flex items-center gap-3">
-                                        <span className="flex items-center gap-1.5 text-[8px] font-mono font-black py-0.5 px-2 bg-slate-900 text-slate-500 rounded-md uppercase tracking-widest border border-slate-800/50">
-                                            {selectedPoint ? `ID::${selectedPoint.substring(0, 8)}` : 'SYS::OFFLINE'}
-                                        </span>
-                                        {loading && <span className="flex items-center gap-2 text-[8px] font-black text-brand-green uppercase animate-pulse"><RefreshCw size={10} className="animate-spin" /> Fetching Archive</span>}
-                                    </div>
+                    {/* Chart Header */}
+                    <div className="px-4 py-2.5 flex items-center justify-between border-b border-white/[0.03] relative z-10">
+                        <div className="flex items-center gap-3">
+                            <div className="p-2 rounded-lg bg-brand-green shadow-md shadow-brand-green/20">
+                                <Activity size={13} className="text-white" />
+                            </div>
+                            <div>
+                                <h3 className="text-[11px] font-black text-white tracking-tight leading-none">
+                                    {points.find(p => p.id === selectedPoint)?.dataName || 'Awaiting Selection'}
+                                </h3>
+                                <div className="flex items-center gap-2 mt-0.5">
+                                    <span className="text-[7px] font-mono font-bold py-0.5 px-1.5 bg-slate-900 text-slate-500 rounded uppercase tracking-wider border border-slate-800/50">
+                                        {selectedPoint ? `${selectedPoint.substring(0, 8)}` : 'OFFLINE'}
+                                    </span>
+                                    {loading && <span className="flex items-center gap-1 text-[7px] font-bold text-brand-green uppercase animate-pulse"><RefreshCw size={8} className="animate-spin" /> Fetching</span>}
                                 </div>
                             </div>
                         </div>
-
-                        <div className="flex-1 p-8 min-h-[500px] flex flex-col relative z-10">
-                            {selectedPoint ? (
-                                chartData.length > 0 ? (
-                                    <div className="flex-1 opacity-0 animate-in-fade" style={{ animationDelay: '0.2s', animationFillMode: 'forwards' }}>
-                                        <HistoricalChart
-                                            data={chartData}
-                                            title={points.find(p => p.id === selectedPoint)?.dataName || 'Value'}
-                                            color="#10b981"
-                                        />
-                                    </div>
-                                ) : (
-                                    <div className="flex-1 flex flex-col items-center justify-center space-y-8 py-20">
-                                        <div className="relative">
-                                            <div className="absolute inset-0 bg-brand-green/10 blur-[60px] rounded-full scale-150"></div>
-                                            <div className="w-24 h-24 rounded-full border-2 border-dashed border-slate-800 flex items-center justify-center animate-spin-slow">
-                                                <Database size={32} className="text-slate-800" />
-                                            </div>
-                                            <Activity className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-slate-700" size={20} />
-                                        </div>
-                                        <div className="text-center space-y-3">
-                                            <h4 className="text-lg font-black text-slate-300 tracking-tight uppercase">Archive Empty</h4>
-                                            <p className="max-w-xs text-xs font-bold text-slate-600 leading-relaxed uppercase tracking-widest mx-auto">No historical telemetry recorded for selected window</p>
-                                        </div>
-                                    </div>
-                                )
-                            ) : (
-                                <div className="flex-1 flex flex-col items-center justify-center space-y-8 py-20 grayscale opacity-40">
-                                    <div className="relative">
-                                        <div className="w-32 h-32 rounded-3xl border border-slate-800 flex items-center justify-center rotate-12 shadow-2xl">
-                                            <TrendingUp size={48} className="text-slate-700 -rotate-12" />
-                                        </div>
-                                    </div>
-                                    <p className="text-[10px] font-black text-slate-600 uppercase tracking-[0.6em] text-center leading-loose">
-                                        Select context from top menu <br /> to initialize visualization
-                                    </p>
+                        {stats && (
+                            <div className="flex items-center gap-4">
+                                <div className="text-right">
+                                    <span className="text-[7px] font-bold text-slate-500 uppercase block">Latest</span>
+                                    <span className="text-sm font-black text-brand-green tabular-nums">{stats.latest}</span>
                                 </div>
-                            )}
-                        </div>
+                                <div className="text-right">
+                                    <span className="text-[7px] font-bold text-slate-500 uppercase block">Samples</span>
+                                    <span className="text-sm font-black text-white tabular-nums">{stats.count.toLocaleString()}</span>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Chart Body */}
+                    <div className="flex-1 p-4 flex flex-col relative z-10">
+                        {selectedPoint ? (
+                            chartData.length > 0 ? (
+                                <div className="flex-1 opacity-0 animate-in-fade" style={{ animationDelay: '0.15s', animationFillMode: 'forwards' }}>
+                                    <HistoricalChart data={chartData} title={points.find(p => p.id === selectedPoint)?.dataName || 'Value'} color="#10b981" />
+                                </div>
+                            ) : (
+                                <div className="flex-1 flex flex-col items-center justify-center space-y-4">
+                                    <div className="relative">
+                                        <div className="absolute inset-0 bg-brand-green/10 blur-[40px] rounded-full scale-150"></div>
+                                        <div className="w-14 h-14 rounded-full border border-dashed border-slate-800 flex items-center justify-center">
+                                            <Database size={20} className="text-slate-800" />
+                                        </div>
+                                    </div>
+                                    <div className="text-center">
+                                        <h4 className="text-xs font-black text-slate-400 uppercase">No Data</h4>
+                                        <p className="text-[8px] text-slate-600 font-medium mt-1">No records in selected window</p>
+                                    </div>
+                                </div>
+                            )
+                        ) : (
+                            <div className="flex-1 flex flex-col items-center justify-center space-y-4 opacity-30">
+                                <div className="w-16 h-16 rounded-xl border border-slate-800 flex items-center justify-center rotate-6">
+                                    <TrendingUp size={28} className="text-slate-700 -rotate-6" />
+                                </div>
+                                <p className="text-[8px] font-bold text-slate-600 uppercase tracking-[0.3em] text-center">
+                                    Select context to initialize
+                                </p>
+                            </div>
+                        )}
                     </div>
                 </div>
 
-                {/* Sidebar Metrics */}
-                <div className="w-full xl:w-[380px] space-y-6">
-                    <div className="card-base bg-slate-950/60 border-slate-800 shadow-3xl p-8 space-y-8 relative overflow-hidden backdrop-blur-2xl">
-                        <div className="absolute top-0 right-0 w-32 h-32 bg-brand-green/5 blur-3xl -mr-16 -mt-16 rounded-full"></div>
+                {/* Stats Sidebar */}
+                <div className="w-60 space-y-3">
+                    {/* Metrics Card */}
+                    <div className="card-base bg-slate-950/60 p-4 space-y-3 relative overflow-hidden">
+                        <div className="absolute top-0 right-0 w-20 h-20 bg-brand-green/5 blur-2xl -mr-8 -mt-8 rounded-full"></div>
 
-                        <div className="flex items-center gap-4 relative z-10 border-b border-white/[0.03] pb-6">
-                            <div className="p-3 bg-slate-900 rounded-xl border border-white/[0.05]">
-                                <Activity size={18} className="text-brand-green" />
+                        <div className="flex items-center gap-2 relative z-10 border-b border-white/[0.03] pb-2">
+                            <div className="p-1.5 bg-slate-900 rounded-md border border-white/[0.05]">
+                                <Activity size={11} className="text-brand-green" />
                             </div>
                             <div>
-                                <h3 className="text-xs font-black text-white tracking-[0.25em] uppercase">Insight Metrics</h3>
-                                <p className="text-[9px] font-bold text-slate-600 uppercase mt-1">Real-time computation</p>
+                                <h3 className="text-[9px] font-black text-white tracking-wider uppercase leading-none">Insights</h3>
+                                <p className="text-[7px] font-medium text-slate-600 mt-0.5">Live computation</p>
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-1 gap-4 relative z-10">
+                        <div className="space-y-2 relative z-10">
                             {[
-                                { label: 'Latest Reading', val: chartData.length > 0 ? chartData[chartData.length - 1].value.toFixed(2) : '--', unit: points.find(p => p.id === selectedPoint)?.unit || '', color: 'text-brand-green', icon: TrendingUp },
-                                { label: 'Peak Analysis', val: chartData.length > 0 ? Math.max(...chartData.map(d => d.value)).toFixed(2) : '--', color: 'text-orange-400', icon: Info },
-                                { label: 'Lowest Threshold', val: chartData.length > 0 ? Math.min(...chartData.map(d => d.value)).toFixed(2) : '--', color: 'text-blue-400', icon: Info },
-                                { label: 'Samples Logged', val: chartData.length, color: 'text-slate-400', icon: Database },
-                            ].map((stat, i) => (
-                                <motion.div
-                                    key={stat.label}
-                                    initial={{ opacity: 0, x: 20 }}
-                                    animate={{ opacity: 1, x: 0 }}
-                                    transition={{ delay: i * 0.1 }}
-                                    className="p-5 rounded-2xl bg-white/[0.02] border border-white/[0.05] flex flex-col space-y-1 hover:border-brand-green/20 hover:bg-white/[0.04] transition-all cursor-default"
-                                >
-                                    <div className="flex justify-between items-center">
-                                        <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">{stat.label}</span>
-                                        <div className={`${stat.color} opacity-40`}>{React.createElement(stat.icon, { size: 10 })}</div>
+                                { label: 'Latest', val: stats?.latest || '--', unit: pointUnit, color: 'text-brand-green', icon: TrendingUp },
+                                { label: 'Maximum', val: stats?.max || '--', color: 'text-orange-400', icon: Info },
+                                { label: 'Minimum', val: stats?.min || '--', color: 'text-blue-400', icon: Info },
+                                { label: 'Average', val: stats?.avg || '--', color: 'text-purple-400', icon: Activity },
+                                { label: 'Samples', val: stats?.count?.toLocaleString() || '--', color: 'text-slate-400', icon: Database },
+                            ].map((m, i) => (
+                                <motion.div key={m.label} initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.05 }}
+                                    className="flex items-center justify-between p-2.5 rounded-lg bg-white/[0.02] border border-white/[0.04] hover:border-brand-green/15 transition-all">
+                                    <div className="flex items-center gap-2">
+                                        <div className={`${m.color} opacity-40`}>{React.createElement(m.icon, { size: 9 })}</div>
+                                        <span className="text-[8px] font-bold text-slate-500 uppercase tracking-wider">{m.label}</span>
                                     </div>
-                                    <div className="flex items-baseline gap-2">
-                                        <span className="text-3xl font-black text-white tabular-nums tracking-tight">{stat.val}</span>
-                                        <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">{stat.unit}</span>
+                                    <div className="flex items-baseline gap-1">
+                                        <span className="text-sm font-black text-white tabular-nums">{m.val}</span>
+                                        {m.unit && <span className="text-[7px] font-bold text-slate-600 uppercase">{m.unit}</span>}
                                     </div>
                                 </motion.div>
                             ))}
                         </div>
-
-                        <div className="pt-4 relative z-10">
-                            <button className="w-full py-5 bg-slate-900/50 border border-slate-800/80 text-slate-400 rounded-2xl text-[10px] font-black shadow-2xl hover:text-white hover:border-brand-green/40 hover:bg-slate-900 transition-all uppercase tracking-[0.2em]">
-                                Generate Extended Archive (.csv)
-                            </button>
-                        </div>
                     </div>
+
+                    {/* Export Card */}
+                    <button className="w-full card-base py-3 px-4 flex items-center justify-center gap-2 text-slate-500 hover:text-white hover:border-brand-green/30 transition-all text-[9px] font-bold uppercase tracking-wider">
+                        <Download size={11} /> Export CSV
+                    </button>
                 </div>
             </div>
         </div>

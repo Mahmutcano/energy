@@ -88,6 +88,24 @@ class RedisService {
         }
         return null;
     }
+
+    public getStatus(): { connected: boolean; mode: string } {
+        return {
+            connected: !this.useFallback && this.client !== null,
+            mode: this.useFallback ? 'IN_MEMORY_FALLBACK' : 'REDIS'
+        };
+    }
+
+    public async getQueueLength(): Promise<number> {
+        if (this.useFallback || !this.client) {
+            return this.memoryQueue.length;
+        }
+        try {
+            return await this.client.llen('telemetry_queue');
+        } catch {
+            return this.memoryQueue.length;
+        }
+    }
 }
 
 export default RedisService.getInstance();

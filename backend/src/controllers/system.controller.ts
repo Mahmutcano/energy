@@ -4,6 +4,7 @@ import { AppError, ErrorCode, handleErrorResponse } from '../utils/errors';
 import redisService from '../services/redis.service';
 import { getApproximateTelemetryCount } from '../utils/telemetry';
 import workerService from '../services/worker.service';
+import simulationService from '../services/simulation.service';
 
 export const getSchemaStats = async (req: Request, res: Response) => {
     try {
@@ -159,3 +160,70 @@ function formatUptime(seconds: number): string {
     parts.push(`${s}s`);
     return parts.join(' ');
 }
+
+export const getRecordingSettings = async (req: Request, res: Response) => {
+    try {
+        const settings = simulationService.getSettings();
+
+        // Also get current DB stats
+        const [totalRecords, dbSize] = await Promise.all([
+            prisma.telemetryValue.count(),
+            prisma.$queryRawUnsafe(`SELECT pg_size_pretty(pg_total_relation_size('"TelemetryValue"')) as size`) as Promise<any[]>
+        ]);
+
+        res.json({
+            ...settings,
+            db: {
+                totalRecords,
+                tableSize: dbSize[0]?.size || 'Unknown'
+            }
+        });
+    } catch (error) {
+        return handleErrorResponse(res, error);
+    }
+};
+
+export const updateRecordingSettings = async (req: Request, res: Response) => {
+    try {
+        const { sampleIntervalSec, retentionHours, maxRecordsTotal, isRecording } = req.body;
+
+        simulationService.updateSettings({
+            sampleIntervalSec,
+            retentionHours,
+            maxRecordsTotal,
+            isRecording
+        });
+
+        const updated = simulationService.getSettings();
+        res.json({ message: 'Settings updated', settings: updated });
+    } catch (error) {
+        return handleErrorResponse(res, error);
+    }
+};
+
+export const runRetentionNow = async (req: Request, res: Response) => {
+    try {
+        const beforeCount = await prisma.telemetryValue.count();
+
+        // Trigger the retention from the simulation service
+        // We call it through the public API
+        const settings = simulationService.getSettings();
+        const cutoff = new Date(Date.now() - settings.retentionHours * 60 * 60 * 1000);
+
+        const deleted = await prisma.telemetryValue.deleteMany({
+            where: { measurementTime: { lt: cutoff } }
+        });
+
+        const afterCount = await prisma.telemetryValue.count();
+
+        res.json({
+            message: 'Retention executed',
+            before: beforeCount,
+            deleted: deleted.count,
+            after: afterCount,
+            retentionHours: settings.retentionHours
+        });
+    } catch (error) {
+        return handleErrorResponse(res, error);
+    }
+};

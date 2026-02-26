@@ -206,23 +206,23 @@
   }
 }
 
-/* Base UI Components - Re-engineered */
+/* Base UI Components - Compact */
 .card-base {
-  @apply bg-slate-900/60 dark:bg-slate-950/40 border border-slate-800/80 rounded-xl transition-all duration-300 relative overflow-hidden backdrop-blur-md;
+  @apply bg-slate-900/60 dark:bg-slate-950/40 border border-slate-800/80 rounded-lg transition-all duration-200 relative overflow-hidden backdrop-blur-md;
   background-image: linear-gradient(135deg, rgba(255, 255, 255, 0.02) 0%, transparent 100%);
 }
 
 .card-base:hover {
-  @apply border-brand-green/30 -translate-y-0.5 shadow-2xl shadow-brand-green/5;
+  @apply border-brand-green/20 shadow-lg shadow-brand-green/5;
 }
 
-/* Standardized Technical Typography */
+/* Compact Technical Typography */
 .text-tech-label {
-  @apply text-[10px] font-bold text-slate-500 tracking-[0.2em];
+  @apply text-[8px] font-bold text-slate-500 tracking-[0.15em];
 }
 
 .text-tech-value {
-  @apply text-2xl font-bold tracking-tight text-white tabular-nums;
+  @apply text-lg font-bold tracking-tight text-white tabular-nums;
 }
 
 .status-indicator {
@@ -235,22 +235,22 @@
   background-size: 24px 24px;
 }
 
-/* Data Table Styling for SCADA */
+/* Data Table - Compact */
 .scada-table {
   @apply w-full text-left border-collapse;
 }
 
 .scada-table th {
-  @apply px-4 py-3 text-[11px] font-bold text-slate-500 tracking-widest border-b border-border bg-muted/50;
+  @apply px-3 py-2 text-[9px] font-bold text-slate-500 tracking-widest border-b border-border bg-muted/50;
 }
 
 .scada-table td {
-  @apply px-4 py-3 text-sm border-b border-border/50 align-middle;
+  @apply px-3 py-2 text-xs border-b border-border/50 align-middle;
 }
 
 /* Status Indicator */
 .status-pill {
-  @apply inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold tracking-tight;
+  @apply inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[8px] font-bold tracking-tight;
 }
 
 /* Specialized Scada Text */
@@ -283,7 +283,7 @@
 
 /* Viewport helper */
 .main-viewport {
-  @apply h-[calc(100vh-3.5rem)] overflow-y-auto overflow-x-hidden;
+  @apply h-[calc(100vh-2.5rem)] overflow-y-auto overflow-x-hidden;
 }
 
 /* 

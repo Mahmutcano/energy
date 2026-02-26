@@ -369,55 +369,92 @@ function DataSheetsContent() {
                 const workbook = XLSX.read(data, { type: 'array' });
                 const firstSheetName = workbook.SheetNames[0];
                 const worksheet = workbook.Sheets[firstSheetName];
-                const jsonData: any[] = XLSX.utils.sheet_to_json(worksheet);
 
-                if (jsonData.length === 0) {
+                // Get all rows as raw array of arrays to find headers
+                const rows: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+
+                if (rows.length === 0) {
                     toast.error('Excel file is empty');
                     setIsImporting(false);
                     return;
                 }
 
+                // Find header row dynamically
+                let headerRowIndex = 0;
+                for (let i = 0; i < Math.min(rows.length, 10); i++) {
+                    const rowStr = JSON.stringify(rows[i]);
+                    // Check for common keywords
+                    if (rowStr.includes('SCADA ADRESİ') || rowStr.includes('SİNYAL AÇIKLAMASI') || rowStr.includes('REGISTER ADDRESS')) {
+                        headerRowIndex = i;
+                        break;
+                    }
+                }
+
+                // Convert to JSON using the found header row
+                const jsonData: any[] = XLSX.utils.sheet_to_json(worksheet, { range: headerRowIndex });
+
                 // Map Excel columns to our model
-                // Support both Turkish and English headers
+                // Support both Turkish and English headers with variations
                 const mappedPoints = jsonData.map((row: any) => {
+                    const findValue = (keys: string[]) => {
+                        const rowKeys = Object.keys(row);
+                        for (const targetKey of keys) {
+                            // Direct match
+                            if (row[targetKey] !== undefined && row[targetKey] !== null) return row[targetKey];
+
+                            // Case-insensitive & trimmed search
+                            const targetLower = targetKey.toLowerCase().trim();
+                            for (const rowKey of rowKeys) {
+                                if (rowKey.toLowerCase().trim() === targetLower) {
+                                    return row[rowKey];
+                                }
+                                // Partial matches for common headers
+                                if (rowKey.toLowerCase().includes(targetLower)) {
+                                    return row[rowKey];
+                                }
+                            }
+                        }
+                        return undefined;
+                    };
+
                     if (isModbus) {
                         return {
-                            dataName: row['Data Name'] || row['Veri Adı'] || row['Name'] || row['Adı'],
-                            dataValue: row['Unit'] || row['Birim'] || row['Value'] || row['Değer'],
-                            registerAddress: row['Address'] || row['Adres'] || row['Register'],
-                            functionCode: row['FC'] || row['Function'] || row['Fonksiyon'],
-                            multiplier: row['Multiplier'] || row['Çarpan'],
+                            dataName: findValue(['Data Name', 'Veri Adı', 'Name', 'Adı', 'Sinyal Açıklaması', 'SİNYAL AÇIKLAMASI']),
+                            dataValue: findValue(['Unit', 'Birim', 'Value', 'Değer', 'DATA TİPİ', 'Birim']),
+                            registerAddress: findValue(['Address', 'Adres', 'Register', 'REGISTER ADDRESS', 'SCADA ADRESİ', 'Adres']),
+                            functionCode: findValue(['FC', 'Function', 'Fonksiyon']),
+                            multiplier: findValue(['Multiplier', 'Çarpan']),
                             wordSwap: row['Swap'] || row['Word Swap'] === 'YES' || row['Word Swap'] === 'EVET' || row['Swap'] === true,
                             isActive: true
                         };
                     } else {
                         return {
-                            feederName: row['Feeder'] || row['Fider'] || row['Hücre Adı'] || row['Hücre'],
-                            signalType: row['Signal Type'] || row['Sinyal Tipi'] || row['Tip'],
-                            signalDescription: row['Signal Description'] || row['Sinyal Açıklaması'] || row['Açıklama'],
-                            dataType: row['Data Type'] || row['Veri Tipi'],
-                            signalSource: row['Source'] || row['Kaynak'] || row['Sinyal Kaynağı'],
-                            componentId: row['Component ID'] || row['Komponent ID'],
-                            componentText: row['Component Text'] || row['Komponent Metni'],
-                            ioa1ObjectAddress: row['IOA1'] || row['IOA Object Address'] || row['Obje Adresi'] || row['IOA'],
-                            ioa2CellNo: row['IOA2'] || row['IOA Cell No'] || row['Hücre No'],
-                            ioa3VoltageLevel: row['IOA3'] || row['IOA Voltage Level'] || row['Gerilim Seviyesi'],
-                            scadaAddress: row['SCADA Address'] || row['SCADA Adresi'],
+                            feederName: findValue(['Feeder', 'Fider', 'Hücre Adı', 'Hücre', 'FİDER/HÜCRE İSMİ']),
+                            signalType: findValue(['Signal Type', 'Sinyal Tipi', 'Tip', 'SİNYAL TİPİ']),
+                            signalDescription: findValue(['Signal Description', 'Sinyal Açıklaması', 'Açıklama', 'SİNYAL AÇIKLAMASI']),
+                            dataType: findValue(['Data Type', 'Veri Tipi', 'DATA TİPİ', 'TIP', 'TİP']),
+                            signalSource: findValue(['Source', 'Kaynak', 'Sinyal Kaynağı', 'SİNYAL KAYNAĞI']),
+                            componentId: findValue(['Component ID', 'Komponent ID', 'KOMPONENT ID']),
+                            componentText: findValue(['Component Text', 'Komponent Metni', 'KOMPONENT METNİ']),
+                            ioa1ObjectAddress: findValue(['IOA1', 'IOA Object Address', 'Obje Adresi', 'IOA', 'IOA3 ( Obje Adresi)', 'IOA3 (Obje Adresi)', 'IOA3']),
+                            ioa2CellNo: findValue(['IOA2', 'IOA Cell No', 'Hücre No', 'IOA2 ( Hücre No)', 'IOA2 (Hücre No)', 'IOA2']),
+                            ioa3VoltageLevel: findValue(['IOA3', 'IOA Voltage Level', 'Gerilim Seviyesi', 'IOA3 ( Gerilim Seviyesi)', 'IOA3 (Gerilim Seviyesi)']),
+                            scadaAddress: findValue(['SCADA Address', 'SCADA Adresi', 'SCADA ADRESİ', 'ADRES', 'ADDRESS']),
                             isActive: true
                         };
                     }
                 });
 
                 // Clean data (remove undefined and convert types)
-                const finalPoints = mappedPoints.filter(p => isModbus ? p.dataName : (p.signalDescription || p.ioa1ObjectAddress)).map(p => {
+                const finalPoints = mappedPoints.filter(p => isModbus ? (p.dataName || p.registerAddress) : (p.signalDescription || p.ioa1ObjectAddress || p.scadaAddress)).map(p => {
                     const cleaned: any = { ...p };
-                    if (cleaned.registerAddress) cleaned.registerAddress = parseInt(cleaned.registerAddress);
-                    if (cleaned.functionCode) cleaned.functionCode = parseInt(cleaned.functionCode);
-                    if (cleaned.multiplier) cleaned.multiplier = parseFloat(cleaned.multiplier);
-                    if (cleaned.ioa1ObjectAddress) cleaned.ioa1ObjectAddress = parseInt(cleaned.ioa1ObjectAddress);
-                    if (cleaned.ioa2CellNo) cleaned.ioa2CellNo = parseInt(cleaned.ioa2CellNo);
-                    if (cleaned.ioa3VoltageLevel) cleaned.ioa3VoltageLevel = parseInt(cleaned.ioa3VoltageLevel);
-                    if (cleaned.scadaAddress) cleaned.scadaAddress = parseInt(cleaned.scadaAddress);
+                    if (cleaned.registerAddress !== undefined) cleaned.registerAddress = parseInt(cleaned.registerAddress);
+                    if (cleaned.functionCode !== undefined) cleaned.functionCode = parseInt(cleaned.functionCode);
+                    if (cleaned.multiplier !== undefined) cleaned.multiplier = parseFloat(cleaned.multiplier);
+                    if (cleaned.ioa1ObjectAddress !== undefined) cleaned.ioa1ObjectAddress = parseInt(cleaned.ioa1ObjectAddress);
+                    if (cleaned.ioa2CellNo !== undefined) cleaned.ioa2CellNo = parseInt(cleaned.ioa2CellNo);
+                    if (cleaned.ioa3VoltageLevel !== undefined) cleaned.ioa3VoltageLevel = parseInt(cleaned.ioa3VoltageLevel);
+                    if (cleaned.scadaAddress !== undefined) cleaned.scadaAddress = parseInt(cleaned.scadaAddress);
 
                     // Specific logic for IEC104 dataName
                     if (!isModbus && !p.dataName) {

@@ -17,7 +17,13 @@ import {
     SignalHigh,
     Database,
     Layers,
-    Terminal
+    Terminal,
+    Network,
+    RefreshCw,
+    Play,
+    Trash2,
+    List,
+    Table as TableIcon
 } from 'lucide-react';
 import { apiRequest } from '@/lib/api';
 import { socket } from '@/lib/socket';
@@ -51,6 +57,7 @@ interface DataPoint {
     scadaAddress: number | null;
     ioa1ObjectAddress: number | null;
     signalDescription: string | null;
+    dataType: string | null;
     isActive: boolean;
 }
 
@@ -59,39 +66,40 @@ const GlobalStream = () => {
     const [logs, setLogs] = useState<any[]>([]);
 
     useEffect(() => {
-        const topics = [`telemetry:modbus-sim-device`, `telemetry:RTU_SIM`, `telemetry:iec104-sim-device`];
-
         const handleData = (data: any) => {
             setLogs(prev => [{
-                id: Date.now(),
+                id: `${Date.now()}-${Math.random()}`,
                 time: new Date().toLocaleTimeString(),
-                message: `[RECV] ID:${data.deviceId?.substring(0, 8) || 'SIM'} ADDR:${data.ioa} VAL:${typeof data.value === 'number' ? data.value.toFixed(2) : data.value}`,
+                message: `[RECV] CH:${data.protocolId?.substring(0, 4) || '??'} DEV:${data.deviceId?.substring(0, 4) || '??'} ADDR:${data.ioa} VAL:${typeof data.value === 'number' ? data.value.toFixed(1) : data.value}`,
                 data
             }, ...prev].slice(0, 20));
         };
 
-        topics.forEach(t => socket.on(t, handleData));
+        socket.on('telemetry:all', handleData);
         return () => {
-            topics.forEach(t => socket.off(t, handleData));
+            socket.off('telemetry:all', handleData);
         };
     }, []);
 
     return (
-        <div className="card-base bg-slate-950 border-slate-900 overflow-hidden flex flex-col h-[300px]">
+        <div className="card-base bg-slate-950 border-slate-900 overflow-hidden flex flex-col h-[450px]">
             <div className="px-4 py-2 border-b border-slate-900 bg-slate-900/50 flex justify-between items-center">
-                <span className="text-[10px] font-black text-brand-green tracking-widest uppercase flex items-center gap-2">
-                    <Terminal size={12} /> Console_Output
+                <span className="text-[10px] font-bold text-brand-green tracking-widest uppercase flex items-center gap-2">
+                    <Terminal size={12} /> Console Output
                 </span>
-                <span className="text-[9px] font-mono text-slate-700">BAUD: 115200</span>
+                <div className="flex items-center gap-2">
+                    <div className="w-1.5 h-1.5 rounded-full bg-brand-green animate-pulse"></div>
+                    <span className="text-[9px] font-mono text-slate-700 uppercase">Live Stream</span>
+                </div>
             </div>
-            <div className="flex-1 p-4 overflow-y-auto font-mono text-[10px] space-y-1">
+            <div className="flex-1 p-4 overflow-y-auto font-mono text-[10px] space-y-1 scrollbar-hide">
                 {logs.length === 0 ? (
-                    <div className="h-full flex items-center justify-center text-slate-800 animate-pulse">
-                        AWAITING INCOMING DATA PACKETS...
+                    <div className="h-full flex items-center justify-center text-slate-800 animate-pulse text-center">
+                        AWAITING INCOMING TELEMETRY<br />ON PUBLIC BUS...
                     </div>
                 ) : (
                     logs.map(log => (
-                        <div key={log.id} className="text-slate-500 hover:text-brand-green transition-colors">
+                        <div key={log.id} className="text-slate-500 hover:text-brand-green transition-colors border-l-2 border-transparent hover:border-brand-green/30 pl-2">
                             <span className="text-slate-800 mr-2">[{log.time}]</span>
                             {log.message}
                         </div>
@@ -102,84 +110,278 @@ const GlobalStream = () => {
     );
 };
 
-// Single Point Card Component
-const PointCard = ({ deviceId, point, protocolType }: { deviceId: string, point: DataPoint, protocolType: string }) => {
-    const [value, setValue] = useState<number | null>(null);
-    const [prevValue, setPrevValue] = useState<number | null>(null);
-    const [isLive, setIsLive] = useState(false);
-    const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
+// IEC 104 Diagnostic Area
+const IECDiagnosticPanel = ({ protocolId, asduAddr, deviceName, deviceId, devicePoints }: { protocolId: string, asduAddr: number, deviceName: string, deviceId: string, devicePoints: DataPoint[] }) => {
+    const [rawLogs, setRawLogs] = useState<any[]>([]);
+    const [points, setPoints] = useState<Map<number, any>>(new Map());
+    const [lastUpdateMap, setLastUpdateMap] = useState<Map<number, number>>(new Map());
+    const [isTriggering, setIsTriggering] = useState(false);
 
     useEffect(() => {
-        const primaryTopic = `telemetry:${deviceId}`;
-        const fallbackTopics = [`telemetry:modbus-sim-device`, `telemetry:RTU_SIM`, `telemetry:iec104-sim-device`];
-
-        const handleData = (data: any) => {
-            const isMatch = protocolType === 'MODBUS'
-                ? data.ioa === point.registerAddress
-                : (data.ioa === point.scadaAddress || data.ioa === point.ioa1ObjectAddress);
-
-            if (isMatch) {
-                setValue(current => {
-                    setPrevValue(current);
-                    return data.value;
+        const handleRawData = (data: any[]) => {
+            const now = Date.now();
+            setLastUpdateMap(prev => {
+                const newMap = new Map(prev);
+                data.forEach(p => {
+                    const ioaKey = Number(p.ioa);
+                    if (!isNaN(ioaKey)) newMap.set(ioaKey, now);
                 });
-                setLastUpdate(new Date());
-                setIsLive(true);
-            }
+                return newMap;
+            });
+
+            setPoints(prev => {
+                const newMap = new Map(prev);
+                data.forEach(p => {
+                    const ioaKey = Number(p.ioa);
+                    if (!isNaN(ioaKey)) newMap.set(ioaKey, p);
+                });
+                return newMap;
+            });
+
+            const timestamp = new Date().toLocaleTimeString();
+            const matchedNames = data.filter(p => p.name).map(p => p.name).slice(0, 3).join(', ');
+            const suffix = data.length > 3 ? '...' : '';
+
+            setRawLogs(prev => [
+                {
+                    id: `${Date.now()}-${Math.random()}`,
+                    time: timestamp,
+                    message: `RX ${data.length} PDUs ${matchedNames ? `(${matchedNames}${suffix})` : ''}`,
+                    type: matchedNames ? 'info' : 'data'
+                },
+                ...prev
+            ].slice(0, 50));
         };
 
-        socket.on(primaryTopic, handleData);
-        fallbackTopics.forEach(t => socket.on(t, handleData));
-        setIsLive(socket.connected);
-
+        socket.on(`telemetry:raw:${protocolId}`, handleRawData);
         return () => {
-            socket.off(primaryTopic, handleData);
-            fallbackTopics.forEach(t => socket.off(t, handleData));
+            socket.off(`telemetry:raw:${protocolId}`, handleRawData);
         };
-    }, [deviceId, point, protocolType]);
+    }, [protocolId]);
+
+    const handleTriggerGI = async () => {
+        try {
+            setIsTriggering(true);
+            const res = await apiRequest('/api/admin/iec104-gi', {
+                method: 'POST',
+                body: JSON.stringify({ protocolId, asduAddr })
+            });
+            const data = await res.json();
+            if (res.ok) {
+                toast.success('GI Command Sent');
+                setRawLogs(prev => [
+                    { id: `${Date.now()}-${Math.random()}`, time: new Date().toLocaleTimeString(), message: 'SENT GENERAL INTERROGATION (GI) COMMAND', type: 'info' },
+                    ...prev
+                ]);
+            } else {
+                toast.error(data.message || 'Failed to send GI');
+            }
+        } catch (err) {
+            toast.error('Network Error');
+        } finally {
+            setIsTriggering(false);
+        }
+    };
+
+    return (
+        <div className="space-y-6 animate-in-up">
+            <div className="flex items-center justify-between">
+                <h3 className="text-xs font-bold text-brand-green tracking-[0.2em] uppercase flex items-center gap-2">
+                    <Network size={14} /> {deviceName} — Diagnostic Uplink
+                </h3>
+                <button
+                    onClick={handleTriggerGI}
+                    disabled={isTriggering}
+                    className="flex items-center gap-2 px-4 py-2 bg-brand-green text-white rounded-lg text-[10px] font-bold tracking-widest hover:scale-105 active:scale-95 transition-all shadow-lg shadow-brand-green/20 disabled:opacity-50"
+                >
+                    {isTriggering ? <RefreshCw size={12} className="animate-spin" /> : <Play size={12} fill="white" />}
+                    Manual Scan
+                </button>
+            </div>
+
+            <div className="flex flex-col gap-8">
+                <div className="card-base bg-slate-950/60 border-slate-900/80 p-8 overflow-y-auto h-[600px] scrollbar-hide shadow-2xl backdrop-blur-xl relative">
+                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(16,185,129,0.03),transparent_50%)]"></div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-6 gap-6 relative z-10">
+                        {devicePoints.map((dp) => {
+                            const liveData = (dp.scadaAddress !== null && points.get(Number(dp.scadaAddress))) ||
+                                (dp.ioa1ObjectAddress !== null && points.get(Number(dp.ioa1ObjectAddress)));
+
+                            const lastUpdate = liveData ? (lastUpdateMap.get(Number(liveData.ioa)) || 0) : 0;
+                            const isUpdating = (Date.now() - lastUpdate) < 1000;
+                            const hasData = liveData !== null && liveData !== undefined;
+
+                            const displayIoa = hasData ? liveData.ioa : (dp.scadaAddress || dp.ioa1ObjectAddress || 'N/A');
+
+                            return (
+                                <motion.div
+                                    key={dp.id}
+                                    initial={{ opacity: 0, scale: 0.98 }}
+                                    animate={{
+                                        opacity: 1,
+                                        scale: 1,
+                                        borderColor: isUpdating ? 'rgba(16,185,129,0.5)' : (hasData ? 'rgba(30, 41, 59, 0.6)' : 'rgba(30, 41, 59, 0.2)'),
+                                        backgroundColor: isUpdating ? 'rgba(16,185,129,0.08)' : (hasData ? 'rgba(15, 23, 42, 0.3)' : 'rgba(15, 23, 42, 0.1)')
+                                    }}
+                                    transition={{ duration: 0.3 }}
+                                    className="border p-5 rounded-2xl flex flex-col justify-between min-h-[145px] hover:border-brand-green/40 hover:bg-slate-900/40 transition-all shadow-md group relative overflow-hidden"
+                                >
+                                    <div className="flex justify-between items-start mb-2">
+                                        <div className="flex items-center gap-2">
+                                            <div className={`w-1.5 h-1.5 rounded-full ${isUpdating ? 'bg-brand-green shadow-[0_0_10px_rgba(16,185,129,0.8)] animate-pulse' : (hasData ? 'bg-slate-500' : 'bg-slate-800')}`}></div>
+                                            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">IOA: {displayIoa}</span>
+                                        </div>
+                                        {hasData && (
+                                            <div className="flex flex-col items-end gap-1">
+                                                <span className="text-[8px] text-brand-green/80 font-bold bg-brand-green/10 px-2 py-0.5 rounded border border-brand-green/20 uppercase tracking-tighter">TYP: {liveData.typeId}</span>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div className="flex-1 flex flex-col justify-center py-2">
+                                        <div className="text-[10px] text-brand-green font-black uppercase tracking-widest mb-0.5 truncate leading-none" title={dp.dataName}>
+                                            {dp.dataName}
+                                        </div>
+                                        {dp.signalDescription && (
+                                            <div className="text-[9px] text-slate-500 font-medium uppercase tracking-tight mb-2 truncate leading-none opacity-80" title={dp.signalDescription}>
+                                                {dp.signalDescription}
+                                            </div>
+                                        )}
+                                        <div className="flex items-baseline gap-1.5 flex-wrap">
+                                            <div className="text-3xl font-bold text-white tabular-nums tracking-tighter break-words leading-none">
+                                                {hasData ? (
+                                                    typeof liveData.value === 'number' ?
+                                                        (Number.isInteger(liveData.value) ? liveData.value : liveData.value.toFixed(3))
+                                                        : liveData.value
+                                                ) : (
+                                                    <span className="text-slate-800 animate-pulse">--.---</span>
+                                                )}
+                                            </div>
+                                            {(liveData?.unit || dp.dataType) && (
+                                                <span className="text-[10px] font-bold text-slate-600 lowercase">{liveData?.unit || dp.dataType}</span>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    <div className="flex justify-between items-center pt-3 border-t border-white/[0.04]">
+                                        <div className="flex flex-col">
+                                            <span className="text-[8px] text-slate-600 uppercase tracking-widest font-bold">Uplink Status</span>
+                                            <span className={`text-[9px] font-mono ${hasData ? 'text-slate-500' : 'text-slate-800'}`}>
+                                                {hasData ? `QDS: ${liveData.qds || '0'}` : 'AWAITING DATA'}
+                                            </span>
+                                        </div>
+                                        <div className="text-right">
+                                            <span className="text-[8px] text-brand-green/40 uppercase tracking-widest font-bold font-mono">Sync</span>
+                                            <div className="text-[9px] text-slate-500 font-mono">
+                                                {hasData ? new Date(liveData.timestamp).toLocaleTimeString([], { hour12: false }) : '--:--:--'}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </motion.div>
+                            );
+                        })}
+                        {points.size === 0 && (
+                            <div className="col-span-full h-full flex flex-col items-center justify-center opacity-10 py-32 border-2 border-dashed border-slate-900 rounded-3xl">
+                                <Network size={80} className="mb-6" />
+                                <p className="text-xl font-black uppercase tracking-[0.8em]">Awaiting Data Stream</p>
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                <div className="card-base bg-slate-950 border-slate-900 overflow-hidden flex flex-col h-[300px] shadow-2xl border-t-4 border-t-brand-green/20">
+                    <div className="px-6 py-3 border-b border-slate-900 bg-slate-900/40 flex justify-between items-center">
+                        <div className="flex items-center gap-3">
+                            <Terminal size={14} className="text-brand-green" />
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.4em]">Hardware Uplink Traffic</span>
+                        </div>
+                        <button onClick={() => setRawLogs([])} className="p-2 hover:bg-red-500/10 rounded-lg text-slate-700 hover:text-danger transition-colors">
+                            <Trash2 size={14} />
+                        </button>
+                    </div>
+                    <div className="flex-1 p-6 overflow-y-auto font-mono text-[10px] space-y-2 scrollbar-hide bg-[linear-gradient(to_bottom,rgba(15,23,42,0)_0%,rgba(15,23,42,0.5)_100%)]">
+                        {rawLogs.length === 0 ? (
+                            <div className="h-full flex items-center justify-center text-slate-800 italic uppercase tracking-[0.5em] text-xs font-black animate-pulse">
+                                [ SYSTEM LISTENING ACTIVE ]
+                            </div>
+                        ) : (
+                            rawLogs.map(log => (
+                                <div key={log.id} className={`flex gap-4 border-l-2 pl-4 py-0.5 transition-colors ${log.type === 'info' ? 'text-blue-400 border-blue-500/30' : 'text-slate-500 border-slate-800'}`}>
+                                    <span className="opacity-20 flex-shrink-0">[{log.time}]</span>
+                                    <span className="font-bold tracking-wider">{log.message}</span>
+                                </div>
+                            ))
+                        )}
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// Single Point Card Component
+const PointCard = ({ point, liveData }: { point: DataPoint, liveData?: any }) => {
+    const [prevValue, setPrevValue] = useState<number | null>(null);
+    const value = liveData?.value ?? null;
+    const lastUpdate = liveData?.timestamp ? new Date(liveData.timestamp) : null;
+    const hasData = !!liveData;
+    const isUpdating = hasData && lastUpdate && (Date.now() - lastUpdate.getTime() < 1000);
+
+    useEffect(() => {
+        if (value !== null) {
+            setPrevValue(value);
+        }
+    }, [value]);
 
     const delta = (value !== null && prevValue !== null) ? value - prevValue : 0;
     const isUp = delta >= 0;
 
     return (
         <motion.div
-            layout
             initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="card-base p-5 bg-slate-900/30 border-slate-800/40 hover:border-brand-green/30 transition-all flex flex-col justify-between h-40 group relative overflow-hidden"
+            animate={{
+                opacity: 1,
+                y: 0,
+                borderColor: isUpdating ? 'rgba(16,185,129,0.5)' : (hasData ? 'rgba(30, 41, 59, 0.6)' : 'rgba(30, 41, 59, 0.2)'),
+                backgroundColor: isUpdating ? 'rgba(16,185,129,0.08)' : (hasData ? 'rgba(15, 23, 42, 0.4)' : 'rgba(15, 23, 42, 0.1)')
+            }}
+            whileHover={{ y: -4, transition: { duration: 0.2 } }}
+            className={`card-base p-6 transition-all flex flex-col justify-between min-h-[170px] group relative overflow-hidden backdrop-blur-sm border ${isUpdating ? 'shadow-[0_0_20px_rgba(16,185,129,0.1)]' : ''}`}
         >
-            <div className="absolute top-0 right-0 p-3 opacity-[0.03] group-hover:opacity-[0.1] transition-opacity">
-                <SignalHigh size={40} />
+            <div className="absolute top-0 right-0 p-4 opacity-[0.03] group-hover:opacity-[0.1] transition-opacity">
+                <SignalHigh size={44} />
             </div>
 
             <div className="flex justify-between items-start">
-                <div className="space-y-1">
-                    <span className="text-[10px] font-black text-slate-500 tracking-[0.2em] uppercase">{point.dataName}</span>
+                <div className="space-y-1.5 overflow-hidden">
+                    <span className={`text-[10px] font-bold tracking-widest uppercase block truncate ${hasData ? 'text-brand-green' : 'text-slate-600'}`} title={liveData?.name || point.signalDescription || point.dataName}>
+                        {liveData?.name || point.signalDescription || point.dataName}
+                    </span>
                     <div className="flex items-center gap-2">
-                        <span className="text-[9px] font-mono text-slate-600 bg-slate-950 px-1.5 py-0.5 rounded border border-slate-800">
-                            ADDR: {protocolType === 'MODBUS' ? point.registerAddress : (point.scadaAddress || point.ioa1ObjectAddress)}
+                        <span className={`text-[9px] font-mono px-2 py-0.5 rounded-full border ${hasData ? 'text-slate-400 bg-slate-950/80 border-slate-800' : 'text-slate-700 bg-slate-950/20 border-slate-900'}`}>
+                            IOA: {point.scadaAddress || point.ioa1ObjectAddress || point.registerAddress || 'N/A'}
                         </span>
                     </div>
                 </div>
-                <div className={`w-1.5 h-1.5 rounded-full ${isLive ? 'bg-brand-green shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-slate-700'}`} />
+                <div className={`w-2 h-2 rounded-full flex-shrink-0 transition-all duration-500 ${isUpdating ? 'bg-brand-green shadow-[0_0_12px_rgba(16,185,129,0.8)]' : (hasData ? 'bg-slate-500' : 'bg-slate-800')}`} />
             </div>
 
-            <div className="flex items-baseline gap-2 mt-2">
-                <span className="text-3xl font-black text-white tabular-nums tracking-tighter">
-                    {value !== null ? value.toFixed(2) : '--.--'}
+            <div className="flex items-baseline gap-2 mt-4 flex-wrap">
+                <span className={`text-3xl lg:text-4xl font-bold tabular-nums tracking-tighter break-all transition-colors ${hasData ? 'text-white' : 'text-slate-800'}`}>
+                    {hasData ? (Number.isInteger(value) ? value : value.toFixed(2)) : '--.--'}
                 </span>
-                <span className="text-[10px] font-bold text-slate-500 lowercase">{point.dataValue || ''}</span>
+                <span className="text-xs font-bold text-slate-500 lowercase opacity-80">{liveData?.unit || point.dataType || ''}</span>
             </div>
 
-            <div className="flex items-center justify-between pt-3 border-t border-slate-800/30">
-                <div className={`flex items-center gap-1 text-[9px] font-bold ${delta === 0 ? 'text-slate-600' : isUp ? 'text-brand-green' : 'text-danger'}`}>
-                    {delta !== 0 && (isUp ? <ArrowUpRight size={12} /> : <ArrowDownRight size={12} />)}
-                    <span>{delta === 0 ? 'STABLE' : Math.abs(delta).toFixed(3)}</span>
+            <div className="flex items-center justify-between pt-4 border-t border-white/[0.04] mt-2">
+                <div className={`flex items-center gap-1.5 text-xs font-bold ${!hasData ? 'text-slate-800' : delta === 0 ? 'text-slate-600' : isUp ? 'text-brand-green/90' : 'text-danger/90'}`}>
+                    {hasData && delta !== 0 && (isUp ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />)}
+                    <span className="tracking-tight">{!hasData ? 'WAITING' : delta === 0 ? 'STABLE' : Math.abs(delta).toFixed(3)}</span>
                 </div>
                 {lastUpdate && (
-                    <div className="flex items-center gap-1.5 text-[8px] font-mono text-slate-600">
-                        <Clock size={10} />
-                        {lastUpdate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                    <div className="flex items-center gap-1.5 text-[9px] font-mono text-slate-600">
+                        <Clock size={10} className="opacity-50" />
+                        {lastUpdate.toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })}
                     </div>
                 )}
             </div>
@@ -187,32 +389,103 @@ const PointCard = ({ deviceId, point, protocolType }: { deviceId: string, point:
     );
 };
 
+// Single Point Row Component for Table View
+const PointRow = ({ point, liveData }: { point: DataPoint, liveData?: any }) => {
+    const isUpdating = liveData && (Date.now() - new Date(liveData.timestamp).getTime() < 1000);
+    const value = liveData?.value ?? null;
+    const lastUpdate = liveData?.timestamp ? new Date(liveData.timestamp) : null;
+
+    return (
+        <tr className={`border-b border-white/[0.03] transition-colors ${isUpdating ? 'bg-brand-green/10' : 'hover:bg-white/[0.02]'}`}>
+            <td className="py-3 px-4 text-[10px] font-mono text-slate-500 uppercase truncate max-w-[200px]" title={liveData?.name || point.signalDescription || point.dataName}>
+                {liveData?.name || point.signalDescription || point.dataName}
+            </td>
+            <td className="py-3 px-4 text-[10px] font-mono text-slate-500">
+                {point.scadaAddress || point.ioa1ObjectAddress || point.registerAddress || '-'}
+            </td>
+            <td className="py-3 px-4">
+                <span className={`text-xs font-bold tabular-nums ${isUpdating ? 'text-brand-green' : 'text-white'}`}>
+                    {value !== null ? (Number.isInteger(value) ? value : value.toFixed(3)) : '---'}
+                </span>
+            </td>
+            <td className="py-3 px-4 text-[9px] text-slate-600 uppercase">{liveData?.unit || point.dataType || '-'}</td>
+            <td className="py-3 px-4 text-[9px] text-slate-600 font-mono">
+                {lastUpdate ? lastUpdate.toLocaleTimeString([], { hour12: false }) : '-'}
+            </td>
+        </tr>
+    );
+};
+
+// Datasheet Table Component
+const DatasheetLiveTable = ({ points, liveValues, protocolType }: { points: DataPoint[], liveValues: Map<string, any>, protocolType: string }) => {
+    return (
+        <div className="card-base bg-slate-950/40 border-slate-800/50 overflow-hidden">
+            <table className="w-full text-left">
+                <thead className="bg-slate-900/50 border-b border-slate-800">
+                    <tr>
+                        <th className="py-3 px-4 text-[9px] font-black text-slate-500 uppercase tracking-widest leading-none">Point Name / Description</th>
+                        <th className="py-3 px-4 text-[9px] font-black text-slate-500 uppercase tracking-widest leading-none">Address / IOA</th>
+                        <th className="py-3 px-4 text-[9px] font-black text-slate-500 uppercase tracking-widest leading-none">Live Value</th>
+                        <th className="py-3 px-4 text-[9px] font-black text-slate-500 uppercase tracking-widest leading-none">Unit</th>
+                        <th className="py-3 px-4 text-[9px] font-black text-slate-500 uppercase tracking-widest leading-none">Last Sync</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {points.map(p => (
+                        <PointRow key={p.id} point={p} liveData={liveValues.get(p.id)} />
+                    ))}
+                </tbody>
+            </table>
+        </div>
+    );
+};
+
+// Main Page Component
 export default function LiveMonitoringPage() {
     const [companies, setCompanies] = useState<Company[]>([]);
     const [plants, setPlants] = useState<Plant[]>([]);
     const [devices, setDevices] = useState<Device[]>([]);
     const [points, setPoints] = useState<DataPoint[]>([]);
+    const [liveValues, setLiveValues] = useState<Map<string, any>>(new Map());
+    const [pointLastUpdates, setPointLastUpdates] = useState<Record<string, number>>({});
 
     const [selectedCompany, setSelectedCompany] = useState<string>('');
     const [selectedPlant, setSelectedPlant] = useState<string>('');
     const [selectedDevice, setSelectedDevice] = useState<Device | null>(null);
     const [protocolType, setProtocolType] = useState<string>('MODBUS');
+    const [asduAddr, setAsduAddr] = useState<number>(1);
 
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
     const [showConsole, setShowConsole] = useState(true);
+    const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
+    const [socketConnected, setSocketConnected] = useState(false);
 
     useEffect(() => {
-        const fetchInitial = async () => {
-            try {
-                const res = await apiRequest('/api/companies');
-                if (res.ok) setCompanies(await res.json());
-            } catch (err) {
-                console.error("Fetch companies error:", err);
-            } finally {
-                setLoading(false);
-            }
+        setSocketConnected(socket.connected);
+        const onConnect = () => setSocketConnected(true);
+        const onDisconnect = () => setSocketConnected(false);
+        socket.on('connect', onConnect);
+        socket.on('disconnect', onDisconnect);
+        return () => {
+            socket.off('connect', onConnect);
+            socket.off('disconnect', onDisconnect);
         };
+    }, []);
+
+    const fetchInitial = async () => {
+        try {
+            setLoading(true);
+            const res = await apiRequest('/api/companies');
+            if (res.ok) setCompanies(await res.json());
+        } catch (err) {
+            console.error("Fetch companies error:", err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
         fetchInitial();
     }, []);
 
@@ -247,8 +520,6 @@ export default function LiveMonitoringPage() {
                 const res = await apiRequest('/api/devices');
                 if (res.ok) {
                     const allDevices = await res.json();
-                    // Plant filter through protocol_config_id (usually devices belong to plant via protocol)
-                    // Let's check how the API returns them
                     setDevices(allDevices.filter((d: any) => d.protocol?.plant?.id === selectedPlant));
                 }
             } catch (err) {
@@ -271,10 +542,12 @@ export default function LiveMonitoringPage() {
                     if (protoRes.ok) {
                         const protos = await protoRes.json();
                         const proto = protos.find((p: any) => p.id === selectedDevice.protocol_config_id);
-                        if (proto) setProtocolType(proto.protocolType);
+                        if (proto) {
+                            setProtocolType(proto.protocolType);
+                            if (proto.iec104Config) setAsduAddr(proto.iec104Config.asduAddr);
+                        }
                     }
                 }
-
                 if (selectedDevice.datasheet_profile_id) {
                     const res = await apiRequest(`/api/datasheets?profileId=${selectedDevice.datasheet_profile_id}`);
                     if (res.ok) setPoints(await res.json());
@@ -286,9 +559,66 @@ export default function LiveMonitoringPage() {
         fetchPoints();
     }, [selectedDevice]);
 
-    const filteredPoints = points.filter(p =>
-        p.dataName.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    // Active status tracker for sorting & Systematic Live Values
+    useEffect(() => {
+        if (!selectedDevice) {
+            setLiveValues(new Map());
+            return;
+        }
+
+        const handlePacket = (data: any) => {
+            if (!data) return;
+
+            // Handle both single objects (processed) and arrays (raw)
+            const packets = Array.isArray(data) ? data : [data];
+
+            packets.forEach(pkt => {
+                const dataIoa = pkt.ioa !== undefined && pkt.ioa !== null ? Number(pkt.ioa) : null;
+
+                const match = points.find(p => {
+                    // Priority 1: Direct Point ID Match
+                    if (pkt.pointId && p.id && String(pkt.pointId) === String(p.id)) return true;
+
+                    // Priority 2: IOA Match
+                    if (dataIoa === null || isNaN(dataIoa)) return false;
+                    if (protocolType === 'MODBUS') {
+                        return p.registerAddress != null && Number(p.registerAddress) === dataIoa;
+                    } else {
+                        return (p.scadaAddress != null && Number(p.scadaAddress) === dataIoa) ||
+                            (p.ioa1ObjectAddress != null && Number(p.ioa1ObjectAddress) === dataIoa);
+                    }
+                });
+
+                if (match) {
+                    setPointLastUpdates(prev => ({ ...prev, [match.id]: Date.now() }));
+                    setLiveValues(prev => {
+                        const next = new Map(prev);
+                        next.set(match.id, {
+                            ...pkt,
+                            timestamp: pkt.timestamp || new Date().toISOString()
+                        });
+                        return next;
+                    });
+                }
+            });
+        };
+
+        // Listen to both processed and RAW fallback streams
+        const topics = [
+            `telemetry:${selectedDevice.id}`,
+            `telemetry:${selectedDevice.protocol_config_id}`,
+            `telemetry:raw:${selectedDevice.protocol_config_id}`
+        ];
+
+        topics.forEach(t => socket.on(t, handlePacket));
+        return () => topics.forEach(t => socket.off(t, handlePacket));
+    }, [selectedDevice, points, protocolType]);
+
+    const filteredPoints = points
+        .filter(p =>
+            p.dataName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            (p.signalDescription && p.signalDescription.toLowerCase().includes(searchQuery.toLowerCase()))
+        );
 
     return (
         <div className="space-y-8 pb-20 animate-in-up">
@@ -297,7 +627,7 @@ export default function LiveMonitoringPage() {
                 <div className="space-y-2">
                     <div className="flex items-center gap-4">
                         <div className="w-1.5 h-8 bg-brand-green rounded-full shadow-[0_0_20px_rgba(16,185,129,0.4)]"></div>
-                        <h1 className="text-3xl font-black text-white tracking-tight italic">LIVE COMMAND CENTER</h1>
+                        <h1 className="text-2xl font-bold text-white tracking-tight">Monitoring Dashboard</h1>
                     </div>
                     <p className="text-xs text-slate-500 ml-6 tracking-widest uppercase font-bold opacity-60">Real-time Telemetry Visualization & Testing</p>
                 </div>
@@ -310,8 +640,10 @@ export default function LiveMonitoringPage() {
                         <Terminal size={14} /> {showConsole ? 'HIDE' : 'SHOW'} CONSOLE
                     </button>
                     <div className="flex items-center gap-3 px-4 py-2 bg-slate-950 border border-slate-800 rounded-xl">
-                        <SignalHigh size={16} className="text-brand-green animate-pulse" />
-                        <span className="text-[10px] font-black text-slate-400 tracking-widest">GATEWAY: ONLINE</span>
+                        <SignalHigh size={16} className={`${socketConnected ? 'text-brand-green animate-pulse' : 'text-red-500'}`} />
+                        <span className="text-[10px] font-black text-slate-400 tracking-widest uppercase">
+                            HUB: {socketConnected ? 'ONLINE' : 'OFFLINE'}
+                        </span>
                     </div>
                 </div>
             </div>
@@ -319,8 +651,8 @@ export default function LiveMonitoringPage() {
             {/* Selection Matrix */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 bg-slate-900/10 p-6 rounded-2xl border border-slate-800/40">
                 <div className="space-y-2">
-                    <label className="text-[9px] font-black text-slate-500 tracking-[0.3em] uppercase ml-1 flex items-center gap-2">
-                        <Building2 size={12} /> 01_Company_Scope
+                    <label className="text-[9px] font-bold text-slate-500 tracking-widest uppercase ml-1 flex items-center gap-2">
+                        <Building2 size={12} /> Company Selection
                     </label>
                     <select
                         value={selectedCompany}
@@ -333,8 +665,8 @@ export default function LiveMonitoringPage() {
                 </div>
 
                 <div className="space-y-2">
-                    <label className="text-[9px] font-black text-slate-500 tracking-[0.3em] uppercase ml-1 flex items-center gap-2">
-                        <Factory size={12} /> 02_Plant_Node
+                    <label className="text-[9px] font-bold text-slate-500 tracking-widest uppercase ml-1 flex items-center gap-2">
+                        <Factory size={12} /> Plant Selection
                     </label>
                     <select
                         value={selectedPlant}
@@ -348,8 +680,8 @@ export default function LiveMonitoringPage() {
                 </div>
 
                 <div className="space-y-2">
-                    <label className="text-[9px] font-black text-slate-500 tracking-[0.3em] uppercase ml-1 flex items-center gap-2">
-                        <Cpu size={12} /> 03_Target_Hardware
+                    <label className="text-[9px] font-bold text-slate-500 tracking-widest uppercase ml-1 flex items-center gap-2">
+                        <Cpu size={12} /> Device Selection
                     </label>
                     <select
                         value={selectedDevice?.id || ''}
@@ -364,21 +696,35 @@ export default function LiveMonitoringPage() {
             </div>
 
             <div className="grid grid-cols-1 xl:grid-cols-4 gap-8">
-                {/* Live Dashboard Area */}
                 <div className="xl:col-span-3 space-y-6">
                     {selectedDevice ? (
                         <div className="space-y-6">
                             <div className="flex items-center justify-between gap-4 card-base p-4 bg-slate-900/20">
                                 <div className="flex items-center gap-6">
                                     <div className="flex flex-col">
-                                        <span className="text-[9px] font-black text-slate-600 tracking-widest uppercase">Active Device</span>
-                                        <span className="text-sm font-black text-white">{selectedDevice.deviceName}</span>
+                                        <span className="text-[9px] font-bold text-slate-600 tracking-widest uppercase">Active Device</span>
+                                        <span className="text-sm font-bold text-white">{selectedDevice.deviceName}</span>
                                     </div>
                                     <div className="h-8 w-px bg-slate-800"></div>
                                     <div className="flex flex-col">
-                                        <span className="text-[9px] font-black text-slate-600 tracking-widest uppercase">Protocol</span>
-                                        <span className={`text-[10px] font-black ${protocolType === 'MODBUS' ? 'text-blue-400' : 'text-brand-green'}`}>{protocolType} TCP/IP</span>
+                                        <span className="text-[9px] font-bold text-slate-600 tracking-widest uppercase">Protocol</span>
+                                        <span className={`text-[10px] font-bold ${protocolType === 'MODBUS' ? 'text-blue-400' : 'text-brand-green'}`}>{protocolType} TCP/IP</span>
                                     </div>
+                                </div>
+
+                                <div className="flex items-center gap-2 bg-slate-950 p-1 rounded-lg border border-slate-800">
+                                    <button
+                                        onClick={() => setViewMode('grid')}
+                                        className={`p-2 rounded-md transition-all ${viewMode === 'grid' ? 'bg-brand-green/20 text-brand-green' : 'text-slate-600 hover:text-slate-400'}`}
+                                    >
+                                        <Layers size={14} />
+                                    </button>
+                                    <button
+                                        onClick={() => setViewMode('table')}
+                                        className={`p-2 rounded-md transition-all ${viewMode === 'table' ? 'bg-brand-green/20 text-brand-green' : 'text-slate-600 hover:text-slate-400'}`}
+                                    >
+                                        <TableIcon size={14} />
+                                    </button>
                                 </div>
 
                                 <div className="relative">
@@ -394,18 +740,25 @@ export default function LiveMonitoringPage() {
                             </div>
 
                             {points.length > 0 ? (
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                                    <AnimatePresence mode="popLayout">
-                                        {filteredPoints.map((point) => (
-                                            <PointCard
-                                                key={point.id}
-                                                deviceId={selectedDevice.protocol_config_id} // Typically we listen to protocol channel
-                                                point={point}
-                                                protocolType={protocolType}
-                                            />
-                                        ))}
-                                    </AnimatePresence>
-                                </div>
+                                viewMode === 'grid' ? (
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-5 gap-4">
+                                        <AnimatePresence mode="popLayout">
+                                            {filteredPoints.map((point) => (
+                                                <PointCard
+                                                    key={point.id}
+                                                    point={point}
+                                                    liveData={liveValues.get(point.id)}
+                                                />
+                                            ))}
+                                        </AnimatePresence>
+                                    </div>
+                                ) : (
+                                    <DatasheetLiveTable
+                                        points={filteredPoints}
+                                        liveValues={liveValues}
+                                        protocolType={protocolType}
+                                    />
+                                )
                             ) : (
                                 <div className="flex flex-col items-center justify-center py-20 card-base border-dashed border-slate-800">
                                     <Database size={48} className="text-slate-800 mb-4" />
@@ -428,23 +781,34 @@ export default function LiveMonitoringPage() {
                             </div>
                         </div>
                     )}
+
+                    {selectedDevice && protocolType === 'IEC104' && (
+                        <div className="mt-12 pt-12 border-t border-slate-900">
+                            <IECDiagnosticPanel
+                                key={selectedDevice.id}
+                                protocolId={selectedDevice.protocol_config_id}
+                                asduAddr={asduAddr}
+                                deviceName={selectedDevice.deviceName}
+                                deviceId={selectedDevice.id}
+                                devicePoints={points}
+                            />
+                        </div>
+                    )}
                 </div>
 
-                {/* Sidebar Console */}
                 <div className={`xl:col-span-1 space-y-6 ${showConsole ? 'block' : 'hidden md:block opacity-20 pointer-events-none'}`}>
                     <div className="sticky top-8 space-y-6">
                         <GlobalStream />
-
                         <div className="card-base p-6 bg-slate-900/10 space-y-4">
-                            <h4 className="text-[10px] font-black text-slate-500 tracking-widest uppercase flex items-center gap-2">
-                                <Zap size={12} className="text-brand-green" /> Simulation_Mode
+                            <h4 className="text-[10px] font-bold text-slate-500 tracking-widest uppercase flex items-center gap-2">
+                                <Zap size={12} className="text-brand-green" /> Simulation Mode
                             </h4>
-                            <p className="text-[11px] text-slate-600 leading-relaxed italic">
-                                The system is currently coupled with a virtual Modbus Slave on <span className="text-white">port 5020</span>.
+                            <p className="text-[11px] text-slate-600 leading-relaxed">
+                                The system is currently generating adaptive telemetry for all active plant nodes to simulate real world behavior.
                             </p>
                             <div className="flex items-center gap-3 p-3 bg-slate-950 rounded-xl border border-slate-900">
                                 <div className="w-2 h-2 rounded-full bg-brand-green shadow-[0_0_8px_rgba(16,185,129,0.5)]"></div>
-                                <span className="text-[9px] font-black text-slate-400 tracking-widest uppercase">Protocol_Active</span>
+                                <span className="text-[9px] font-bold text-slate-400 tracking-widest uppercase">Simulation Active</span>
                             </div>
                         </div>
                     </div>

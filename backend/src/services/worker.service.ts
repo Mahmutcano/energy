@@ -36,7 +36,7 @@ class WorkerService {
     }
 
     private async process(data: any) {
-        const { deviceId, pointId, value, unit, name, timestamp } = data;
+        const { deviceId, pointId, protocolId, value, unit, name, timestamp } = data;
 
         // 1. Veritabanına Yaz (Historian)
         if (deviceId && pointId) {
@@ -44,14 +44,18 @@ class WorkerService {
         }
 
         // 2. Canlı Yayını Yap (Real-time UI)
-        io.emit(`telemetry:${deviceId}`, data);
+        if (deviceId) io.emit(`telemetry:${deviceId}`, data);
+        if (protocolId) io.emit(`telemetry:${protocolId}`, data);
+
+        // Debug topic for console
+        io.emit('telemetry:all', data);
 
         // 3. Alarm Kontrollerini Yap (Business Logic)
         if (deviceId) {
             this.checkAlarms(deviceId, value);
         }
 
-        console.log(`[WORKER] Processed: ${deviceId} | VAL: ${value} ${unit || ''}`);
+        console.log(`[WORKER] Telemetry Broadcast: ${deviceId} | ${value} | CH: ${protocolId}`);
     }
 
     private checkAlarms(deviceId: string, value: number) {

@@ -117,33 +117,35 @@ export class ModbusService {
             // Simulator defaults if no points mapped
             points = [
                 { address: 0, deviceId: 'modbus-sim-device', pointId: 'sim-v', name: 'Voltage', unit: 'V' },
-                { address: 2, deviceId: 'modbus-sim-device', pointId: 'sim-i', name: 'Current', unit: 'A' },
-                { address: 4, deviceId: 'modbus-sim-device', pointId: 'sim-p', name: 'Power', unit: 'kW' }
+                { address: 1, deviceId: 'modbus-sim-device', pointId: 'sim-i', name: 'Current', unit: 'A' },
+                { address: 2, deviceId: 'modbus-sim-device', pointId: 'sim-p', name: 'Power', unit: 'kW' }
             ];
         }
 
         const pollingInterval = setInterval(async () => {
             for (const point of points) {
                 try {
-                    // Small delay between reads to prevent overlapping
                     const resp = await client.readHoldingRegisters(point.address, 1);
                     const val = resp.response._body._values[0];
 
-                    redisService.pushTelemetry({
-                        protocolId,
-                        deviceId: point.deviceId,
-                        pointId: point.pointId,
-                        ioa: point.address,
-                        value: val,
-                        unit: point.unit,
-                        name: point.name,
-                        timestamp: new Date()
-                    });
+                    if (val !== undefined) {
+                        redisService.pushTelemetry({
+                            protocolId,
+                            deviceId: point.deviceId,
+                            pointId: point.pointId,
+                            ioa: point.address,
+                            value: val,
+                            unit: point.unit,
+                            name: point.name,
+                            timestamp: new Date()
+                        });
+                        // console.log(`[MODBUS] CH:${protocolId} ADDR:${point.address} VAL:${val}`);
+                    }
                 } catch (err) {
-                    // Fail silently for individual register errors
+                    // console.error(`[MODBUS] Poll error CH:${protocolId} ADDR:${point.address}`);
                 }
             }
-        }, 3000);
+        }, 1000); // 1 second polling for more responsive UI
 
         const clientData = this.clients.get(protocolId);
         if (clientData) clientData.pollingInterval = pollingInterval;

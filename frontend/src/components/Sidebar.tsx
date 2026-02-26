@@ -66,6 +66,7 @@ const MENU_GROUPS = [
         items: [
             { name: 'Database', href: '/database', icon: Database },
             { name: 'Modbus Test', href: '/admin/modbus-test', icon: Terminal, adminOnly: true },
+            { name: 'IEC104 Test', href: '/admin/iec104-test', icon: Terminal, adminOnly: true },
             { name: 'Settings', href: '/settings', icon: Settings },
         ]
     }

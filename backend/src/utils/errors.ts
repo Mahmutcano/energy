@@ -85,7 +85,8 @@ export const handleErrorResponse = (res: any, error: any) => {
 
     console.error('Unhandled Error:', error);
     return res.status(500).json({
-        error: 'Sunucu tarafında beklenmeyen bir hata oluştu / Internal Server Error',
-        errorCode: ErrorCode.INTERNAL_ERROR
+        error: error.message || 'Sunucu tarafında beklenmeyen bir hata oluştu / Internal Server Error',
+        errorCode: ErrorCode.INTERNAL_ERROR,
+        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
 };

@@ -114,10 +114,10 @@ const createDataPointSchema = z.object({
     signalSource: z.string().max(100, "Sinyal kaynağı en fazla 100 karakter olmalıdır").optional().nullable(),
     componentId: z.string().max(100, "Komponent ID en fazla 100 karakter olmalıdır").optional().nullable(),
     componentText: z.string().max(250, "Komponent metni en fazla 250 karakter olmalıdır").optional().nullable(),
-    ioa1ObjectAddress: z.number().int("IOA Obje Adresi tam sayı olmalıdır").min(0, "IOA Obje Adresi 0 veya daha büyük olmalıdır").optional().nullable(),
-    ioa2CellNo: z.number().int("IOA2 Hücre No tam sayı olmalıdır").min(0, "IOA2 Hücre No 0 veya daha büyük olmalıdır").optional().nullable(),
-    ioa3VoltageLevel: z.number().int("IOA3 Gerilim Seviyesi tam sayı olmalıdır").min(0, "IOA3 Gerilim Seviyesi 0 veya daha büyük olmalıdır").optional().nullable(),
-    scadaAddress: z.number().int("SCADA Adresi tam sayı olmalıdır").min(0, "SCADA Adresi 0 veya daha büyük olmalıdır").optional().nullable(),
+    ioa1ObjectAddress: z.coerce.number().int("IOA Obje Adresi tam sayı olmalıdır").min(0, "IOA Obje Adresi 0 veya daha büyük olmalıdır").optional().nullable(),
+    ioa2CellNo: z.coerce.number().int("IOA2 Hücre No tam sayı olmalıdır").min(0, "IOA2 Hücre No 0 veya daha büyük olmalıdır").optional().nullable(),
+    ioa3VoltageLevel: z.coerce.number().int("IOA3 Gerilim Seviyesi tam sayı olmalıdır").min(0, "IOA3 Gerilim Seviyesi 0 veya daha büyük olmalıdır").optional().nullable(),
+    scadaAddress: z.coerce.number().int("SCADA Adresi tam sayı olmalıdır").min(0, "SCADA Adresi 0 veya daha büyük olmalıdır").optional().nullable(),
 });
 
 export const getDatasheetPoints = async (req: Request, res: Response) => {
@@ -170,11 +170,21 @@ export const createDatasheetPoint = async (req: Request, res: Response) => {
         }
 
         const point = await prisma.datasheetPoint.create({ data });
+
+        // REFRESH IEC104 SERVICE MAPS
+        try {
+            await IEC104Service.getInstance().reloadConfigs();
+        } catch (err) {
+            console.error('[IEC104_REFRESH] Failed:', err);
+        }
+
         res.status(201).json(point);
     } catch (error) {
         return handleErrorResponse(res, error);
     }
 };
+
+import { IEC104Service } from '../services/iec104.service';
 
 export const bulkCreateDatasheetPoints = async (req: Request, res: Response) => {
     const { profileId, points } = req.body;
@@ -190,37 +200,50 @@ export const bulkCreateDatasheetPoints = async (req: Request, res: Response) => 
             throw new AppError(ErrorCode.DATASHEET_NOT_FOUND, 'Profile not found', 404);
         }
 
-        // Transaction to ensure atomicity
+        // Transaction to ensure atomicity with 30s timeout
         const result = await prisma.$transaction(async (tx) => {
             const createdPoints = [];
             for (const pointData of points) {
-                // Validate individual point schema
-                const validated = createDataPointSchema.parse({ ...pointData, profile_id: profileId });
+                try {
+                    // Validate individual point schema
+                    const validated = createDataPointSchema.parse({ ...pointData, profile_id: profileId });
 
-                // Check if already exists in this transaction (using tx)
-                const existing = await tx.datasheetPoint.findFirst({
-                    where: {
-                        profile_id: profileId,
-                        dataName: validated.dataName
+                    // Check if already exists in this transaction (using tx)
+                    const existing = await tx.datasheetPoint.findFirst({
+                        where: {
+                            profile_id: profileId,
+                            dataName: validated.dataName
+                        }
+                    });
+
+                    if (existing) {
+                        const updated = await tx.datasheetPoint.update({
+                            where: { id: existing.id },
+                            data: validated
+                        });
+                        createdPoints.push(updated);
+                    } else {
+                        const created = await tx.datasheetPoint.create({
+                            data: validated
+                        });
+                        createdPoints.push(created);
                     }
-                });
-
-                if (existing) {
-                    // Update existing or skip? Let's update for Excel import logic
-                    const updated = await tx.datasheetPoint.update({
-                        where: { id: existing.id },
-                        data: validated
-                    });
-                    createdPoints.push(updated);
-                } else {
-                    const created = await tx.datasheetPoint.create({
-                        data: validated
-                    });
-                    createdPoints.push(created);
+                } catch (err: any) {
+                    console.error('[BULK_IMPORT] Failed for point:', pointData.dataName || pointData.signalDescription, err.message);
+                    throw err; // Re-throw to rollback transaction
                 }
             }
             return createdPoints;
+        }, {
+            timeout: 30000 // 30 seconds
         });
+
+        // REFRESH IEC104 SERVICE MAPS
+        try {
+            await IEC104Service.getInstance().reloadConfigs();
+        } catch (err) {
+            console.error('[BULK_IMPORT] Failed to refresh IEC104 service:', err);
+        }
 
         res.status(201).json(result);
     } catch (error) {
@@ -237,6 +260,14 @@ export const updateDatasheetPoint = async (req: Request, res: Response) => {
             where: { id: String(id) },
             data
         });
+
+        // REFRESH IEC104 SERVICE MAPS
+        try {
+            await IEC104Service.getInstance().reloadConfigs();
+        } catch (err) {
+            console.error('[IEC104_REFRESH] Failed:', err);
+        }
+
         res.json(point);
     } catch (error) {
         return handleErrorResponse(res, error);
@@ -259,6 +290,14 @@ export const deleteDatasheetPoint = async (req: Request, res: Response) => {
         }
 
         await prisma.datasheetPoint.delete({ where: { id: String(id) } });
+
+        // REFRESH IEC104 SERVICE MAPS
+        try {
+            await IEC104Service.getInstance().reloadConfigs();
+        } catch (err) {
+            console.error('[IEC104_REFRESH] Failed:', err);
+        }
+
         res.status(204).send();
     } catch (error) {
         return handleErrorResponse(res, error);

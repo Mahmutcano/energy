@@ -9,9 +9,15 @@ class RedisService {
     private memoryQueue: any[] = [];
     private useFallback: boolean = false;
 
+    // Pipeline batch buffer for high-throughput writes
+    private pushBuffer: string[] = [];
+    private pushFlushTimer: NodeJS.Timeout | null = null;
+    private readonly PUSH_BATCH_SIZE = 50;
+    private readonly PUSH_FLUSH_INTERVAL = 200; // ms
+
     private constructor() {
         this.client = new Redis(process.env.REDIS_URL || 'redis://localhost:6379', {
-            maxRetriesPerRequest: null, // Critical for long-running processes
+            maxRetriesPerRequest: null,
             retryStrategy: (times) => {
                 const delay = Math.min(times * 100, 5000);
                 if (times === 1) {
@@ -21,12 +27,13 @@ class RedisService {
                 return delay;
             },
             reconnectOnError: (err) => {
-                const targetError = 'READONLY';
-                if (err.message.includes(targetError)) {
-                    return true;
-                }
+                if (err.message.includes('READONLY')) return true;
                 return false;
-            }
+            },
+            // Performance tuning
+            enableReadyCheck: true,
+            lazyConnect: false,
+            keepAlive: 30000,
         });
 
         this.client.on('error', (err) => {
@@ -46,6 +53,11 @@ class RedisService {
         this.client.on('reconnecting', () => {
             console.log('[REDIS] Reconnecting...');
         });
+
+        // Start pipeline flush timer
+        this.pushFlushTimer = setInterval(() => {
+            this.flushPushBuffer();
+        }, this.PUSH_FLUSH_INTERVAL);
     }
 
     public static getInstance(): RedisService {
@@ -55,18 +67,78 @@ class RedisService {
         return RedisService.instance;
     }
 
+    /**
+     * Uses Redis pipeline for batched writes instead of individual lpush calls.
+     * This reduces network round trips significantly under load.
+     */
     public async pushTelemetry(data: any) {
         if (this.useFallback || !this.client) {
             this.memoryQueue.push(data);
             return;
         }
         try {
-            await this.client.lpush('telemetry_queue', JSON.stringify(data));
+            this.pushBuffer.push(JSON.stringify(data));
+            if (this.pushBuffer.length >= this.PUSH_BATCH_SIZE) {
+                await this.flushPushBuffer();
+            }
         } catch (err) {
             this.memoryQueue.push(data);
         }
     }
 
+    private async flushPushBuffer() {
+        if (this.pushBuffer.length === 0 || this.useFallback || !this.client) return;
+
+        const items = this.pushBuffer.splice(0);
+        try {
+            const pipeline = this.client.pipeline();
+            for (const item of items) {
+                pipeline.lpush('telemetry_queue', item);
+            }
+            await pipeline.exec();
+        } catch (err) {
+            // Fallback: push to memory queue
+            for (const item of items) {
+                try { this.memoryQueue.push(JSON.parse(item)); } catch { }
+            }
+        }
+    }
+
+    /**
+     * Batch pop: Retrieves multiple items at once using lrange + ltrim
+     * instead of blocking on a single item. Falls back to brpop for idle state.
+     */
+    public async popTelemetryBatch(batchSize: number = 50): Promise<any[]> {
+        if (this.useFallback || !this.client) {
+            if (this.memoryQueue.length === 0) {
+                await new Promise(resolve => setTimeout(resolve, 100));
+                return [];
+            }
+            return this.memoryQueue.splice(0, batchSize);
+        }
+
+        try {
+            // Atomic batch: get items then trim
+            const items = await this.client.lrange('telemetry_queue', -batchSize, -1);
+            if (items.length > 0) {
+                await this.client.ltrim('telemetry_queue', 0, -(items.length + 1));
+                return items.map(item => JSON.parse(item));
+            }
+
+            // Fallback to blocking pop if queue was empty
+            const result = await this.client.brpop('telemetry_queue', 2);
+            if (result && result[1]) {
+                return [JSON.parse(result[1])];
+            }
+        } catch (err: any) {
+            console.error('[REDIS] BatchPop Error:', err.message);
+            if (this.memoryQueue.length > 0) return this.memoryQueue.splice(0, batchSize);
+            await new Promise(resolve => setTimeout(resolve, 100));
+        }
+        return [];
+    }
+
+    // Keep legacy single pop for compatibility
     public async popTelemetry(): Promise<any> {
         if (this.useFallback || !this.client) {
             while (this.memoryQueue.length === 0) {
@@ -75,8 +147,6 @@ class RedisService {
             return this.memoryQueue.shift();
         }
         try {
-            // brpop normally returns [key, value]. 
-            // We use a timeout (5s) instead of 0 to prevent eternal hangs.
             const result = await this.client.brpop('telemetry_queue', 5);
             if (result && result[1]) {
                 return JSON.parse(result[1]);

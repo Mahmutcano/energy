@@ -7,16 +7,20 @@ dotenv.config();
 
 const url = process.env.DATABASE_URL;
 
-// Historical data is saved to PostgreSQL (TelemetryValue table).
-// For Prisma 7.3.0 + Accelerate Proxy (db.prisma.io), we use the Driver Adapter.
-// We must carefully handle the SSL for this proxy.
 const pool = new Pool({
     connectionString: url,
-    // Some proxies like db.prisma.io work better without manual SSL object 
-    // if the connection string already has sslmode=require.
-    // However, if that fails, we try rejectUnauthorized: false.
     ssl: url?.includes('localhost') ? false : { rejectUnauthorized: false },
-    max: 10,
+    // Connection pool tuning for SCADA workload
+    max: 20,             // Increased from 10 for concurrent batch writes
+    min: 5,              // Keep minimum connections warm
+    idleTimeoutMillis: 30000,   // Close idle connections after 30s
+    connectionTimeoutMillis: 5000, // Timeout for new connections
+    statement_timeout: 10000, // 10s query timeout to prevent hung queries
+});
+
+// Monitor pool health
+pool.on('error', (err) => {
+    console.error('[POOL] Unexpected error on idle client:', err);
 });
 
 const adapter = new PrismaPg(pool);
@@ -24,3 +28,4 @@ const adapter = new PrismaPg(pool);
 const prisma = new PrismaClient({ adapter });
 
 export default prisma;
+export { pool };

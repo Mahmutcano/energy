@@ -2,6 +2,8 @@ import { Request, Response } from 'express';
 import prisma from '../lib/prisma';
 import { AppError, ErrorCode, handleErrorResponse } from '../utils/errors';
 import redisService from '../services/redis.service';
+import { getApproximateTelemetryCount } from '../utils/telemetry';
+import workerService from '../services/worker.service';
 
 export const getSchemaStats = async (req: Request, res: Response) => {
     try {
@@ -57,8 +59,9 @@ export const getHealthCheck = async (req: Request, res: Response) => {
         const dbLatency = Date.now() - dbStart;
 
         // Get recent telemetry stats
+        // Use fast approximate count instead of slow COUNT(*)
         const [totalRecords, latestRecord, activeDevices, totalDevices] = await Promise.all([
-            prisma.telemetryValue.count(),
+            getApproximateTelemetryCount(),
             prisma.telemetryValue.findFirst({ orderBy: { measurementTime: 'desc' }, select: { measurementTime: true } }),
             prisma.device.count({ where: { isActive: true } }),
             prisma.device.count()
@@ -105,11 +108,13 @@ export const getHealthCheck = async (req: Request, res: Response) => {
         };
     }
 
-    // 3. Worker Service Check (inferred from recent data flow)
-    const workerActive = checks.postgresql?.recording === true;
+    // 3. Worker Service Check (real metrics)
+    const workerMetrics = workerService.getMetrics();
     checks.worker = {
-        status: workerActive ? 'ACTIVE' : 'IDLE',
-        bufferMode: checks.redis?.mode || 'UNKNOWN'
+        status: workerMetrics.isRunning ? (checks.postgresql?.recording ? 'ACTIVE' : 'IDLE') : 'STOPPED',
+        bufferMode: checks.redis?.mode || 'UNKNOWN',
+        processedTotal: workerMetrics.processedTotal,
+        bufferSize: workerMetrics.bufferSize
     };
 
     // 4. Memory Usage

@@ -21,6 +21,7 @@
     "@prisma/adapter-pg": "^7.3.0",
     "@prisma/client": "^7.3.0",
     "bcryptjs": "^3.0.3",
+    "compression": "^1.8.1",
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
     "iec104-protocol": "^1.2.0",
@@ -34,6 +35,7 @@
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
+    "@types/compression": "^1.8.1",
     "@types/express": "^5.0.6",
     "@types/ioredis": "^4.28.10",
     "@types/jsonwebtoken": "^9.0.10",

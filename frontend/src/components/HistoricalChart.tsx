@@ -15,26 +15,66 @@ export default function HistoricalChart({ data, title, color = '#3b82f6' }: { da
         backgroundColor: 'transparent',
         tooltip: {
             trigger: 'axis',
-            backgroundColor: isDark ? '#1e293b' : '#ffffff',
-            borderColor: isDark ? '#334155' : '#e2e8f0',
-            textStyle: { color: isDark ? '#f1f5f9' : '#1e293b' },
-            axisPointer: { type: 'cross', label: { backgroundColor: isDark ? '#1e293b' : '#f8fafc' } },
-            shadowBlur: 10,
-            shadowColor: 'rgba(0,0,0,0.1)'
+            backgroundColor: 'rgba(15, 23, 42, 0.9)',
+            borderColor: 'rgba(16, 185, 129, 0.3)',
+            borderWidth: 1,
+            borderRadius: 12,
+            padding: [12, 16],
+            textStyle: {
+                color: '#f8fafc',
+                fontSize: 11,
+                fontWeight: 'bold'
+            },
+            axisPointer: {
+                type: 'line',
+                lineStyle: {
+                    color: 'rgba(16, 185, 129, 0.4)',
+                    width: 2,
+                    type: 'dashed'
+                }
+            },
+            formatter: (params: any) => {
+                const p = params[0];
+                return `
+                    <div style="display:flex; flex-direction:column; gap:8px;">
+                        <div style="color:#64748b; font-size:10px; text-transform:uppercase; letter-spacing:0.1em">${p.name}</div>
+                        <div style="display:flex; align-items:center; gap:8px">
+                            <div style="width:8px; height:8px; border-radius:100%; background:${p.color}"></div>
+                            <div style="font-size:18px; font-weight:900; color:#fff">${p.value}</div>
+                        </div>
+                    </div>
+                `;
+            }
         },
-        grid: { left: '3%', right: '4%', bottom: '3%', top: '5%', containLabel: true },
+        grid: {
+            left: '20px',
+            right: '20px',
+            bottom: '20px',
+            top: '40px',
+            containLabel: true
+        },
         xAxis: {
             type: 'category',
             boundaryGap: false,
             data: data.map(d => d.time),
-            axisLine: { lineStyle: { color: isDark ? '#334155' : '#e2e8f0' } },
-            axisLabel: { color: isDark ? '#64748b' : '#94a3b8', fontSize: 10 }
+            axisLine: { show: false },
+            axisTick: { show: false },
+            axisLabel: {
+                color: '#64748b',
+                fontSize: 10,
+                margin: 20
+            }
         },
         yAxis: {
             type: 'value',
-            splitLine: { lineStyle: { color: isDark ? '#1e293b' : '#f1f5f9', type: 'dashed' } },
+            splitLine: {
+                lineStyle: {
+                    color: 'rgba(255,255,255,0.02)',
+                    width: 1
+                }
+            },
             axisLine: { show: false },
-            axisLabel: { color: isDark ? '#64748b' : '#94a3b8', fontSize: 10 }
+            axisLabel: { color: '#64748b', fontSize: 10 }
         },
         series: [
             {
@@ -43,11 +83,17 @@ export default function HistoricalChart({ data, title, color = '#3b82f6' }: { da
                 smooth: true,
                 showSymbol: false,
                 data: data.map(d => d.value),
-                lineStyle: { width: 3, color: color },
+                lineStyle: {
+                    width: 4,
+                    color: color,
+                    shadowColor: 'rgba(16, 185, 129, 0.2)',
+                    shadowBlur: 20,
+                    shadowOffsetY: 10
+                },
                 areaStyle: {
                     color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-                        { offset: 0, color: `${color}33` },
-                        { offset: 1, color: `${color}00` }
+                        { offset: 0, color: 'rgba(16, 185, 129, 0.15)' },
+                        { offset: 1, color: 'rgba(16, 185, 129, 0.0)' }
                     ])
                 },
                 itemStyle: { color: color }
@@ -56,7 +102,7 @@ export default function HistoricalChart({ data, title, color = '#3b82f6' }: { da
     };
 
     return (
-        <div className="w-full h-full min-h-[300px]">
+        <div className="w-full h-full min-h-[450px]">
             <ReactECharts
                 option={option}
                 style={{ height: '100%', width: '100%' }}

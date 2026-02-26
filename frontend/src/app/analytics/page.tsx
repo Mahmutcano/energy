@@ -2,45 +2,210 @@
 
 import HistoricalChart from '@/components/HistoricalChart';
 import { useState, useEffect } from 'react';
-import { Calendar, Download, Filter, BarChart3, TrendingUp, Info, ArrowUpRight, ArrowDownRight, Layers, Activity } from 'lucide-react';
+import { Calendar, Download, Filter, TrendingUp, Info, Activity, Building2, Factory, Cpu, Database, RefreshCw } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { apiRequest } from '@/lib/api';
+import toast from 'react-hot-toast';
+
+interface Company { id: string; name: string; }
+interface Plant { id: string; plantName: string; company_id: string; }
+interface Device { id: string; deviceName: string; deviceType: string; protocol: { plant: { id: string } }; datasheet_profile_id: string; }
+interface DataPoint { id: string; dataName: string; unit?: string; dataType?: string; }
 
 export default function Analytics() {
-    const [data, setData] = useState<any[]>([]);
+    const [companies, setCompanies] = useState<Company[]>([]);
+    const [plants, setPlants] = useState<Plant[]>([]);
+    const [devices, setDevices] = useState<Device[]>([]);
+    const [points, setPoints] = useState<DataPoint[]>([]);
+
+    const [selectedCompany, setSelectedCompany] = useState<string>('');
+    const [selectedPlant, setSelectedPlant] = useState<string>('');
+    const [selectedDevice, setSelectedDevice] = useState<string>('');
+    const [selectedPoint, setSelectedPoint] = useState<string>('');
+    const [hours, setHours] = useState<number>(24);
+
+    const [chartData, setChartData] = useState<any[]>([]);
+    const [loading, setLoading] = useState(false);
+
+    // Initial load
+    useEffect(() => {
+        const fetchInitial = async () => {
+            try {
+                const res = await apiRequest('/api/companies');
+                if (res.ok) setCompanies(await res.json());
+            } catch (err) {
+                console.error("Fetch companies error:", err);
+            }
+        };
+        fetchInitial();
+    }, []);
+
+    // Fetch plants when company changes
+    useEffect(() => {
+        if (!selectedCompany) { setPlants([]); return; }
+        const fetchPlants = async () => {
+            const res = await apiRequest('/api/plants');
+            if (res.ok) {
+                const all = await res.json();
+                setPlants(all.filter((p: any) => p.company_id === selectedCompany));
+            }
+        };
+        fetchPlants();
+        setSelectedPlant('');
+        setSelectedDevice('');
+        setSelectedPoint('');
+    }, [selectedCompany]);
+
+    // Fetch devices when plant changes
+    useEffect(() => {
+        if (!selectedPlant) { setDevices([]); return; }
+        const fetchDevices = async () => {
+            const res = await apiRequest('/api/devices');
+            if (res.ok) {
+                const all = await res.json();
+                setDevices(all.filter((d: any) => d.protocol?.plant?.id === selectedPlant));
+            }
+        };
+        fetchDevices();
+        setSelectedDevice('');
+        setSelectedPoint('');
+    }, [selectedPlant]);
+
+    // Fetch points when device changes
+    useEffect(() => {
+        if (!selectedDevice) { setPoints([]); return; }
+        const fetchPoints = async () => {
+            const device = devices.find(d => d.id === selectedDevice);
+            if (device?.datasheet_profile_id) {
+                const res = await apiRequest(`/api/datasheets?profileId=${device.datasheet_profile_id}`);
+                if (res.ok) setPoints(await res.json());
+            }
+        };
+        fetchPoints();
+        setSelectedPoint('');
+    }, [selectedDevice, devices]);
+
+    // Fetch historical data
+    const fetchHistory = async () => {
+        if (!selectedDevice || !selectedPoint) return;
+        setLoading(true);
+        try {
+            const res = await apiRequest(`/api/telemetry/history?deviceId=${selectedDevice}&pointId=${selectedPoint}&hours=${hours}`);
+            if (res.ok) {
+                const data = await res.json();
+                const formatted = data.map((d: any) => ({
+                    time: new Date(d.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                    value: d.value
+                }));
+                setChartData(formatted);
+            } else {
+                toast.error("Failed to fetch history");
+            }
+        } catch (err) {
+            toast.error("Network error");
+        } finally {
+            setLoading(false);
+        }
+    };
 
     useEffect(() => {
-        const mockData = Array.from({ length: 24 }, (_, i) => ({
-            time: `${i}:00`,
-            value: 200 + Math.random() * 100
-        }));
-        setData(mockData);
-    }, []);
+        if (selectedPoint) fetchHistory();
+    }, [selectedPoint, hours]);
 
     return (
         <div className="space-y-10 pb-16 animate-in-up font-sans">
-            {/* 1. Analytics Directive Header */}
+            {/* Header */}
             <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-8 relative">
                 <div className="space-y-2">
                     <div className="flex items-center gap-4">
                         <div className="w-1.5 h-8 bg-brand-green rounded-full shadow-[0_0_20px_rgba(16,185,129,0.4)]"></div>
-                        <h1 className="text-3xl font-black text-white tracking-tight ">System Analytics</h1>
+                        <h1 className="text-3xl font-black text-white tracking-tight">System Analytics</h1>
                     </div>
                     <p className="text-sm text-slate-500 ml-6">Historical telemetry data and performance metrics</p>
                 </div>
 
                 <div className="flex items-center gap-4">
-                    <button className="flex items-center gap-3 px-6 py-3.5 bg-slate-950 border border-slate-800 rounded-xl text-[10px] font-black text-slate-400 hover:text-white  tracking-widest hover:border-brand-green/30 transition-all">
-                        <Calendar size={14} className="text-brand-green" /> Last 24 Hours
-                    </button>
-                    <button className="flex items-center gap-3 px-8 py-4 bg-brand-green text-white rounded-xl text-xs font-black shadow-2xl shadow-brand-green/20 hover:scale-[1.02] transition-all  tracking-[0.2em]">
+                    <select
+                        value={hours}
+                        onChange={(e) => setHours(Number(e.target.value))}
+                        className="bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-[10px] font-black text-slate-400 outline-none hover:border-brand-green/30 transition-all uppercase tracking-widest"
+                    >
+                        <option value={1}>Last Hour</option>
+                        <option value={6}>Last 6 Hours</option>
+                        <option value={24}>Last 24 Hours</option>
+                        <option value={168}>Last 7 Days</option>
+                    </select>
+                    <button className="flex items-center gap-3 px-8 py-4 bg-brand-green text-white rounded-xl text-xs font-black shadow-2xl shadow-brand-green/20 hover:scale-[1.02] transition-all tracking-[0.2em]">
                         <Download size={16} strokeWidth={3} /> Export Report
                     </button>
                 </div>
             </div>
 
+            {/* Selectors */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 card-base p-6 bg-slate-900/20 dot-bg border-slate-800/40">
+                <div className="space-y-2">
+                    <label className="text-[9px] font-bold text-slate-500 tracking-widest uppercase ml-1 flex items-center gap-2">
+                        <Building2 size={12} /> Company
+                    </label>
+                    <select
+                        value={selectedCompany}
+                        onChange={(e) => setSelectedCompany(e.target.value)}
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-xs font-bold text-white outline-none focus:border-brand-green/30 transition-all"
+                    >
+                        <option value="">Select Company</option>
+                        {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </select>
+                </div>
+
+                <div className="space-y-2">
+                    <label className="text-[9px] font-bold text-slate-500 tracking-widest uppercase ml-1 flex items-center gap-2">
+                        <Factory size={12} /> Plant
+                    </label>
+                    <select
+                        value={selectedPlant}
+                        onChange={(e) => setSelectedPlant(e.target.value)}
+                        disabled={!selectedCompany}
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-xs font-bold text-white outline-none focus:border-brand-green/30 transition-all disabled:opacity-20"
+                    >
+                        <option value="">Select Plant</option>
+                        {plants.map(p => <option key={p.id} value={p.id}>{p.plantName}</option>)}
+                    </select>
+                </div>
+
+                <div className="space-y-2">
+                    <label className="text-[9px] font-bold text-slate-500 tracking-widest uppercase ml-1 flex items-center gap-2">
+                        <Cpu size={12} /> Device
+                    </label>
+                    <select
+                        value={selectedDevice}
+                        onChange={(e) => setSelectedDevice(e.target.value)}
+                        disabled={!selectedPlant}
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-xs font-bold text-white outline-none focus:border-brand-green/30 transition-all disabled:opacity-20"
+                    >
+                        <option value="">Select Device</option>
+                        {devices.map(d => <option key={d.id} value={d.id}>{d.deviceName}</option>)}
+                    </select>
+                </div>
+
+                <div className="space-y-2">
+                    <label className="text-[9px] font-bold text-slate-500 tracking-widest uppercase ml-1 flex items-center gap-2">
+                        <Database size={12} /> Data Point
+                    </label>
+                    <select
+                        value={selectedPoint}
+                        onChange={(e) => setSelectedPoint(e.target.value)}
+                        disabled={!selectedDevice}
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-xs font-bold text-white outline-none focus:border-brand-green/30 transition-all disabled:opacity-20"
+                    >
+                        <option value="">Select Point</option>
+                        {points.map(p => <option key={p.id} value={p.id}>{p.dataName}</option>)}
+                    </select>
+                </div>
+            </div>
+
+            {/* Main Chart */}
             <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 items-start">
-                {/* 2. Primary Trend Mapping */}
-                <div className="xl:col-span-8 space-y-8">
+                <div className="xl:col-span-8">
                     <div className="card-base p-10 bg-slate-900/20 dot-bg">
                         <div className="flex items-center justify-between mb-12">
                             <div className="flex items-center gap-5">
@@ -48,102 +213,94 @@ export default function Analytics() {
                                     <TrendingUp size={24} className="text-brand-green" />
                                 </div>
                                 <div>
-                                    <h3 className="text-lg font-black text-white  tracking-tight">Active Power Consumption</h3>
-                                    <p className="text-tech-label mt-1 text-slate-600">Grid Resource Usage - Vector 01</p>
+                                    <h3 className="text-lg font-black text-white tracking-tight">
+                                        {points.find(p => p.id === selectedPoint)?.dataName || 'Select a point to visualize'}
+                                    </h3>
+                                    <p className="text-[10px] font-mono mt-1 text-slate-600 uppercase tracking-widest">
+                                        {selectedPoint ? `POINT_ID::${selectedPoint.substring(0, 8)}` : 'AWAITING_SELECTION'}
+                                    </p>
                                 </div>
                             </div>
-                            <div className="flex items-center gap-3 px-4 py-2 bg-slate-950 border border-slate-800 rounded-xl">
-                                <Filter size={14} className="text-slate-500" />
-                                <span className="text-[10px] font-mono font-black text-slate-500">PARAM::FILTER_STABLE</span>
+                            <div className="flex items-center gap-4">
+                                {loading && <RefreshCw size={14} className="text-brand-green animate-spin" />}
+                                <div className="flex items-center gap-3 px-4 py-2 bg-slate-950 border border-slate-800 rounded-xl">
+                                    <Filter size={14} className="text-slate-500" />
+                                    <span className="text-[10px] font-mono font-black text-slate-500 uppercase">SYS::TIMESERIES_V1</span>
+                                </div>
                             </div>
                         </div>
-                        <div className="h-[450px] relative z-10">
-                            <HistoricalChart data={data} title="Active Power (kW)" color="#10b981" />
-                        </div>
-                    </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        <div className="card-base p-8 bg-slate-900/20 dot-bg">
-                            <div className="flex items-center justify-between mb-8">
-                                <h3 className="text-tech-label">Voltage Stability (V)</h3>
-                                <Info size={14} className="text-slate-700" />
-                            </div>
-                            <div className="h-[280px]">
-                                <HistoricalChart
-                                    data={data.map(d => ({ ...d, value: 220 + Math.random() * 8 }))}
-                                    title="Line Voltage L1-N"
-                                    color="#3b82f6"
-                                />
-                            </div>
-                        </div>
-                        <div className="card-base p-8 bg-slate-900/20 dot-bg">
-                            <div className="flex items-center justify-between mb-8">
-                                <h3 className="text-tech-label">Grid Frequency (Hz)</h3>
-                                <Activity size={14} className="text-slate-700" />
-                            </div>
-                            <div className="h-[280px]">
-                                <HistoricalChart
-                                    data={data.map(d => ({ ...d, value: 50 + Math.random() * 0.08 }))}
-                                    title="System Frequency"
-                                    color="#f59e0b"
-                                />
-                            </div>
+                        <div className="h-[500px] relative z-10 w-full">
+                            {selectedPoint ? (
+                                chartData.length > 0 ? (
+                                    <HistoricalChart
+                                        data={chartData}
+                                        title={points.find(p => p.id === selectedPoint)?.dataName || 'Value'}
+                                        color="#10b981"
+                                    />
+                                ) : (
+                                    <div className="h-full flex flex-col items-center justify-center text-slate-700 space-y-4">
+                                        <Activity size={48} className="opacity-20" />
+                                        <p className="text-xs font-bold uppercase tracking-[0.3em]">No historical data found for this period</p>
+                                    </div>
+                                )
+                            ) : (
+                                <div className="h-full flex flex-col items-center justify-center text-slate-700 space-y-4">
+                                    <Database size={64} className="opacity-10" />
+                                    <p className="text-[10px] font-black uppercase tracking-[0.5em]">Select Company, Plant, Device and Point to begin analysis</p>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>
 
-                {/* 3. Statistical Intelligence Module */}
-                <div className="xl:col-span-4 space-y-8">
-                    <div className="card-base flex flex-col h-full bg-slate-950 border-slate-800 shadow-2xl relative overflow-hidden">
-                        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(16,185,129,0.03),transparent)] pointer-events-none" />
-
-                        <div className="p-8 border-b border-slate-800 flex items-center gap-5 bg-slate-900/30">
-                            <div className="p-3 rounded-xl bg-slate-950 border border-slate-800">
-                                <Layers size={22} className="text-brand-green" />
-                            </div>
+                <div className="xl:col-span-4">
+                    {/* Statistical Module */}
+                    <div className="card-base bg-slate-950 border-slate-800 shadow-2xl relative overflow-hidden p-8 space-y-8">
+                        <div className="flex items-center gap-4 border-b border-slate-800 pb-6">
+                            <Activity size={24} className="text-brand-green" />
                             <div>
-                                <h3 className="text-xs font-black text-white  tracking-[0.4em]">Statistical Engine</h3>
-                                <p className="text-[8px] font-mono text-slate-600 mt-1 ">Analysis Core V4.2</p>
+                                <h3 className="text-xs font-black text-white tracking-[0.3em] uppercase">Quick Stats</h3>
+                                <p className="text-[8px] font-mono text-slate-600 uppercase">Calculated from visible window</p>
                             </div>
                         </div>
 
-                        <div className="p-8 space-y-6 flex-1 relative z-10">
+                        <div className="space-y-6">
                             {[
-                                { label: 'Peak Demand', val: '294.2 kW', time: '14:30 UTC', trend: '+12%', type: 'up' },
-                                { label: 'Base Load', val: '182.1 kW', time: '03:15 UTC', trend: '-2%', type: 'down' },
-                                { label: 'Avg Consumption', val: '224.5 kW', time: 'Last 24h', trend: '+4%', type: 'up' },
-                                { label: 'Power Factor', val: '0.98 Φ', time: 'Stable', trend: 'Optimal', type: 'stable' },
-                                { label: 'Total THD', val: '1.4%', time: 'Nominal', trend: 'Level 1', type: 'stable' },
-                            ].map((stat, i) => (
-                                <motion.div
-                                    key={stat.label}
-                                    initial={{ opacity: 0, x: 20 }}
-                                    whileInView={{ opacity: 1, x: 0 }}
-                                    viewport={{ once: true }}
-                                    transition={{ delay: i * 0.1 }}
-                                    className="p-5 rounded-xl bg-slate-900/40 border border-slate-800/40 hover:border-brand-green/30 transition-all group"
-                                >
-                                    <p className="text-[9px] font-black text-slate-600  tracking-widest mb-3 leading-none italic">{stat.label}</p>
-                                    <div className="flex justify-between items-end">
-                                        <p className="text-2xl font-black text-white tabular-nums tracking-tighter leading-none">{stat.val}</p>
-                                        <div className={`flex items-center gap-1.5 text-[10px] font-black px-2 py-1 rounded-full border ${stat.type === 'up' ? 'text-red-500 border-red-500/20 bg-red-500/5' :
-                                            stat.type === 'down' ? 'text-brand-green border-brand-green/20 bg-brand-green/5' :
-                                                'text-slate-500 border-slate-800 bg-slate-900/50'
-                                            }`}>
-                                            {stat.type === 'up' ? <ArrowUpRight size={12} /> : stat.type === 'down' ? <ArrowDownRight size={12} /> : null}
-                                            {stat.trend}
-                                        </div>
+                                {
+                                    label: 'Current Value',
+                                    val: chartData.length > 0 ? chartData[chartData.length - 1].value.toFixed(2) : '--',
+                                    icon: <Activity size={14} />
+                                },
+                                {
+                                    label: 'Peak Value',
+                                    val: chartData.length > 0 ? Math.max(...chartData.map(d => d.value)).toFixed(2) : '--',
+                                    icon: <TrendingUp size={14} />
+                                },
+                                {
+                                    label: 'Minimum Value',
+                                    val: chartData.length > 0 ? Math.min(...chartData.map(d => d.value)).toFixed(2) : '--',
+                                    icon: <Info size={14} />
+                                },
+                                {
+                                    label: 'Data Samples',
+                                    val: chartData.length,
+                                    icon: <Database size={14} />
+                                },
+                            ].map((stat) => (
+                                <div key={stat.label} className="p-4 rounded-xl bg-slate-900/40 border border-slate-800/40 flex justify-between items-center">
+                                    <div className="flex items-center gap-3">
+                                        <div className="text-slate-600">{stat.icon}</div>
+                                        <span className="text-[9px] font-black text-slate-500 uppercase tracking-wider">{stat.label}</span>
                                     </div>
-                                    <p className="text-[8px] font-mono text-slate-700 mt-3  tracking-tighter">Event Time: {stat.time}</p>
-                                </motion.div>
+                                    <span className="text-lg font-black text-white tabular-nums">{stat.val}</span>
+                                </div>
                             ))}
                         </div>
 
-                        <div className="p-8 bg-slate-900/30 border-t border-slate-800/60">
-                            <button className="w-full py-4 bg-slate-950 border border-slate-800 text-slate-300 rounded-xl text-xs font-black shadow-xl hover:text-white hover:border-brand-green/30 transition-all  tracking-widest">
-                                Comprehensive Report
-                            </button>
-                        </div>
+                        <button className="w-full py-4 bg-slate-950 border border-slate-800 text-slate-300 rounded-xl text-[10px] font-black shadow-xl hover:text-white hover:border-brand-green/30 transition-all uppercase tracking-widest">
+                            Download Raw Dataset (.csv)
+                        </button>
                     </div>
                 </div>
             </div>

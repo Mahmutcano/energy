@@ -4,18 +4,43 @@ import { Prisma } from '@prisma/client';
 /**
  * Veriyi Veritabanı (PostgreSQL) üzerine kaydeder.
  * Prisma üzerinden standard bir veritabanı kaydı olarak tutulur.
+ * Batch (toplu) kayıt desteği eklenmiştir.
  */
-export const saveTelemetry = async (deviceId: string, pointId: string, value: number) => {
+export const saveTelemetry = async (deviceId: string, pointId: string, value: number, timestamp?: Date, quality?: number, rawPayload?: Buffer) => {
     try {
         const data: Prisma.TelemetryValueUncheckedCreateInput = {
             device_id: deviceId,
             pointId: pointId,
             valueNumeric: value,
-            measurementTime: new Date()
+            measurementTime: timestamp || new Date(),
+            quality: quality,
+            rawPayload: rawPayload as any
         };
         await prisma.telemetryValue.create({ data });
     } catch (err) {
         console.error('[TELEMETRY] Save Error:', err);
+    }
+};
+
+export const saveTelemetryBatch = async (items: Array<{ deviceId: string, pointId: string, value: number, timestamp?: Date, quality?: number, rawPayload?: Buffer }>) => {
+    try {
+        if (items.length === 0) return;
+
+        const data: Prisma.TelemetryValueUncheckedCreateInput[] = items.map(item => ({
+            device_id: item.deviceId,
+            pointId: item.pointId,
+            valueNumeric: item.value,
+            measurementTime: item.timestamp || new Date(),
+            quality: item.quality,
+            rawPayload: item.rawPayload as any
+        }));
+
+        await prisma.telemetryValue.createMany({
+            data,
+            skipDuplicates: false // We want all historical data
+        });
+    } catch (err) {
+        console.error('[TELEMETRY_BATCH] Save Error:', err);
     }
 };
 

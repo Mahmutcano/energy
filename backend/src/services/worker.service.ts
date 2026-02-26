@@ -1,10 +1,14 @@
 import redisService from './redis.service';
-import { saveTelemetry } from '../utils/telemetry';
+import { saveTelemetryBatch } from '../utils/telemetry';
 import { io } from '../app';
 
 class WorkerService {
     private static instance: WorkerService;
     private isRunning: boolean = false;
+    private buffer: any[] = [];
+    private maxBufferSize: number = 100;
+    private flushInterval: number = 5000; // 5 seconds
+    private lastFlush: number = Date.now();
 
     private constructor() { }
 
@@ -18,9 +22,12 @@ class WorkerService {
     public async start() {
         if (this.isRunning) return;
         this.isRunning = true;
-        console.log('[WORKER] Telemetry processor started. Waiting for data...');
+        console.log('[WORKER] Telemetry processor started. Mode: SYSTEMATIC BATCHING');
 
-        // Sonsuz döngüde kuyruğu dinle
+        // Start persistence timer
+        this.startFlushTimer();
+
+        // Listen to queue in infinite loop
         while (this.isRunning) {
             try {
                 const telemetry = await redisService.popTelemetry();
@@ -29,33 +36,57 @@ class WorkerService {
                 }
             } catch (err) {
                 console.error('[WORKER] Error processing items:', err);
-                // Hata durumunda kısa bir bekleme (sunucuyu yormamak için)
                 await new Promise(resolve => setTimeout(resolve, 1000));
             }
         }
     }
 
-    private async process(data: any) {
-        const { deviceId, pointId, protocolId, value, unit, name, timestamp } = data;
+    private startFlushTimer() {
+        setInterval(() => {
+            if (this.buffer.length > 0 && (Date.now() - this.lastFlush >= this.flushInterval)) {
+                this.flushBuffer();
+            }
+        }, 1000);
+    }
 
-        // 1. Veritabanına Yaz (Historian)
+    private async flushBuffer() {
+        const itemsToSave = [...this.buffer];
+        this.buffer = [];
+        this.lastFlush = Date.now();
+
+        if (itemsToSave.length > 0) {
+            console.log(`[WORKER] Systematic Flush: Saving ${itemsToSave.length} telemetry points to PostgreSQL...`);
+            await saveTelemetryBatch(itemsToSave);
+        }
+    }
+
+    private async process(data: any) {
+        const { deviceId, pointId, protocolId, value, timestamp } = data;
+
+        // 1. Add to systematic persistence buffer
         if (deviceId && pointId) {
-            saveTelemetry(deviceId, pointId, value);
+            this.buffer.push({
+                deviceId,
+                pointId,
+                value,
+                timestamp: timestamp ? new Date(timestamp) : new Date()
+            });
+
+            // 2. Immediate flush if buffer is full
+            if (this.buffer.length >= this.maxBufferSize) {
+                this.flushBuffer();
+            }
         }
 
-        // 2. Canlı Yayını Yap (Real-time UI)
+        // 3. Real-time Broadcast (UI is always immediate)
         if (deviceId) io.emit(`telemetry:${deviceId}`, data);
         if (protocolId) io.emit(`telemetry:${protocolId}`, data);
-
-        // Debug topic for console
         io.emit('telemetry:all', data);
 
-        // 3. Alarm Kontrollerini Yap (Business Logic)
+        // 4. Alarm Checks
         if (deviceId) {
             this.checkAlarms(deviceId, value);
         }
-
-        console.log(`[WORKER] Telemetry Broadcast: ${deviceId} | ${value} | CH: ${protocolId}`);
     }
 
     private checkAlarms(deviceId: string, value: number) {

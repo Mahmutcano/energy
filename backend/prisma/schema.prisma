@@ -219,7 +219,7 @@ model TelemetryValue {
   quality         Int?           @db.SmallInt
   rawPayload      Bytes? // ByteA
 
-  @@index([device_id])
-  @@index([pointId])
+  @@index([pointId, measurementTime(sort: Desc)])
+  @@index([device_id, measurementTime(sort: Desc)])
   @@index([measurementTime])
 }

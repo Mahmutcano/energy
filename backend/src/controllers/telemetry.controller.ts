@@ -4,7 +4,7 @@ import { handleErrorResponse } from '../utils/errors';
 
 export const getTelemetryHistory = async (req: Request, res: Response) => {
     try {
-        const { deviceId, pointId, hours } = req.query;
+        const { deviceId, pointId, hours, startDate, endDate } = req.query;
 
         if (!deviceId || !pointId) {
             return res.status(400).json({ message: 'deviceId and pointId are required' });
@@ -13,7 +13,9 @@ export const getTelemetryHistory = async (req: Request, res: Response) => {
         const data = await queryTelemetry(
             String(deviceId),
             String(pointId),
-            hours ? Number(hours) : 24
+            hours ? Number(hours) : undefined,
+            startDate ? new Date(String(startDate)) : undefined,
+            endDate ? new Date(String(endDate)) : undefined
         );
 
         res.json(data);

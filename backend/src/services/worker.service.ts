@@ -32,10 +32,10 @@ class WorkerService {
             try {
                 const telemetry = await redisService.popTelemetry();
                 if (telemetry) {
-                    this.process(telemetry);
+                    await this.process(telemetry);
                 }
-            } catch (err) {
-                console.error('[WORKER] Error processing items:', err);
+            } catch (err: any) {
+                console.error('[WORKER] Error in loop:', err.message);
                 await new Promise(resolve => setTimeout(resolve, 1000));
             }
         }
@@ -74,7 +74,7 @@ class WorkerService {
 
             // 2. Immediate flush if buffer is full
             if (this.buffer.length >= this.maxBufferSize) {
-                this.flushBuffer();
+                await this.flushBuffer();
             }
         }
 

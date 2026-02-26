@@ -47,18 +47,26 @@ export const saveTelemetryBatch = async (items: Array<{ deviceId: string, pointI
 /**
  * Geçmiş veriyi sorgular (Grafikler için)
  */
-export const queryTelemetry = async (deviceId: string, pointId: string, hours: number = 1) => {
+export const queryTelemetry = async (deviceId: string, pointId: string, hours?: number, startDate?: Date, endDate?: Date) => {
     try {
-        const startTime = new Date(Date.now() - hours * 60 * 60 * 1000);
+        const queryWhere: any = {
+            device_id: deviceId,
+            pointId: pointId,
+        };
+
+        if (startDate || endDate) {
+            queryWhere.measurementTime = {};
+            if (startDate) queryWhere.measurementTime.gte = startDate;
+            if (endDate) queryWhere.measurementTime.lte = endDate;
+        } else {
+            const h = hours || 1;
+            queryWhere.measurementTime = {
+                gte: new Date(Date.now() - h * 60 * 60 * 1000)
+            };
+        }
 
         const results = await prisma.telemetryValue.findMany({
-            where: {
-                device_id: deviceId,
-                pointId: pointId,
-                measurementTime: {
-                    gte: startTime
-                }
-            },
+            where: queryWhere,
             orderBy: {
                 measurementTime: 'asc'
             }

@@ -75,9 +75,14 @@ class RedisService {
             return this.memoryQueue.shift();
         }
         try {
-            const data = await this.client.brpop('telemetry_queue', 0);
-            if (data) return JSON.parse(data[1]);
-        } catch (err) {
+            // brpop normally returns [key, value]. 
+            // We use a timeout (5s) instead of 0 to prevent eternal hangs.
+            const result = await this.client.brpop('telemetry_queue', 5);
+            if (result && result[1]) {
+                return JSON.parse(result[1]);
+            }
+        } catch (err: any) {
+            console.error('[REDIS] Pop Error:', err.message);
             if (this.memoryQueue.length > 0) return this.memoryQueue.shift();
             await new Promise(resolve => setTimeout(resolve, 100));
         }

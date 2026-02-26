@@ -23,6 +23,8 @@ export default function Analytics() {
     const [selectedDevice, setSelectedDevice] = useState<string>('');
     const [selectedPoint, setSelectedPoint] = useState<string>('');
     const [hours, setHours] = useState<number>(24);
+    const [startDate, setStartDate] = useState<string>('');
+    const [endDate, setEndDate] = useState<string>('');
 
     const [chartData, setChartData] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
@@ -90,11 +92,17 @@ export default function Analytics() {
         if (!selectedDevice || !selectedPoint) return;
         setLoading(true);
         try {
-            const res = await apiRequest(`/api/telemetry/history?deviceId=${selectedDevice}&pointId=${selectedPoint}&hours=${hours}`);
+            let url = `/api/telemetry/history?deviceId=${selectedDevice}&pointId=${selectedPoint}`;
+            if (startDate) url += `&startDate=${new Date(startDate).toISOString()}`;
+            if (endDate) url += `&endDate=${new Date(endDate).toISOString()}`;
+            if (!startDate && !endDate) url += `&hours=${hours}`;
+
+            const res = await apiRequest(url);
             if (res.ok) {
                 const data = await res.json();
+
                 const formatted = data.map((d: any) => ({
-                    time: new Date(d.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                    time: d.time,
                     value: d.value
                 }));
                 setChartData(formatted);
@@ -110,7 +118,7 @@ export default function Analytics() {
 
     useEffect(() => {
         if (selectedPoint) fetchHistory();
-    }, [selectedPoint, hours]);
+    }, [selectedPoint, hours, startDate, endDate]);
 
     return (
         <div className="space-y-8 pb-20 animate-in-up font-sans selection:bg-brand-green/30">
@@ -126,13 +134,55 @@ export default function Analytics() {
                     </div>
                 </div>
 
-                <div className="flex items-center gap-4 w-full lg:w-auto">
+                <div className="flex flex-wrap items-center gap-4 w-full lg:w-auto">
+                    {/* Manual Date Selectors */}
+                    <div className="flex items-center gap-2 bg-slate-900/40 p-2 rounded-2xl border border-slate-800">
+                        <div className="flex flex-col">
+                            <span className="text-[7px] font-black text-slate-500 uppercase tracking-widest ml-2 mb-1">Start</span>
+                            <input
+                                type="datetime-local"
+                                value={startDate}
+                                onChange={(e) => {
+                                    setStartDate(e.target.value);
+                                    if (e.target.value) setHours(0);
+                                }}
+                                className="bg-transparent border-none text-[10px] font-bold text-white outline-none px-2 py-1 appearance-none cursor-pointer hover:text-brand-green transition-colors"
+                            />
+                        </div>
+                        <div className="w-px h-6 bg-slate-800 self-end mb-2"></div>
+                        <div className="flex flex-col">
+                            <span className="text-[7px] font-black text-slate-500 uppercase tracking-widest ml-2 mb-1">End</span>
+                            <input
+                                type="datetime-local"
+                                value={endDate}
+                                onChange={(e) => {
+                                    setEndDate(e.target.value);
+                                    if (e.target.value) setHours(0);
+                                }}
+                                className="bg-transparent border-none text-[10px] font-bold text-white outline-none px-2 py-1 appearance-none cursor-pointer hover:text-brand-green transition-colors"
+                            />
+                        </div>
+                        {(startDate || endDate) && (
+                            <button
+                                onClick={() => { setStartDate(''); setEndDate(''); setHours(24); }}
+                                className="p-2 text-slate-500 hover:text-red-400 transition-colors"
+                            >
+                                <RefreshCw size={12} />
+                            </button>
+                        )}
+                    </div>
+
                     <div className="relative group flex-1 lg:flex-none">
                         <select
                             value={hours}
-                            onChange={(e) => setHours(Number(e.target.value))}
+                            onChange={(e) => {
+                                setHours(Number(e.target.value));
+                                setStartDate('');
+                                setEndDate('');
+                            }}
                             className="w-full bg-slate-900/80 backdrop-blur-md border border-slate-800 rounded-2xl px-6 py-4 text-xs font-black text-slate-300 outline-none hover:border-brand-green/30 hover:text-white transition-all appearance-none cursor-pointer pr-12 uppercase tracking-[0.15em] shadow-xl"
                         >
+                            <option value={0} disabled={!startDate && !endDate}>Custom Range</option>
                             <option value={1}>Last Hour</option>
                             <option value={6}>Last 6 Hours</option>
                             <option value={12}>Last 12 Hours</option>
@@ -152,14 +202,14 @@ export default function Analytics() {
             {/* Premium Selector System */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 p-2">
                 {[
-                    { label: 'Company', icon: <Building2 />, state: selectedCompany, setState: setSelectedCompany, options: companies, displayKey: 'name', disabled: false, placeholder: 'Select Company' },
-                    { label: 'Plant', icon: <Factory />, state: selectedPlant, setState: setSelectedPlant, options: plants, displayKey: 'plantName', disabled: !selectedCompany, placeholder: 'Select Plant' },
-                    { label: 'Device', icon: <Cpu />, state: selectedDevice, setState: setSelectedDevice, options: devices, displayKey: 'deviceName', disabled: !selectedPlant, placeholder: 'Select Device' },
-                    { label: 'Data Point', icon: <Database />, state: selectedPoint, setState: setSelectedPoint, options: points, displayKey: 'dataName', disabled: !selectedDevice, placeholder: 'Select Point' },
+                    { label: 'Company', icon: Building2, state: selectedCompany, setState: setSelectedCompany, options: companies, displayKey: 'name', disabled: false, placeholder: 'Select Company' },
+                    { label: 'Plant', icon: Factory, state: selectedPlant, setState: setSelectedPlant, options: plants, displayKey: 'plantName', disabled: !selectedCompany, placeholder: 'Select Plant' },
+                    { label: 'Device', icon: Cpu, state: selectedDevice, setState: setSelectedDevice, options: devices, displayKey: 'deviceName', disabled: !selectedPlant, placeholder: 'Select Device' },
+                    { label: 'Data Point', icon: Database, state: selectedPoint, setState: setSelectedPoint, options: points, displayKey: 'dataName', disabled: !selectedDevice, placeholder: 'Select Point' },
                 ].map((selector) => (
                     <div key={selector.label} className="group flex flex-col space-y-2">
                         <span className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] ml-2 flex items-center gap-2 group-hover:text-slate-400 transition-colors">
-                            {React.cloneElement(selector.icon as React.ReactElement, { size: 12, className: selector.disabled ? 'text-slate-800' : 'text-brand-green' })}
+                            {React.createElement(selector.icon, { size: 12, className: selector.disabled ? 'text-slate-800' : 'text-brand-green' })}
                             {selector.label}
                         </span>
                         <div className="relative">
@@ -266,10 +316,10 @@ export default function Analytics() {
 
                         <div className="grid grid-cols-1 gap-4 relative z-10">
                             {[
-                                { label: 'Latest Reading', val: chartData.length > 0 ? chartData[chartData.length - 1].value.toFixed(2) : '--', unit: points.find(p => p.id === selectedPoint)?.unit || '', color: 'text-brand-green', icon: <TrendingUp /> },
-                                { label: 'Peak Analysis', val: chartData.length > 0 ? Math.max(...chartData.map(d => d.value)).toFixed(2) : '--', color: 'text-orange-400', icon: <Info /> },
-                                { label: 'Lowest Threshold', val: chartData.length > 0 ? Math.min(...chartData.map(d => d.value)).toFixed(2) : '--', color: 'text-blue-400', icon: <Info /> },
-                                { label: 'Samples Logged', val: chartData.length, color: 'text-slate-400', icon: <Database /> },
+                                { label: 'Latest Reading', val: chartData.length > 0 ? chartData[chartData.length - 1].value.toFixed(2) : '--', unit: points.find(p => p.id === selectedPoint)?.unit || '', color: 'text-brand-green', icon: TrendingUp },
+                                { label: 'Peak Analysis', val: chartData.length > 0 ? Math.max(...chartData.map(d => d.value)).toFixed(2) : '--', color: 'text-orange-400', icon: Info },
+                                { label: 'Lowest Threshold', val: chartData.length > 0 ? Math.min(...chartData.map(d => d.value)).toFixed(2) : '--', color: 'text-blue-400', icon: Info },
+                                { label: 'Samples Logged', val: chartData.length, color: 'text-slate-400', icon: Database },
                             ].map((stat, i) => (
                                 <motion.div
                                     key={stat.label}
@@ -280,7 +330,7 @@ export default function Analytics() {
                                 >
                                     <div className="flex justify-between items-center">
                                         <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">{stat.label}</span>
-                                        <div className={`${stat.color} opacity-40`}>{React.cloneElement(stat.icon as React.ReactElement, { size: 10 })}</div>
+                                        <div className={`${stat.color} opacity-40`}>{React.createElement(stat.icon, { size: 10 })}</div>
                                     </div>
                                     <div className="flex items-baseline gap-2">
                                         <span className="text-3xl font-black text-white tabular-nums tracking-tight">{stat.val}</span>

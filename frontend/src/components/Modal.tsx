@@ -1,6 +1,7 @@
 "use client";
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, LucideIcon } from 'lucide-react';
 
@@ -36,16 +37,21 @@ export default function Modal({
     maxWidth = 'lg',
     zIndex = 200
 }: ModalProps) {
+    const [mounted, setMounted] = useState(false);
     const modalRef = React.useRef<HTMLDivElement>(null);
 
-    React.useEffect(() => {
+    useEffect(() => {
+        setMounted(true);
+        return () => setMounted(false);
+    }, []);
+
+    useEffect(() => {
         if (isOpen) {
-            // Focus the modal for accessibility
             modalRef.current?.focus();
         }
     }, [isOpen]);
 
-    React.useEffect(() => {
+    useEffect(() => {
         const handleEsc = (e: KeyboardEvent) => {
             if (e.key === 'Escape') {
                 onClose();
@@ -54,7 +60,6 @@ export default function Modal({
 
         if (isOpen) {
             document.addEventListener('keydown', handleEsc, true);
-            // Lock body scroll
             document.body.style.overflow = 'hidden';
         }
 
@@ -64,55 +69,61 @@ export default function Modal({
         };
     }, [isOpen, onClose]);
 
-    return (
+    if (!mounted) return null;
+
+    const modalContent = (
         <AnimatePresence>
             {isOpen && (
                 <div
-                    className="fixed inset-0 overflow-y-auto outline-none"
+                    className="fixed inset-0 overflow-y-auto outline-none flex items-center justify-center p-4"
                     style={{ zIndex }}
                 >
-                    <div
-                        ref={modalRef}
-                        tabIndex={-1}
-                        className="min-h-full flex items-center justify-center p-4 bg-black/80 backdrop-blur-md outline-none"
-                        onClick={(e) => {
-                            if (e.target === e.currentTarget) onClose();
-                        }}
+                    {/* Backdrop */}
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        onClick={onClose}
+                        className="fixed inset-0 bg-black/60 backdrop-blur-sm"
+                    />
+
+                    {/* Modal Content */}
+                    <motion.div
+                        initial={{ scale: 0.98, opacity: 0, y: 10 }}
+                        animate={{ scale: 1, opacity: 1, y: 0 }}
+                        exit={{ scale: 0.98, opacity: 0, y: 10 }}
+                        transition={{ duration: 0.15, ease: "easeOut" }}
+                        className={`card-base w-full ${maxWidthClasses[maxWidth]} bg-slate-950 border-slate-800 shadow-2xl overflow-hidden relative z-[201]`}
                     >
-                        <motion.div
-                            initial={{ scale: 0.95, opacity: 0, y: 20 }}
-                            animate={{ scale: 1, opacity: 1, y: 0 }}
-                            exit={{ scale: 0.95, opacity: 0, y: 20 }}
-                            className={`card-base w-full ${maxWidthClasses[maxWidth]} bg-slate-950 border-slate-800 shadow-2xl my-8 overflow-hidden relative`}
-                        >
-                            <div className="p-6 border-b border-slate-800 flex justify-between items-center bg-slate-900/30 sticky top-0 z-10 backdrop-blur-md">
-                                <div className="flex items-center gap-3">
-                                    {Icon && (
-                                        <div className="p-2 rounded-lg bg-slate-950 border border-slate-800">
-                                            <Icon size={18} className="text-brand-green" />
-                                        </div>
-                                    )}
-                                    <div>
-                                        <h2 className="text-lg font-bold text-white tracking-tight">{title}</h2>
-                                        {subtitle && (
-                                            <p className="text-[10px] text-slate-500 tracking-widest uppercase mt-0.5">{subtitle}</p>
-                                        )}
+                        <div className="px-4 py-3 border-b border-slate-800 flex justify-between items-center bg-slate-900/50 backdrop-blur-md">
+                            <div className="flex items-center gap-2.5">
+                                {Icon && (
+                                    <div className="p-1.5 rounded-md bg-slate-950 border border-slate-800">
+                                        <Icon size={14} className="text-brand-green" />
                                     </div>
+                                )}
+                                <div>
+                                    <h2 className="text-[13px] font-bold text-white tracking-tight">{title}</h2>
+                                    {subtitle && (
+                                        <p className="text-[8px] text-slate-500 tracking-widest uppercase mt-0.5">{subtitle}</p>
+                                    )}
                                 </div>
-                                <button
-                                    onClick={onClose}
-                                    className="p-2 text-slate-500 hover:text-white transition-colors rounded-lg hover:bg-slate-800/50"
-                                >
-                                    <X size={20} />
-                                </button>
                             </div>
-                            <div className="p-6">
-                                {children}
-                            </div>
-                        </motion.div>
-                    </div>
+                            <button
+                                onClick={onClose}
+                                className="p-1.5 text-slate-500 hover:text-white transition-colors rounded-md hover:bg-slate-800/50"
+                            >
+                                <X size={16} />
+                            </button>
+                        </div>
+                        <div className="p-4 sm:p-5 max-h-[85vh] overflow-y-auto scroller-subtle">
+                            {children}
+                        </div>
+                    </motion.div>
                 </div>
             )}
         </AnimatePresence>
     );
+
+    return createPortal(modalContent, document.body);
 }

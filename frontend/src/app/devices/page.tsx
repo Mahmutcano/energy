@@ -6,6 +6,7 @@ import { apiRequest } from '@/lib/api';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter, useSearchParams } from 'next/navigation';
 import toast from 'react-hot-toast';
+import Modal from '@/components/Modal';
 
 interface ProtocolConfig {
     id: string;
@@ -432,326 +433,275 @@ function DevicesContent() {
             </div>
 
             {/* Create / Edit Modal */}
-            <AnimatePresence>
-                {isModalOpen && (
-                    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md overflow-y-auto">
-                        <motion.div
-                            initial={{ scale: 0.95, opacity: 0 }}
-                            animate={{ scale: 1, opacity: 1 }}
-                            exit={{ scale: 0.95, opacity: 0 }}
-                            className="card-base w-full max-w-lg bg-slate-950 border-slate-800 overflow-hidden shadow-2xl my-8"
+            <Modal
+                isOpen={isModalOpen}
+                onClose={() => setIsModalOpen(false)}
+                title={editingDevice ? 'Edit Device' : 'New Device'}
+                subtitle={editingDevice ? 'Update device details' : 'Register a new device'}
+                icon={Cpu}
+                maxWidth="lg"
+            >
+                <form onSubmit={handleSubmit} className="space-y-5">
+                    <div className="space-y-2">
+                        <label className="text-xs font-bold text-slate-400  tracking-widest uppercase">Protocol Configuration</label>
+                        <select
+                            value={formData.protocolConfigId}
+                            onChange={(e) => {
+                                if (e.target.value === 'ADD_NEW') {
+                                    setIsProtocolModalOpen(true);
+                                    setNewProtocolData({ ...newProtocolData, plantId: plants.length > 0 ? plants[0].id : '' });
+                                } else {
+                                    setFormData({ ...formData, protocolConfigId: e.target.value });
+                                }
+                            }}
+                            className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none appearance-none"
+                            required
                         >
-                            <div className="p-6 border-b border-slate-800 flex justify-between items-center bg-slate-900/30">
-                                <div className="flex items-center gap-3">
-                                    <div className="p-2 rounded-lg bg-slate-950 border border-slate-800">
-                                        <Cpu size={18} className="text-brand-green" />
-                                    </div>
-                                    <div>
-                                        <h2 className="text-lg font-bold text-white">{editingDevice ? 'Edit Device' : 'New Device'}</h2>
-                                        <p className="text-[10px] text-slate-500  tracking-widest">{editingDevice ? 'Update device details' : 'Register a new device'}</p>
-                                    </div>
-                                </div>
-                                <button onClick={() => setIsModalOpen(false)} className="p-2 text-slate-500 hover:text-white transition-colors">
-                                    <X size={20} />
-                                </button>
-                            </div>
-                            <form onSubmit={handleSubmit} className="p-6 space-y-5 max-h-[80vh] overflow-y-auto">
-                                <div className="space-y-2">
-                                    <label className="text-xs font-bold text-slate-400  tracking-widest">Protocol Configuration</label>
-                                    <select
-                                        value={formData.protocolConfigId}
-                                        onChange={(e) => {
-                                            if (e.target.value === 'ADD_NEW') {
-                                                setIsProtocolModalOpen(true);
-                                                setNewProtocolData({ ...newProtocolData, plantId: plants.length > 0 ? plants[0].id : '' });
-                                            } else {
-                                                setFormData({ ...formData, protocolConfigId: e.target.value });
-                                            }
-                                        }}
-                                        className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none"
-                                        required
-                                    >
-                                        <option value="">Select Protocol Config...</option>
-                                        {protocols.map(p => (
-                                            <option key={p.id} value={p.id}>{p.configName} ({p.plant?.plantName})</option>
-                                        ))}
-                                        <option value="ADD_NEW" className="font-bold text-brand-green bg-brand-green/10">+ Add New Protocol</option>
-                                    </select>
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-xs font-bold text-slate-400  tracking-widest">Datasheet Profile</label>
-                                    <select
-                                        value={formData.datasheetProfileId}
-                                        onChange={(e) => {
-                                            if (e.target.value === 'ADD_NEW') {
-                                                setIsProfileModalOpen(true);
-                                            } else {
-                                                setFormData({ ...formData, datasheetProfileId: e.target.value });
-                                            }
-                                        }}
-                                        className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none"
-                                    >
-                                        <option value="">No Profile Assigned</option>
-                                        {profiles.map(p => (
-                                            <option key={p.id} value={p.id}>{p.name} ({p.protocolType})</option>
-                                        ))}
-                                        <option value="ADD_NEW" className="font-bold text-brand-green bg-brand-green/10">+ Add New Profile</option>
-                                    </select>
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-xs font-bold text-slate-400  tracking-widest">Device Type</label>
-                                    <select
-                                        value={formData.deviceType}
-                                        onChange={(e) => setFormData({ ...formData, deviceType: e.target.value as any })}
-                                        className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none"
-                                        required
-                                    >
-                                        <option value="INVERTER">Inverter</option>
-                                        <option value="ANALYZER">Analyzer</option>
-                                        <option value="RELAY">Relay</option>
-                                    </select>
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-xs font-bold text-slate-400  tracking-widest">Device Name</label>
-                                    <input
-                                        type="text"
-                                        value={formData.deviceName}
-                                        onChange={(e) => setFormData({ ...formData, deviceName: e.target.value })}
-                                        className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none"
-                                        placeholder="e.g. Transformer TR-01"
-                                        required
-                                    />
-                                </div>
-                                {editingDevice && (
-                                    <div className="space-y-2">
-                                        <label className="text-xs font-bold text-slate-400  tracking-widest">Created Date</label>
-                                        <input
-                                            type="datetime-local"
-                                            value={formData.createdAt}
-                                            onChange={(e) => setFormData({ ...formData, createdAt: e.target.value })}
-                                            className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none"
-                                        />
-                                    </div>
-                                )}
-                                <div className="flex items-center justify-between p-4 bg-slate-900/30 rounded-xl border border-slate-800/40">
-                                    <span className="text-xs font-bold text-slate-400 ">Active Status</span>
-                                    <button
-                                        type="button"
-                                        onClick={() => setFormData({ ...formData, isActive: !formData.isActive })}
-                                        className="text-brand-green"
-                                    >
-                                        {formData.isActive ? <ToggleRight size={28} /> : <ToggleLeft size={28} className="text-slate-600" />}
-                                    </button>
-                                </div>
-                                <button
-                                    type="submit"
-                                    disabled={isSubmitting}
-                                    className="w-full py-4 bg-brand-green disabled:bg-brand-green/50 text-white font-bold  tracking-widest text-xs rounded-xl shadow-lg shadow-brand-green/20 hover:scale-[1.01] transition-all"
-                                >
-                                    {isSubmitting ? 'Saving...' : editingDevice ? 'Update Device' : 'Create Device'}
-                                </button>
-                            </form>
-                        </motion.div>
+                            <option value="">Select Protocol Config...</option>
+                            {protocols.map(p => (
+                                <option key={p.id} value={p.id}>{p.configName} ({p.plant?.plantName})</option>
+                            ))}
+                            <option value="ADD_NEW" className="font-bold text-brand-green bg-brand-green/10">+ Add New Protocol</option>
+                        </select>
                     </div>
-                )}
-            </AnimatePresence>
+                    <div className="space-y-2">
+                        <label className="text-xs font-bold text-slate-400  tracking-widest uppercase">Datasheet Profile</label>
+                        <select
+                            value={formData.datasheetProfileId}
+                            onChange={(e) => {
+                                if (e.target.value === 'ADD_NEW') {
+                                    setIsProfileModalOpen(true);
+                                } else {
+                                    setFormData({ ...formData, datasheetProfileId: e.target.value });
+                                }
+                            }}
+                            className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none appearance-none"
+                        >
+                            <option value="">No Profile Assigned</option>
+                            {profiles.map(p => (
+                                <option key={p.id} value={p.id}>{p.name} ({p.protocolType})</option>
+                            ))}
+                            <option value="ADD_NEW" className="font-bold text-brand-green bg-brand-green/10">+ Add New Profile</option>
+                        </select>
+                    </div>
+                    <div className="space-y-2">
+                        <label className="text-xs font-bold text-slate-400  tracking-widest uppercase">Device Type</label>
+                        <select
+                            value={formData.deviceType}
+                            onChange={(e) => setFormData({ ...formData, deviceType: e.target.value as any })}
+                            className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none appearance-none"
+                            required
+                        >
+                            <option value="INVERTER">Inverter</option>
+                            <option value="ANALYZER">Analyzer</option>
+                            <option value="RELAY">Relay</option>
+                        </select>
+                    </div>
+                    <div className="space-y-2">
+                        <label className="text-xs font-bold text-slate-400  tracking-widest uppercase">Device Name</label>
+                        <input
+                            type="text"
+                            value={formData.deviceName}
+                            onChange={(e) => setFormData({ ...formData, deviceName: e.target.value })}
+                            className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none"
+                            placeholder="e.g. Transformer TR-01"
+                            required
+                        />
+                    </div>
+                    {editingDevice && (
+                        <div className="space-y-2">
+                            <label className="text-xs font-bold text-slate-400  tracking-widest uppercase">Created Date</label>
+                            <input
+                                type="datetime-local"
+                                value={formData.createdAt}
+                                onChange={(e) => setFormData({ ...formData, createdAt: e.target.value })}
+                                className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none"
+                            />
+                        </div>
+                    )}
+                    <div className="flex items-center justify-between p-4 bg-slate-900/30 rounded-xl border border-slate-800/40">
+                        <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Active Status</span>
+                        <button
+                            type="button"
+                            onClick={() => setFormData({ ...formData, isActive: !formData.isActive })}
+                            className="text-brand-green"
+                        >
+                            {formData.isActive ? <ToggleRight size={28} /> : <ToggleLeft size={28} className="text-slate-600" />}
+                        </button>
+                    </div>
+                    <button
+                        type="submit"
+                        disabled={isSubmitting}
+                        className="w-full py-4 bg-brand-green disabled:bg-brand-green/50 text-white font-bold  tracking-widest text-[10px] uppercase rounded-xl shadow-lg shadow-brand-green/20 hover:scale-[1.01] transition-all"
+                    >
+                        {isSubmitting ? 'Saving...' : editingDevice ? 'Update Device' : 'Create Device'}
+                    </button>
+                </form>
+            </Modal>
 
             {/* Delete Confirmation Modal */}
-            <AnimatePresence>
-                {deviceToDelete && (
-                    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
-                        <motion.div
-                            initial={{ scale: 0.95, opacity: 0 }}
-                            animate={{ scale: 1, opacity: 1 }}
-                            exit={{ scale: 0.95, opacity: 0 }}
-                            className="card-base w-full max-w-sm bg-slate-950 border-red-500/30 overflow-hidden shadow-2xl shadow-red-500/10"
-                        >
-                            <div className="p-6 text-center space-y-4">
-                                <div className="w-16 h-16 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-500 flex items-center justify-center mx-auto mb-6">
-                                    <AlertTriangle size={32} />
-                                </div>
-
-                                <div>
-                                    <h3 className="text-lg font-bold text-white tracking-tight">Delete Device</h3>
-                                    <p className="text-sm text-slate-400 mt-2 leading-relaxed">
-                                        Are you sure you want to delete <span className="font-bold text-white">{deviceToDelete.deviceName}</span>? This action cannot be undone.
-                                    </p>
-                                </div>
-
-                                <div className="grid grid-cols-2 gap-3 pt-4">
-                                    <button
-                                        onClick={() => setDeviceToDelete(null)}
-                                        disabled={isDeleting}
-                                        className="py-3 px-4 rounded-xl border border-slate-800 text-slate-400 font-bold text-xs hover:bg-slate-900 transition-colors disabled:opacity-50 tracking-widest uppercase"
-                                    >
-                                        Cancel
-                                    </button>
-                                    <button
-                                        onClick={confirmDelete}
-                                        disabled={isDeleting}
-                                        className="py-3 px-4 rounded-xl bg-red-500 text-white font-bold text-xs hover:bg-red-600 shadow-lg shadow-red-500/20 transition-all disabled:opacity-50 tracking-widest uppercase flex items-center justify-center gap-2"
-                                    >
-                                        {isDeleting ? (
-                                            <>
-                                                <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                                Deleting...
-                                            </>
-                                        ) : (
-                                            'Yes, Delete'
-                                        )}
-                                    </button>
-                                </div>
-                            </div>
-                        </motion.div>
+            <Modal
+                isOpen={!!deviceToDelete}
+                onClose={() => setDeviceToDelete(null)}
+                title="Delete Device"
+                icon={AlertTriangle}
+                maxWidth="sm"
+            >
+                <div className="text-center space-y-4">
+                    <div className="w-12 h-12 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 flex items-center justify-center mx-auto mb-4">
+                        <AlertTriangle size={24} />
                     </div>
-                )}
-            </AnimatePresence>
+
+                    <div>
+                        <p className="text-sm text-slate-400 leading-relaxed">
+                            Are you sure you want to delete <span className="font-bold text-white">{deviceToDelete?.deviceName}</span>? This action cannot be undone.
+                        </p>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3 pt-2">
+                        <button
+                            onClick={() => setDeviceToDelete(null)}
+                            disabled={isDeleting}
+                            className="py-2.5 px-4 rounded-lg border border-slate-800 text-slate-400 font-bold text-[10px] hover:bg-slate-900 transition-colors disabled:opacity-50 tracking-widest uppercase"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            onClick={confirmDelete}
+                            disabled={isDeleting}
+                            className="py-2.5 px-4 rounded-lg bg-red-500 text-white font-bold text-[10px] hover:bg-red-600 shadow-lg shadow-red-500/20 transition-all disabled:opacity-50 tracking-widest uppercase flex items-center justify-center gap-2"
+                        >
+                            {isDeleting ? 'Deleting...' : 'Yes, Delete'}
+                        </button>
+                    </div>
+                </div>
+            </Modal>
 
             {/* Inline Protocol Create Modal */}
-            <AnimatePresence>
-                {isProtocolModalOpen && (
-                    <div className="fixed inset-0 z-[250] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md overflow-y-auto">
-                        <motion.div
-                            initial={{ scale: 0.95, opacity: 0 }}
-                            animate={{ scale: 1, opacity: 1 }}
-                            exit={{ scale: 0.95, opacity: 0 }}
-                            className="card-base w-full max-w-lg bg-slate-950 border-slate-800 overflow-hidden shadow-2xl my-8"
+            <Modal
+                isOpen={isProtocolModalOpen}
+                onClose={() => setIsProtocolModalOpen(false)}
+                title="Add New Protocol"
+                icon={Network}
+                maxWidth="lg"
+                zIndex={250}
+            >
+                <form onSubmit={handleCreateProtocol} className="space-y-4">
+                    <div className="space-y-2">
+                        <label className="text-xs font-bold text-slate-400 tracking-widest uppercase">Plant</label>
+                        <select
+                            value={newProtocolData.plantId}
+                            onChange={(e) => setNewProtocolData({ ...newProtocolData, plantId: e.target.value })}
+                            className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none appearance-none"
+                            required
                         >
-                            <div className="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-900/30">
-                                <h2 className="text-lg font-bold text-white">Add New Protocol</h2>
-                                <button onClick={() => setIsProtocolModalOpen(false)} className="p-2 text-slate-500 hover:text-white transition-colors">
-                                    <X size={20} />
-                                </button>
-                            </div>
-                            <form onSubmit={handleCreateProtocol} className="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
-                                <div className="space-y-2">
-                                    <label className="text-xs font-bold text-slate-400 tracking-widest">Plant</label>
-                                    <select
-                                        value={newProtocolData.plantId}
-                                        onChange={(e) => setNewProtocolData({ ...newProtocolData, plantId: e.target.value })}
-                                        className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none"
-                                        required
-                                    >
-                                        {plants.length === 0 && <option value="">Add a Plant First</option>}
-                                        {plants.map(p => <option key={p.id} value={p.id}>{p.plantName}</option>)}
-                                    </select>
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-xs font-bold text-slate-400 tracking-widest">Config Name</label>
-                                    <input
-                                        type="text"
-                                        value={newProtocolData.configName}
-                                        onChange={(e) => setNewProtocolData({ ...newProtocolData, configName: e.target.value })}
-                                        className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none"
-                                        required
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-xs font-bold text-slate-400 tracking-widest">Protocol Type</label>
-                                    <select
-                                        value={newProtocolData.protocolType}
-                                        onChange={(e) => setNewProtocolData({ ...newProtocolData, protocolType: e.target.value })}
-                                        className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none"
-                                    >
-                                        <option value="MODBUS">MODBUS</option>
-                                        <option value="IEC104">IEC104</option>
-                                    </select>
-                                </div>
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="space-y-2">
-                                        <label className="text-xs font-bold text-slate-400 tracking-widest">IP Address</label>
-                                        <input
-                                            type="text"
-                                            value={newProtocolData.ipAddress}
-                                            onChange={(e) => setNewProtocolData({ ...newProtocolData, ipAddress: e.target.value })}
-                                            className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none"
-                                            required
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <label className="text-xs font-bold text-slate-400 tracking-widest">Port</label>
-                                        <input
-                                            type="number"
-                                            value={newProtocolData.port}
-                                            onChange={(e) => setNewProtocolData({ ...newProtocolData, port: Number(e.target.value) })}
-                                            className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none"
-                                            required
-                                        />
-                                    </div>
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-xs font-bold text-slate-400 tracking-widest">{newProtocolData.protocolType === 'MODBUS' ? 'Slave ID' : 'ASDU Address'}</label>
-                                    <input
-                                        type="number"
-                                        value={newProtocolData.slaveId}
-                                        onChange={(e) => setNewProtocolData({ ...newProtocolData, slaveId: Number(e.target.value) })}
-                                        className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none"
-                                        required
-                                    />
-                                </div>
-                                <button
-                                    type="submit"
-                                    disabled={iscreatingProtocol}
-                                    className="w-full py-4 bg-brand-green disabled:bg-brand-green/50 text-white font-bold tracking-widest text-xs rounded-xl shadow-lg shadow-brand-green/20 hover:scale-[1.01] transition-all"
-                                >
-                                    {iscreatingProtocol ? 'Saving...' : 'Save'}
-                                </button>
-                            </form>
-                        </motion.div>
+                            {plants.length === 0 && <option value="">Add a Plant First</option>}
+                            {plants.map(p => <option key={p.id} value={p.id}>{p.plantName}</option>)}
+                        </select>
                     </div>
-                )}
-            </AnimatePresence>
+                    <div className="space-y-2">
+                        <label className="text-xs font-bold text-slate-400 tracking-widest uppercase">Config Name</label>
+                        <input
+                            type="text"
+                            value={newProtocolData.configName}
+                            onChange={(e) => setNewProtocolData({ ...newProtocolData, configName: e.target.value })}
+                            className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none"
+                            required
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <label className="text-xs font-bold text-slate-400 tracking-widest uppercase">Protocol Type</label>
+                        <select
+                            value={newProtocolData.protocolType}
+                            onChange={(e) => setNewProtocolData({ ...newProtocolData, protocolType: e.target.value })}
+                            className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none appearance-none"
+                        >
+                            <option value="MODBUS">MODBUS</option>
+                            <option value="IEC104">IEC104</option>
+                        </select>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                            <label className="text-xs font-bold text-slate-400 tracking-widest uppercase">IP Address</label>
+                            <input
+                                type="text"
+                                value={newProtocolData.ipAddress}
+                                onChange={(e) => setNewProtocolData({ ...newProtocolData, ipAddress: e.target.value })}
+                                className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none"
+                                required
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-xs font-bold text-slate-400 tracking-widest uppercase">Port</label>
+                            <input
+                                type="number"
+                                value={newProtocolData.port}
+                                onChange={(e) => setNewProtocolData({ ...newProtocolData, port: Number(e.target.value) })}
+                                className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none"
+                                required
+                            />
+                        </div>
+                    </div>
+                    <div className="space-y-2">
+                        <label className="text-xs font-bold text-slate-400 tracking-widest uppercase">{newProtocolData.protocolType === 'MODBUS' ? 'Slave ID' : 'ASDU Address'}</label>
+                        <input
+                            type="number"
+                            value={newProtocolData.slaveId}
+                            onChange={(e) => setNewProtocolData({ ...newProtocolData, slaveId: Number(e.target.value) })}
+                            className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none"
+                            required
+                        />
+                    </div>
+                    <button
+                        type="submit"
+                        disabled={iscreatingProtocol}
+                        className="w-full py-4 bg-brand-green disabled:bg-brand-green/50 text-white font-bold tracking-widest text-[10px] uppercase rounded-xl shadow-lg shadow-brand-green/20 hover:scale-[1.01] transition-all"
+                    >
+                        {iscreatingProtocol ? 'Saving...' : 'Save'}
+                    </button>
+                </form>
+            </Modal>
 
             {/* Inline Profile Create Modal */}
-            <AnimatePresence>
-                {isProfileModalOpen && (
-                    <div className="fixed inset-0 z-[250] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
-                        <motion.div
-                            initial={{ scale: 0.95, opacity: 0 }}
-                            animate={{ scale: 1, opacity: 1 }}
-                            exit={{ scale: 0.95, opacity: 0 }}
-                            className="card-base w-full max-w-sm bg-slate-950 border-slate-800 overflow-hidden shadow-2xl"
-                        >
-                            <div className="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-900/30">
-                                <h2 className="text-lg font-bold text-white">Add New Profile</h2>
-                                <button onClick={() => setIsProfileModalOpen(false)} className="p-2 text-slate-500 hover:text-white transition-colors">
-                                    <X size={20} />
-                                </button>
-                            </div>
-                            <form onSubmit={handleCreateProfile} className="p-6 space-y-4">
-                                <div className="space-y-2">
-                                    <label className="text-xs font-bold text-slate-400 tracking-widest">Profile Name</label>
-                                    <input
-                                        type="text"
-                                        value={newProfileData.name}
-                                        onChange={(e) => setNewProfileData({ ...newProfileData, name: e.target.value })}
-                                        className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none"
-                                        required
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-xs font-bold text-slate-400 tracking-widest">Protocol Type</label>
-                                    <select
-                                        value={newProfileData.protocolType}
-                                        onChange={(e) => setNewProfileData({ ...newProfileData, protocolType: e.target.value })}
-                                        className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none"
-                                    >
-                                        <option value="MODBUS">MODBUS</option>
-                                        <option value="IEC104">IEC104</option>
-                                    </select>
-                                </div>
-                                <button
-                                    type="submit"
-                                    disabled={isCreatingProfile}
-                                    className="w-full py-4 bg-brand-green disabled:bg-brand-green/50 text-white font-bold tracking-widest text-xs rounded-xl shadow-lg shadow-brand-green/20 hover:scale-[1.01] transition-all"
-                                >
-                                    {isCreatingProfile ? 'Saving...' : 'Save'}
-                                </button>
-                            </form>
-                        </motion.div>
+            <Modal
+                isOpen={isProfileModalOpen}
+                onClose={() => setIsProfileModalOpen(false)}
+                title="Add New Profile"
+                icon={FileJson}
+                maxWidth="sm"
+                zIndex={250}
+            >
+                <form onSubmit={handleCreateProfile} className="space-y-4">
+                    <div className="space-y-2">
+                        <label className="text-xs font-bold text-slate-400 tracking-widest uppercase">Profile Name</label>
+                        <input
+                            type="text"
+                            value={newProfileData.name}
+                            onChange={(e) => setNewProfileData({ ...newProfileData, name: e.target.value })}
+                            className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none"
+                            required
+                        />
                     </div>
-                )}
-            </AnimatePresence>
+                    <div className="space-y-2">
+                        <label className="text-xs font-bold text-slate-400 tracking-widest uppercase">Protocol Type</label>
+                        <select
+                            value={newProfileData.protocolType}
+                            onChange={(e) => setNewProfileData({ ...newProfileData, protocolType: e.target.value })}
+                            className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none appearance-none"
+                        >
+                            <option value="MODBUS">MODBUS</option>
+                            <option value="IEC104">IEC104</option>
+                        </select>
+                    </div>
+                    <button
+                        type="submit"
+                        disabled={isCreatingProfile}
+                        className="w-full py-4 bg-brand-green disabled:bg-brand-green/50 text-white font-bold tracking-widest text-[10px] uppercase rounded-xl shadow-lg shadow-brand-green/20 hover:scale-[1.01] transition-all"
+                    >
+                        {isCreatingProfile ? 'Saving...' : 'Save'}
+                    </button>
+                </form>
+            </Modal>
         </div>
     );
 }

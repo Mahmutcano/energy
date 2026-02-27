@@ -5,6 +5,7 @@ import { Users, Plus, X, ShieldCheck, Mail, Building2, Trash2, AlertTriangle } f
 import { apiRequest } from '@/lib/api';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
+import Modal from '@/components/Modal';
 
 interface User {
     id: string;
@@ -209,153 +210,122 @@ export default function UsersPage() {
             </div>
 
             {/* Create Modal */}
-            <AnimatePresence>
-                {isModalOpen && (
-                    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
-                        <motion.div
-                            initial={{ scale: 0.95, opacity: 0 }}
-                            animate={{ scale: 1, opacity: 1 }}
-                            exit={{ scale: 0.95, opacity: 0 }}
-                            className="card-base w-full max-w-lg bg-slate-950 border-slate-800 overflow-hidden shadow-2xl"
-                        >
-                            <div className="p-6 border-b border-slate-800 flex justify-between items-center bg-slate-900/30">
-                                <div className="flex items-center gap-3">
-                                    <div className="p-2 rounded-lg bg-slate-950 border border-slate-800">
-                                        <ShieldCheck size={18} className="text-brand-green" />
-                                    </div>
-                                    <div>
-                                        <h2 className="text-lg font-bold text-white">New User</h2>
-                                        <p className="text-[10px] text-slate-500  tracking-widest">Create user account</p>
-                                    </div>
-                                </div>
-                                <button onClick={() => setIsModalOpen(false)} className="p-2 text-slate-500 hover:text-white transition-colors">
-                                    <X size={20} />
-                                </button>
-                            </div>
-                            <form onSubmit={handleCreate} className="p-6 space-y-4">
-                                <div className="space-y-2">
-                                    <label className="text-xs font-bold text-slate-400  tracking-widest">Name</label>
-                                    <input
-                                        type="text"
-                                        value={formData.name}
-                                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                        className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none"
-                                        placeholder="Full name"
-                                        required
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-xs font-bold text-slate-400  tracking-widest">Email</label>
-                                    <input
-                                        type="email"
-                                        value={formData.email}
-                                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                                        className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none"
-                                        placeholder="user@example.com"
-                                        required
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-xs font-bold text-slate-400  tracking-widest">Password</label>
-                                    <input
-                                        type="password"
-                                        value={formData.password}
-                                        onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                                        className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none"
-                                        placeholder="••••••••"
-                                        required
-                                    />
-                                </div>
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="space-y-2">
-                                        <label className="text-xs font-bold text-slate-400  tracking-widest">Role</label>
-                                        <select
-                                            value={formData.role}
-                                            onChange={(e) => setFormData({ ...formData, role: e.target.value as any })}
-                                            className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none"
-                                        >
-                                            <option value="NORMAL_USER">Customer / Normal User</option>
-                                            <option value="COMPANY_ADMIN">Company Admin</option>
-                                            <option value="SUPER_ADMIN">Super Admin</option>
-                                        </select>
-                                    </div>
-                                    <div className="space-y-2">
-                                        <label className="text-xs font-bold text-slate-400  tracking-widest">Company</label>
-                                        <select
-                                            value={formData.companyProfileId}
-                                            onChange={(e) => setFormData({ ...formData, companyProfileId: e.target.value })}
-                                            className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none"
-                                        >
-                                            <option value="">None</option>
-                                            {companies.map((c: any) => (
-                                                <option key={c.id} value={c.id}>{c.name}</option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                </div>
-                                <button
-                                    type="submit"
-                                    disabled={isSubmitting}
-                                    className="w-full py-4 bg-brand-green disabled:bg-brand-green/50 text-white font-bold  tracking-widest text-xs rounded-xl shadow-lg shadow-brand-green/20 hover:scale-[1.01] transition-all"
-                                >
-                                    {isSubmitting ? 'Creating...' : 'Create User'}
-                                </button>
-                            </form>
-                        </motion.div>
+            <Modal
+                isOpen={isModalOpen}
+                onClose={() => setIsModalOpen(false)}
+                title="New User"
+                subtitle="Create user account"
+                icon={ShieldCheck}
+                maxWidth="lg"
+            >
+                <form onSubmit={handleCreate} className="space-y-4">
+                    <div className="space-y-2">
+                        <label className="text-xs font-bold text-slate-400  tracking-widest uppercase">Name</label>
+                        <input
+                            type="text"
+                            value={formData.name}
+                            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                            className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none"
+                            placeholder="Full name"
+                            required
+                        />
                     </div>
-                )}
-            </AnimatePresence>
+                    <div className="space-y-2">
+                        <label className="text-xs font-bold text-slate-400  tracking-widest uppercase">Email</label>
+                        <input
+                            type="email"
+                            value={formData.email}
+                            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                            className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none"
+                            placeholder="user@example.com"
+                            required
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <label className="text-xs font-bold text-slate-400  tracking-widest uppercase">Password</label>
+                        <input
+                            type="password"
+                            value={formData.password}
+                            onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                            className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none"
+                            placeholder="••••••••"
+                            required
+                        />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                            <label className="text-xs font-bold text-slate-400  tracking-widest uppercase">Role</label>
+                            <select
+                                value={formData.role}
+                                onChange={(e) => setFormData({ ...formData, role: e.target.value as any })}
+                                className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none appearance-none"
+                            >
+                                <option value="NORMAL_USER">Customer / User</option>
+                                <option value="COMPANY_ADMIN">Company Admin</option>
+                                <option value="SUPER_ADMIN">Super Admin</option>
+                            </select>
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-xs font-bold text-slate-400  tracking-widest uppercase">Company</label>
+                            <select
+                                value={formData.companyProfileId}
+                                onChange={(e) => setFormData({ ...formData, companyProfileId: e.target.value })}
+                                className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none appearance-none"
+                            >
+                                <option value="">None</option>
+                                {companies.map((c: any) => (
+                                    <option key={c.id} value={c.id}>{c.name}</option>
+                                ))}
+                            </select>
+                        </div>
+                    </div>
+                    <button
+                        type="submit"
+                        disabled={isSubmitting}
+                        className="w-full py-4 bg-brand-green disabled:bg-brand-green/50 text-white font-bold  tracking-widest text-[10px] uppercase rounded-xl shadow-lg shadow-brand-green/20 hover:scale-[1.01] transition-all"
+                    >
+                        {isSubmitting ? 'Creating...' : 'Create User'}
+                    </button>
+                </form>
+            </Modal>
 
             {/* Delete Confirmation Modal */}
-            <AnimatePresence>
-                {userToDelete && (
-                    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
-                        <motion.div
-                            initial={{ scale: 0.95, opacity: 0 }}
-                            animate={{ scale: 1, opacity: 1 }}
-                            exit={{ scale: 0.95, opacity: 0 }}
-                            className="card-base w-full max-w-sm bg-slate-950 border-red-500/30 overflow-hidden shadow-2xl shadow-red-500/10"
-                        >
-                            <div className="p-6 text-center space-y-4">
-                                <div className="w-16 h-16 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-500 flex items-center justify-center mx-auto mb-6">
-                                    <AlertTriangle size={32} />
-                                </div>
-
-                                <div>
-                                    <h3 className="text-lg font-bold text-white tracking-tight">Kullanıcıyı Sil</h3>
-                                    <p className="text-sm text-slate-400 mt-2 leading-relaxed">
-                                        <span className="font-bold text-white">{userToDelete.name || userToDelete.email}</span> kullanıcısını silmek istediğinize emin misiniz? Bu işlem geri alınamaz.
-                                    </p>
-                                </div>
-
-                                <div className="grid grid-cols-2 gap-3 pt-4">
-                                    <button
-                                        onClick={() => setUserToDelete(null)}
-                                        disabled={isDeleting}
-                                        className="py-3 px-4 rounded-xl border border-slate-800 text-slate-400 font-bold text-xs hover:bg-slate-900 transition-colors disabled:opacity-50 tracking-widest uppercase"
-                                    >
-                                        İptal
-                                    </button>
-                                    <button
-                                        onClick={confirmDelete}
-                                        disabled={isDeleting}
-                                        className="py-3 px-4 rounded-xl bg-red-500 text-white font-bold text-xs hover:bg-red-600 shadow-lg shadow-red-500/20 transition-all disabled:opacity-50 tracking-widest uppercase flex items-center justify-center gap-2"
-                                    >
-                                        {isDeleting ? (
-                                            <>
-                                                <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                                Siliniyor...
-                                            </>
-                                        ) : (
-                                            'Evet, Sil'
-                                        )}
-                                    </button>
-                                </div>
-                            </div>
-                        </motion.div>
+            <Modal
+                isOpen={!!userToDelete}
+                onClose={() => setUserToDelete(null)}
+                title="Delete User"
+                icon={AlertTriangle}
+                maxWidth="sm"
+            >
+                <div className="text-center space-y-4">
+                    <div className="w-12 h-12 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 flex items-center justify-center mx-auto mb-4">
+                        <AlertTriangle size={24} />
                     </div>
-                )}
-            </AnimatePresence>
+
+                    <div>
+                        <p className="text-sm text-slate-400 leading-relaxed">
+                            Are you sure you want to delete <span className="font-bold text-white">{userToDelete?.name || userToDelete?.email}</span>? This action cannot be undone.
+                        </p>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3 pt-2">
+                        <button
+                            onClick={() => setUserToDelete(null)}
+                            disabled={isDeleting}
+                            className="py-2.5 px-4 rounded-lg border border-slate-800 text-slate-400 font-bold text-[10px] hover:bg-slate-900 transition-colors disabled:opacity-50 tracking-widest uppercase"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            onClick={confirmDelete}
+                            disabled={isDeleting}
+                            className="py-2.5 px-4 rounded-lg bg-red-500 text-white font-bold text-[10px] hover:bg-red-600 shadow-lg shadow-red-500/20 transition-all disabled:opacity-50 tracking-widest uppercase flex items-center justify-center gap-2"
+                        >
+                            {isDeleting ? 'Deleting...' : 'Yes, Delete'}
+                        </button>
+                    </div>
+                </div>
+            </Modal>
         </div>
     );
 }

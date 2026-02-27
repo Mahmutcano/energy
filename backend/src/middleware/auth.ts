@@ -1,11 +1,10 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
+import { appUser } from '../db/schema';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-key-123456';
 
-import { AdminType } from '@prisma/client';
-
-export type Role = AdminType;
+export type Role = (typeof appUser.$inferSelect)['adminType'];
 
 export interface AuthRequest extends Request {
     user?: {

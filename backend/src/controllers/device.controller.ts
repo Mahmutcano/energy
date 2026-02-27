@@ -1,13 +1,17 @@
+
 import { Request, Response } from 'express';
-import prisma from '../lib/prisma';
+import { db } from '../db';
+import * as schema from '../db/schema';
+import { eq, sql, and } from 'drizzle-orm';
 import { z } from 'zod';
-import { DeviceType } from '@prisma/client';
 import { AppError, ErrorCode, handleErrorResponse } from '../utils/errors';
+
+const DeviceTypeValues = ['INVERTER', 'ANALYZER', 'RELAY'] as const;
 
 const createDeviceSchema = z.object({
     protocolConfigId: z.string().uuid("Invalid Protocol Config ID"),
     deviceName: z.string().min(1, "Device name is required"),
-    deviceType: z.nativeEnum(DeviceType),
+    deviceType: z.enum(DeviceTypeValues),
     isActive: z.boolean().optional(),
     createdAt: z.string().datetime().optional().nullable(),
     datasheetProfileId: z.string().uuid("Invalid Profile ID").optional().nullable(),
@@ -15,20 +19,22 @@ const createDeviceSchema = z.object({
 
 export const getDevices = async (req: Request, res: Response) => {
     try {
-        const devices = await prisma.device.findMany({
-            include: {
+        const devices = await db.query.device.findMany({
+            with: {
                 protocol: {
-                    select: {
+                    columns: {
                         id: true,
                         configName: true,
-                        protocolType: true,
+                        protocolType: true
+                    },
+                    with: {
                         plant: {
-                            select: { id: true, plantName: true }
+                            columns: { id: true, plantName: true }
                         }
                     }
                 },
                 datasheetProfile: {
-                    select: { id: true, name: true, protocolType: true }
+                    columns: { id: true, name: true, protocolType: true }
                 }
             }
         });
@@ -42,18 +48,14 @@ export const createDevice = async (req: Request, res: Response) => {
     try {
         const data = createDeviceSchema.parse(req.body);
 
-        const createData: any = {
-            protocol_config_id: data.protocolConfigId,
+        const [device] = await db.insert(schema.device).values({
+            protocolConfigId: data.protocolConfigId,
             deviceName: data.deviceName,
-            deviceType: data.deviceType,
+            deviceType: data.deviceType as any,
             isActive: data.isActive ?? true,
-            createdAt: data.createdAt ? new Date(data.createdAt) : undefined,
-            datasheet_profile_id: data.datasheetProfileId || undefined,
-        };
-
-        const device = await prisma.device.create({
-            data: createData
-        });
+            createdAt: data.createdAt ? new Date(data.createdAt) : new Date(),
+            datasheetProfileId: data.datasheetProfileId || null,
+        }).returning();
 
         res.status(201).json(device);
     } catch (error) {
@@ -61,35 +63,37 @@ export const createDevice = async (req: Request, res: Response) => {
     }
 };
 
-export const updateDevice = async (req: Request, res: Response) => {
+export const updateDevice = async (req: Request<{ id: string }>, res: Response) => {
     const { id } = req.params;
     try {
         const data = createDeviceSchema.partial().parse(req.body);
 
-        const updateData: any = {};
-        if (data.protocolConfigId !== undefined) updateData.protocol_config_id = data.protocolConfigId;
-        if (data.deviceName !== undefined) updateData.deviceName = data.deviceName;
-        if (data.deviceType !== undefined) updateData.deviceType = data.deviceType;
-        if (data.isActive !== undefined) updateData.isActive = data.isActive;
-        if (data.createdAt !== undefined) updateData.createdAt = data.createdAt ? new Date(data.createdAt) : undefined;
-        if (data.datasheetProfileId !== undefined) updateData.datasheet_profile_id = data.datasheetProfileId;
+        const values: any = {};
+        if (data.protocolConfigId !== undefined) values.protocolConfigId = data.protocolConfigId;
+        if (data.deviceName !== undefined) values.deviceName = data.deviceName;
+        if (data.deviceType !== undefined) values.deviceType = data.deviceType;
+        if (data.isActive !== undefined) values.isActive = data.isActive;
+        if (data.createdAt !== undefined) values.createdAt = data.createdAt ? new Date(data.createdAt) : undefined;
+        if (data.datasheetProfileId !== undefined) values.datasheetProfileId = data.datasheetProfileId;
 
-        const device = await prisma.device.update({
-            where: { id: String(id) },
-            data: updateData
-        });
+        const [device] = await db.update(schema.device)
+            .set(values)
+            .where(eq(schema.device.id, id))
+            .returning();
         res.json(device);
     } catch (error) {
         return handleErrorResponse(res, error);
     }
 };
 
-export const deleteDevice = async (req: Request, res: Response) => {
+export const deleteDevice = async (req: Request<{ id: string }>, res: Response) => {
     const { id } = req.params;
     try {
-        const telemetryCount = await prisma.telemetryValue.count({
-            where: { device_id: String(id) }
-        });
+        const result = await db.select({ count: sql<number>`count(*)` })
+            .from(schema.telemetryValue)
+            .where(eq(schema.telemetryValue.deviceId, id));
+
+        const telemetryCount = Number(result[0]?.count || 0);
 
         if (telemetryCount > 0) {
             throw new AppError(
@@ -99,7 +103,7 @@ export const deleteDevice = async (req: Request, res: Response) => {
             );
         }
 
-        await prisma.device.delete({ where: { id: String(id) } });
+        await db.delete(schema.device).where(eq(schema.device.id, id));
         res.status(204).send();
     } catch (error) {
         return handleErrorResponse(res, error);

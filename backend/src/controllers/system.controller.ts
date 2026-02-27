@@ -1,10 +1,18 @@
+
 import { Request, Response } from 'express';
-import prisma from '../lib/prisma';
+import { db } from '../db';
+import * as schema from '../db/schema';
+import { sql, eq, lt, desc, and } from 'drizzle-orm';
 import { AppError, ErrorCode, handleErrorResponse } from '../utils/errors';
 import redisService from '../services/redis.service';
 import { getApproximateTelemetryCount } from '../utils/telemetry';
 import workerService from '../services/worker.service';
 import simulationService from '../services/simulation.service';
+
+const getCount = async (table: any) => {
+    const result = await db.select({ count: sql<number>`count(*)` }).from(table);
+    return Number(result[0]?.count || 0);
+};
 
 export const getSchemaStats = async (req: Request, res: Response) => {
     try {
@@ -20,19 +28,19 @@ export const getSchemaStats = async (req: Request, res: Response) => {
             points,
             telemetries
         ] = await Promise.all([
-            prisma.appUser.count(),
-            prisma.companyProfile.count(),
-            prisma.plant.count(),
-            prisma.protocolConfig.count(),
-            prisma.modbusConfig.count(),
-            prisma.iEC104Config.count(),
-            prisma.device.count(),
-            prisma.datasheetProfile.count(),
-            prisma.datasheetPoint.count(),
-            prisma.telemetryValue.count()
+            getCount(schema.appUser),
+            getCount(schema.companyProfile),
+            getCount(schema.plant),
+            getCount(schema.protocolConfig),
+            getCount(schema.modbusConfig),
+            getCount(schema.iec104Config),
+            getCount(schema.device),
+            getCount(schema.datasheetProfile),
+            getCount(schema.datasheetPoint),
+            getCount(schema.telemetryValue)
         ]);
 
-        const schema = [
+        const stats = [
             { id: 'AppUser', name: 'Users', count: users, icon: 'ShieldCheck', color: '#10b981', relations: [] },
             { id: 'CompanyProfile', name: 'Companies', count: companies, icon: 'Building2', color: '#f59e0b', relations: ['Plant', 'AppUserProfile'] },
             { id: 'Plant', name: 'Power Plants', count: plants, icon: 'Factory', color: '#3b82f6', relations: ['ProtocolConfig', 'AppUserProfile'] },
@@ -43,7 +51,7 @@ export const getSchemaStats = async (req: Request, res: Response) => {
             { id: 'TelemetryValue', name: 'Telemetries', count: telemetries, icon: 'Activity', color: '#ef4444', relations: [] },
         ];
 
-        res.json(schema);
+        res.json(stats);
     } catch (error) {
         return handleErrorResponse(res, error);
     }
@@ -56,16 +64,21 @@ export const getHealthCheck = async (req: Request, res: Response) => {
     // 1. PostgreSQL Check
     try {
         const dbStart = Date.now();
-        await prisma.$queryRawUnsafe('SELECT 1');
+        await db.execute(sql`SELECT 1`);
         const dbLatency = Date.now() - dbStart;
 
         // Get recent telemetry stats
-        // Use fast approximate count instead of slow COUNT(*)
         const [totalRecords, latestRecord, activeDevices, totalDevices] = await Promise.all([
             getApproximateTelemetryCount(),
-            prisma.telemetryValue.findFirst({ orderBy: { measurementTime: 'desc' }, select: { measurementTime: true } }),
-            prisma.device.count({ where: { isActive: true } }),
-            prisma.device.count()
+            db.query.telemetryValue.findFirst({
+                orderBy: [desc(schema.telemetryValue.measurementTime)],
+                columns: { measurementTime: true }
+            }),
+            db.select({ count: sql<number>`count(*)` })
+                .from(schema.device)
+                .where(eq(schema.device.isActive, true))
+                .then(res => Number(res[0].count)),
+            getCount(schema.device)
         ]);
 
         const lastRecordAge = latestRecord?.measurementTime
@@ -76,10 +89,10 @@ export const getHealthCheck = async (req: Request, res: Response) => {
             status: 'HEALTHY',
             latency: dbLatency,
             totalRecords,
-            lastRecordAge, // seconds since last record
+            lastRecordAge,
             activeDevices,
             totalDevices,
-            recording: lastRecordAge !== null && lastRecordAge < 60 // recording if last record < 60s ago
+            recording: lastRecordAge !== null && lastRecordAge < 60
         };
     } catch (err: any) {
         checks.postgresql = {
@@ -109,7 +122,7 @@ export const getHealthCheck = async (req: Request, res: Response) => {
         };
     }
 
-    // 3. Worker Service Check (real metrics)
+    // 3. Worker Service Check
     const workerMetrics = workerService.getMetrics();
     checks.worker = {
         status: workerMetrics.isRunning ? (checks.postgresql?.recording ? 'ACTIVE' : 'IDLE') : 'STOPPED',
@@ -121,7 +134,7 @@ export const getHealthCheck = async (req: Request, res: Response) => {
     // 4. Memory Usage
     const mem = process.memoryUsage();
     checks.memory = {
-        heapUsed: Math.round(mem.heapUsed / 1024 / 1024), // MB
+        heapUsed: Math.round(mem.heapUsed / 1024 / 1024),
         heapTotal: Math.round(mem.heapTotal / 1024 / 1024),
         rss: Math.round(mem.rss / 1024 / 1024),
         external: Math.round(mem.external / 1024 / 1024)
@@ -133,7 +146,6 @@ export const getHealthCheck = async (req: Request, res: Response) => {
         formatted: formatUptime(process.uptime())
     };
 
-    // 6. Overall status
     const allHealthy = checks.postgresql?.status === 'HEALTHY' &&
         (checks.redis?.status === 'HEALTHY' || checks.redis?.status === 'FALLBACK');
 
@@ -152,7 +164,6 @@ function formatUptime(seconds: number): string {
     const h = Math.floor((seconds % 86400) / 3600);
     const m = Math.floor((seconds % 3600) / 60);
     const s = Math.floor(seconds % 60);
-
     const parts = [];
     if (d > 0) parts.push(`${d}d`);
     if (h > 0) parts.push(`${h}h`);
@@ -164,18 +175,16 @@ function formatUptime(seconds: number): string {
 export const getRecordingSettings = async (req: Request, res: Response) => {
     try {
         const settings = simulationService.getSettings();
-
-        // Also get current DB stats
-        const [totalRecords, dbSize] = await Promise.all([
-            prisma.telemetryValue.count(),
-            prisma.$queryRawUnsafe(`SELECT pg_size_pretty(pg_total_relation_size('"TelemetryValue"')) as size`) as Promise<any[]>
+        const [totalRecords, dbSizeResult] = await Promise.all([
+            getCount(schema.telemetryValue),
+            db.execute(sql`SELECT pg_size_pretty(pg_total_relation_size('"TelemetryValue"')) as size`)
         ]);
 
         res.json({
             ...settings,
             db: {
                 totalRecords,
-                tableSize: dbSize[0]?.size || 'Unknown'
+                tableSize: (dbSizeResult.rows[0] as any)?.size || 'Unknown'
             }
         });
     } catch (error) {
@@ -186,14 +195,12 @@ export const getRecordingSettings = async (req: Request, res: Response) => {
 export const updateRecordingSettings = async (req: Request, res: Response) => {
     try {
         const { sampleIntervalSec, retentionHours, maxRecordsTotal, isRecording } = req.body;
-
         simulationService.updateSettings({
             sampleIntervalSec,
             retentionHours,
             maxRecordsTotal,
             isRecording
         });
-
         const updated = simulationService.getSettings();
         res.json({ message: 'Settings updated', settings: updated });
     } catch (error) {
@@ -203,23 +210,17 @@ export const updateRecordingSettings = async (req: Request, res: Response) => {
 
 export const runRetentionNow = async (req: Request, res: Response) => {
     try {
-        const beforeCount = await prisma.telemetryValue.count();
-
-        // Trigger the retention from the simulation service
-        // We call it through the public API
+        const beforeCount = await getCount(schema.telemetryValue);
         const settings = simulationService.getSettings();
         const cutoff = new Date(Date.now() - settings.retentionHours * 60 * 60 * 1000);
 
-        const deleted = await prisma.telemetryValue.deleteMany({
-            where: { measurementTime: { lt: cutoff } }
-        });
-
-        const afterCount = await prisma.telemetryValue.count();
+        const deleteResult = await db.delete(schema.telemetryValue).where(lt(schema.telemetryValue.measurementTime, cutoff));
+        const afterCount = await getCount(schema.telemetryValue);
 
         res.json({
             message: 'Retention executed',
             before: beforeCount,
-            deleted: deleted.count,
+            deleted: deleteResult.rowCount,
             after: afterCount,
             retentionHours: settings.retentionHours
         });

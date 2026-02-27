@@ -1,13 +1,15 @@
 import { Request, Response } from 'express';
-import prisma from '../lib/prisma';
+import { db } from '../db';
+import * as schema from '../db/schema';
+import { eq, and } from 'drizzle-orm';
 import modbusService from '../services/modbus.service';
 import { IEC104Service } from '../services/iec104.service';
+import { Protocol } from 'iec104-protocol';
 
 export const testModbus = async (req: Request, res: Response) => {
     try {
         const { ip, port, slaveId, address, functionCode } = req.body;
 
-        // Note: For now we only support Reading Holding Registers (03)
         if (functionCode !== '03' && functionCode !== 3) {
             return res.status(400).json({ message: 'Şu an sadece "03 - Read Holding Registers" desteklenmektedir.' });
         }
@@ -29,7 +31,6 @@ export const testModbus = async (req: Request, res: Response) => {
         });
     }
 };
-import { Protocol } from 'iec104-protocol';
 
 export const testIEC104 = async (req: Request, res: Response) => {
     let conn: any = null;
@@ -42,20 +43,22 @@ export const testIEC104 = async (req: Request, res: Response) => {
 
         console.log(`[IEC104] 🔍 Starting probe for ${ip}:${targetPort} (ASDU: ${asdu})`);
 
-        // Fetch IOA mapping for this protocol if it exists in DB
-        const protocol = await prisma.protocolConfig.findFirst({
-            where: {
-                iec104Config: {
-                    ipAddress: ip,
-                    port: targetPort
-                }
-            },
-            include: {
-                devices: {
-                    include: {
-                        datasheetProfile: {
-                            include: {
-                                points: { where: { isActive: true } }
+        const config = await db.query.iec104Config.findFirst({
+            where: and(
+                eq(schema.iec104Config.ipAddress, ip),
+                eq(schema.iec104Config.port, targetPort)
+            ),
+            with: {
+                protocol: {
+                    with: {
+                        devices: {
+                            where: eq(schema.device.isActive, true),
+                            with: {
+                                datasheetProfile: {
+                                    with: {
+                                        points: { where: eq(schema.datasheetPoint.isActive, true) }
+                                    }
+                                }
                             }
                         }
                     }
@@ -64,8 +67,8 @@ export const testIEC104 = async (req: Request, res: Response) => {
         });
 
         const ioaMap = new Map<number, { name: string, unit: string }>();
-        if (protocol) {
-            protocol.devices.forEach(dev => {
+        if (config?.protocol) {
+            config.protocol.devices.forEach(dev => {
                 dev.datasheetProfile?.points.forEach(point => {
                     if (point.scadaAddress !== null) {
                         ioaMap.set(point.scadaAddress, {
@@ -101,12 +104,10 @@ export const testIEC104 = async (req: Request, res: Response) => {
 
             receivedData.push(...formatted);
 
-            // Respond as soon as we get some data
             if (receivedData.length >= 1) {
                 resolved = true;
                 console.log(`[IEC104] ✅ Probe success: returning ${receivedData.length} points`);
 
-                // Cleanup connection before responding
                 try { conn.close(); } catch (e) { }
 
                 if (!res.headersSent) {
@@ -115,7 +116,6 @@ export const testIEC104 = async (req: Request, res: Response) => {
             }
         }, { autoReconnect: false, quiet: true });
 
-        // Set up connection state monitor
         if (conn && (conn as any).connection) {
             (conn as any).connection.SetConnectionHandler((param: any, event: number) => {
                 console.log(`[IEC104] 💡 Connection Event: ${event}`);
@@ -135,7 +135,6 @@ export const testIEC104 = async (req: Request, res: Response) => {
 
         conn.connect();
 
-        // Safety Timeout
         setTimeout(() => {
             if (!resolved) {
                 resolved = true;

@@ -1,4 +1,7 @@
-import prisma from '../lib/prisma';
+
+import { db } from '../db';
+import * as schema from '../db/schema';
+import { eq, and, lt, sql, desc, asc } from 'drizzle-orm';
 import redisService from './redis.service';
 import { io } from '../app';
 
@@ -13,9 +16,9 @@ class SimulationService {
     private readonly CONFIG_CACHE_TTL = 30000;
 
     // Configurable settings
-    private sampleIntervalMs: number = 10000; // Default: 10 seconds (was 3s)
-    private retentionHours: number = 72;       // Keep last 72 hours of data
-    private maxRecordsTotal: number = 500000;  // Hard limit: 500K records
+    private sampleIntervalMs: number = 10000;
+    private retentionHours: number = 72;
+    private maxRecordsTotal: number = 500000;
     private isRecording: boolean = true;
 
     private constructor() { }
@@ -33,25 +36,16 @@ class SimulationService {
             return this.cachedConfig;
         }
 
-        this.cachedConfig = await prisma.protocolConfig.findMany({
-            where: { isActive: true },
-            include: {
+        this.cachedConfig = await db.query.protocolConfig.findMany({
+            where: eq(schema.protocolConfig.isActive, true),
+            with: {
                 devices: {
-                    where: { isActive: true },
-                    include: {
+                    where: eq(schema.device.isActive, true),
+                    with: {
                         datasheetProfile: {
-                            include: {
+                            with: {
                                 points: {
-                                    where: { isActive: true },
-                                    select: {
-                                        id: true,
-                                        dataName: true,
-                                        registerAddress: true,
-                                        scadaAddress: true,
-                                        ioa1ObjectAddress: true,
-                                        dataType: true,
-                                        signalDescription: true
-                                    }
+                                    where: eq(schema.datasheetPoint.isActive, true)
                                 }
                             }
                         }
@@ -68,7 +62,6 @@ class SimulationService {
 
         if (this.interval) clearInterval(this.interval);
 
-        // Data generation loop
         this.interval = setInterval(async () => {
             if (!this.isRecording) return;
 
@@ -132,57 +125,43 @@ class SimulationService {
             }
         }, this.sampleIntervalMs);
 
-        // Data retention cleanup - runs every 30 minutes
         this.startRetentionPolicy();
     }
 
-    /**
-     * Periodic data retention: 
-     * 1) Delete records older than retentionHours
-     * 2) If total records > maxRecordsTotal, delete oldest excess
-     */
     private startRetentionPolicy() {
         if (this.retentionInterval) clearInterval(this.retentionInterval);
-
-        // Run immediately once, then every 30 min
         this.runRetention();
         this.retentionInterval = setInterval(() => this.runRetention(), 30 * 60 * 1000);
     }
 
     private async runRetention() {
         try {
-            // 1. Time-based cleanup
             const cutoff = new Date(Date.now() - this.retentionHours * 60 * 60 * 1000);
-            const deletedByAge = await prisma.telemetryValue.deleteMany({
-                where: { measurementTime: { lt: cutoff } }
-            });
-            if (deletedByAge.count > 0) {
-                console.log(`[RETENTION] Cleaned ${deletedByAge.count} records older than ${this.retentionHours}h`);
+            const deleteResult = await db.delete(schema.telemetryValue).where(lt(schema.telemetryValue.measurementTime, cutoff));
+
+            if (deleteResult.rowCount && deleteResult.rowCount > 0) {
+                console.log(`[RETENTION] Cleaned ${deleteResult.rowCount} records older than ${this.retentionHours}h`);
             }
 
-            // 2. Hard limit cleanup
-            const totalCount = await prisma.telemetryValue.count();
+            const countResult = await db.select({ count: sql<number>`count(*)` }).from(schema.telemetryValue);
+            const totalCount = Number(countResult[0]?.count || 0);
+
             if (totalCount > this.maxRecordsTotal) {
                 const excess = totalCount - this.maxRecordsTotal;
-                // Delete the oldest excess records
-                const oldestToKeep = await prisma.telemetryValue.findFirst({
-                    orderBy: { measurementTime: 'asc' },
-                    skip: excess,
-                    select: { measurementTime: true }
+                const oldestToKeep = await db.query.telemetryValue.findFirst({
+                    orderBy: [asc(schema.telemetryValue.measurementTime)],
+                    offset: excess,
+                    columns: { measurementTime: true }
                 });
                 if (oldestToKeep) {
-                    const deletedByLimit = await prisma.telemetryValue.deleteMany({
-                        where: { measurementTime: { lt: oldestToKeep.measurementTime } }
-                    });
-                    console.log(`[RETENTION] Hard limit cleanup: removed ${deletedByLimit.count} excess records (total was ${totalCount}, max: ${this.maxRecordsTotal})`);
+                    const deleteLimitResult = await db.delete(schema.telemetryValue).where(lt(schema.telemetryValue.measurementTime, oldestToKeep.measurementTime));
+                    console.log(`[RETENTION] Hard limit cleanup: removed ${deleteLimitResult.rowCount ?? 0} excess records (total was ${totalCount}, max: ${this.maxRecordsTotal})`);
                 }
             }
         } catch (err) {
             console.error('[RETENTION] Error during cleanup:', err);
         }
     }
-
-    // ---- Control API ----
 
     public getSettings() {
         return {
@@ -201,8 +180,7 @@ class SimulationService {
         isRecording?: boolean;
     }) {
         if (settings.sampleIntervalSec !== undefined) {
-            this.sampleIntervalMs = Math.max(5, settings.sampleIntervalSec) * 1000; // Min 5s
-            // Restart with new interval
+            this.sampleIntervalMs = Math.max(5, settings.sampleIntervalSec) * 1000;
             if (this.interval) {
                 clearInterval(this.interval);
                 this.start();

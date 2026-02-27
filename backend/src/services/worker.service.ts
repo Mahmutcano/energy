@@ -87,25 +87,38 @@ class WorkerService {
         }
     }
 
+    // Track last save time per point to throttle DB writes
+    private lastSaveMap: Map<string, number> = new Map();
+    private readonly DB_SAVE_INTERVAL = 5000; // Save to DB every 5 seconds per point
+
     /**
      * Process a single item: buffer for DB + broadcast to UI.
      * Separated from async to avoid per-item await overhead.
      */
     private processItem(data: any) {
         const { deviceId, pointId, protocolId, value, timestamp } = data;
+        const now = Date.now();
 
-        // 1. Add to systematic persistence buffer
+        // 1. Add to systematic persistence buffer (THROTTLED)
         if (deviceId && pointId) {
-            this.buffer.push({
-                deviceId,
-                pointId,
-                value,
-                timestamp: timestamp ? new Date(timestamp) : new Date()
-            });
+            const cacheKey = `${deviceId}:${pointId}`;
+            const lastSave = this.lastSaveMap.get(cacheKey) || 0;
+
+            if (now - lastSave >= this.DB_SAVE_INTERVAL) {
+                this.buffer.push({
+                    deviceId,
+                    pointId,
+                    value,
+                    timestamp: timestamp ? new Date(timestamp) : new Date()
+                });
+                this.lastSaveMap.set(cacheKey, now);
+
+                // Optional: Clean up map occasionally to prevent memory leak
+                if (this.lastSaveMap.size > 10000) this.lastSaveMap.clear();
+            }
         }
 
-        // 2. Real-time Broadcast (UI is always immediate)
-        // Use volatile emit - if client is slow, skip rather than queue
+        // 2. Real-time Broadcast (UI is ALWAYS immediate)
         if (deviceId) io.volatile.emit(`telemetry:${deviceId}`, data);
         if (protocolId) io.volatile.emit(`telemetry:${protocolId}`, data);
         io.volatile.emit('telemetry:all', data);

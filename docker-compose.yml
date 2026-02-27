@@ -36,9 +36,21 @@ services:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
       - POSTGRES_DB=energy_scada
+  influxdb:
+    image: influxdb:latest
     ports:
-      - "5432:5432"
+      - "8086:8086"
+    environment:
+      - DOCKER_INFLUXDB_INIT_MODE=setup
+      - DOCKER_INFLUXDB_INIT_USERNAME=admin
+      - DOCKER_INFLUXDB_INIT_PASSWORD=password123
+      - DOCKER_INFLUXDB_INIT_ORG=energy_scada_org
+      - DOCKER_INFLUXDB_INIT_BUCKET=telemetry_bucket
+      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=my-super-secret-token
+    volumes:
+      - influxdb_data:/var/lib/influxdb2
     restart: always
 
 volumes:
   postgres_data:
+  influxdb_data:

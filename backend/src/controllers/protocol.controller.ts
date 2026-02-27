@@ -1,7 +1,8 @@
 import { Request, Response } from 'express';
-import prisma from '../lib/prisma';
+import { db } from '../db';
+import * as schema from '../db/schema';
+import { eq, sql } from 'drizzle-orm';
 import { z } from 'zod';
-import { ProtocolType } from '@prisma/client';
 import { AppError, ErrorCode, handleErrorResponse } from '../utils/errors';
 
 const modbusConfigSchema = z.object({
@@ -24,29 +25,37 @@ const iec104ConfigSchema = z.object({
     w: z.number().int().default(8),
 });
 
+const ProtocolTypeEnum = z.enum(['MODBUS', 'IEC104']);
+
 const createProtocolSchema = z.object({
-    plantId: z.string(),
-    configName: z.string(),
-    protocolType: z.nativeEnum(ProtocolType),
+    plantId: z.string().uuid(),
+    configName: z.string().min(1),
+    protocolType: ProtocolTypeEnum,
     modbusConfig: modbusConfigSchema.optional(),
     iec104Config: iec104ConfigSchema.optional(),
 });
 
 export const getProtocols = async (req: Request, res: Response) => {
     try {
-        const protocols = await prisma.protocolConfig.findMany({
-            include: {
+        const protocols = await db.query.protocolConfig.findMany({
+            with: {
                 plant: {
-                    select: { id: true, plantName: true }
+                    columns: { id: true, plantName: true }
                 },
                 modbusConfig: true,
                 iec104Config: true,
-                _count: {
-                    select: { devices: true }
+                devices: {
+                    columns: { id: true }
                 }
             },
         });
-        res.json(protocols);
+
+        const result = protocols.map(p => ({
+            ...p,
+            _count: { devices: p.devices.length }
+        }));
+
+        res.json(result);
     } catch (error) {
         return handleErrorResponse(res, error);
     }
@@ -56,84 +65,100 @@ export const createProtocol = async (req: Request, res: Response) => {
     try {
         const data = createProtocolSchema.parse(req.body);
 
-        let modbusCreate;
-        let iecCreate;
-
-        if (data.protocolType === 'MODBUS') {
-            if (!data.modbusConfig) throw new AppError(ErrorCode.VALIDATION_FAILED, 'Modbus config required for MODBUS type', 400);
-            modbusCreate = { create: data.modbusConfig };
-        } else if (data.protocolType === 'IEC104') {
-            if (!data.iec104Config) throw new AppError(ErrorCode.VALIDATION_FAILED, 'IEC104 config required for IEC104 type', 400);
-            iecCreate = { create: data.iec104Config };
-        }
-
-        const protocol = await prisma.protocolConfig.create({
-            data: {
-                plant_id: data.plantId,
+        const result = await db.transaction(async (tx) => {
+            const [protocol] = await tx.insert(schema.protocolConfig).values({
+                plantId: data.plantId,
                 configName: data.configName,
-                protocolType: data.protocolType,
-                modbusConfig: modbusCreate,
-                iec104Config: iecCreate,
-            },
-            include: {
-                modbusConfig: true,
-                iec104Config: true,
+                protocolType: data.protocolType as any,
+                isActive: true
+            }).returning();
+
+            let modbusConfigResult = null;
+            let iec104ConfigResult = null;
+
+            if (data.protocolType === 'MODBUS') {
+                if (!data.modbusConfig) throw new AppError(ErrorCode.VALIDATION_FAILED, 'Modbus config required for MODBUS type', 400);
+                const [modbus] = await tx.insert(schema.modbusConfig).values({
+                    ...data.modbusConfig,
+                    protocolId: protocol.id
+                }).returning();
+                modbusConfigResult = modbus;
+            } else if (data.protocolType === 'IEC104') {
+                if (!data.iec104Config) throw new AppError(ErrorCode.VALIDATION_FAILED, 'IEC104 config required for IEC104 type', 400);
+                const [iec] = await tx.insert(schema.iec104Config).values({
+                    ...data.iec104Config,
+                    protocolId: protocol.id
+                }).returning();
+                iec104ConfigResult = iec;
             }
+
+            return { ...protocol, modbusConfig: modbusConfigResult, iec104Config: iec104ConfigResult };
         });
 
-        res.status(201).json(protocol);
+        res.status(201).json(result);
     } catch (error) {
         return handleErrorResponse(res, error);
     }
 };
 
-export const updateProtocol = async (req: Request, res: Response) => {
+export const updateProtocol = async (req: Request<{ id: string }>, res: Response) => {
     const { id } = req.params;
     try {
         const data = createProtocolSchema.partial().parse(req.body);
 
-        let updateData: any = {};
-        if (data.configName) updateData.configName = data.configName;
-        if (data.plantId) updateData.plant_id = data.plantId;
-        if (data.protocolType) updateData.protocolType = data.protocolType;
+        const result = await db.transaction(async (tx) => {
+            const updateValues: any = {};
+            if (data.configName) updateValues.configName = data.configName;
+            if (data.plantId) updateValues.plantId = data.plantId;
+            if (data.protocolType) updateValues.protocolType = data.protocolType;
 
-        if (data.protocolType === 'MODBUS' && data.modbusConfig) {
-            updateData.modbusConfig = {
-                upsert: {
-                    create: data.modbusConfig,
-                    update: data.modbusConfig,
-                }
-            };
-        } else if (data.protocolType === 'IEC104' && data.iec104Config) {
-            updateData.iec104Config = {
-                upsert: {
-                    create: data.iec104Config,
-                    update: data.iec104Config,
-                }
-            };
-        }
+            const [protocol] = await tx.update(schema.protocolConfig)
+                .set(updateValues)
+                .where(eq(schema.protocolConfig.id, id))
+                .returning();
 
-        const protocol = await prisma.protocolConfig.update({
-            where: { id: String(id) },
-            data: updateData,
-            include: {
-                modbusConfig: true,
-                iec104Config: true,
+            if (!protocol) throw new AppError(ErrorCode.PROTOCOL_NOT_FOUND, 'Protocol not found', 404);
+
+            let modbusConfigResult = null;
+            let iec104ConfigResult = null;
+
+            if (data.protocolType === 'MODBUS' && data.modbusConfig) {
+                const [modbus] = await tx.insert(schema.modbusConfig)
+                    .values({ ...data.modbusConfig, protocolId: id })
+                    .onConflictDoUpdate({
+                        target: schema.modbusConfig.protocolId,
+                        set: data.modbusConfig
+                    })
+                    .returning();
+                modbusConfigResult = modbus;
+            } else if (data.protocolType === 'IEC104' && data.iec104Config) {
+                const [iec] = await tx.insert(schema.iec104Config)
+                    .values({ ...data.iec104Config, protocolId: id })
+                    .onConflictDoUpdate({
+                        target: schema.iec104Config.protocolId,
+                        set: data.iec104Config
+                    })
+                    .returning();
+                iec104ConfigResult = iec;
             }
+
+            return { ...protocol, modbusConfig: modbusConfigResult, iec104Config: iec104ConfigResult };
         });
 
-        res.json(protocol);
+        res.json(result);
     } catch (error) {
         return handleErrorResponse(res, error);
     }
 };
 
-export const deleteProtocol = async (req: Request, res: Response) => {
+export const deleteProtocol = async (req: Request<{ id: string }>, res: Response) => {
     const { id } = req.params;
     try {
-        const devicesCount = await prisma.device.count({
-            where: { protocol_config_id: String(id) }
-        });
+        const devicesResult = await db.select({ count: sql<number>`count(*)` })
+            .from(schema.device)
+            .where(eq(schema.device.protocolConfigId, id));
+
+        const devicesCount = Number(devicesResult[0]?.count || 0);
 
         if (devicesCount > 0) {
             throw new AppError(
@@ -143,9 +168,12 @@ export const deleteProtocol = async (req: Request, res: Response) => {
             );
         }
 
-        await prisma.modbusConfig.deleteMany({ where: { protocol_id: String(id) } });
-        await prisma.iEC104Config.deleteMany({ where: { protocol_id: String(id) } });
-        await prisma.protocolConfig.delete({ where: { id: String(id) } });
+        await db.transaction(async (tx) => {
+            await tx.delete(schema.modbusConfig).where(eq(schema.modbusConfig.protocolId, id));
+            await tx.delete(schema.iec104Config).where(eq(schema.iec104Config.protocolId, id));
+            await tx.delete(schema.protocolConfig).where(eq(schema.protocolConfig.id, id));
+        });
+
         res.status(204).send();
     } catch (error) {
         return handleErrorResponse(res, error);

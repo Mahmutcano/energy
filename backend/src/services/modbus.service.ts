@@ -1,7 +1,10 @@
+
 import * as Modbus from 'jsmodbus';
 import * as net from 'net';
 import redisService from './redis.service';
-import prisma from '../lib/prisma';
+import { db } from '../db';
+import * as schema from '../db/schema';
+import { eq, and } from 'drizzle-orm';
 
 export class ModbusService {
     private static instance: ModbusService;
@@ -20,19 +23,21 @@ export class ModbusService {
         console.log('[MODBUS] Master Service Started. Fetching configs from DB...');
 
         try {
-            const protocols = await prisma.protocolConfig.findMany({
-                where: {
-                    protocolType: 'MODBUS',
-                    isActive: true
-                },
-                include: {
+            const protocols = await db.query.protocolConfig.findMany({
+                where: and(
+                    eq(schema.protocolConfig.protocolType, 'MODBUS'),
+                    eq(schema.protocolConfig.isActive, true)
+                ),
+                with: {
                     modbusConfig: true,
                     devices: {
-                        where: { isActive: true },
-                        include: {
+                        where: eq(schema.device.isActive, true),
+                        with: {
                             datasheetProfile: {
-                                include: {
-                                    points: { where: { isActive: true } }
+                                with: {
+                                    points: {
+                                        where: eq(schema.datasheetPoint.isActive, true)
+                                    }
                                 }
                             }
                         }
@@ -40,7 +45,7 @@ export class ModbusService {
                 }
             });
 
-            // Fallback for simulation if no DB records found yet or to keep it active
+            // Fallback for simulation
             this.connectToDevice('modbus-sim-device', '127.0.0.1', 5020, 1, []);
 
             for (const protocol of protocols) {
@@ -114,7 +119,6 @@ export class ModbusService {
 
     private startPolling(protocolId: string, client: any, points: any[]) {
         if (points.length === 0 && protocolId === 'modbus-sim-device') {
-            // Simulator defaults if no points mapped
             points = [
                 { address: 0, deviceId: 'modbus-sim-device', pointId: 'sim-v', name: 'Voltage', unit: 'V' },
                 { address: 1, deviceId: 'modbus-sim-device', pointId: 'sim-i', name: 'Current', unit: 'A' },
@@ -139,17 +143,16 @@ export class ModbusService {
                             name: point.name,
                             timestamp: new Date()
                         });
-                        // console.log(`[MODBUS] CH:${protocolId} ADDR:${point.address} VAL:${val}`);
                     }
                 } catch (err) {
-                    // console.error(`[MODBUS] Poll error CH:${protocolId} ADDR:${point.address}`);
                 }
             }
-        }, 1000); // 1 second polling for more responsive UI
+        }, 1000);
 
         const clientData = this.clients.get(protocolId);
         if (clientData) clientData.pollingInterval = pollingInterval;
     }
+
     public async testModbusConnection(params: {
         ip: string,
         port: number,

@@ -1,7 +1,11 @@
+
 import { Request, Response } from 'express';
-import prisma from '../lib/prisma';
+import { db } from '../db';
+import * as schema from '../db/schema';
+import { eq, and, sql, asc, getTableColumns } from 'drizzle-orm';
 import { z } from 'zod';
 import { AppError, ErrorCode, handleErrorResponse } from '../utils/errors';
+import { IEC104Service } from '../services/iec104.service';
 
 // ============================================================
 // Profile Schemas & Controllers
@@ -16,14 +20,23 @@ const createProfileSchema = z.object({
 
 export const getDatasheetProfiles = async (req: Request, res: Response) => {
     try {
-        const profiles = await prisma.datasheetProfile.findMany({
-            include: {
-                _count: {
-                    select: { points: true, devices: true }
-                }
+        // Get profiles with points and devices count
+        const profileList = await db.select({
+            ...getTableColumns(schema.datasheetProfile),
+            pointsCount: sql<number>`(SELECT count(*) FROM "DatasheetPoint" WHERE "profile_id" = ${schema.datasheetProfile.id})`.mapWith(Number),
+            devicesCount: sql<number>`(SELECT count(*) FROM "Device" WHERE "datasheet_profile_id" = ${schema.datasheetProfile.id})`.mapWith(Number)
+        }).from(schema.datasheetProfile);
+
+        // Map it to look like Prisma's output if frontend expects it
+        const result = profileList.map(p => ({
+            ...p,
+            _count: {
+                points: p.pointsCount,
+                devices: p.devicesCount
             }
-        });
-        res.json(profiles);
+        }));
+
+        res.json(result);
     } catch (error) {
         return handleErrorResponse(res, error);
     }
@@ -33,10 +46,10 @@ export const createDatasheetProfile = async (req: Request, res: Response) => {
     try {
         const data = createProfileSchema.parse(req.body);
 
-        // Aynı isimde profil var mı kontrol et
-        const existing = await prisma.datasheetProfile.findFirst({
-            where: { name: data.name }
+        const existing = await db.query.datasheetProfile.findFirst({
+            where: eq(schema.datasheetProfile.name, data.name)
         });
+
         if (existing) {
             throw new AppError(
                 ErrorCode.VALIDATION_FAILED,
@@ -45,34 +58,40 @@ export const createDatasheetProfile = async (req: Request, res: Response) => {
             );
         }
 
-        const profile = await prisma.datasheetProfile.create({ data });
+        const [profile] = await db.insert(schema.datasheetProfile).values({
+            name: data.name,
+            protocolType: data.protocolType as any
+        }).returning();
+
         res.status(201).json(profile);
     } catch (error) {
         return handleErrorResponse(res, error);
     }
 };
 
-export const updateDatasheetProfile = async (req: Request, res: Response) => {
+export const updateDatasheetProfile = async (req: Request<{ id: string }>, res: Response) => {
     const { id } = req.params;
     try {
         const data = createProfileSchema.partial().parse(req.body);
-        const profile = await prisma.datasheetProfile.update({
-            where: { id: String(id) },
-            data
-        });
+        const [profile] = await db.update(schema.datasheetProfile)
+            .set(data as any)
+            .where(eq(schema.datasheetProfile.id, id))
+            .returning();
         res.json(profile);
     } catch (error) {
         return handleErrorResponse(res, error);
     }
 };
 
-export const deleteDatasheetProfile = async (req: Request, res: Response) => {
+export const deleteDatasheetProfile = async (req: Request<{ id: string }>, res: Response) => {
     const { id } = req.params;
     try {
-        // Bağlı cihaz var mı kontrol et
-        const linkedDevices = await prisma.device.count({
-            where: { datasheet_profile_id: String(id) }
-        });
+        const result = await db.select({ count: sql<number>`count(*)` })
+            .from(schema.device)
+            .where(eq(schema.device.datasheetProfileId, id));
+
+        const linkedDevices = Number(result[0]?.count || 0);
+
         if (linkedDevices > 0) {
             throw new AppError(
                 ErrorCode.DATASHEET_HAS_DEVICES,
@@ -81,7 +100,7 @@ export const deleteDatasheetProfile = async (req: Request, res: Response) => {
             );
         }
 
-        await prisma.datasheetProfile.delete({ where: { id: String(id) } });
+        await db.delete(schema.datasheetProfile).where(eq(schema.datasheetProfile.id, id));
         res.status(204).send();
     } catch (error) {
         return handleErrorResponse(res, error);
@@ -94,46 +113,40 @@ export const deleteDatasheetProfile = async (req: Request, res: Response) => {
 
 const createDataPointSchema = z.object({
     profile_id: z.string().uuid("Geçersiz Profil ID"),
-
-    // --- Ortak Alanlar ---
     dataName: z.string().min(1, "Data adı zorunludur"),
     dataValue: z.string().optional().nullable(),
-    registerAddress: z.number().int("Register adresi tam sayı olmalıdır").min(0, "Register adresi 0 veya daha büyük olmalıdır").optional().nullable(),
+    registerAddress: z.number().int().min(0).optional().nullable(),
     isActive: z.boolean().optional().default(true),
-
-    // --- Modbus'a Özel Alanlar ---
-    functionCode: z.number().int().min(1).max(4, "Fonksiyon kodu 1-4 arasında olmalıdır").optional().nullable(),
+    functionCode: z.number().int().min(1).max(4).optional().nullable(),
     multiplier: z.number().optional().nullable(),
     wordSwap: z.boolean().optional().nullable(),
-
-    // --- IEC104'e Özel Alanlar ---
-    feederName: z.string().max(100, "Fider/Hücre ismi en fazla 100 karakter olmalıdır").optional().nullable(),
-    signalType: z.string().max(100, "Sinyal tipi en fazla 100 karakter olmalıdır").optional().nullable(),
-    signalDescription: z.string().max(250, "Sinyal açıklaması en fazla 250 karakter olmalıdır").optional().nullable(),
-    dataType: z.string().max(50, "Data tipi en fazla 50 karakter olmalıdır").optional().nullable(),
-    signalSource: z.string().max(100, "Sinyal kaynağı en fazla 100 karakter olmalıdır").optional().nullable(),
-    componentId: z.string().max(100, "Komponent ID en fazla 100 karakter olmalıdır").optional().nullable(),
-    componentText: z.string().max(250, "Komponent metni en fazla 250 karakter olmalıdır").optional().nullable(),
-    ioa1ObjectAddress: z.coerce.number().int("IOA Obje Adresi tam sayı olmalıdır").min(0, "IOA Obje Adresi 0 veya daha büyük olmalıdır").optional().nullable(),
-    ioa2CellNo: z.coerce.number().int("IOA2 Hücre No tam sayı olmalıdır").min(0, "IOA2 Hücre No 0 veya daha büyük olmalıdır").optional().nullable(),
-    ioa3VoltageLevel: z.coerce.number().int("IOA3 Gerilim Seviyesi tam sayı olmalıdır").min(0, "IOA3 Gerilim Seviyesi 0 veya daha büyük olmalıdır").optional().nullable(),
-    scadaAddress: z.coerce.number().int("SCADA Adresi tam sayı olmalıdır").min(0, "SCADA Adresi 0 veya daha büyük olmalıdır").optional().nullable(),
+    feederName: z.string().max(100).optional().nullable(),
+    signalType: z.string().max(100).optional().nullable(),
+    signalDescription: z.string().max(250).optional().nullable(),
+    dataType: z.string().max(50).optional().nullable(),
+    signalSource: z.string().max(100).optional().nullable(),
+    componentId: z.string().max(100).optional().nullable(),
+    componentText: z.string().max(250).optional().nullable(),
+    ioa1ObjectAddress: z.coerce.number().int().min(0).optional().nullable(),
+    ioa2CellNo: z.coerce.number().int().min(0).optional().nullable(),
+    ioa3VoltageLevel: z.coerce.number().int().min(0).optional().nullable(),
+    scadaAddress: z.coerce.number().int().min(0).optional().nullable(),
 });
 
 export const getDatasheetPoints = async (req: Request, res: Response) => {
     try {
         const { profileId } = req.query;
-        let whereClause = {};
+        let whereClause;
         if (profileId) {
-            whereClause = { profile_id: String(profileId) };
+            whereClause = eq(schema.datasheetPoint.profileId, String(profileId));
         }
 
-        const points = await prisma.datasheetPoint.findMany({
+        const points = await db.query.datasheetPoint.findMany({
             where: whereClause,
             orderBy: [
-                { ioa1ObjectAddress: 'asc' },
-                { registerAddress: 'asc' },
-                { dataName: 'asc' },
+                asc(schema.datasheetPoint.ioa1ObjectAddress),
+                asc(schema.datasheetPoint.registerAddress),
+                asc(schema.datasheetPoint.dataName)
             ]
         });
         res.json(points);
@@ -146,20 +159,18 @@ export const createDatasheetPoint = async (req: Request, res: Response) => {
     try {
         const data = createDataPointSchema.parse(req.body);
 
-        // Profil var mı kontrol et
-        const profile = await prisma.datasheetProfile.findUnique({
-            where: { id: data.profile_id }
+        const profile = await db.query.datasheetProfile.findFirst({
+            where: eq(schema.datasheetProfile.id, data.profile_id)
         });
         if (!profile) {
             throw new AppError(ErrorCode.DATASHEET_NOT_FOUND, 'Profil bulunamadı / Profile not found', 404);
         }
 
-        // Aynı profilde aynı dataName var mı kontrol et
-        const existingPoint = await prisma.datasheetPoint.findFirst({
-            where: {
-                profile_id: data.profile_id,
-                dataName: data.dataName
-            }
+        const existingPoint = await db.query.datasheetPoint.findFirst({
+            where: and(
+                eq(schema.datasheetPoint.profileId, data.profile_id),
+                eq(schema.datasheetPoint.dataName, data.dataName)
+            )
         });
         if (existingPoint) {
             throw new AppError(
@@ -169,9 +180,28 @@ export const createDatasheetPoint = async (req: Request, res: Response) => {
             );
         }
 
-        const point = await prisma.datasheetPoint.create({ data });
+        const [point] = await db.insert(schema.datasheetPoint).values({
+            profileId: data.profile_id,
+            dataName: data.dataName,
+            dataValue: data.dataValue,
+            registerAddress: data.registerAddress,
+            isActive: data.isActive,
+            functionCode: data.functionCode,
+            multiplier: data.multiplier,
+            wordSwap: data.wordSwap,
+            feederName: data.feederName,
+            signalType: data.signalType,
+            signalDescription: data.signalDescription,
+            dataType: data.dataType,
+            signalSource: data.signalSource,
+            componentId: data.componentId,
+            componentText: data.componentText,
+            ioa1ObjectAddress: data.ioa1ObjectAddress,
+            ioa2CellNo: data.ioa2CellNo,
+            ioa3VoltageLevel: data.ioa3VoltageLevel,
+            scadaAddress: data.scadaAddress
+        }).returning();
 
-        // REFRESH IEC104 SERVICE MAPS
         try {
             await IEC104Service.getInstance().reloadConfigs();
         } catch (err) {
@@ -184,8 +214,6 @@ export const createDatasheetPoint = async (req: Request, res: Response) => {
     }
 };
 
-import { IEC104Service } from '../services/iec104.service';
-
 export const bulkCreateDatasheetPoints = async (req: Request, res: Response) => {
     const { profileId, points } = req.body;
     try {
@@ -193,52 +221,63 @@ export const bulkCreateDatasheetPoints = async (req: Request, res: Response) => 
             throw new AppError(ErrorCode.VALIDATION_FAILED, 'Profile ID and points array are required', 400);
         }
 
-        const profile = await prisma.datasheetProfile.findUnique({
-            where: { id: profileId }
+        const profile = await db.query.datasheetProfile.findFirst({
+            where: eq(schema.datasheetProfile.id, profileId)
         });
         if (!profile) {
             throw new AppError(ErrorCode.DATASHEET_NOT_FOUND, 'Profile not found', 404);
         }
 
-        // Transaction to ensure atomicity with 30s timeout
-        const result = await prisma.$transaction(async (tx) => {
+        const result = await db.transaction(async (tx) => {
             const createdPoints = [];
             for (const pointData of points) {
-                try {
-                    // Validate individual point schema
-                    const validated = createDataPointSchema.parse({ ...pointData, profile_id: profileId });
+                const validated = createDataPointSchema.parse({ ...pointData, profile_id: profileId });
 
-                    // Check if already exists in this transaction (using tx)
-                    const existing = await tx.datasheetPoint.findFirst({
-                        where: {
-                            profile_id: profileId,
-                            dataName: validated.dataName
-                        }
-                    });
+                const existing = await tx.query.datasheetPoint.findFirst({
+                    where: and(
+                        eq(schema.datasheetPoint.profileId, profileId),
+                        eq(schema.datasheetPoint.dataName, validated.dataName)
+                    )
+                });
 
-                    if (existing) {
-                        const updated = await tx.datasheetPoint.update({
-                            where: { id: existing.id },
-                            data: validated
-                        });
-                        createdPoints.push(updated);
-                    } else {
-                        const created = await tx.datasheetPoint.create({
-                            data: validated
-                        });
-                        createdPoints.push(created);
-                    }
-                } catch (err: any) {
-                    console.error('[BULK_IMPORT] Failed for point:', pointData.dataName || pointData.signalDescription, err.message);
-                    throw err; // Re-throw to rollback transaction
+                const values = {
+                    profileId: profileId,
+                    dataName: validated.dataName,
+                    dataValue: validated.dataValue,
+                    registerAddress: validated.registerAddress,
+                    isActive: validated.isActive,
+                    functionCode: validated.functionCode,
+                    multiplier: validated.multiplier,
+                    wordSwap: validated.wordSwap,
+                    feederName: validated.feederName,
+                    signalType: validated.signalType,
+                    signalDescription: validated.signalDescription,
+                    dataType: validated.dataType,
+                    signalSource: validated.signalSource,
+                    componentId: validated.componentId,
+                    componentText: validated.componentText,
+                    ioa1ObjectAddress: validated.ioa1ObjectAddress,
+                    ioa2CellNo: validated.ioa2CellNo,
+                    ioa3VoltageLevel: validated.ioa3VoltageLevel,
+                    scadaAddress: validated.scadaAddress
+                };
+
+                if (existing) {
+                    const [updated] = await tx.update(schema.datasheetPoint)
+                        .set(values)
+                        .where(eq(schema.datasheetPoint.id, existing.id))
+                        .returning();
+                    createdPoints.push(updated);
+                } else {
+                    const [created] = await tx.insert(schema.datasheetPoint)
+                        .values(values)
+                        .returning();
+                    createdPoints.push(created);
                 }
             }
             return createdPoints;
-        }, {
-            timeout: 30000 // 30 seconds
         });
 
-        // REFRESH IEC104 SERVICE MAPS
         try {
             await IEC104Service.getInstance().reloadConfigs();
         } catch (err) {
@@ -251,17 +290,15 @@ export const bulkCreateDatasheetPoints = async (req: Request, res: Response) => 
     }
 };
 
-export const updateDatasheetPoint = async (req: Request, res: Response) => {
+export const updateDatasheetPoint = async (req: Request<{ id: string }>, res: Response) => {
     const { id } = req.params;
     try {
         const data = createDataPointSchema.partial().parse(req.body);
+        const [point] = await db.update(schema.datasheetPoint)
+            .set(data as any)
+            .where(eq(schema.datasheetPoint.id, id))
+            .returning();
 
-        const point = await prisma.datasheetPoint.update({
-            where: { id: String(id) },
-            data
-        });
-
-        // REFRESH IEC104 SERVICE MAPS
         try {
             await IEC104Service.getInstance().reloadConfigs();
         } catch (err) {
@@ -274,24 +311,25 @@ export const updateDatasheetPoint = async (req: Request, res: Response) => {
     }
 };
 
-export const deleteDatasheetPoint = async (req: Request, res: Response) => {
+export const deleteDatasheetPoint = async (req: Request<{ id: string }>, res: Response) => {
     const { id } = req.params;
     try {
-        // Bağlı telemetri var mı kontrol et
-        const telemetryCount = await prisma.telemetryValue.count({
-            where: { pointId: String(id) }
-        });
+        const result = await db.select({ count: sql<number>`count(*)` })
+            .from(schema.telemetryValue)
+            .where(eq(schema.telemetryValue.pointId, id));
+
+        const telemetryCount = Number(result[0]?.count || 0);
+
         if (telemetryCount > 0) {
             throw new AppError(
-                ErrorCode.VALIDATION_FAILED, // or a specific one
+                ErrorCode.VALIDATION_FAILED,
                 `Bu veri noktasına ${telemetryCount} telemetri kaydı bağlı. Önce telemetri verilerini silmeniz gerekir. / Telemetry records exist.`,
                 400
             );
         }
 
-        await prisma.datasheetPoint.delete({ where: { id: String(id) } });
+        await db.delete(schema.datasheetPoint).where(eq(schema.datasheetPoint.id, id));
 
-        // REFRESH IEC104 SERVICE MAPS
         try {
             await IEC104Service.getInstance().reloadConfigs();
         } catch (err) {

@@ -1,55 +1,51 @@
-import prisma from '../lib/prisma';
-import { Prisma } from '@prisma/client';
+
+import { db } from '../db';
+import { telemetryValue } from '../db/schema';
+import { eq, and, gte, lte, asc, desc, sql } from 'drizzle-orm';
 
 /**
- * Save single telemetry record (legacy, prefer saveTelemetryBatch).
+ * Save single telemetry record via Drizzle
  */
-export const saveTelemetry = async (deviceId: string, pointId: string, value: number, timestamp?: Date, quality?: number, rawPayload?: Buffer) => {
+export const saveTelemetry = async (deviceId: string, pointId: string, value: number, timestamp?: Date, quality?: number, rawPayload?: string) => {
     try {
-        await prisma.telemetryValue.create({
-            data: {
-                device_id: deviceId,
-                pointId: pointId,
-                valueNumeric: value,
-                measurementTime: timestamp || new Date(),
-                quality: quality,
-                rawPayload: rawPayload as any
-            }
+        await db.insert(telemetryValue).values({
+            deviceId: deviceId,
+            pointId: pointId,
+            valueNumeric: value,
+            measurementTime: timestamp || new Date(),
+            quality: quality,
+            rawPayload: rawPayload
         });
     } catch (err) {
-        console.error('[TELEMETRY] Save Error:', err);
+        console.error('[TELEMETRY] Drizzle Save Error:', err);
     }
 };
 
 /**
- * Batch save telemetry records.
- * Uses Prisma createMany for efficient bulk inserts.
+ * Batch save telemetry records via Drizzle
+ * Highly efficient for high-traffic SCADA data.
  */
-export const saveTelemetryBatch = async (items: Array<{ deviceId: string, pointId: string, value: number, timestamp?: Date, quality?: number, rawPayload?: Buffer }>) => {
-    try {
-        if (items.length === 0) return;
+export const saveTelemetryBatch = async (items: Array<{ deviceId: string, pointId: string, value: number, timestamp?: Date, quality?: number, rawPayload?: string }>) => {
+    if (items.length === 0) return;
 
-        const data: Prisma.TelemetryValueUncheckedCreateInput[] = items.map(item => ({
-            device_id: item.deviceId,
+    try {
+        const data = items.map(item => ({
+            deviceId: item.deviceId,
             pointId: item.pointId,
             valueNumeric: item.value,
             measurementTime: item.timestamp || new Date(),
             quality: item.quality,
-            rawPayload: item.rawPayload as any
+            rawPayload: item.rawPayload
         }));
 
-        await prisma.telemetryValue.createMany({
-            data,
-            skipDuplicates: false
-        });
-    } catch (err) {
-        console.error('[TELEMETRY_BATCH] Save Error:', err);
+        await db.insert(telemetryValue).values(data);
+    } catch (err: any) {
+        console.error('[TELEMETRY_BATCH] Drizzle Error:', err.message);
     }
 };
 
 /**
- * Query historical telemetry data with server-side limit + pagination
- * to avoid returning unbounded result sets.
+ * Query historical telemetry data with Drizzle
  */
 export const queryTelemetry = async (
     deviceId: string,
@@ -57,41 +53,44 @@ export const queryTelemetry = async (
     hours?: number,
     startDate?: Date,
     endDate?: Date,
-    limit: number = 5000 // Default limit to prevent memory issues
+    limit: number = 5000
 ) => {
     try {
-        const queryWhere: any = {
-            device_id: deviceId,
-            pointId: pointId,
-        };
+        let whereClause;
 
         if (startDate || endDate) {
-            queryWhere.measurementTime = {};
-            if (startDate) queryWhere.measurementTime.gte = startDate;
-            if (endDate) queryWhere.measurementTime.lte = endDate;
+            const conditions = [
+                eq(telemetryValue.deviceId, deviceId),
+                eq(telemetryValue.pointId, pointId)
+            ];
+            if (startDate) conditions.push(gte(telemetryValue.measurementTime, startDate));
+            if (endDate) conditions.push(lte(telemetryValue.measurementTime, endDate));
+            whereClause = and(...conditions);
         } else {
             const h = hours || 1;
-            queryWhere.measurementTime = {
-                gte: new Date(Date.now() - h * 60 * 60 * 1000)
-            };
+            const startTime = new Date(Date.now() - h * 60 * 60 * 1000);
+            whereClause = and(
+                eq(telemetryValue.deviceId, deviceId),
+                eq(telemetryValue.pointId, pointId),
+                gte(telemetryValue.measurementTime, startTime)
+            );
         }
 
-        const results = await prisma.telemetryValue.findMany({
-            where: queryWhere,
-            orderBy: { measurementTime: 'asc' },
-            take: limit,
-            select: {
-                measurementTime: true,
-                valueNumeric: true,
-                device_id: true,
-                pointId: true
-            }
-        });
+        const results = await db.select({
+            measurementTime: telemetryValue.measurementTime,
+            valueNumeric: telemetryValue.valueNumeric,
+            deviceId: telemetryValue.deviceId,
+            pointId: telemetryValue.pointId
+        })
+            .from(telemetryValue)
+            .where(whereClause)
+            .orderBy(asc(telemetryValue.measurementTime))
+            .limit(limit);
 
         return results.map(r => ({
             time: r.measurementTime,
             value: r.valueNumeric,
-            deviceId: r.device_id,
+            deviceId: r.deviceId,
             pointId: r.pointId
         }));
     } catch (err) {
@@ -101,16 +100,14 @@ export const queryTelemetry = async (
 };
 
 /**
- * Fast approximate count using pg_stat - avoids slow COUNT(*) on large tables.
+ * Fast approximate count using pg_stat
  */
 export const getApproximateTelemetryCount = async (): Promise<number> => {
     try {
-        const result: any[] = await prisma.$queryRawUnsafe(
-            `SELECT reltuples::bigint AS count FROM pg_class WHERE relname = 'TelemetryValue'`
-        );
-        return Number(result[0]?.count || 0);
+        const result = await db.execute(sql`SELECT reltuples::bigint AS count FROM pg_class WHERE relname = 'TelemetryValue'`);
+        return Number(result.rows[0]?.count || 0);
     } catch {
-        // Fallback to exact count
-        return prisma.telemetryValue.count();
+        const countResult = await db.select({ count: sql<number>`count(*)` }).from(telemetryValue);
+        return Number(countResult[0]?.count || 0);
     }
 };

@@ -1,6 +1,9 @@
+
 import { Protocol } from 'iec104-protocol';
 import redisService from './redis.service';
-import prisma from '../lib/prisma';
+import { db } from '../db';
+import * as schema from '../db/schema';
+import { eq, and } from 'drizzle-orm';
 import { io } from '../app';
 
 interface IOAMapEntry {
@@ -33,19 +36,21 @@ export class IEC104Service {
     public async reloadConfigs() {
         console.log('[IEC104] Reloading IOA Maps from DB...');
         try {
-            const protocols = await prisma.protocolConfig.findMany({
-                where: {
-                    protocolType: 'IEC104',
-                    isActive: true
-                },
-                include: {
+            const protocols = await db.query.protocolConfig.findMany({
+                where: and(
+                    eq(schema.protocolConfig.protocolType, 'IEC104'),
+                    eq(schema.protocolConfig.isActive, true)
+                ),
+                with: {
                     iec104Config: true,
                     devices: {
-                        where: { isActive: true },
-                        include: {
+                        where: eq(schema.device.isActive, true),
+                        with: {
                             datasheetProfile: {
-                                include: {
-                                    points: { where: { isActive: true } }
+                                with: {
+                                    points: {
+                                        where: eq(schema.datasheetPoint.isActive, true)
+                                    }
                                 }
                             }
                         }
@@ -68,9 +73,6 @@ export class IEC104Service {
                                 unit: point.dataType || point.dataValue || 'UNIT'
                             };
 
-                            // Multi-address matching strategy:
-                            // We attempt to map both Scada Address and IOA1. 
-                            // Hardware IOA can match either of these fields in the datasheet.
                             if (point.scadaAddress !== null && point.scadaAddress !== undefined) {
                                 ioaMap.set(Number(point.scadaAddress), entry);
                             }
@@ -81,11 +83,9 @@ export class IEC104Service {
                     }
                 }
 
-                // Update the map (this is picked up immediately by existing connections)
                 this.ioaMaps.set(protocol.id, ioaMap);
                 console.log(`[IEC104] Updated map for Protocol ${protocol.id} with ${ioaMap.size} points.`);
 
-                // If no connection exists yet, create it
                 if (!this.connections.has(protocol.id)) {
                     const config = protocol.iec104Config;
                     this.connectToProtocol(
@@ -109,7 +109,6 @@ export class IEC104Service {
             const conn = new Protocol(ip, port, (data: any[]) => {
                 const ioaMap = this.ioaMaps.get(protocolId) || new Map<number, IOAMapEntry>();
 
-                // broadcast raw data for diagnostics
                 const rawPoints = data.map(item => {
                     const entry = ioaMap.get(item.IOA);
                     return {
@@ -163,7 +162,7 @@ export class IEC104Service {
             this.connections.set(protocolId, conn);
 
             (conn as any).connection.SetConnectionHandler((param: any, event: number) => {
-                if (event === 2) { // STARTDT_CON
+                if (event === 2) {
                     console.log(`[IEC104] ✅ Connection established for Protocol ${protocolId}. Sending GI...`);
                     try {
                         (conn as any).connection.SendInterrogationCommand(6, asduAddress, 20);

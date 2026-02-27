@@ -1,27 +1,31 @@
+
 import { Request, Response } from 'express';
-import prisma from '../lib/prisma';
+import { db } from '../db';
+import * as schema from '../db/schema';
+import { eq, sql } from 'drizzle-orm';
 import { z } from 'zod';
-import { PlantType } from '@prisma/client';
 import { AppError, ErrorCode, handleErrorResponse } from '../utils/errors';
 
+const PlantTypeValues = ['SOLAR', 'WIND', 'HYDRO'] as const;
+
 const createPlantSchema = z.object({
-    companyId: z.string(),
+    companyId: z.string().uuid(),
     plantName: z.string().min(1),
-    plantType: z.nativeEnum(PlantType),
+    plantType: z.enum(PlantTypeValues),
     latitude: z.number().nullable().optional(),
     longitude: z.number().nullable().optional(),
 });
 
 export const getPlants = async (req: Request, res: Response) => {
     try {
-        const plants = await prisma.plant.findMany({
-            include: {
+        const plants = await db.query.plant.findMany({
+            with: {
                 company: {
-                    select: { id: true, name: true }
+                    columns: { id: true, name: true }
                 },
                 protocols: {
-                    select: { id: true, configName: true, protocolType: true }
-                },
+                    columns: { id: true, configName: true, protocolType: true }
+                }
             }
         });
         res.json(plants);
@@ -34,15 +38,13 @@ export const createPlant = async (req: Request, res: Response) => {
     try {
         const data = createPlantSchema.parse(req.body);
 
-        const plant = await prisma.plant.create({
-            data: {
-                company_id: data.companyId,
-                plantName: data.plantName,
-                plantType: data.plantType,
-                latitude: data.latitude ?? null,
-                longitude: data.longitude ?? null,
-            }
-        });
+        const [plant] = await db.insert(schema.plant).values({
+            companyId: data.companyId,
+            plantName: data.plantName,
+            plantType: data.plantType as any,
+            latitude: data.latitude ? String(data.latitude) : null,
+            longitude: data.longitude ? String(data.longitude) : null,
+        }).returning();
 
         res.status(201).json(plant);
     } catch (error) {
@@ -50,33 +52,37 @@ export const createPlant = async (req: Request, res: Response) => {
     }
 };
 
-export const updatePlant = async (req: Request, res: Response) => {
+export const updatePlant = async (req: Request<{ id: string }>, res: Response) => {
     const { id } = req.params;
     try {
         const data = createPlantSchema.partial().parse(req.body);
 
-        let updateData: any = { ...data };
-        if (data.companyId) {
-            updateData.company_id = data.companyId;
-            delete updateData.companyId;
-        }
+        const values: any = {};
+        if (data.companyId) values.companyId = data.companyId;
+        if (data.plantName) values.plantName = data.plantName;
+        if (data.plantType) values.plantType = data.plantType;
+        if (data.latitude !== undefined) values.latitude = data.latitude ? String(data.latitude) : null;
+        if (data.longitude !== undefined) values.longitude = data.longitude ? String(data.longitude) : null;
 
-        const plant = await prisma.plant.update({
-            where: { id: String(id) },
-            data: updateData
-        });
+        const [plant] = await db.update(schema.plant)
+            .set(values)
+            .where(eq(schema.plant.id, id))
+            .returning();
         res.json(plant);
     } catch (error) {
         return handleErrorResponse(res, error);
     }
 };
 
-export const deletePlant = async (req: Request, res: Response) => {
+export const deletePlant = async (req: Request<{ id: string }>, res: Response) => {
     const { id } = req.params;
     try {
-        const protocolsCount = await prisma.protocolConfig.count({
-            where: { plant_id: String(id) }
-        });
+        const protocolsResult = await db.select({ count: sql<number>`count(*)` })
+            .from(schema.protocolConfig)
+            .where(eq(schema.protocolConfig.plantId, id));
+
+        const protocolsCount = Number(protocolsResult[0]?.count || 0);
+
         if (protocolsCount > 0) {
             throw new AppError(
                 ErrorCode.PLANT_HAS_PROTOCOLS,
@@ -85,9 +91,12 @@ export const deletePlant = async (req: Request, res: Response) => {
             );
         }
 
-        const userProfilesCount = await prisma.appUserProfile.count({
-            where: { plant_id: String(id) }
-        });
+        const userProfilesResult = await db.select({ count: sql<number>`count(*)` })
+            .from(schema.appUserProfile)
+            .where(eq(schema.appUserProfile.plantId, id));
+
+        const userProfilesCount = Number(userProfilesResult[0]?.count || 0);
+
         if (userProfilesCount > 0) {
             throw new AppError(
                 ErrorCode.PLANT_HAS_USERS,
@@ -96,7 +105,7 @@ export const deletePlant = async (req: Request, res: Response) => {
             );
         }
 
-        await prisma.plant.delete({ where: { id: String(id) } });
+        await db.delete(schema.plant).where(eq(schema.plant.id, id));
         res.status(204).send();
     } catch (error) {
         return handleErrorResponse(res, error);

@@ -13,10 +13,9 @@
   "exclude": [
     "node_modules",
     "dist",
+    "drizzle",
     "prisma",
-    "prisma.config.ts",
-    "check_db.ts",
-    "debug_104.ts",
-    "setup_104_hardware.ts"
+    "deprecated_prisma",
+    "*.ts"
   ]
 }

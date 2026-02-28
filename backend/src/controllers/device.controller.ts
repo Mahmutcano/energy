@@ -5,6 +5,8 @@ import * as schema from '../db/schema';
 import { eq, sql, and } from 'drizzle-orm';
 import { z } from 'zod';
 import { AppError, ErrorCode, handleErrorResponse } from '../utils/errors';
+import { IEC104Service } from '../services/iec104.service';
+import ModbusService from '../services/modbus.service';
 
 const DeviceTypeValues = ['INVERTER', 'ANALYZER', 'RELAY'] as const;
 
@@ -14,7 +16,7 @@ const createDeviceSchema = z.object({
     deviceType: z.enum(DeviceTypeValues),
     isActive: z.boolean().optional(),
     createdAt: z.string().datetime().optional().nullable(),
-    datasheetProfileId: z.string().uuid("Invalid Profile ID").optional().nullable(),
+    datasheetProfileId: z.string().uuid("Datasheet Selection is required"),
 });
 
 export const getDevices = async (req: Request, res: Response) => {
@@ -57,6 +59,10 @@ export const createDevice = async (req: Request, res: Response) => {
             datasheetProfileId: data.datasheetProfileId || null,
         }).returning();
 
+        try {
+            await ModbusService.reloadConfigs();
+        } catch (err) { }
+
         res.status(201).json(device);
     } catch (error) {
         return handleErrorResponse(res, error);
@@ -80,6 +86,10 @@ export const updateDevice = async (req: Request<{ id: string }>, res: Response) 
             .set(values)
             .where(eq(schema.device.id, id))
             .returning();
+        try {
+            await ModbusService.reloadConfigs();
+        } catch (err) { }
+
         res.json(device);
     } catch (error) {
         return handleErrorResponse(res, error);
@@ -89,21 +99,17 @@ export const updateDevice = async (req: Request<{ id: string }>, res: Response) 
 export const deleteDevice = async (req: Request<{ id: string }>, res: Response) => {
     const { id } = req.params;
     try {
-        const result = await db.select({ count: sql<number>`count(*)` })
-            .from(schema.telemetryValue)
-            .where(eq(schema.telemetryValue.deviceId, id));
+        // 1. Delete associated telemetry records first to allow deletion
+        await db.delete(schema.telemetryValue).where(eq(schema.telemetryValue.deviceId, id));
 
-        const telemetryCount = Number(result[0]?.count || 0);
-
-        if (telemetryCount > 0) {
-            throw new AppError(
-                ErrorCode.DEVICE_HAS_TELEMETRY,
-                `Bu cihaza ait ${telemetryCount} telemetri kaydı bulunuyor. Önce verileri silmelisiniz. / Device has ${telemetryCount} telemetry records.`,
-                400
-            );
-        }
-
+        // 2. Delete the device
         await db.delete(schema.device).where(eq(schema.device.id, id));
+
+        try {
+            await ModbusService.reloadConfigs();
+            await IEC104Service.getInstance().reloadConfigs();
+        } catch (err) { }
+
         res.status(204).send();
     } catch (error) {
         return handleErrorResponse(res, error);

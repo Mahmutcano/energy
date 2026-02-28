@@ -112,7 +112,7 @@ export const deleteDatasheetProfile = async (req: Request<{ id: string }>, res: 
 // ============================================================
 
 const createDataPointSchema = z.object({
-    profile_id: z.string().uuid("Geçersiz Profil ID"),
+    profileId: z.string().uuid("Geçersiz Profil ID"),
     dataName: z.string().min(1, "Data adı zorunludur"),
     dataValue: z.string().optional().nullable(),
     registerAddress: z.number().int().min(0).optional().nullable(),
@@ -160,7 +160,7 @@ export const createDatasheetPoint = async (req: Request, res: Response) => {
         const data = createDataPointSchema.parse(req.body);
 
         const profile = await db.query.datasheetProfile.findFirst({
-            where: eq(schema.datasheetProfile.id, data.profile_id)
+            where: eq(schema.datasheetProfile.id, data.profileId)
         });
         if (!profile) {
             throw new AppError(ErrorCode.DATASHEET_NOT_FOUND, 'Profil bulunamadı / Profile not found', 404);
@@ -168,7 +168,7 @@ export const createDatasheetPoint = async (req: Request, res: Response) => {
 
         const existingPoint = await db.query.datasheetPoint.findFirst({
             where: and(
-                eq(schema.datasheetPoint.profileId, data.profile_id),
+                eq(schema.datasheetPoint.profileId, data.profileId),
                 eq(schema.datasheetPoint.dataName, data.dataName)
             )
         });
@@ -181,7 +181,7 @@ export const createDatasheetPoint = async (req: Request, res: Response) => {
         }
 
         const [point] = await db.insert(schema.datasheetPoint).values({
-            profileId: data.profile_id,
+            profileId: data.profileId,
             dataName: data.dataName,
             dataValue: data.dataValue,
             registerAddress: data.registerAddress,
@@ -231,7 +231,7 @@ export const bulkCreateDatasheetPoints = async (req: Request, res: Response) => 
         const result = await db.transaction(async (tx) => {
             const createdPoints = [];
             for (const pointData of points) {
-                const validated = createDataPointSchema.parse({ ...pointData, profile_id: profileId });
+                const validated = createDataPointSchema.parse({ ...pointData, profileId: profileId });
 
                 const existing = await tx.query.datasheetPoint.findFirst({
                     where: and(

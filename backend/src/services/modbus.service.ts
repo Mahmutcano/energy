@@ -20,7 +20,17 @@ export class ModbusService {
     }
 
     public async start() {
-        console.log('[MODBUS] Master Service Started. Fetching configs from DB...');
+        console.log('[MODBUS] Master Service Starting...');
+        await this.reloadConfigs();
+    }
+
+    public async reloadConfigs() {
+        console.log('[MODBUS] Refreshing configuration from DB...');
+        // Stop all existing intervals
+        for (const [id, data] of this.clients) {
+            if (data.pollingInterval) clearInterval(data.pollingInterval);
+        }
+        this.clients.clear();
 
         try {
             const protocols = await db.query.protocolConfig.findMany({
@@ -45,8 +55,19 @@ export class ModbusService {
                 }
             });
 
-            // Fallback for simulation
-            this.connectToDevice('modbus-sim-device', '127.0.0.1', 5020, 1, []);
+            // Virtual simulator for development
+            if (protocols.length === 0 || process.env.ENABLE_SIMULATOR === 'true') {
+                // Try to find a device to attach simulator to if none exists
+                const anyDevice = await db.query.device.findFirst();
+                if (anyDevice) {
+                    this.connectToDevice('modbus-sim-protocol', '127.0.0.1', 5020, 1, [
+                        { address: 0, deviceId: anyDevice.id, pointId: 'sim-v', name: 'Voltage', unit: 'V' },
+                        { address: 1, deviceId: anyDevice.id, pointId: 'sim-i', name: 'Current', unit: 'A' }
+                    ]);
+                } else {
+                    this.connectToDevice('modbus-sim-device', '127.0.0.1', 5020, 1, []);
+                }
+            }
 
             for (const protocol of protocols) {
                 if (!protocol.modbusConfig) continue;

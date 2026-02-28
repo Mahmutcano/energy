@@ -45,8 +45,8 @@ interface Device {
     id: string;
     deviceName: string;
     deviceType: string;
-    protocol_config_id: string;
-    datasheet_profile_id: string;
+    protocolConfigId: string;
+    datasheetProfileId: string;
 }
 
 interface DataPoint {
@@ -499,7 +499,7 @@ export default function LiveMonitoringPage() {
                 const res = await apiRequest('/api/plants');
                 if (res.ok) {
                     const allPlants = await res.json();
-                    setPlants(allPlants.filter((p: any) => p.company_id === selectedCompany));
+                    setPlants(allPlants.filter((p: any) => p.companyId === selectedCompany));
                 }
             } catch (err) {
                 console.error("Fetch plants error:", err);
@@ -537,19 +537,19 @@ export default function LiveMonitoringPage() {
         }
         const fetchPoints = async () => {
             try {
-                if (selectedDevice.protocol_config_id) {
+                if (selectedDevice.protocolConfigId) {
                     const protoRes = await apiRequest('/api/comm-protocols');
                     if (protoRes.ok) {
                         const protos = await protoRes.json();
-                        const proto = protos.find((p: any) => p.id === selectedDevice.protocol_config_id);
+                        const proto = protos.find((p: any) => p.id === selectedDevice.protocolConfigId);
                         if (proto) {
                             setProtocolType(proto.protocolType);
                             if (proto.iec104Config) setAsduAddr(proto.iec104Config.asduAddr);
                         }
                     }
                 }
-                if (selectedDevice.datasheet_profile_id) {
-                    const res = await apiRequest(`/api/datasheets?profileId=${selectedDevice.datasheet_profile_id}`);
+                if (selectedDevice.datasheetProfileId) {
+                    const res = await apiRequest(`/api/datasheets?profileId=${selectedDevice.datasheetProfileId}`);
                     if (res.ok) setPoints(await res.json());
                 }
             } catch (err) {
@@ -578,6 +578,7 @@ export default function LiveMonitoringPage() {
                 const match = points.find(p => {
                     // Priority 1: Direct Point ID Match
                     if (pkt.pointId && p.id && String(pkt.pointId) === String(p.id)) return true;
+                    if (pkt.point_id && p.id && String(pkt.point_id) === String(p.id)) return true;
 
                     // Priority 2: IOA Match
                     if (dataIoa === null || isNaN(dataIoa)) return false;
@@ -606,8 +607,8 @@ export default function LiveMonitoringPage() {
         // Listen to both processed and RAW fallback streams
         const topics = [
             `telemetry:${selectedDevice.id}`,
-            `telemetry:${selectedDevice.protocol_config_id}`,
-            `telemetry:raw:${selectedDevice.protocol_config_id}`
+            `telemetry:${selectedDevice.protocolConfigId}`,
+            `telemetry:raw:${selectedDevice.protocolConfigId}`
         ];
 
         topics.forEach(t => socket.on(t, handlePacket));
@@ -786,7 +787,7 @@ export default function LiveMonitoringPage() {
                         <div className="mt-12 pt-12 border-t border-slate-900">
                             <IECDiagnosticPanel
                                 key={selectedDevice.id}
-                                protocolId={selectedDevice.protocol_config_id}
+                                protocolId={selectedDevice.protocolConfigId}
                                 asduAddr={asduAddr}
                                 deviceName={selectedDevice.deviceName}
                                 deviceId={selectedDevice.id}

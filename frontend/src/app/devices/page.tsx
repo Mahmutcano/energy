@@ -23,8 +23,8 @@ interface DatasheetProfile {
 
 interface Device {
     id: string;
-    protocol_config_id: string;
-    datasheet_profile_id?: string;
+    protocolConfigId: string;
+    datasheetProfileId?: string;
     deviceName: string;
     deviceType: 'INVERTER' | 'ANALYZER' | 'RELAY';
     isActive: boolean;
@@ -85,7 +85,7 @@ function DevicesContent() {
             if (res.ok) {
                 let data = await res.json();
                 if (initialProtocolId) {
-                    data = data.filter((d: Device) => d.protocol_config_id === initialProtocolId);
+                    data = data.filter((d: Device) => d.protocolConfigId === initialProtocolId);
                 }
                 setDevices(data);
             }
@@ -150,8 +150,8 @@ function DevicesContent() {
     const openEditModal = (device: Device) => {
         setEditingDevice(device);
         setFormData({
-            protocolConfigId: device.protocol_config_id || '',
-            datasheetProfileId: device.datasheet_profile_id || '',
+            protocolConfigId: device.protocolConfigId || '',
+            datasheetProfileId: device.datasheetProfileId || '',
             deviceName: device.deviceName || '',
             deviceType: device.deviceType || 'INVERTER',
             isActive: device.isActive,
@@ -191,9 +191,16 @@ function DevicesContent() {
         submittingRef.current = true;
         setIsSubmitting(true);
         try {
+            if (!formData.protocolConfigId || !formData.datasheetProfileId || !formData.deviceName) {
+                toast.error('Protocol, Datasheet and Name are required');
+                setIsSubmitting(false);
+                submittingRef.current = false;
+                return;
+            }
+
             const body: any = {
                 protocolConfigId: formData.protocolConfigId,
-                datasheetProfileId: formData.datasheetProfileId || null,
+                datasheetProfileId: formData.datasheetProfileId,
                 deviceName: formData.deviceName,
                 deviceType: formData.deviceType,
                 isActive: formData.isActive
@@ -457,7 +464,7 @@ function DevicesContent() {
                             className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none appearance-none"
                             required
                         >
-                            <option value="">Select Protocol Config...</option>
+                            <option value="" disabled>Select Protocol Config...</option>
                             {protocols.map(p => (
                                 <option key={p.id} value={p.id}>{p.configName} ({p.plant?.plantName})</option>
                             ))}
@@ -477,7 +484,7 @@ function DevicesContent() {
                             }}
                             className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none appearance-none"
                         >
-                            <option value="">No Profile Assigned</option>
+                            <option value="" disabled>Select Datasheet Profile...</option>
                             {profiles.map(p => (
                                 <option key={p.id} value={p.id}>{p.name} ({p.protocolType})</option>
                             ))}

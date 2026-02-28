@@ -8,7 +8,7 @@ interface ChartData {
     value: number;
 }
 
-export default function HistoricalChart({ data, title, color = '#3b82f6' }: { data: ChartData[], title: string, color?: string }) {
+export default function HistoricalChart({ data, title, unit = '', color = '#3b82f6' }: { data: ChartData[], title: string, unit?: string, color?: string }) {
     const isDark = typeof document !== 'undefined' && document.documentElement.classList.contains('dark');
 
     const option = {
@@ -53,7 +53,7 @@ export default function HistoricalChart({ data, title, color = '#3b82f6' }: { da
                                 <span style="color: #94a3b8; font-size: 10px; font-weight: 600; text-transform: uppercase;">Real-time Value</span>
                                 <div style="display: flex; align-items: baseline; gap: 4px;">
                                     <span style="font-size: 24px; font-weight: 900; color: #fff; letter-spacing: -0.02em;">${Number(p.value[1]).toFixed(2)}</span>
-                                    <span style="color: #64748b; font-size: 12px; font-weight: 700;">UNIT</span>
+                                    <span style="color: #64748b; font-size: 12px; font-weight: 700;">${unit}</span>
                                 </div>
                             </div>
                         </div>

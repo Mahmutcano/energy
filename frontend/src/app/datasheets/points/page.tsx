@@ -290,7 +290,7 @@ function DataSheetsContent() {
                 : (formData.dataName || formData.signalDescription || formData.componentId || 'IEC104-Point');
 
             const body: any = {
-                profile_id: profileId,
+                profileId: profileId,
                 dataName,
                 dataValue: formData.dataValue || null,
                 registerAddress: int(formData.registerAddress),

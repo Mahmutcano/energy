@@ -12,7 +12,6 @@ import CompanyForm, { CompanyFormData } from '@/components/forms/CompanyForm';
 
 interface Plant {
     id: string;
-    company_id?: string;
     companyId: string;
     plantName: string;
     latitude: number | null;
@@ -99,7 +98,7 @@ function PlantsContent() {
     const openEditModal = (plant: Plant) => {
         setEditingPlant(plant);
         setFormData({
-            companyId: plant.company_id || plant.companyId || '',
+            companyId: plant.companyId || '',
             plantName: plant.plantName || '',
             latitude: plant.latitude ? plant.latitude.toString() : '',
             longitude: plant.longitude ? plant.longitude.toString() : '',
@@ -312,7 +311,7 @@ function PlantsContent() {
                 <PlantForm
                     key={editingPlant?.id || 'new'}
                     initialData={editingPlant ? {
-                        companyId: editingPlant.company_id || editingPlant.companyId,
+                        companyId: editingPlant.companyId,
                         plantName: editingPlant.plantName,
                         latitude: editingPlant.latitude ? editingPlant.latitude.toString() : '',
                         longitude: editingPlant.longitude ? editingPlant.longitude.toString() : '',

@@ -8,8 +8,8 @@ import { apiRequest } from '@/lib/api';
 import toast from 'react-hot-toast';
 
 interface Company { id: string; name: string; }
-interface Plant { id: string; plantName: string; company_id: string; }
-interface Device { id: string; deviceName: string; deviceType: string; protocol: { plant: { id: string } }; datasheet_profile_id: string; }
+interface Plant { id: string; plantName: string; companyId: string; }
+interface Device { id: string; deviceName: string; deviceType: string; protocol: { plant: { id: string } }; datasheetProfileId: string; }
 interface DataPoint { id: string; dataName: string; unit?: string; dataType?: string; }
 
 export default function Analytics() {
@@ -43,7 +43,7 @@ export default function Analytics() {
         if (!selectedCompany) { setPlants([]); return; }
         const fetchPlants = async () => {
             const res = await apiRequest('/api/plants');
-            if (res.ok) { const all = await res.json(); setPlants(all.filter((p: any) => p.company_id === selectedCompany)); }
+            if (res.ok) { const all = await res.json(); setPlants(all.filter((p: any) => p.companyId === selectedCompany)); }
         };
         fetchPlants();
         setSelectedPlant(''); setSelectedDevice(''); setSelectedPoint('');
@@ -63,8 +63,8 @@ export default function Analytics() {
         if (!selectedDevice) { setPoints([]); return; }
         const fetchPoints = async () => {
             const device = devices.find(d => d.id === selectedDevice);
-            if (device?.datasheet_profile_id) {
-                const res = await apiRequest(`/api/datasheets?profileId=${device.datasheet_profile_id}`);
+            if (device?.datasheetProfileId) {
+                const res = await apiRequest(`/api/datasheets?profileId=${device.datasheetProfileId}`);
                 if (res.ok) setPoints(await res.json());
             }
         };

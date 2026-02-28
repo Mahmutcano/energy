@@ -11,7 +11,7 @@ import PlantForm, { PlantFormData } from '@/components/forms/PlantForm';
 
 interface CommProtocol {
     id: string;
-    plant_id: string;
+    plantId: string;
     configName: string;
     protocolType: 'MODBUS' | 'IEC104';
     plant?: { id: string; plantName: string };
@@ -89,7 +89,7 @@ function ProtocolsContent() {
             if (res.ok) {
                 let data = await res.json();
                 if (initialPlantId) {
-                    data = data.filter((p: CommProtocol) => p.plant_id === initialPlantId);
+                    data = data.filter((p: CommProtocol) => p.plantId === initialPlantId);
                 }
                 setProtocols(data);
             }
@@ -133,7 +133,7 @@ function ProtocolsContent() {
         let updatedForm = {
             ...defaultFormData,
             configName: proto.configName || '',
-            plantId: proto.plant_id || (proto as any).plantId || '',
+            plantId: proto.plantId || '',
             protocolType: proto.protocolType,
         };
 

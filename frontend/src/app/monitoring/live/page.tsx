@@ -23,6 +23,8 @@ import {
     Play,
     Trash2,
     List,
+    AlertCircle,
+    AlertTriangle,
     Table as TableIcon
 } from 'lucide-react';
 import { apiRequest } from '@/lib/api';
@@ -287,6 +289,45 @@ const IECDiagnosticPanel = ({ protocolId, asduAddr, deviceName, deviceId, device
                             </div>
                         )}
                     </div>
+
+                    {/* Unmatched IOA Section in Diagnostic Panel */}
+                    {(Array.from(points.keys()).filter(ioa => !devicePoints.some(dp => Number(dp.scadaAddress) === ioa || Number(dp.ioa1ObjectAddress) === ioa))).length > 0 && (
+                        <div className="mt-12 space-y-6 pt-12 border-t border-slate-900/40 relative z-10">
+                            <div className="flex items-center justify-between">
+                                <h4 className="text-[10px] font-black text-orange-500 tracking-[0.4em] uppercase flex items-center gap-2">
+                                    <AlertCircle size={14} /> Unmapped Hardware IOAs
+                                </h4>
+                                <span className="text-[9px] font-bold text-slate-700 uppercase tracking-widest bg-slate-900/50 px-3 py-1 rounded-full border border-slate-800">
+                                    Captured but not in datasheet
+                                </span>
+                            </div>
+                            <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-4">
+                                {Array.from(points.values())
+                                    .filter(p => !devicePoints.some(dp => Number(dp.scadaAddress) === Number(p.ioa) || Number(dp.ioa1ObjectAddress) === Number(p.ioa)))
+                                    .map(p => {
+                                        const lastUpdate = lastUpdateMap.get(Number(p.ioa)) || 0;
+                                        const isUpdating = (Date.now() - lastUpdate) < 1000;
+                                        return (
+                                            <div key={p.ioa} className={`card-base p-4 border border-orange-500/10 bg-slate-950/40 flex flex-col gap-2 group hover:border-orange-500/30 transition-all ${isUpdating ? 'border-orange-500/50 bg-orange-500/5' : ''}`}>
+                                                <div className="flex justify-between items-center">
+                                                    <span className="text-[10px] font-mono text-slate-500 font-bold">IOA: {p.ioa}</span>
+                                                    <div className={`w-1 h-1 rounded-full ${isUpdating ? 'bg-orange-500 animate-ping' : 'bg-slate-800'}`}></div>
+                                                </div>
+                                                <div className="flex flex-col">
+                                                    <span className="text-sm font-bold text-white tabular-nums">
+                                                        {typeof p.value === 'number' ? p.value.toFixed(2) : p.value}
+                                                    </span>
+                                                    <span className="text-[8px] text-slate-600 font-mono uppercase tracking-tighter">TI: {p.typeId || '?'} | QDS: {p.qds || '0'}</span>
+                                                </div>
+                                                <span className="text-[8px] text-slate-700 font-mono uppercase mt-1">
+                                                    {new Date(p.timestamp).toLocaleTimeString([], { hour12: false })}
+                                                </span>
+                                            </div>
+                                        );
+                                    })}
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 <div className="card-base bg-slate-950 border-slate-900 overflow-hidden flex flex-col h-[300px] shadow-2xl border-t-4 border-t-brand-green/20">
@@ -447,6 +488,7 @@ export default function LiveMonitoringPage() {
     const [devices, setDevices] = useState<Device[]>([]);
     const [points, setPoints] = useState<DataPoint[]>([]);
     const [liveValues, setLiveValues] = useState<Map<string, any>>(new Map());
+    const [unmatchedValues, setUnmatchedValues] = useState<Map<number, any>>(new Map());
     const [pointLastUpdates, setPointLastUpdates] = useState<Record<string, number>>({});
 
     const [selectedCompany, setSelectedCompany] = useState<string>('');
@@ -506,6 +548,7 @@ export default function LiveMonitoringPage() {
             if (res.ok) {
                 toast.success('Telemetry Queue Cleared');
                 setLiveValues(new Map()); // Clear current view
+                setUnmatchedValues(new Map()); // Clear unmatched
             }
         } catch (err) {
             toast.error('Failed to clear queue');
@@ -641,6 +684,16 @@ export default function LiveMonitoringPage() {
                                 ...pkt,
                                 timestamp: pkt.timestamp || new Date().toISOString()
                             });
+                        });
+                        return next;
+                    });
+                } else if (dataIoa !== null && !isNaN(dataIoa)) {
+                    // Collect Unmatched IOA/Registers
+                    setUnmatchedValues(prev => {
+                        const next = new Map(prev);
+                        next.set(dataIoa, {
+                            ...pkt,
+                            timestamp: pkt.timestamp || new Date().toISOString()
                         });
                         return next;
                     });
@@ -826,6 +879,33 @@ export default function LiveMonitoringPage() {
                                     <Database size={48} className="text-slate-800 mb-4" />
                                     <p className="text-sm font-bold text-slate-600">No data points mapped for this device.</p>
                                     <p className="text-[10px] text-slate-700 mt-1 uppercase tracking-widest">Connect a datasheet profile to see live telemetry.</p>
+                                </div>
+                            )}
+
+                            {unmatchedValues.size > 0 && (
+                                <div className="space-y-4 pt-8 mt-8 border-t border-slate-900/50">
+                                    <h3 className="text-[10px] font-black text-orange-500 tracking-[0.3em] uppercase flex items-center gap-2">
+                                        <AlertTriangle size={14} /> Unmatched Signals ({unmatchedValues.size})
+                                    </h3>
+                                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                                        {Array.from(unmatchedValues.entries()).map(([ioa, data]) => (
+                                            <div key={ioa} className="bg-slate-950 border border-orange-500/20 rounded-xl p-3 flex flex-col gap-1 hover:border-orange-500/40 transition-all">
+                                                <div className="flex justify-between items-center">
+                                                    <span className="text-[9px] font-mono text-slate-500 uppercase tracking-tighter">IOA: {ioa}</span>
+                                                    <div className="w-1 h-1 rounded-full bg-orange-500 animate-pulse"></div>
+                                                </div>
+                                                <div className="flex items-baseline gap-1">
+                                                    <span className="text-sm font-bold text-white tabular-nums">
+                                                        {typeof data.value === 'number' ? data.value.toFixed(2) : data.value}
+                                                    </span>
+                                                    <span className="text-[9px] text-slate-600 font-mono">{data.typeId || ''}</span>
+                                                </div>
+                                                <span className="text-[8px] text-slate-700 font-mono uppercase mt-1">
+                                                    {new Date(data.timestamp).toLocaleTimeString([], { hour12: false })}
+                                                </span>
+                                            </div>
+                                        ))}
+                                    </div>
                                 </div>
                             )}
                         </div>

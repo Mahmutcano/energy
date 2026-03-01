@@ -23,8 +23,8 @@ export const getDatasheetProfiles = async (req: Request, res: Response) => {
         // Get profiles with points and devices count
         const profileList = await db.select({
             ...getTableColumns(schema.datasheetProfile),
-            pointsCount: sql<number>`(SELECT count(*) FROM "DatasheetPoint" WHERE "profile_id" = ${schema.datasheetProfile.id})`.mapWith(Number),
-            devicesCount: sql<number>`(SELECT count(*) FROM "Device" WHERE "datasheet_profile_id" = ${schema.datasheetProfile.id})`.mapWith(Number)
+            pointsCount: sql<number>`(SELECT count(*) FROM "DatasheetPoint" WHERE "profile_id" = "DatasheetProfile"."id")`.mapWith(Number),
+            devicesCount: sql<number>`(SELECT count(*) FROM "Device" WHERE "datasheet_profile_id" = "DatasheetProfile"."id")`.mapWith(Number)
         }).from(schema.datasheetProfile);
 
         // Map it to look like Prisma's output if frontend expects it

@@ -89,7 +89,7 @@ class WorkerService {
 
     // Track last save time per point to throttle DB writes
     private lastSaveMap: Map<string, number> = new Map();
-    private readonly DB_SAVE_INTERVAL = 5000; // Save to DB every 5 seconds per point
+    private readonly DB_SAVE_INTERVAL = 200; // Save to DB every 200ms (5 points per second) per point
 
     /**
      * Process a single item: buffer for DB + broadcast to UI.

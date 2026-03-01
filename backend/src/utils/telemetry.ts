@@ -53,7 +53,7 @@ export const queryTelemetry = async (
     hours?: number,
     startDate?: Date,
     endDate?: Date,
-    limit: number = 5000
+    limit: number = 50000
 ) => {
     try {
         let whereClause;

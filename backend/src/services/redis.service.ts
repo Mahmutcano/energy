@@ -8,6 +8,7 @@ class RedisService {
     private static instance: RedisService;
     private memoryQueue: any[] = [];
     private useFallback: boolean = false;
+    private readonly QUEUE_KEY = 'telemetry_queue';
 
     // Pipeline batch buffer for high-throughput writes
     private pushBuffer: string[] = [];
@@ -93,7 +94,7 @@ class RedisService {
         try {
             const pipeline = this.client.pipeline();
             for (const item of items) {
-                pipeline.lpush('telemetry_queue', item);
+                pipeline.lpush(this.QUEUE_KEY, item);
             }
             await pipeline.exec();
         } catch (err) {
@@ -119,14 +120,14 @@ class RedisService {
 
         try {
             // Atomic batch: get items then trim
-            const items = await this.client.lrange('telemetry_queue', -batchSize, -1);
+            const items = await this.client.lrange(this.QUEUE_KEY, -batchSize, -1);
             if (items.length > 0) {
-                await this.client.ltrim('telemetry_queue', 0, -(items.length + 1));
+                await this.client.ltrim(this.QUEUE_KEY, 0, -(items.length + 1));
                 return items.map(item => JSON.parse(item));
             }
 
             // Fallback to blocking pop if queue was empty
-            const result = await this.client.brpop('telemetry_queue', 2);
+            const result = await this.client.brpop(this.QUEUE_KEY, 2);
             if (result && result[1]) {
                 return [JSON.parse(result[1])];
             }
@@ -147,7 +148,7 @@ class RedisService {
             return this.memoryQueue.shift();
         }
         try {
-            const result = await this.client.brpop('telemetry_queue', 5);
+            const result = await this.client.brpop(this.QUEUE_KEY, 5);
             if (result && result[1]) {
                 return JSON.parse(result[1]);
             }
@@ -171,9 +172,19 @@ class RedisService {
             return this.memoryQueue.length;
         }
         try {
-            return await this.client.llen('telemetry_queue');
+            return await this.client.llen(this.QUEUE_KEY);
         } catch {
             return this.memoryQueue.length;
+        }
+    }
+
+    public async flushTelemetryQueue() {
+        if (!this.useFallback && this.client) {
+            await this.client.del(this.QUEUE_KEY);
+            console.log('[REDIS] Telemetry queue flushed.');
+        } else {
+            this.memoryQueue = [];
+            console.log('[REDIS] Memory queue flushed.');
         }
     }
 }

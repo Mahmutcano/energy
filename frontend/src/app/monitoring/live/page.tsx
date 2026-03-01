@@ -461,27 +461,56 @@ export default function LiveMonitoringPage() {
     const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
     const [socketConnected, setSocketConnected] = useState(false);
 
+    const [protocolStatuses, setProtocolStatuses] = useState<Record<string, string>>({});
+    const [isFlushing, setIsFlushing] = useState(false);
+
     useEffect(() => {
         setSocketConnected(socket.connected);
         const onConnect = () => setSocketConnected(true);
         const onDisconnect = () => setSocketConnected(false);
+        const onStatusChange = (data: { protocolId: string, status: string }) => {
+            setProtocolStatuses(prev => ({ ...prev, [data.protocolId]: data.status }));
+        };
+
         socket.on('connect', onConnect);
         socket.on('disconnect', onDisconnect);
+        socket.on('protocol:status', onStatusChange);
+
         return () => {
             socket.off('connect', onConnect);
             socket.off('disconnect', onDisconnect);
+            socket.off('protocol:status', onStatusChange);
         };
     }, []);
 
     const fetchInitial = async () => {
         try {
             setLoading(true);
-            const res = await apiRequest('/api/companies');
-            if (res.ok) setCompanies(await res.json());
+            const [compRes, statusRes] = await Promise.all([
+                apiRequest('/api/companies'),
+                apiRequest('/api/system/protocol-statuses')
+            ]);
+            if (compRes.ok) setCompanies(await compRes.json());
+            if (statusRes.ok) setProtocolStatuses(await statusRes.json());
         } catch (err) {
-            console.error("Fetch companies error:", err);
+            console.error("Fetch initial error:", err);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleFlushQueue = async () => {
+        try {
+            setIsFlushing(true);
+            const res = await apiRequest('/api/system/flush-telemetry', { method: 'POST' });
+            if (res.ok) {
+                toast.success('Telemetry Queue Cleared');
+                setLiveValues(new Map()); // Clear current view
+            }
+        } catch (err) {
+            toast.error('Failed to clear queue');
+        } finally {
+            setIsFlushing(false);
         }
     };
 
@@ -567,18 +596,27 @@ export default function LiveMonitoringPage() {
         }
 
         const handlePacket = (data: any) => {
-            if (!data) return;
+            if (!data || !selectedDevice) return;
 
             // Handle both single objects (processed) and arrays (raw)
-            const packets = Array.isArray(data) ? data : [data];
+            const incoming = Array.isArray(data) ? data : [data];
+
+            // STRICT FILTERING: Only accept data that belongs to THIS device or THIS protocol
+            const packets = incoming.filter(pkt => {
+                const belongsToDevice = pkt.deviceId && String(pkt.deviceId) === String(selectedDevice.id);
+                const belongsToProtocol = pkt.protocolId && String(pkt.protocolId) === String(selectedDevice.protocolConfigId);
+
+                // If it's a raw packet without ID (unmapped), we trust it because we subscribe only to THIS protocol's raw topic
+                if (!pkt.deviceId && !pkt.protocolId) return true;
+
+                return belongsToDevice || belongsToProtocol;
+            });
 
             packets.forEach(pkt => {
                 const dataIoa = pkt.ioa !== undefined && pkt.ioa !== null ? Number(pkt.ioa) : null;
-
-                const match = points.find(p => {
+                const matches = points.filter(p => {
                     // Priority 1: Direct Point ID Match
                     if (pkt.pointId && p.id && String(pkt.pointId) === String(p.id)) return true;
-                    if (pkt.point_id && p.id && String(pkt.point_id) === String(p.id)) return true;
 
                     // Priority 2: IOA Match
                     if (dataIoa === null || isNaN(dataIoa)) return false;
@@ -590,13 +628,19 @@ export default function LiveMonitoringPage() {
                     }
                 });
 
-                if (match) {
-                    setPointLastUpdates(prev => ({ ...prev, [match.id]: Date.now() }));
+                if (matches.length > 0) {
+                    setPointLastUpdates(prev => {
+                        const next = { ...prev };
+                        matches.forEach(m => { next[m.id] = Date.now(); });
+                        return next;
+                    });
                     setLiveValues(prev => {
                         const next = new Map(prev);
-                        next.set(match.id, {
-                            ...pkt,
-                            timestamp: pkt.timestamp || new Date().toISOString()
+                        matches.forEach(match => {
+                            next.set(match.id, {
+                                ...pkt,
+                                timestamp: pkt.timestamp || new Date().toISOString()
+                            });
                         });
                         return next;
                     });
@@ -634,6 +678,14 @@ export default function LiveMonitoringPage() {
                 </div>
 
                 <div className="flex items-center gap-3">
+                    <button
+                        onClick={handleFlushQueue}
+                        disabled={isFlushing}
+                        className="flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black tracking-widest bg-orange-500/10 text-orange-500 border border-orange-500/30 hover:bg-orange-500/20 transition-all disabled:opacity-20"
+                        title="Clear ghost data from Redis queue"
+                    >
+                        <Trash2 size={14} /> {isFlushing ? 'CLEARING...' : 'CLEAR QUEUE'}
+                    </button>
                     <button
                         onClick={() => setShowConsole(!showConsole)}
                         className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black tracking-widest transition-all ${showConsole ? 'bg-brand-green/20 text-brand-green border-brand-green/30' : 'bg-slate-900 text-slate-500 border-slate-800'}`}
@@ -708,8 +760,17 @@ export default function LiveMonitoringPage() {
                                     </div>
                                     <div className="h-8 w-px bg-slate-800"></div>
                                     <div className="flex flex-col">
-                                        <span className="text-[9px] font-bold text-slate-600 tracking-widest uppercase">Protocol</span>
-                                        <span className={`text-[10px] font-bold ${protocolType === 'MODBUS' ? 'text-blue-400' : 'text-brand-green'}`}>{protocolType} TCP/IP</span>
+                                        <span className="text-[9px] font-bold text-slate-600 tracking-widest uppercase">Protocol Status</span>
+                                        <div className="flex items-center gap-2">
+                                            <div className={`w-1.5 h-1.5 rounded-full ${protocolStatuses[selectedDevice.protocolConfigId] === 'CONNECTED' ? 'bg-brand-green animate-pulse' :
+                                                protocolStatuses[selectedDevice.protocolConfigId] === 'ERROR' ? 'bg-red-500' : 'bg-slate-700'
+                                                }`}></div>
+                                            <span className={`text-[10px] font-bold uppercase tracking-widest ${protocolStatuses[selectedDevice.protocolConfigId] === 'CONNECTED' ? 'text-brand-green' :
+                                                protocolStatuses[selectedDevice.protocolConfigId] === 'ERROR' ? 'text-red-500' : 'text-slate-500'
+                                                }`}>
+                                                {protocolStatuses[selectedDevice.protocolConfigId] || 'OFFLINE'}
+                                            </span>
+                                        </div>
                                     </div>
                                 </div>
 

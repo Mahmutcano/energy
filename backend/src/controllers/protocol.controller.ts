@@ -4,6 +4,8 @@ import * as schema from '../db/schema';
 import { eq, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { AppError, ErrorCode, handleErrorResponse } from '../utils/errors';
+import { IEC104Service } from '../services/iec104.service';
+import ModbusService from '../services/modbus.service';
 
 const modbusConfigSchema = z.object({
     ipAddress: z.string(),
@@ -95,6 +97,10 @@ export const createProtocol = async (req: Request, res: Response) => {
             return { ...protocol, modbusConfig: modbusConfigResult, iec104Config: iec104ConfigResult };
         });
 
+        // Trigger recharge for new protocols
+        IEC104Service.getInstance().reloadConfigs().catch(e => console.error(e));
+        ModbusService.reloadConfigs().catch(e => console.error(e));
+
         res.status(201).json(result);
     } catch (error) {
         return handleErrorResponse(res, error);
@@ -145,6 +151,10 @@ export const updateProtocol = async (req: Request<{ id: string }>, res: Response
             return { ...protocol, modbusConfig: modbusConfigResult, iec104Config: iec104ConfigResult };
         });
 
+        // Trigger recharge for updated protocols
+        IEC104Service.getInstance().reloadConfigs().catch(e => console.error(e));
+        ModbusService.reloadConfigs().catch(e => console.error(e));
+
         res.json(result);
     } catch (error) {
         return handleErrorResponse(res, error);
@@ -173,6 +183,10 @@ export const deleteProtocol = async (req: Request<{ id: string }>, res: Response
             await tx.delete(schema.iec104Config).where(eq(schema.iec104Config.protocolId, id));
             await tx.delete(schema.protocolConfig).where(eq(schema.protocolConfig.id, id));
         });
+
+        // Stop the background service for this protocol
+        IEC104Service.getInstance().reloadConfigs().catch(e => console.error(e));
+        ModbusService.reloadConfigs().catch(e => console.error(e));
 
         res.status(204).send();
     } catch (error) {

@@ -66,14 +66,22 @@ export const testIEC104 = async (req: Request, res: Response) => {
             }
         });
 
-        const ioaMap = new Map<number, { name: string, unit: string }>();
+        const ioaMap = new Map<number, { name: string, unit: string, multiplier: number }[]>();
         if (config?.protocol) {
             config.protocol.devices.forEach(dev => {
                 dev.datasheetProfile?.points.forEach(point => {
-                    if (point.scadaAddress !== null) {
-                        ioaMap.set(point.scadaAddress, {
+                    const registerPoints = [point.scadaAddress, point.ioa1ObjectAddress]
+                        .filter(addr => addr !== null && addr !== undefined)
+                        .map(Number);
+
+                    for (const addr of registerPoints) {
+                        if (!ioaMap.has(addr)) {
+                            ioaMap.set(addr, []);
+                        }
+                        ioaMap.get(addr)!.push({
                             name: point.signalDescription || point.dataName,
-                            unit: point.dataType || ''
+                            unit: point.dataType || '',
+                            multiplier: point.multiplier || 1
                         });
                     }
                 });
@@ -87,32 +95,41 @@ export const testIEC104 = async (req: Request, res: Response) => {
 
             console.log(`[IEC104] 📥 Received ${data.length} PDUs from hardware`);
 
-            const formatted = data.map(item => {
-                const mapping = ioaMap.get(item.IOA);
-                return {
-                    ioa: item.IOA,
-                    typeId: item.typeId,
-                    value: item.MeasuredValueShort ??
+            const formatted = data
+                .filter(item => item.CA === undefined || item.CA === asdu)
+                .map(item => {
+                    const mappings = ioaMap.get(item.IOA) || [];
+                    const mapping = mappings[0];
+                    const rawValue = item.MeasuredValueShort ??
                         item.MeasuredValueNormalizedWithoutQuality ??
                         item.MeasuredValueScaled ??
-                        item.val ?? 0,
-                    qds: item.qds,
-                    description: mapping?.name,
-                    unit: mapping?.unit
-                };
-            });
+                        item.val ?? 0;
+
+                    return {
+                        ioa: item.IOA,
+                        typeId: item.typeId,
+                        value: mapping ? rawValue * mapping.multiplier : rawValue,
+                        qds: item.qds,
+                        description: mapping?.name,
+                        unit: mapping?.unit
+                    };
+                });
 
             receivedData.push(...formatted);
 
-            if (receivedData.length >= 1) {
-                resolved = true;
-                console.log(`[IEC104] ✅ Probe success: returning ${receivedData.length} points`);
+            if (receivedData.length >= 1 && !resolved) {
+                // Instead of resolving immediately, wait a few seconds for more packets
+                setTimeout(() => {
+                    if (resolved) return;
+                    resolved = true;
+                    console.log(`[IEC104] ✅ Probe success: returning ${receivedData.length} points after delay`);
 
-                try { conn.close(); } catch (e) { }
+                    try { conn.close(); } catch (e) { }
 
-                if (!res.headersSent) {
-                    res.json({ success: true, data: receivedData.slice(0, 100) });
-                }
+                    if (!res.headersSent) {
+                        res.json({ success: true, data: receivedData.slice(0, 200) });
+                    }
+                }, 3000);
             }
         }, { autoReconnect: false, quiet: true });
 

@@ -12,12 +12,17 @@ interface IOAMapEntry {
     dataName: string;
     description: string;
     unit: string;
+    multiplier: number;
 }
 
 export class IEC104Service {
     private static instance: IEC104Service;
     private connections: Map<string, any> = new Map();
-    private ioaMaps: Map<string, Map<number, IOAMapEntry>> = new Map();
+    private ioaMaps: Map<string, Map<number, IOAMapEntry[]>> = new Map();
+    private currentConfigs: Map<string, string> = new Map();
+    private activeInstances: Map<string, { id: string, ip: string }> = new Map();
+
+    private statuses: Map<string, 'CONNECTED' | 'DISCONNECTED' | 'ERROR'> = new Map();
 
     private constructor() { }
 
@@ -29,12 +34,21 @@ export class IEC104Service {
     }
 
     public async start() {
-        console.log('[IEC104] Master Service Started. Fetching configs from DB...');
+        console.log('[IEC104] Master Service Started.');
         await this.reloadConfigs();
     }
 
+    public getStatuses() {
+        return Object.fromEntries(this.statuses);
+    }
+
+    private updateStatus(protocolId: string, status: 'CONNECTED' | 'DISCONNECTED' | 'ERROR') {
+        this.statuses.set(protocolId, status);
+        io.emit('protocol:status', { protocolId, status, timestamp: new Date() });
+    }
+
     public async reloadConfigs() {
-        console.log('[IEC104] Reloading IOA Maps from DB...');
+        console.log('[IEC104] 🔄 Reloading Protocol configurations from DB...');
         try {
             const protocols = await db.query.protocolConfig.findMany({
                 where: and(
@@ -58,10 +72,23 @@ export class IEC104Service {
                 }
             });
 
+            const activeProtocolIds = new Set<string>();
+
             for (const protocol of protocols) {
                 if (!protocol.iec104Config) continue;
+                activeProtocolIds.add(protocol.id);
 
-                const ioaMap = new Map<number, IOAMapEntry>();
+                const config = protocol.iec104Config;
+                const configHash = `${config.ipAddress}:${config.port}:${config.asduAddr}`;
+
+                // Check if config changed (Restart if changed)
+                if (this.currentConfigs.has(protocol.id) && this.currentConfigs.get(protocol.id) !== configHash) {
+                    console.log(`[IEC104] ⚠️ IP/Config changed for Protocol ${protocol.id} (${this.currentConfigs.get(protocol.id)} -> ${configHash}). Killing old connection.`);
+                    this.stopProtocol(protocol.id);
+                }
+
+                // Build IOA Map (Per-protocol sandbox)
+                const ioaMap = new Map<number, IOAMapEntry[]>();
                 for (const device of protocol.devices) {
                     if (device.datasheetProfile) {
                         for (const point of device.datasheetProfile.points) {
@@ -70,24 +97,28 @@ export class IEC104Service {
                                 deviceId: device.id,
                                 dataName: point.dataName,
                                 description: point.signalDescription || point.dataName || 'Unknown',
-                                unit: point.dataType || point.dataValue || 'UNIT'
+                                unit: point.dataType || point.dataValue || 'UNIT',
+                                multiplier: point.multiplier || 1
                             };
 
-                            if (point.scadaAddress !== null && point.scadaAddress !== undefined) {
-                                ioaMap.set(Number(point.scadaAddress), entry);
-                            }
-                            if (point.ioa1ObjectAddress !== null && point.ioa1ObjectAddress !== undefined) {
-                                ioaMap.set(Number(point.ioa1ObjectAddress), entry);
+                            const registerPoints = [point.scadaAddress, point.ioa1ObjectAddress]
+                                .filter(addr => addr !== null && addr !== undefined)
+                                .map(Number);
+
+                            for (const addr of registerPoints) {
+                                if (!ioaMap.has(addr)) ioaMap.set(addr, []);
+                                ioaMap.get(addr)!.push(entry);
                             }
                         }
                     }
                 }
 
                 this.ioaMaps.set(protocol.id, ioaMap);
-                console.log(`[IEC104] Updated map for Protocol ${protocol.id} with ${ioaMap.size} points.`);
 
+                // Establish connection if not already present
                 if (!this.connections.has(protocol.id)) {
-                    const config = protocol.iec104Config;
+                    this.currentConfigs.set(protocol.id, configHash);
+                    this.statuses.set(protocol.id, 'DISCONNECTED');
                     this.connectToProtocol(
                         protocol.id,
                         config.ipAddress,
@@ -97,57 +128,104 @@ export class IEC104Service {
                     );
                 }
             }
+
+            // Cleanup removed protocols
+            for (const existingId of Array.from(this.connections.keys())) {
+                if (!activeProtocolIds.has(existingId)) {
+                    console.log(`[IEC104] 🛑 Protocol ${existingId} is no longer active in DB. Stopping.`);
+                    this.stopProtocol(existingId);
+                }
+            }
+
         } catch (error) {
             console.error('[IEC104] Failed to reload configs:', error);
         }
     }
 
+    public stopProtocol(protocolId: string) {
+        this.activeInstances.delete(protocolId); // Instantly invalidate all callbacks
+        const conn = this.connections.get(protocolId);
+        if (conn) {
+            console.log(`[IEC104] 🧨 Forcefully destroying connection for ${protocolId}`);
+            try {
+                const connection = (conn as any).connection;
+                if (connection?.socket) {
+                    connection.socket.destroy();
+                    console.log(`[IEC104] ⚡ Socket destroyed for ${protocolId}`);
+                }
+            } catch (e) { }
+            this.connections.delete(protocolId);
+            this.currentConfigs.delete(protocolId);
+            this.ioaMaps.delete(protocolId);
+            this.updateStatus(protocolId, 'DISCONNECTED');
+        }
+    }
+
     public connectToProtocol(protocolId: string, ip: string, port: number, asduAddress: number, timers: { t1: number, t2: number, t3: number }) {
-        console.log(`[IEC104] Connecting to hardware at ${ip}:${port} | ASDU: ${asduAddress} for Protocol ${protocolId}`);
+        const instanceId = Math.random().toString(36).substring(7);
+        this.activeInstances.set(protocolId, { id: instanceId, ip });
+
+        console.log(`[IEC104] 🔌 [Instance:${instanceId}] Connecting to REAL Target ${ip}:${port} (ASDU: ${asduAddress})`);
 
         try {
             const conn = new Protocol(ip, port, (data: any[]) => {
-                const ioaMap = this.ioaMaps.get(protocolId) || new Map<number, IOAMapEntry>();
+                // GHOST SAFETY: Ensure this instance belongs to the current IP config
+                const current = this.activeInstances.get(protocolId);
+                if (!current || current.id !== instanceId) {
+                    console.log(`[IEC104] 👻 Ghost data rejected from defunct Instance:${instanceId} (Target was ${ip})`);
+                    try { (conn as any).connection?.socket?.destroy(); } catch (e) { }
+                    return;
+                }
 
-                const rawPoints = data.map(item => {
-                    const entry = ioaMap.get(item.IOA);
-                    return {
-                        ioa: item.IOA,
-                        typeId: item.typeId,
-                        value: item.MeasuredValueShort ??
-                            item.MeasuredValueNormalizedWithoutQuality ??
-                            item.MeasuredValueScaled ??
-                            item.val ?? 0,
-                        qds: item.qds,
-                        timestamp: new Date(),
-                        description: entry?.description,
-                        name: entry?.dataName,
-                        unit: entry?.unit,
-                        deviceId: entry?.deviceId
-                    };
-                });
+                this.updateStatus(protocolId, 'CONNECTED');
+                const ioaMap = this.ioaMaps.get(protocolId) || new Map<number, IOAMapEntry[]>();
 
-                io.emit(`telemetry:raw:${protocolId}`, rawPoints);
+
+
+                const rawPoints = data
+                    .filter(item => item.CA === undefined || item.CA === asduAddress)
+                    .map(item => {
+                        const entries = ioaMap.get(item.IOA) || [];
+                        const firstEntry = entries[0];
+                        const rawValue = item.MeasuredValueShort ?? item.MeasuredValueNormalizedWithoutQuality ?? item.MeasuredValueScaled ?? item.val ?? 0;
+
+                        return {
+                            ioa: item.IOA,
+                            typeId: item.typeId,
+                            value: firstEntry ? rawValue * firstEntry.multiplier : rawValue,
+                            qds: item.qds,
+                            timestamp: new Date(),
+                            name: firstEntry?.dataName || 'Unmapped Point',
+                            deviceId: firstEntry?.deviceId,
+                            sourceIp: ip
+                        };
+                    });
+
+                // Emit only to targeted topic. UI MUST check deviceId.
+                if (rawPoints.length > 0) {
+                    io.emit(`telemetry:raw:${protocolId}`, rawPoints);
+                }
 
                 data.forEach(item => {
-                    const value = item.MeasuredValueShort ??
-                        item.MeasuredValueNormalizedWithoutQuality ??
-                        item.MeasuredValueScaled ??
-                        item.val ?? 0;
+                    if (item.CA !== undefined && item.CA !== asduAddress) return;
 
-                    const ioaEntry = ioaMap.get(item.IOA);
-                    if (ioaEntry) {
-                        const payload = {
-                            protocolId: protocolId,
-                            deviceId: ioaEntry.deviceId,
-                            pointId: ioaEntry.pointId,
-                            ioa: item.IOA,
-                            value: value,
-                            unit: ioaEntry.unit,
-                            name: ioaEntry.description,
-                            timestamp: new Date()
-                        };
-                        redisService.pushTelemetry(payload);
+                    const value = item.MeasuredValueShort ?? item.MeasuredValueNormalizedWithoutQuality ?? item.MeasuredValueScaled ?? item.val ?? 0;
+                    const ioaEntries = ioaMap.get(item.IOA);
+                    if (ioaEntries) {
+                        for (const entry of ioaEntries) {
+                            redisService.pushTelemetry({
+                                protocolId,
+                                deviceId: entry.deviceId,
+                                pointId: entry.pointId,
+                                ioa: item.IOA,
+                                typeId: item.typeId,
+                                value: value * entry.multiplier,
+                                qds: item.qds,
+                                unit: entry.unit,
+                                name: entry.description,
+                                timestamp: new Date()
+                            });
+                        }
                     }
                 });
             }, { autoReconnect: true, quiet: true });
@@ -156,37 +234,45 @@ export class IEC104Service {
                 (conn as any).connection.t1 = timers.t1 * 1000;
                 (conn as any).connection.t2 = timers.t2 * 1000;
                 (conn as any).connection.t3 = timers.t3 * 1000;
+
+                (conn as any).connection.SetConnectionHandler((param: any, event: number) => {
+                    if (this.activeInstances.get(protocolId)?.id !== instanceId) return;
+
+                    if (event === 2) {
+                        console.log(`[IEC104] ✅ Established: [Instance:${instanceId}] -> ${ip}:${port}`);
+                        this.updateStatus(protocolId, 'CONNECTED');
+                        try {
+                            (conn as any).connection.SendInterrogationCommand(6, asduAddress, 20);
+                        } catch (err) { }
+                    } else if (event === 1) { // CLOSED
+                        this.updateStatus(protocolId, 'DISCONNECTED');
+                    } else if (event === 4) { // ERROR
+                        this.updateStatus(protocolId, 'ERROR');
+                    }
+                }, null);
             }
 
             conn.connect();
             this.connections.set(protocolId, conn);
-
-            (conn as any).connection.SetConnectionHandler((param: any, event: number) => {
-                if (event === 2) {
-                    console.log(`[IEC104] ✅ Connection established for Protocol ${protocolId}. Sending GI...`);
-                    try {
-                        (conn as any).connection.SendInterrogationCommand(6, asduAddress, 20);
-                    } catch (err) {
-                        console.error(`[IEC104] Failed to send GI:`, err);
-                    }
-                }
-            }, null);
         } catch (err) {
-            console.error(`[IEC104] Connection Error for ${protocolId}:`, err);
+            console.error(`[IEC104] ❌ Connection failed for ${protocolId}:`, err);
+            this.updateStatus(protocolId, 'ERROR');
         }
     }
 
-    public triggerGI(protocolId: string, asduAddress: number) {
+    public triggerGI(protocolId: string, asduAddress: number): boolean {
         const conn = this.connections.get(protocolId);
-        if (conn && (conn as any).connection) {
-            console.log(`[IEC104] 🔄 Manually triggering GI for Protocol ${protocolId} (ASDU: ${asduAddress})`);
-            try {
-                (conn as any).connection.SendInterrogationCommand(6, asduAddress, 20);
+        if (!conn) return false;
+
+        try {
+            const connection = (conn as any).connection;
+            if (connection) {
+                console.log(`[IEC104] 📡 Manually triggering GI for ${protocolId} (ASDU: ${asduAddress})`);
+                connection.SendInterrogationCommand(6, asduAddress, 20);
                 return true;
-            } catch (err) {
-                console.error(`[IEC104] Failed to send manual GI:`, err);
-                return false;
             }
+        } catch (err) {
+            console.error(`[IEC104] ❌ Failed to send manual GI for ${protocolId}:`, err);
         }
         return false;
     }

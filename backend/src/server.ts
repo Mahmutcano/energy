@@ -2,7 +2,6 @@ import { server, io } from './app';
 import { IEC104Service } from './services/iec104.service';
 import modbusService from './services/modbus.service';
 import workerService from './services/worker.service';
-import simulationService from './services/simulation.service';
 
 const PORT = process.env.PORT || 3001;
 
@@ -29,7 +28,6 @@ const startServer = () => {
         iec104Service.start();
 
         modbusService.start();
-        simulationService.start();
     });
 };
 

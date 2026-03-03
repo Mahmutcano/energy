@@ -25,6 +25,15 @@ export class ModbusService {
     public async start() {
         console.log('[MODBUS] Master Service Starting...');
         await this.reloadConfigs();
+        this.startPeriodicReload();
+    }
+
+    /** Periodic config check to ensure systematic recovery of failed devices */
+    private startPeriodicReload() {
+        setInterval(async () => {
+            console.log('[MODBUS] 🕒 Periodic systematic config check...');
+            await this.reloadConfigs();
+        }, 60000); // Check every 60 seconds
     }
 
     public getStatuses() {

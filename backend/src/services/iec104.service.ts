@@ -39,6 +39,15 @@ export class IEC104Service {
         console.log('[IEC104] Master Service Started.');
         await this.reloadConfigs();
         this.startPeriodicGI();
+        this.startPeriodicReload();
+    }
+
+    /** Periodic config check to ensure systematic recovery of failed devices */
+    private startPeriodicReload() {
+        setInterval(async () => {
+            console.log('[IEC104] 🕒 Periodic systematic config check...');
+            await this.reloadConfigs();
+        }, 60000); // Check every 60 seconds
     }
 
     /** Send GI to all connected protocols every 30 seconds */

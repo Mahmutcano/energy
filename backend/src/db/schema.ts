@@ -22,6 +22,7 @@ export const permissionLevelEnum = pgEnum('PermissionLevel', ['READ', 'WRITE', '
 export const plantTypeEnum = pgEnum('PlantType', ['SOLAR', 'WIND', 'HYDRO']);
 export const protocolTypeEnum = pgEnum('ProtocolType', ['MODBUS', 'IEC104']);
 export const deviceTypeEnum = pgEnum('DeviceType', ['INVERTER', 'ANALYZER', 'RELAY']);
+export const communicationAlarmStatusEnum = pgEnum('CommunicationAlarmStatus', ['ACTIVE', 'RESOLVED']);
 
 // Tables
 export const appUser = pgTable('AppUser', {
@@ -176,6 +177,19 @@ export const telemetryValue = pgTable('TelemetryValue', {
     timeIdx: index('TelemetryValue_measurementTime_idx').on(table.measurementTime),
 }));
 
+export const communicationAlarm = pgTable('CommunicationAlarm', {
+    id: uuid('id').primaryKey().defaultRandom(),
+    deviceId: uuid('device_id').notNull().references(() => device.id),
+    status: communicationAlarmStatusEnum('status').default('ACTIVE').notNull(),
+    startTime: timestamp('startTime', { withTimezone: true }).defaultNow().notNull(),
+    endTime: timestamp('endTime', { withTimezone: true }),
+    lastSeenAt: timestamp('lastSeenAt', { withTimezone: true }),
+    message: text('message'),
+}, (table) => ({
+    deviceIdIdx: index('CommunicationAlarm_device_id_idx').on(table.deviceId),
+    statusIdx: index('CommunicationAlarm_status_idx').on(table.status),
+}));
+
 // Relations
 export const appUserRelations = relations(appUser, ({ many }) => ({
     profiles: many(appUserProfile),
@@ -219,6 +233,7 @@ export const deviceRelations = relations(device, ({ one, many }) => ({
     datasheetProfile: one(datasheetProfile, { fields: [device.datasheetProfileId], references: [datasheetProfile.id] }),
     userProfiles: many(appUserProfile),
     telemetryValues: many(telemetryValue),
+    communicationAlarms: many(communicationAlarm),
 }));
 
 export const datasheetProfileRelations = relations(datasheetProfile, ({ many }) => ({
@@ -234,4 +249,8 @@ export const datasheetPointRelations = relations(datasheetPoint, ({ one, many })
 export const telemetryValueRelations = relations(telemetryValue, ({ one }) => ({
     device: one(device, { fields: [telemetryValue.deviceId], references: [device.id] }),
     point: one(datasheetPoint, { fields: [telemetryValue.pointId], references: [datasheetPoint.id] }),
+}));
+
+export const communicationAlarmRelations = relations(communicationAlarm, ({ one }) => ({
+    device: one(device, { fields: [communicationAlarm.deviceId], references: [device.id] }),
 }));

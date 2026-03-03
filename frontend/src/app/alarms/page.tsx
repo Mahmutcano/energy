@@ -1,66 +1,58 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { AlertTriangle, Bell, Clock, CheckCircle, Search, ShieldAlert } from 'lucide-react';
+import { AlertTriangle, Bell, Clock, CheckCircle, Search, ShieldAlert, Cpu, WifiOff } from 'lucide-react';
 import { apiRequest } from '@/lib/api';
 
-interface AlarmLog {
+interface Device {
     id: string;
-    commProtocolId: string;
-    value: number;
+    deviceName: string;
+}
+
+interface CommunicationAlarm {
+    id: string;
+    deviceId: string;
+    status: 'ACTIVE' | 'RESOLVED';
+    startTime: string;
+    endTime: string | null;
+    lastSeenAt: string | null;
     message: string;
-    severity: 'INFO' | 'WARNING' | 'CRITICAL';
-    timestamp: string;
-    resolved: boolean;
+    device?: Device;
 }
 
 export default function AlarmsPage() {
-    const [alarms, setAlarms] = useState<AlarmLog[]>([]);
+    const [alarms, setAlarms] = useState<CommunicationAlarm[]>([]);
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState<'ALL' | 'ACTIVE' | 'RESOLVED'>('ALL');
 
-    useEffect(() => {
-        const fetchAlarms = async () => {
-            try {
-                const res = await apiRequest('/api/alarms');
-                if (res.ok) {
-                    const data = await res.json();
-                    setAlarms(data);
-                }
-            } catch (err) {
-                console.error('Failed to fetch alarms:', err);
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetchAlarms();
-    }, []);
-
-    const filteredAlarms = alarms.filter(a => {
-        if (filter === 'ACTIVE') return !a.resolved;
-        if (filter === 'RESOLVED') return a.resolved;
-        return true;
-    });
-
-    const activeCount = alarms.filter(a => !a.resolved).length;
-    const criticalCount = alarms.filter(a => a.severity === 'CRITICAL' && !a.resolved).length;
-
-    const handleResolve = async (id: string) => {
+    const fetchAlarms = async () => {
         try {
-            const res = await apiRequest(`/api/alarms/${id}/resolve`, { method: 'PATCH' });
+            const res = await apiRequest('/api/alarms');
             if (res.ok) {
-                setAlarms(prev => prev.map(a => a.id === id ? { ...a, resolved: true } : a));
+                const data = await res.json();
+                setAlarms(data);
             }
         } catch (err) {
-            console.error('Failed to resolve alarm:', err);
+            console.error('Failed to fetch alarms:', err);
+        } finally {
+            setLoading(false);
         }
     };
 
-    const severityConfig = {
-        CRITICAL: { color: 'text-red-400', bg: 'bg-red-500/10', border: 'border-red-500/20', dot: 'bg-red-500' },
-        WARNING: { color: 'text-amber-400', bg: 'bg-amber-500/10', border: 'border-amber-500/20', dot: 'bg-amber-500' },
-        INFO: { color: 'text-blue-400', bg: 'bg-blue-500/10', border: 'border-blue-500/20', dot: 'bg-blue-500' },
-    };
+    useEffect(() => {
+        fetchAlarms();
+        // Refresh every 30s
+        const interval = setInterval(fetchAlarms, 30000);
+        return () => clearInterval(interval);
+    }, []);
+
+    const filteredAlarms = alarms.filter(a => {
+        if (filter === 'ACTIVE') return a.status === 'ACTIVE';
+        if (filter === 'RESOLVED') return a.status === 'RESOLVED';
+        return true;
+    });
+
+    const activeCount = alarms.filter(a => a.status === 'ACTIVE').length;
 
     return (
         <div className="space-y-8 pb-16 animate-in-up font-sans">
@@ -68,16 +60,16 @@ export default function AlarmsPage() {
             <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-8">
                 <div className="space-y-2">
                     <div className="flex items-center gap-4">
-                        <div className="w-1.5 h-8 bg-red-500 rounded-full shadow-[0_0_20px_rgba(239,68,68,0.4)]"></div>
-                        <h1 className="text-3xl font-black text-white tracking-tight ">Alarm Logs</h1>
+                        <div className="w-1.5 h-8 bg-amber-500 rounded-full shadow-[0_0_20px_rgba(245,158,11,0.4)]"></div>
+                        <h1 className="text-3xl font-black text-white tracking-tight ">Communication Monitoring</h1>
                     </div>
-                    <p className="text-sm text-slate-500 ml-6">Monitor and manage alarm events from communication protocols</p>
+                    <p className="text-sm text-slate-500 ml-6">Monitor real-time device connectivity and data flow interruptions</p>
                 </div>
 
                 {activeCount > 0 && (
-                    <div className="flex items-center gap-3 px-4 py-3 bg-red-500/5 rounded-xl border border-red-500/20">
-                        <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse shadow-[0_0_10px_rgba(239,68,68,0.6)]"></div>
-                        <span className="text-xs font-bold text-red-400  tracking-widest">{activeCount} Active Alarms</span>
+                    <div className="flex items-center gap-3 px-4 py-3 bg-amber-500/5 rounded-xl border border-amber-500/20">
+                        <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse shadow-[0_0_10px_rgba(245,158,11,0.6)]"></div>
+                        <span className="text-xs font-bold text-amber-400  tracking-widest">{activeCount} Communication Losses</span>
                     </div>
                 )}
             </div>
@@ -85,9 +77,9 @@ export default function AlarmsPage() {
             {/* Stats */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {[
-                    { label: 'Active Critical', val: criticalCount.toString(), icon: ShieldAlert, color: 'text-red-400', bg: 'bg-red-500/5', border: 'border-red-500/20' },
-                    { label: 'Unresolved', val: activeCount.toString(), icon: Bell, color: 'text-amber-400', bg: 'bg-amber-500/5', border: 'border-amber-500/20' },
+                    { label: 'Active Loss', val: activeCount.toString(), icon: WifiOff, color: 'text-amber-400', bg: 'bg-amber-500/5', border: 'border-amber-500/20' },
                     { label: 'Total Events', val: alarms.length.toString(), icon: Clock, color: 'text-brand-green', bg: 'bg-brand-green/5', border: 'border-brand-green/20' },
+                    { label: 'System Status', val: activeCount > 0 ? 'WARNING' : 'HEALTHY', icon: ShieldAlert, color: activeCount > 0 ? 'text-amber-400' : 'text-brand-green', bg: activeCount > 0 ? 'bg-amber-500/5' : 'bg-brand-green/5', border: activeCount > 0 ? 'border-amber-500/20' : 'border-brand-green/20' },
                 ].map((stat, i) => (
                     <div key={i} className={`card-base p-6 ${stat.bg} ${stat.border} flex items-center gap-4`}>
                         <div className={`p-3 rounded-xl bg-slate-950 border border-slate-800 ${stat.color}`}>
@@ -95,7 +87,7 @@ export default function AlarmsPage() {
                         </div>
                         <div>
                             <p className="text-[10px] font-bold text-slate-500  tracking-widest">{stat.label}</p>
-                            <p className={`text-3xl font-black tabular-nums ${stat.color}`}>{stat.val}</p>
+                            <p className={`text-2xl font-black tabular-nums ${stat.color}`}>{stat.val}</p>
                         </div>
                     </div>
                 ))}
@@ -105,10 +97,10 @@ export default function AlarmsPage() {
             <div className="card-base overflow-hidden">
                 <div className="p-6 border-b border-slate-800/40 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-slate-900/40">
                     <div className="flex items-center gap-3">
-                        <div className="p-2 rounded-lg bg-slate-950 border border-slate-800 text-red-400">
+                        <div className="p-2 rounded-lg bg-slate-950 border border-slate-800 text-amber-400">
                             <AlertTriangle size={18} />
                         </div>
-                        <h3 className="text-sm font-bold text-white ">Event Log</h3>
+                        <h3 className="text-sm font-bold text-white ">Connectivity Logs</h3>
                     </div>
                     <div className="flex gap-2">
                         {(['ALL', 'ACTIVE', 'RESOLVED'] as const).map(f => (
@@ -131,53 +123,45 @@ export default function AlarmsPage() {
                         <thead>
                             <tr className="text-[10px] font-bold text-slate-500  tracking-widest border-b border-slate-800/40 bg-slate-900/20">
                                 <th className="px-6 py-4">Status</th>
-                                <th className="px-6 py-4">Severity</th>
+                                <th className="px-6 py-4">Device</th>
                                 <th className="px-6 py-4">Message</th>
-                                <th className="px-6 py-4">Value</th>
-                                <th className="px-6 py-4">Protocol ID</th>
-                                <th className="px-6 py-4">Timestamp</th>
-                                <th className="px-6 py-4 text-right">Action</th>
+                                <th className="px-6 py-4">Failure Start</th>
+                                <th className="px-6 py-4">Resolution End</th>
+                                <th className="px-6 py-4">Last Seen Data</th>
                             </tr>
                         </thead>
                         <tbody>
                             {loading ? (
-                                <tr><td colSpan={7} className="px-6 py-12 text-center text-sm text-slate-500 animate-pulse">Loading alarm logs...</td></tr>
+                                <tr><td colSpan={6} className="px-6 py-12 text-center text-sm text-slate-500 animate-pulse">Checking communication logs...</td></tr>
                             ) : filteredAlarms.length === 0 ? (
-                                <tr><td colSpan={7} className="px-6 py-12 text-center text-sm text-slate-500">No alarm events found</td></tr>
+                                <tr><td colSpan={6} className="px-6 py-12 text-center text-sm text-slate-500">No communication events found</td></tr>
                             ) : filteredAlarms.map((alarm) => {
-                                const sev = severityConfig[alarm.severity];
                                 return (
                                     <tr key={alarm.id} className="border-b border-slate-800/30 hover:bg-slate-800/20 transition-all group">
                                         <td className="px-6 py-4">
                                             <div className="flex items-center gap-2">
-                                                <div className={`w-2 h-2 rounded-full ${alarm.resolved ? 'bg-brand-green' : `${sev.dot} animate-pulse`}`} />
-                                                <span className={`text-[10px] font-bold  ${alarm.resolved ? 'text-brand-green' : 'text-slate-400'}`}>
-                                                    {alarm.resolved ? 'Resolved' : 'Active'}
+                                                <div className={`w-2 h-2 rounded-full ${alarm.status === 'RESOLVED' ? 'bg-brand-green' : `bg-amber-500 animate-pulse`}`} />
+                                                <span className={`text-[10px] font-bold  ${alarm.status === 'RESOLVED' ? 'text-brand-green' : 'text-amber-400'}`}>
+                                                    {alarm.status}
                                                 </span>
                                             </div>
                                         </td>
                                         <td className="px-6 py-4">
-                                            <span className={`px-2 py-1 rounded-md text-[10px] font-bold  border ${sev.bg} ${sev.color} ${sev.border}`}>
-                                                {alarm.severity}
-                                            </span>
+                                            <div className="flex items-center gap-2">
+                                                <Cpu size={12} className="text-slate-500" />
+                                                <span className="text-xs font-bold text-white">{alarm.device?.deviceName || 'Unknown Device'}</span>
+                                            </div>
+                                            <span className="text-[9px] text-slate-600 font-mono block">{alarm.deviceId}</span>
                                         </td>
-                                        <td className="px-6 py-4 text-xs text-slate-300 max-w-sm">{alarm.message}</td>
-                                        <td className="px-6 py-4 text-sm font-mono text-white tabular-nums">{alarm.value.toFixed(2)}</td>
-                                        <td className="px-6 py-4">
-                                            <span className="text-[10px] font-mono text-slate-600">{alarm.commProtocolId.substring(0, 8)}...</span>
+                                        <td className="px-6 py-4 text-xs text-slate-400">{alarm.message}</td>
+                                        <td className="px-6 py-4 text-xs font-mono text-slate-400 tabular-nums">
+                                            {new Date(alarm.startTime).toLocaleString()}
                                         </td>
-                                        <td className="px-6 py-4 text-xs font-mono text-slate-600 tabular-nums">
-                                            {new Date(alarm.timestamp).toLocaleString()}
+                                        <td className="px-6 py-4 text-xs font-mono text-slate-400 tabular-nums">
+                                            {alarm.endTime ? new Date(alarm.endTime).toLocaleString() : <span className="text-amber-500/50">Ongoing...</span>}
                                         </td>
-                                        <td className="px-6 py-4 text-right">
-                                            {!alarm.resolved && (
-                                                <button
-                                                    onClick={() => handleResolve(alarm.id)}
-                                                    className="px-3 py-1.5 bg-slate-950 border border-slate-800 text-[10px] font-bold text-slate-500 rounded hover:text-brand-green hover:border-brand-green/30 transition-all  opacity-0 group-hover:opacity-100"
-                                                >
-                                                    Resolve
-                                                </button>
-                                            )}
+                                        <td className="px-6 py-4 text-xs font-mono text-slate-500 tabular-nums">
+                                            {alarm.lastSeenAt ? new Date(alarm.lastSeenAt).toLocaleString() : 'N/A'}
                                         </td>
                                     </tr>
                                 );

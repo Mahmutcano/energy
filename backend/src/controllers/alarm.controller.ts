@@ -1,20 +1,20 @@
 import { Request, Response } from 'express';
+import alarmService from '../services/alarm.service';
+import { handleErrorResponse } from '../utils/errors';
 
 export const getAlarms = async (req: Request, res: Response) => {
     try {
-        // The AlarmLog functionality is currently disabled in the new database schema
-        res.json([]);
+        const history = await alarmService.getAlarmHistory();
+        res.json(history);
     } catch (error) {
-        console.error('getAlarms error:', error);
-        res.status(500).json({ error: 'Failed to fetch alarms' });
+        return handleErrorResponse(res, error);
     }
 };
 
 export const resolveAlarm = async (req: Request, res: Response) => {
     try {
-        res.status(501).json({ error: 'Alarm functionality is currently not supported in the new database schema' });
+        res.status(501).json({ error: 'Manual resolution is handled by data resumption' });
     } catch (error) {
-        console.error('resolveAlarm error:', error);
-        res.status(500).json({ error: 'Failed to resolve alarm' });
+        return handleErrorResponse(res, error);
     }
 };

@@ -21,8 +21,10 @@ export class IEC104Service {
     private ioaMaps: Map<string, Map<number, IOAMapEntry[]>> = new Map();
     private currentConfigs: Map<string, string> = new Map();
     private activeInstances: Map<string, { id: string, ip: string }> = new Map();
+    private asduAddresses: Map<string, number> = new Map(); // Store ASDU per protocol
 
     private statuses: Map<string, 'CONNECTED' | 'DISCONNECTED' | 'ERROR'> = new Map();
+    private giIntervalId: ReturnType<typeof setInterval> | null = null;
 
     private constructor() { }
 
@@ -36,6 +38,29 @@ export class IEC104Service {
     public async start() {
         console.log('[IEC104] Master Service Started.');
         await this.reloadConfigs();
+        this.startPeriodicGI();
+    }
+
+    /** Send GI to all connected protocols every 30 seconds */
+    private startPeriodicGI() {
+        if (this.giIntervalId) clearInterval(this.giIntervalId);
+        this.giIntervalId = setInterval(() => {
+            for (const [protocolId, conn] of this.connections.entries()) {
+                const status = this.statuses.get(protocolId);
+                const asdu = this.asduAddresses.get(protocolId);
+                if (status !== 'CONNECTED' || !asdu) continue;
+
+                try {
+                    const connection = (conn as any).connection;
+                    if (connection) {
+                        connection.SendInterrogationCommand(6, asdu, 20);
+                        console.log(`[IEC104] 🔄 Periodic GI sent for ${protocolId} (ASDU: ${asdu})`);
+                    }
+                } catch (err) {
+                    console.warn(`[IEC104] ⚠️ Periodic GI failed for ${protocolId}:`, err);
+                }
+            }
+        }, 30000); // Every 30 seconds
     }
 
     public getStatuses() {
@@ -164,6 +189,7 @@ export class IEC104Service {
     public connectToProtocol(protocolId: string, ip: string, port: number, asduAddress: number, timers: { t1: number, t2: number, t3: number }) {
         const instanceId = Math.random().toString(36).substring(7);
         this.activeInstances.set(protocolId, { id: instanceId, ip });
+        this.asduAddresses.set(protocolId, asduAddress);
 
         console.log(`[IEC104] 🔌 [Instance:${instanceId}] Connecting to REAL Target ${ip}:${port} (ASDU: ${asduAddress})`);
 

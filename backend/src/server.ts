@@ -26,20 +26,20 @@ process.on('unhandledRejection', (reason, promise) => {
 
 // Root health check for cloud providers
 app.get('/', (req, res) => {
-    res.json({
-        status: 'OK',
-        name: 'SCADA Platform Backend',
-        timestamp: new Date().toISOString(),
-        env: process.env.NODE_ENV || 'development'
-    });
+    res.send('OK');
 });
 
 const startServer = () => {
-    // Railway/Cloud providers require immediate port binding for health checks
-    server.listen(PORT, async () => {
+    console.log(`[INIT] Starting SCADA Backend... Env PORT: ${process.env.PORT || 'not set'}`);
+
+    // Explicitly bind to 0.0.0.0 for Docker containers
+    const host = '0.0.0.0';
+    const portNumber = Number(PORT);
+
+    server.listen(portNumber, host, async () => {
         console.log(`=================================================`);
-        console.log(`SCADA Backend is now listening on Port ${PORT}`);
-        console.log(`Health endpoint: http://localhost:${PORT}/health`);
+        console.log(`SCADA Backend is now listening on http://${host}:${portNumber}`);
+        console.log(`Active Environment Variables: ${Object.keys(process.env).filter(k => !k.includes('PASS') && !k.includes('SECRET') && !k.includes('URL')).join(', ')}`);
         console.log(`=================================================`);
 
         try {
@@ -63,6 +63,16 @@ const startServer = () => {
         } catch (err) {
             console.error('[INIT] Critical Error during background initialization:', err);
             // We don't exit here because the HTTP server is alive and handles requests
+        }
+    });
+
+    server.on('error', (err: any) => {
+        console.error('[SERVER ERROR] Error:', err);
+        if (err.code === 'EADDRINUSE') {
+            console.error(`Port ${PORT} is already in use. Retrying in 5s...`);
+            setTimeout(startServer, 5000);
+        } else {
+            process.exit(1);
         }
     });
 };

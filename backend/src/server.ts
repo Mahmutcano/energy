@@ -1,3 +1,8 @@
+console.log('=================================================');
+console.log(`[BOOT] Node process started at: ${new Date().toISOString()}`);
+console.log(`[BOOT] CWD: ${process.cwd()}`);
+console.log('=================================================');
+
 import { server, io, app } from './app';
 import { IEC104Service } from './services/iec104.service';
 import modbusService from './services/modbus.service';

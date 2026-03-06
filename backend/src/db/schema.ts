@@ -163,18 +163,18 @@ export const datasheetPoint = pgTable('DatasheetPoint', {
     registerAddressIdx: index('DatasheetPoint_registerAddress_idx').on(table.registerAddress),
 }));
 
-export const telemetryValue = pgTable('TelemetryValue', {
+export const telemetryValue = pgTable('telemetry_value', {
     id: bigint('id', { mode: 'bigint' }).primaryKey().generatedAlwaysAsIdentity(),
     deviceId: uuid('device_id').notNull().references(() => device.id),
-    pointId: uuid('pointId').notNull().references(() => datasheetPoint.id),
-    measurementTime: timestamp('measurementTime', { withTimezone: true }).notNull(),
-    valueNumeric: doublePrecision('valueNumeric'),
+    pointId: uuid('point_id').notNull().references(() => datasheetPoint.id),
+    measurementTime: timestamp('measurement_time', { withTimezone: true }).notNull(),
+    valueNumeric: doublePrecision('value_numeric'),
     quality: smallint('quality'),
-    rawPayload: text('rawPayload'),
+    rawPayload: text('raw_payload'),
 }, (table) => ({
-    pointIdTimeIdx: index('TelemetryValue_pointId_measurementTime_idx').on(table.pointId, table.measurementTime),
-    deviceIdTimeIdx: index('TelemetryValue_device_id_measurementTime_idx').on(table.deviceId, table.measurementTime),
-    timeIdx: index('TelemetryValue_measurementTime_idx').on(table.measurementTime),
+    pointIdTimeIdx: index('tv_point_time_idx').on(table.pointId, table.measurementTime),
+    deviceIdTimeIdx: index('tv_device_time_idx').on(table.deviceId, table.measurementTime),
+    timeIdx: index('tv_time_idx').on(table.measurementTime),
 }));
 
 export const communicationAlarm = pgTable('CommunicationAlarm', {

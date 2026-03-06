@@ -8,15 +8,29 @@ const PORT = process.env.PORT || 3001;
 // Global Error Handling
 process.on('uncaughtException', (err) => {
     console.error('[CRITICAL] Uncaught Exception:', err);
-    // Give some time for logs to flush before exiting
-    setTimeout(() => process.exit(1), 1000);
+
+    // Only kill the process for truly unrecoverable errors
+    const fatalErrors = ['ENOMEM', 'ENOSPC', 'ERR_WORKER_OUT_OF_MEMORY'];
+    const isFatal = fatalErrors.some(code => err.message?.includes(code) || (err as any).code === code);
+
+    if (isFatal) {
+        console.error('[CRITICAL] Fatal error detected. Shutting down...');
+        setTimeout(() => process.exit(1), 1000);
+    } else {
+        console.warn('[CRITICAL] Non-fatal uncaught exception. Continuing operation for 24/7 data recording...');
+    }
 });
 
 process.on('unhandledRejection', (reason, promise) => {
     console.error('[CRITICAL] Unhandled Rejection at:', promise, 'reason:', reason);
+    // Do NOT exit - allow the worker to continue recording data
 });
 
-const startServer = () => {
+const startServer = async () => {
+    // 0. Initialize TimescaleDB
+    const { initTimescaleDb } = await import('./utils/telemetry');
+    await initTimescaleDb();
+
     server.listen(PORT, () => {
         console.log(`SCADA Backend running on port ${PORT}`);
 

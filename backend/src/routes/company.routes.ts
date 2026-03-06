@@ -4,7 +4,7 @@ import { authenticate, authorize } from '../middleware/auth';
 
 const router = Router();
 
-router.get('/companies', authenticate, authorize(['SUPER_ADMIN', 'COMPANY_ADMIN']), getCompanies);
+router.get('/companies', authenticate, getCompanies);
 router.post('/companies', authenticate, authorize(['SUPER_ADMIN', 'COMPANY_ADMIN']), createCompany);
 router.patch('/companies/:id', authenticate, authorize(['SUPER_ADMIN', 'COMPANY_ADMIN']), updateCompany);
 router.delete('/companies/:id', authenticate, authorize(['SUPER_ADMIN']), deleteCompany);

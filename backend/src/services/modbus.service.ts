@@ -259,7 +259,7 @@ export class ModbusService {
                     });
                 } catch (err) { }
             }
-        }, 3000);
+        }, 250);
 
         const clientData = this.clients.get(protocolId);
         if (clientData) clientData.pollingInterval = pollingInterval;

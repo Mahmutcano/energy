@@ -15,22 +15,19 @@ const holdingRegisters = server.holding;
 
 console.log('[MODBUS SIM] Starting Virtual Modbus Device...');
 
-// Simulate dynamic data in registers
+// Simulate high-frequency dynamic data
 setInterval(() => {
-    // Register 0: Voltage (210-230V)
-    const voltage = Math.floor(210 + Math.random() * 20);
-    holdingRegisters.writeUInt16BE(voltage, 0);
+    // Voltage (220.0 - 224.0V)
+    const voltage = 220 + Math.random() * 4;
+    // Write Float32 for more precision (takes 2 registers)
+    holdingRegisters.writeFloatBE(voltage, 0);
 
-    // Register 1: Current (5-15A)
-    const current = Math.floor(5 + Math.random() * 10);
-    holdingRegisters.writeUInt16BE(current, 2); // Each register is 2 bytes
+    const current = 10 + Math.random() * 2;
+    holdingRegisters.writeFloatBE(current, 4);
 
-    // Register 2: Power (kW)
-    const power = Math.floor((voltage * current) / 100);
-    holdingRegisters.writeUInt16BE(power, 4);
-
-    // console.log(`[MODBUS SIM] Data updated - V: ${voltage}V, I: ${current}A, P: ${power}kW`);
-}, 2000);
+    const power = (voltage * current) / 10;
+    holdingRegisters.writeFloatBE(power, 8);
+}, 200);
 
 netServer.listen(PORT, () => {
     console.log(`[MODBUS SIM] Virtual Modbus Slave running on port ${PORT}`);

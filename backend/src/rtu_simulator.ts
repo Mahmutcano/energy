@@ -24,15 +24,16 @@ const server = net.createServer((socket) => {
                 if (socket.writable) {
                     // Sending M_ME_NC_1 (Measured value, short floating point)
                     // ASDU Type 13
-                    const dataPacket = generateDataPacket(100, 250 + Math.random() * 50); // IOA 100: Active Power
+                    // Higher resolution data (with decimals) for "crypto-style" jitter
+                    const dataPacket = generateDataPacket(100, 245 + Math.random() * 10); // IOA 100: Active Power
                     socket.write(dataPacket);
 
-                    const dataPacket2 = generateDataPacket(101, 230 + Math.random() * 2); // IOA 101: Voltage
+                    const dataPacket2 = generateDataPacket(101, 228 + Math.random() * 4); // IOA 101: Voltage
                     socket.write(dataPacket2);
                 } else {
                     clearInterval(interval);
                 }
-            }, 2000);
+            }, 200); // 5 times per second
         }
     });
 

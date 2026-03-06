@@ -14,5 +14,14 @@ const pool = new Pool({
     connectionTimeoutMillis: 5000,
 });
 
+const timescalePool = new Pool({
+    connectionString: process.env.TIMESCALE_URL,
+    ssl: process.env.TIMESCALE_URL?.includes('localhost') ? false : { rejectUnauthorized: false },
+    max: 50, // Higher limit for telemetry
+    idleTimeoutMillis: 30000,
+    connectionTimeoutMillis: 5000,
+});
+
 export const db = drizzle(pool, { schema });
-export { pool };
+export const timescaleDb = drizzle(timescalePool, { schema });
+export { pool, timescalePool };

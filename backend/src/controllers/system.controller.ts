@@ -1,6 +1,6 @@
 
 import { Request, Response } from 'express';
-import { db } from '../db';
+import { db, timescaleDb } from '../db';
 import * as schema from '../db/schema';
 import { sql, eq, lt, desc, and } from 'drizzle-orm';
 import { AppError, ErrorCode, handleErrorResponse } from '../utils/errors';
@@ -37,7 +37,7 @@ export const getSchemaStats = async (req: Request, res: Response) => {
             getCount(schema.device),
             getCount(schema.datasheetProfile),
             getCount(schema.datasheetPoint),
-            getCount(schema.telemetryValue)
+            timescaleDb.select({ count: sql<number>`count(*)` }).from(schema.telemetryValue).then(res => Number(res[0].count))
         ]);
 
         const stats = [
@@ -70,7 +70,7 @@ export const getHealthCheck = async (req: Request, res: Response) => {
         // Get recent telemetry stats
         const [totalRecords, latestRecord, activeDevices, totalDevices] = await Promise.all([
             getApproximateTelemetryCount(),
-            db.query.telemetryValue.findFirst({
+            timescaleDb.query.telemetryValue.findFirst({
                 orderBy: [desc(schema.telemetryValue.measurementTime)],
                 columns: { measurementTime: true }
             }),
@@ -176,8 +176,8 @@ export const getRecordingSettings = async (req: Request, res: Response) => {
     try {
         const settings = simulationService.getSettings();
         const [totalRecords, dbSizeResult] = await Promise.all([
-            getCount(schema.telemetryValue),
-            db.execute(sql`SELECT pg_size_pretty(pg_total_relation_size('"TelemetryValue"')) as size`)
+            timescaleDb.select({ count: sql<number>`count(*)` }).from(schema.telemetryValue).then(res => Number(res[0].count)),
+            timescaleDb.execute(sql`SELECT pg_size_pretty(pg_total_relation_size('telemetry_value')) as size`)
         ]);
 
         res.json({
@@ -210,12 +210,12 @@ export const updateRecordingSettings = async (req: Request, res: Response) => {
 
 export const runRetentionNow = async (req: Request, res: Response) => {
     try {
-        const beforeCount = await getCount(schema.telemetryValue);
+        const beforeCount = await timescaleDb.select({ count: sql<number>`count(*)` }).from(schema.telemetryValue).then(res => Number(res[0].count));
         const settings = simulationService.getSettings();
         const cutoff = new Date(Date.now() - settings.retentionHours * 60 * 60 * 1000);
 
-        const deleteResult = await db.delete(schema.telemetryValue).where(lt(schema.telemetryValue.measurementTime, cutoff));
-        const afterCount = await getCount(schema.telemetryValue);
+        const deleteResult = await timescaleDb.delete(schema.telemetryValue).where(lt(schema.telemetryValue.measurementTime, cutoff));
+        const afterCount = await timescaleDb.select({ count: sql<number>`count(*)` }).from(schema.telemetryValue).then(res => Number(res[0].count));
 
         res.json({
             message: 'Retention executed',

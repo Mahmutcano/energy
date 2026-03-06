@@ -45,7 +45,7 @@ const CHART_COLORS = [
     '#06b6d4', '#ec4899', '#14b8a6', '#f97316', '#6366f1',
 ];
 
-const MAX_HISTORY = 120; // Keep 120 data points (~2 min at 1/s)
+const MAX_HISTORY = 100; // Optimal for 10Hz/5Hz view without compression
 
 // ─── Custom Tooltip ─────────────────────────────────────────────────────────
 
@@ -64,10 +64,11 @@ const IndustrialTooltip = ({ active, payload, label }: any) => {
 
 // ─── Single Chart Panel (Live Oscilloscope Style) ───────────────────────────
 
-const ChartPanelComponent = ({ panel, onRemove, onToggleExpand }: {
+const ChartPanelComponent = ({ panel, onRemove, onToggleExpand, now }: {
     panel: ChartPanel;
     onRemove: (id: string) => void;
     onToggleExpand: (id: string) => void;
+    now: number;
 }) => {
     const delta = panel.data.length >= 2
         ? panel.data[panel.data.length - 1].value - panel.data[panel.data.length - 2].value
@@ -173,12 +174,22 @@ const ChartPanelComponent = ({ panel, onRemove, onToggleExpand }: {
                                     vertical={false}
                                 />
                                 <XAxis
-                                    dataKey="time"
-                                    tick={{ fontSize: 8, fill: '#334155', fontFamily: 'monospace' }}
+                                    dataKey="ts"
+                                    type="number"
+                                    domain={[now - 30000, now]}
+                                    allowDataOverflow
+                                    scale="time"
+                                    hide={false}
+                                    tick={{ fontSize: 9, fill: '#94a3b8', fontFamily: 'monospace' }}
                                     tickLine={false}
-                                    axisLine={{ stroke: '#1e293b', strokeWidth: 1 }}
-                                    interval="preserveStartEnd"
-                                    minTickGap={80}
+                                    axisLine={{ stroke: '#334155', strokeWidth: 1 }}
+                                    tickFormatter={(ts: number) => {
+                                        try {
+                                            return new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                                        } catch {
+                                            return '';
+                                        }
+                                    }}
                                 />
                                 <YAxis
                                     tick={{ fontSize: 8, fill: '#334155', fontFamily: 'monospace' }}
@@ -210,6 +221,7 @@ const ChartPanelComponent = ({ panel, onRemove, onToggleExpand }: {
                                     activeDot={{ r: 3, fill: panel.color, stroke: '#0f172a', strokeWidth: 2 }}
                                     isAnimationActive={false}
                                     filter={`url(#glow-${panel.id})`}
+                                    connectNulls
                                 />
                             </AreaChart>
                         </ResponsiveContainer>
@@ -439,15 +451,18 @@ export default function ChartsPage() {
                 if (historyData.length === 0) return;
 
                 const values = historyData.map((d: any) => d.value);
+                const minV = values.length > 0 ? Math.min(...values) : null;
+                const maxV = values.length > 0 ? Math.max(...values) : null;
+
                 setPanels(prev => prev.map(p => {
                     if (p.id !== panelId) return p;
                     return {
                         ...p,
                         data: historyData,
-                        lastValue: values[values.length - 1],
-                        minValue: Math.min(...values),
-                        maxValue: Math.max(...values),
-                        avgValue: values.reduce((a: number, b: number) => a + b, 0) / values.length,
+                        lastValue: values.length > 0 ? values[values.length - 1] : null,
+                        minValue: minV,
+                        maxValue: maxV,
+                        avgValue: values.length > 0 ? values.reduce((a: number, b: number) => a + b, 0) / values.length : null,
                     };
                 }));
             })
@@ -465,55 +480,82 @@ export default function ChartsPage() {
     // ─── Continuous streaming: chart ALWAYS moves right ────────────────────────
     const queueRef = useRef<Map<string, { value: number; ts: number }[]>>(new Map());
 
-    // Tick counter: increments every second, triggers useEffect reliably
+    // Tick counter: increments every 100ms, triggers useEffect reliably
     const [tick, setTick] = useState(0);
+    const [now, setNow] = useState(Date.now());
+
     useEffect(() => {
-        const id = setInterval(() => setTick(t => t + 1), 1000);
+        const id = setInterval(() => {
+            setNow(Date.now());
+            setTick(t => t + 1);
+        }, 100);
         return () => clearInterval(id);
     }, []);
 
     // Every tick: drain queue OR repeat last value — chart never stops
     useEffect(() => {
-        if (tick === 0) return; // skip initial render
         setPanels(prev => {
-            const now = Date.now();
             const queue = queueRef.current;
+            const currentTime = Date.now();
 
             return prev.map(panel => {
-                // No data yet? Stay in "Awaiting Signal"
                 const queueItems = queue.get(panel.id);
                 const hasQueueData = queueItems && queueItems.length > 0;
-                if (panel.lastValue === null && !hasQueueData) return panel;
 
-                let value: number;
-                let ts: number;
+                // Even if no new data, we keep the last point updated to 'now'
+                // so the line reaches the right-hand edge of the "advancing" chart.
+                let targetValue = panel.lastValue;
+                let targetTs = currentTime;
 
                 if (hasQueueData) {
-                    // Real data from socket
-                    const update = queueItems!.shift()!;
-                    value = update.value;
-                    ts = update.ts;
-                } else {
-                    // No new data — repeat last value (keeps line scrolling)
-                    value = panel.lastValue!;
-                    ts = now;
+                    // CATCH-UP LOGIC: If queue is lagging, jump to newest
+                    if (queueItems.length > 20) {
+                        const latest = queueItems.pop()!;
+                        queueItems.length = 0; // Clear queue
+                        targetValue = latest.value;
+                        targetTs = latest.ts;
+                    } else {
+                        const update = queueItems.shift()!;
+                        targetValue = update.value;
+                        targetTs = update.ts;
+                    }
                 }
 
-                const timeStr = new Date(ts).toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
-                const newData = [...panel.data, { time: timeStr, value, ts }].slice(-MAX_HISTORY);
+                // Initial state: don't start until first data point
+                if (targetValue === null) return panel;
+
+                // Create a new data point
+                const newPoint = {
+                    time: new Date(targetTs).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+                    value: targetValue,
+                    ts: targetTs
+                };
+
+                // Keep points within the visible window (30s) + a bit of buffer (5s) for history/late arrival
+                const windowStart = currentTime - 35000;
+
+                // Ensure we don't have duplicate timestamps in our dataset
+                const filteredOldData = panel.data.filter(d => d.ts !== targetTs);
+
+                const newData = [...filteredOldData, newPoint]
+                    .filter(d => d.ts > windowStart)
+                    .sort((a, b) => a.ts - b.ts);
+
                 const values = newData.map(d => d.value);
+                const minV = values.length > 0 ? Math.min(...values) : targetValue;
+                const maxV = values.length > 0 ? Math.max(...values) : targetValue;
 
                 return {
                     ...panel,
                     data: newData,
-                    lastValue: value,
-                    minValue: Math.min(...values),
-                    maxValue: Math.max(...values),
-                    avgValue: values.reduce((a, b) => a + b, 0) / values.length,
+                    lastValue: targetValue,
+                    minValue: minV,
+                    maxValue: maxV,
+                    avgValue: values.length > 0 ? values.reduce((a, b) => a + b, 0) / values.length : targetValue,
                 };
             });
         });
-    }, [tick]); // Fires every time tick changes = every second, guaranteed
+    }, [tick]);
 
     // Socket listener: push into queue (no React re-renders here)
     const [debugEventCount, setDebugEventCount] = useState(0);
@@ -524,51 +566,56 @@ export default function ChartsPage() {
             const incoming = Array.isArray(data) ? data : [data];
             const currentPanels = panelsRef.current;
 
-            // Debug counter
-            debugCountRef.current += incoming.length;
-            setDebugEventCount(debugCountRef.current);
-
             incoming.forEach(pkt => {
                 const dataIoa = pkt.ioa !== undefined && pkt.ioa !== null ? Number(pkt.ioa) : null;
                 const value = typeof pkt.value === 'number' ? pkt.value : parseFloat(pkt.value);
                 if (isNaN(value)) return;
 
-                for (const panel of currentPanels) {
-                    let isMatch = !!(pkt.pointId && panel.pointId === pkt.pointId);
+                // Log every packet arrival for debugging
+                console.log(`[CHARTS] Received telemetry: pointId=${pkt.pointId}, ioa=${dataIoa}, value=${value}`);
 
-                    if (!isMatch && dataIoa !== null && !isNaN(dataIoa)) {
+                currentPanels.forEach(panel => {
+                    // Precise match logic (String coercion for safety)
+                    let isMatch = pkt.pointId && String(panel.pointId) === String(pkt.pointId);
+
+                    if (!isMatch && dataIoa !== null) {
                         isMatch = (panel.scadaAddress !== null && Number(panel.scadaAddress) === dataIoa) ||
                             (panel.ioa1ObjectAddress !== null && Number(panel.ioa1ObjectAddress) === dataIoa) ||
                             (panel.registerAddress !== null && Number(panel.registerAddress) === dataIoa);
                     }
 
-                    if (!isMatch && pkt.deviceId && pkt.deviceId === panel.deviceId && pkt.pointId === panel.pointId) {
-                        isMatch = true;
-                    }
-
                     if (isMatch) {
-                        // Push to queue — will be drip-fed to chart smoothly
+                        console.log(`[CHARTS] ✅ Match! Panel: ${panel.pointName}, Val: ${value}`);
                         if (!queueRef.current.has(panel.id)) {
                             queueRef.current.set(panel.id, []);
                         }
                         queueRef.current.get(panel.id)!.push({ value, ts: Date.now() });
+
+                        // Increment debug counter
+                        debugCountRef.current++;
+                        setDebugEventCount(debugCountRef.current);
                     }
-                }
+                });
             });
         };
 
-        // Subscribe to ALL channels
-        const topics = new Set<string>();
+        const topics = ['telemetry:all'];
         panels.forEach(p => {
-            topics.add(`telemetry:${p.deviceId}`);
-            topics.add(`telemetry:${p.protocolConfigId}`);
-            topics.add(`telemetry:raw:${p.protocolConfigId}`);
+            if (p.deviceId) topics.push(`telemetry:${p.deviceId}`);
+            if (p.protocolConfigId) {
+                topics.push(`telemetry:${p.protocolConfigId}`);
+                topics.push(`telemetry:raw:${p.protocolConfigId}`);
+            }
         });
-        topics.add('telemetry:all');
 
-        topics.forEach(t => socket.on(t, handleTelemetry));
-        return () => { topics.forEach(t => socket.off(t, handleTelemetry)); };
-    }, [panels.map(p => p.id).join(',')]);
+        const activeTopics = [...new Set(topics)];
+        console.log(`[CHARTS] Subscribing to:`, activeTopics);
+
+        activeTopics.forEach(t => socket.on(t, handleTelemetry));
+        return () => {
+            activeTopics.forEach(t => socket.off(t, handleTelemetry));
+        };
+    }, [panels.length, panels.map(p => p.id).join(',')]);
 
     const existingPanelIds = new Set(panels.map(p => p.id));
 
@@ -642,6 +689,7 @@ export default function ChartsPage() {
                             panel={panel}
                             onRemove={handleRemovePanel}
                             onToggleExpand={handleToggleExpand}
+                            now={now}
                         />
                     ))}
                 </AnimatePresence>

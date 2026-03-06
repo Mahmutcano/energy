@@ -10,12 +10,16 @@ class WorkerService {
     private static instance: WorkerService;
     private isRunning: boolean = false;
     private buffer: any[] = [];
-    private maxBufferSize: number = 200;
-    private flushInterval: number = 5000; // 5 seconds
+    private maxBufferSize: number = 10;
+    private flushInterval: number = 500; // 0.5 seconds
     private lastFlush: number = Date.now();
 
     // Performance metrics
     private processedTotal: number = 0;
+
+    // Retry / Resiliency
+    private consecutiveFlushFailures: number = 0;
+    private readonly MAX_BUFFER_LIMIT = 50000; // Prevent OOM: drop oldest if buffer grows too large
 
     // Watchdog
     private lastSeenAtMap: Map<string, number> = new Map();
@@ -67,7 +71,12 @@ class WorkerService {
             }
         }, 60000);
 
-        // Main processing loop
+        // Main processing loop with auto-restart
+        this.runMainLoop();
+    }
+
+    private async runMainLoop() {
+        console.log('[WORKER] Main processing loop started.');
         while (this.isRunning) {
             try {
                 const telemetryBatch = await redisService.popTelemetryBatch(50);
@@ -85,6 +94,12 @@ class WorkerService {
                 console.error('[WORKER] Error in processing loop:', err.message);
                 await new Promise(resolve => setTimeout(resolve, 1000));
             }
+        }
+
+        // If loop exits unexpectedly, auto-restart after delay
+        if (this.isRunning) {
+            console.error('[WORKER] ⚠️ Main loop exited unexpectedly! Restarting in 3 seconds...');
+            setTimeout(() => this.runMainLoop(), 3000);
         }
     }
 
@@ -105,16 +120,50 @@ class WorkerService {
             console.log(`[WORKER] Flushing ${itemsToSave.length} telemetry points to DB...`);
 
             const CHUNK_SIZE = 500;
+            const failedItems: any[] = [];
+
             for (let i = 0; i < itemsToSave.length; i += CHUNK_SIZE) {
                 const chunk = itemsToSave.slice(i, i + CHUNK_SIZE);
-                await saveTelemetryBatch(chunk);
+                try {
+                    await saveTelemetryBatch(chunk);
+                } catch (err: any) {
+                    console.error(`[WORKER] ❌ Chunk save failed (${chunk.length} items):`, err.message);
+                    failedItems.push(...chunk);
+                }
+            }
+
+            // Re-queue failed items back into buffer for retry
+            if (failedItems.length > 0) {
+                this.consecutiveFlushFailures++;
+                console.warn(`[WORKER] ⚠️ Re-queuing ${failedItems.length} failed items. Consecutive failures: ${this.consecutiveFlushFailures}`);
+                this.buffer = [...failedItems, ...this.buffer];
+
+                // Prevent OOM: if buffer is too large, drop oldest data
+                if (this.buffer.length > this.MAX_BUFFER_LIMIT) {
+                    const dropped = this.buffer.length - this.MAX_BUFFER_LIMIT;
+                    this.buffer = this.buffer.slice(dropped);
+                    console.error(`[WORKER] 🚨 Buffer overflow! Dropped ${dropped} oldest items to prevent OOM.`);
+                }
+
+                // Exponential backoff: wait longer on consecutive failures (max 30s)
+                const backoffMs = Math.min(1000 * Math.pow(2, this.consecutiveFlushFailures), 30000);
+                console.warn(`[WORKER] Backing off for ${backoffMs}ms before next flush...`);
+                await new Promise(resolve => setTimeout(resolve, backoffMs));
+            } else {
+                // Reset failure counter on success
+                if (this.consecutiveFlushFailures > 0) {
+                    console.log(`[WORKER] ✅ Flush recovered after ${this.consecutiveFlushFailures} failures.`);
+                    this.consecutiveFlushFailures = 0;
+                }
             }
         }
     }
 
-    // Track last save time per point to throttle DB writes
+    // Track last saved state to reduce DB pressure
     private lastSaveMap: Map<string, number> = new Map();
-    private readonly DB_SAVE_INTERVAL = 200; // 5 points per second per point
+    private lastValueMap: Map<string, number> = new Map();
+    private readonly DB_SAVE_INTERVAL = 0; // Immediate save
+    private readonly CHANGE_THRESHOLD = 0; // No deadbanding, save everything
 
     /**
      * Process a single item: buffer for DB + broadcast to UI.
@@ -131,12 +180,18 @@ class WorkerService {
             alarmService.markDeviceSeen(deviceId);
         }
 
-        // 1. Add to persistence buffer (THROTTLED)
+        // 1. Add to persistence buffer (THROTTLED & DEAD BANDED)
         if (deviceId && pointId) {
             const cacheKey = `${deviceId}:${pointId}`;
             const lastSave = this.lastSaveMap.get(cacheKey) || 0;
+            const lastValue = this.lastValueMap.get(cacheKey);
 
-            if (now - lastSave >= this.DB_SAVE_INTERVAL) {
+            // DEAD BANDING: Only save if value changed significantly or enough time passed (heartbeat)
+            const timePassed = now - lastSave >= this.DB_SAVE_INTERVAL;
+            const valueChanged = lastValue === undefined || Math.abs(value - lastValue) > Math.abs(lastValue * this.CHANGE_THRESHOLD);
+            const heartbeat = now - lastSave > 60000; // Force save every 60s even if no change
+
+            if (timePassed && (valueChanged || heartbeat)) {
                 this.buffer.push({
                     deviceId,
                     pointId,
@@ -144,15 +199,19 @@ class WorkerService {
                     timestamp: timestamp ? new Date(timestamp) : new Date()
                 });
                 this.lastSaveMap.set(cacheKey, now);
+                this.lastValueMap.set(cacheKey, value);
 
-                if (this.lastSaveMap.size > 10000) this.lastSaveMap.clear();
+                if (this.lastSaveMap.size > 10000) {
+                    this.lastSaveMap.clear();
+                    this.lastValueMap.clear();
+                }
             }
         }
 
-        // 2. Real-time Broadcast (always immediate, volatile = drop if slow)
-        if (deviceId) io.volatile.emit(`telemetry:${deviceId}`, data);
-        if (protocolId) io.volatile.emit(`telemetry:${protocolId}`, data);
-        io.volatile.emit('telemetry:all', data);
+        // 2. Real-time Broadcast (Immediate for UI)
+        io.emit(`telemetry:${deviceId}`, data);
+        if (protocolId) io.emit(`telemetry:${protocolId}`, data);
+        io.emit('telemetry:all', data);
     }
 
     // Expose metrics for health check

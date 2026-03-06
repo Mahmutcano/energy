@@ -13,8 +13,8 @@ class RedisService {
     // Pipeline batch buffer for high-throughput writes
     private pushBuffer: string[] = [];
     private pushFlushTimer: NodeJS.Timeout | null = null;
-    private readonly PUSH_BATCH_SIZE = 50;
-    private readonly PUSH_FLUSH_INTERVAL = 200; // ms
+    private readonly PUSH_BATCH_SIZE = 1;
+    private readonly PUSH_FLUSH_INTERVAL = 50; // ms
 
     private constructor() {
         this.client = new Redis(process.env.REDIS_URL || 'redis://localhost:6379', {

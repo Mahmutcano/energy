@@ -1,13 +1,11 @@
 {
     "$schema": "https://railway.app/railway.schema.json",
     "build": {
-        "dockerfilePath": "backend/Dockerfile",
-        "context": "."
+        "dockerfilePath": "Dockerfile",
+        "context": "backend-go"
     },
     "deploy": {
-        "startCommand": "node backend/dist/server.js",
-        "healthcheckPath": "/",
-        "healthcheckTimeout": 120,
+        "startCommand": "./scada-server",
         "restartPolicyType": "ON_FAILURE"
     }
 }

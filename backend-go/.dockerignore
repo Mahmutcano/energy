@@ -1,0 +1,8 @@
+.git
+.vscode
+.DS_Store
+*.exe
+*.log
+socket_output.txt
+output.txt
+.env

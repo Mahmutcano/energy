@@ -120,7 +120,8 @@ const IECDiagnosticPanel = ({ protocolId, asduAddr, deviceName, deviceId, device
     const [isTriggering, setIsTriggering] = useState(false);
 
     useEffect(() => {
-        const handleRawData = (data: any[]) => {
+        const handleRawData = (rawData: any) => {
+            const data = Array.isArray(rawData) ? rawData : [rawData];
             const now = Date.now();
             setLastUpdateMap(prev => {
                 const newMap = new Map(prev);

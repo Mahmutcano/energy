@@ -52,12 +52,14 @@ const MAX_HISTORY = 100; // Optimal for 10Hz/5Hz view without compression
 const IndustrialTooltip = ({ active, payload, label }: any) => {
     if (!active || !payload?.[0]) return null;
     return (
-        <div className="bg-slate-950/95 border border-slate-700/50 rounded-lg px-4 py-3 backdrop-blur-xl shadow-2xl">
-            <p className="text-[9px] text-slate-500 font-mono uppercase tracking-widest mb-1">{label}</p>
-            <p className="text-lg font-black text-white tabular-nums">
-                {typeof payload[0].value === 'number' ? payload[0].value.toFixed(3) : payload[0].value}
-                <span className="text-[10px] text-slate-500 ml-1 font-normal">{payload[0].payload?.unit || ''}</span>
-            </p>
+        <div className="bg-[#1e222d] border border-[#2a2e39] rounded px-3 py-2 shadow-2xl">
+            <p className="text-[10px] text-[#787b86] font-mono tracking-wider mb-1">{label}</p>
+            <div className="flex items-baseline gap-2">
+                <span className="text-sm font-bold text-[#d1d4dc] tabular-nums leading-none">
+                    {typeof payload[0].value === 'number' ? payload[0].value.toFixed(3) : payload[0].value}
+                </span>
+                <span className="text-[10px] font-bold text-[#787b86] uppercase leading-none">{payload[0].payload?.unit || ''}</span>
+            </div>
         </div>
     );
 };
@@ -169,9 +171,9 @@ const ChartPanelComponent = ({ panel, onRemove, onToggleExpand, now }: {
                                     </filter>
                                 </defs>
                                 <CartesianGrid
-                                    strokeDasharray="2 6"
-                                    stroke="rgba(30,41,59,0.3)"
-                                    vertical={false}
+                                    strokeDasharray="3 3"
+                                    stroke="rgba(255,255,255,0.05)"
+                                    vertical={true}
                                 />
                                 <XAxis
                                     dataKey="ts"
@@ -180,9 +182,9 @@ const ChartPanelComponent = ({ panel, onRemove, onToggleExpand, now }: {
                                     allowDataOverflow
                                     scale="time"
                                     hide={false}
-                                    tick={{ fontSize: 9, fill: '#94a3b8', fontFamily: 'monospace' }}
+                                    tick={{ fontSize: 9, fill: '#64748b', fontFamily: 'monospace' }}
                                     tickLine={false}
-                                    axisLine={{ stroke: '#334155', strokeWidth: 1 }}
+                                    axisLine={{ stroke: 'rgba(255,255,255,0.1)', strokeWidth: 1 }}
                                     tickFormatter={(ts: number) => {
                                         try {
                                             return new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -192,17 +194,21 @@ const ChartPanelComponent = ({ panel, onRemove, onToggleExpand, now }: {
                                     }}
                                 />
                                 <YAxis
-                                    tick={{ fontSize: 8, fill: '#334155', fontFamily: 'monospace' }}
+                                    orientation="right"
+                                    tick={{ fontSize: 9, fill: '#64748b', fontFamily: 'monospace' }}
                                     tickLine={false}
-                                    axisLine={false}
+                                    axisLine={{ stroke: 'rgba(255,255,255,0.1)', strokeWidth: 1 }}
                                     domain={[
                                         (panel.minValue ?? 0) - safeRange * 0.15,
                                         (panel.maxValue ?? 0) + safeRange * 0.15
                                     ]}
                                     tickFormatter={(v: number) => v.toFixed(1)}
-                                    width={45}
+                                    width={50}
                                 />
-                                <Tooltip content={<IndustrialTooltip />} />
+                                <Tooltip
+                                    content={<IndustrialTooltip />}
+                                    cursor={{ stroke: 'rgba(255,255,255,0.2)', strokeWidth: 1, strokeDasharray: '4 4' }}
+                                />
                                 {panel.avgValue !== null && (
                                     <ReferenceLine
                                         y={panel.avgValue}
@@ -212,13 +218,13 @@ const ChartPanelComponent = ({ panel, onRemove, onToggleExpand, now }: {
                                     />
                                 )}
                                 <Area
-                                    type="monotone"
+                                    type="linear"
                                     dataKey="value"
                                     stroke={panel.color}
-                                    strokeWidth={2}
+                                    strokeWidth={1.5}
                                     fill={`url(#grad-${panel.id})`}
                                     dot={false}
-                                    activeDot={{ r: 3, fill: panel.color, stroke: '#0f172a', strokeWidth: 2 }}
+                                    activeDot={{ r: 4, fill: '#1e293b', stroke: panel.color, strokeWidth: 2 }}
                                     isAnimationActive={false}
                                     filter={`url(#glow-${panel.id})`}
                                     connectNulls

@@ -16,46 +16,30 @@ export default function HistoricalChart({ data, title, unit = '', color = '#3b82
         tooltip: {
             trigger: 'axis',
             backgroundColor: 'rgba(15, 23, 42, 0.95)',
-            borderColor: 'rgba(16, 185, 129, 0.4)',
+            borderColor: 'rgba(16, 185, 129, 0.2)',
             borderWidth: 1,
-            borderRadius: 16,
-            padding: [16, 20],
-            shadowBlur: 30,
-            shadowColor: 'rgba(0, 0, 0, 0.5)',
-            textStyle: {
-                color: '#f8fafc',
-                fontSize: 12,
-                fontFamily: 'Inter, sans-serif'
-            },
+            borderRadius: 8,
+            padding: [12, 16],
+            shadowBlur: 20,
+            shadowColor: 'rgba(0, 0, 0, 0.8)',
+            textStyle: { color: '#f8fafc', fontSize: 12, fontFamily: 'Inter, sans-serif' },
             axisPointer: {
-                type: 'line',
-                lineStyle: {
-                    color: 'rgba(16, 185, 129, 0.5)',
-                    width: 2,
-                    type: 'solid'
-                }
+                type: 'cross',
+                crossStyle: { color: 'rgba(16, 185, 129, 0.5)', type: 'dashed', width: 1 },
+                label: { backgroundColor: '#0f172a', color: '#10b981', fontWeight: 'bold', borderColor: 'rgba(16, 185, 129, 0.5)', borderWidth: 1 }
             },
             formatter: (params: any) => {
                 const p = params[0];
                 const date = new Date(p.value[0]);
                 const timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-                const dateStr = date.toLocaleDateString([], { day: '2-digit', month: 'short' });
+                const dateStr = date.toLocaleDateString([], { day: '2-digit', month: 'short', year: 'numeric' });
 
                 return `
-                    <div style="min-width: 180px; display: flex; flex-direction: column; gap: 12px;">
-                        <div style="display: flex; justify-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.05); pb: 8px; margin-bottom: 4px;">
-                            <span style="color: #64748b; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.15em;">${dateStr}</span>
-                            <span style="margin-left: auto; color: #10b981; font-weight: 900; font-family: monospace; font-size: 11px; background: rgba(16,185,129,0.1); padding: 2px 6px; border-radius: 4px;">${timeStr}</span>
-                        </div>
-                        <div style="display: flex; align-items: center; gap: 12px;">
-                            <div style="width: 10px; height: 10px; border-radius: 3px; background: ${p.color}; box-shadow: 0 0 10px ${p.color}80"></div>
-                            <div style="display: flex; flex-direction: column;">
-                                <span style="color: #94a3b8; font-size: 10px; font-weight: 600; text-transform: uppercase;">Real-time Value</span>
-                                <div style="display: flex; align-items: baseline; gap: 4px;">
-                                    <span style="font-size: 24px; font-weight: 900; color: #fff; letter-spacing: -0.02em;">${Number(p.value[1]).toFixed(2)}</span>
-                                    <span style="color: #64748b; font-size: 12px; font-weight: 700;">${unit}</span>
-                                </div>
-                            </div>
+                    <div style="min-width: 140px; display: flex; flex-direction: column; gap: 8px;">
+                        <span style="color: #64748b; font-size: 10px; font-weight: 700; text-transform: uppercase;">${dateStr} ${timeStr}</span>
+                        <div style="display: flex; align-items: baseline; gap: 6px;">
+                            <span style="font-size: 20px; font-weight: 900; color: ${p.color};">${Number(p.value[1]).toFixed(2)}</span>
+                            <span style="color: #64748b; font-size: 11px; font-weight: 700;">${unit}</span>
                         </div>
                     </div>
                 `;
@@ -84,10 +68,10 @@ export default function HistoricalChart({ data, title, unit = '', color = '#3b82
             }
         ],
         grid: {
-            left: '20px',
-            right: '20px',
-            bottom: '45px',
-            top: '40px',
+            left: '10px',
+            right: '50px',
+            bottom: '40px',
+            top: '20px',
             containLabel: true
         },
         xAxis: {
@@ -95,41 +79,49 @@ export default function HistoricalChart({ data, title, unit = '', color = '#3b82
             boundaryGap: false,
             axisLine: { show: false },
             axisTick: { show: false },
+            splitLine: {
+                show: true,
+                lineStyle: { color: 'rgba(255,255,255,0.03)', type: 'dashed' }
+            },
             axisLabel: {
                 color: '#64748b',
                 fontSize: 10,
-                margin: 20,
+                margin: 12,
                 formatter: (value: number) => {
                     const date = new Date(value);
-                    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
                 }
             }
         },
         yAxis: {
             type: 'value',
+            position: 'right', // Crypto style
+            scale: true, // Auto scaling instead of starting from 0
             splitLine: {
                 lineStyle: {
-                    color: 'rgba(255,255,255,0.02)',
+                    color: 'rgba(255,255,255,0.04)',
+                    type: 'dashed',
                     width: 1
                 }
             },
             axisLine: { show: false },
-            axisLabel: { color: '#64748b', fontSize: 10 }
+            axisTick: { show: false },
+            axisLabel: { color: '#64748b', fontSize: 10, margin: 12 }
         },
         series: [
             {
                 name: title,
                 type: 'line',
-                smooth: true,
+                smooth: false, // Crypto is typically rigid/sharp
                 showSymbol: false,
-                sampling: 'lttb', // Largest-Triangle-Three-Buckets for high density performance
+                sampling: 'lttb',
                 data: data.map(d => [d.time, d.value]),
                 lineStyle: {
-                    width: 3,
+                    width: 1.5,
                     color: color,
-                    shadowColor: 'rgba(16, 185, 129, 0.2)',
-                    shadowBlur: 15,
-                    shadowOffsetY: 8
+                    shadowColor: 'rgba(0, 0, 0, 0.5)',
+                    shadowBlur: 5,
+                    shadowOffsetY: 2
                 },
                 areaStyle: {
                     color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [

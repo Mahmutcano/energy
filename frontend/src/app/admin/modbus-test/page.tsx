@@ -240,8 +240,8 @@ export default function ModbusTestPage() {
                                         onClick={handleRunTest}
                                         disabled={isTesting}
                                         className={`flex-1 h-14 rounded-xl flex items-center justify-center gap-3 transition-all font-black text-[11px]  tracking-widest ${isTesting
-                                                ? 'bg-slate-800 text-slate-600 cursor-not-allowed'
-                                                : 'bg-brand-green text-white shadow-2xl shadow-brand-green/20 hover:scale-[1.02] active:scale-[0.98]'
+                                            ? 'bg-slate-800 text-slate-600 cursor-not-allowed'
+                                            : 'bg-brand-green text-white shadow-2xl shadow-brand-green/20 hover:scale-[1.02] active:scale-[0.98]'
                                             }`}
                                     >
                                         {isTesting ? <RefreshCw size={16} className="animate-spin" /> : <Play size={16} fill="white" />}
@@ -299,8 +299,8 @@ export default function ModbusTestPage() {
                                                 initial={{ opacity: 0, x: -10 }}
                                                 animate={{ opacity: 1, x: 0 }}
                                                 className={`text-[10px] flex gap-4 border-l-2 pl-5 py-0.5 ${log.type === 'error' ? 'text-danger border-danger bg-danger/5' :
-                                                        log.type === 'success' ? 'text-brand-green border-brand-green bg-brand-green/5' :
-                                                            log.type === 'data' ? 'text-blue-400 border-blue-400 bg-blue-400/5' : 'text-slate-500 border-slate-800 bg-slate-800/5'
+                                                    log.type === 'success' ? 'text-brand-green border-brand-green bg-brand-green/5' :
+                                                        log.type === 'data' ? 'text-blue-400 border-blue-400 bg-blue-400/5' : 'text-slate-500 border-slate-800 bg-slate-800/5'
                                                     }`}
                                             >
                                                 <span className="opacity-30 shrink-0 select-none tracking-tighter tabular-nums">[{log.time}]</span>
@@ -327,7 +327,7 @@ export default function ModbusTestPage() {
                                                 <div className="p-5 bg-slate-950 border border-brand-green/30 rounded-2xl flex flex-col items-center justify-center min-w-[120px] relative z-10">
                                                     <span className="text-[9px] text-brand-green font-black tracking-[0.2em] mb-2 ">Reg_Hex</span>
                                                     <span className="text-4xl font-black text-white italic tracking-tighter tabular-nums">
-                                                        {results.values[0]}
+                                                        {results?.values?.[0] ?? 'N/A'}
                                                     </span>
                                                 </div>
                                             </div>

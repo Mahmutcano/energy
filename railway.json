@@ -1,8 +1,8 @@
 {
     "$schema": "https://railway.app/railway.schema.json",
     "build": {
-        "dockerfilePath": "Dockerfile",
-        "context": "backend-go"
+        "dockerfilePath": "Dockerfile.backend",
+        "context": "."
     },
     "deploy": {
         "startCommand": "./scada-server",

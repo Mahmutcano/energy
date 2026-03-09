@@ -1,7 +1,8 @@
 services:
   backend:
     build:
-      context: ./backend-go
+      context: .
+      dockerfile: Dockerfile.backend
     ports:
       - "3001:3001"
     environment:

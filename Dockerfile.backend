@@ -1,24 +1,36 @@
-FROM node:20-alpine AS builder
+FROM golang:alpine AS builder
 
 WORKDIR /app
 
-# Root'tan kopyalıyoruz
-COPY backend/package*.json ./backend/
+# Install git for fetch and tzdata for timezones
+RUN apk update && apk add --no-cache git tzdata
 
-RUN cd backend && npm install
+# Set environment variables for statically linked Go binary
+ENV CGO_ENABLED=0
+ENV GOOS=linux
 
-COPY . .
+# Download dependencies
+COPY backend-go/go.mod backend-go/go.sum ./backend-go/
+RUN cd backend-go && go mod download
 
-RUN cd backend && npm run build
+# Copy the source code
+COPY backend-go/ ./backend-go/
 
-FROM node:20-alpine
+# Build the Go app
+RUN cd backend-go && go build -a -installsuffix cgo -o scada-server ./cmd/server/main.go
+
+# Start a new minimal stage from scratch
+FROM alpine:latest  
+
+# Add root certificates and timezone data
+RUN apk --no-cache add ca-certificates tzdata
 
 WORKDIR /app
 
-COPY --from=builder /app/backend/package*.json ./backend/
-COPY --from=builder /app/backend/dist ./backend/dist
-COPY --from=builder /app/backend/node_modules ./backend/node_modules
+# Copy the pre-built binary
+COPY --from=builder /app/backend-go/scada-server .
 
 EXPOSE 3001
 
-CMD ["node", "backend/dist/server.js"]
+# Command to run the executable
+CMD ["./scada-server"]

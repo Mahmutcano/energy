@@ -19,6 +19,8 @@ import (
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
+	"strings"
+	"net/http"
 )
 
 func main() {
@@ -116,6 +118,30 @@ func main() {
 			}
 		}
 	}
+
+	// Serve Static Files (Frontend)
+	// We serve the 'public' directory which will contain the Next.js export
+	r.NoRoute(func(c *gin.Context) {
+		path := c.Request.URL.Path
+		
+		// Skip if it's an API or Socket.io route (should have been handled above)
+		if strings.HasPrefix(path, "/api") || strings.HasPrefix(path, "/socket.io") {
+			return
+		}
+
+		// Try to serve static file from the public directory
+		// If path is root or file doesn't exist, Gin will handle it
+		filesystem := http.Dir("./public")
+		file, err := filesystem.Open(path)
+		if err == nil {
+			file.Close()
+			c.File("./public" + path)
+			return
+		}
+
+		// Fallback to index.html for SPA routing
+		c.File("./public/index.html")
+	})
 
 	port := os.Getenv("PORT")
 	if port == "" {

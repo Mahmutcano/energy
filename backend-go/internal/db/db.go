@@ -60,13 +60,15 @@ func Connect() error {
 		}
 
 		if err := ts.Ping(context.Background()); err != nil {
-			return fmt.Errorf("unable to ping TimescaleDB at %s: %v", timescaleURL, err)
+			log.Printf("[DB] WARNING: Could not ping TimescaleDB at %s: %v. App will start but telemetry might fail.", timescaleURL, err)
+			// Don't return error, let app start
+			TimescalePool = pool // Fallback to main pool temporarily
+		} else {
+			TimescalePool = ts
+			log.Println("[DB] Connected to TimescaleDB successfully")
 		}
-
-		TimescalePool = ts
-		log.Println("[DB] Connected to TimescaleDB successfully")
 	} else {
-		// If no dedicated TimescaleDB, fallback to main Pool (ONLY IF NOT IN PRODUCTION)
+		// If no dedicated TimescaleDB, fallback to main Pool
 		TimescalePool = pool
 		log.Println("[DB] Using main PostgreSQL pool for Telemetry (No TIMESCALE_URL set)")
 	}

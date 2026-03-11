@@ -14,7 +14,7 @@ func GetTelemetry(c *gin.Context) {
 	deviceID := c.Param("deviceId")
 
 	// Default range: last 1 hour
-	rows, err := db.Pool.Query(context.Background(), `
+	rows, err := db.TimescalePool.Query(context.Background(), `
 		SELECT "pointId", "measurementTime", "valueNumeric"
 		FROM "TelemetryValue"
 		WHERE device_id = $1 AND "measurementTime" > NOW() - INTERVAL '1 hour'

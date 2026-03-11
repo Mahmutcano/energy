@@ -1,29 +1,18 @@
 services:
-  backend:
+  app:
     build:
       context: .
-      dockerfile: Dockerfile.backend
+      dockerfile: Dockerfile
     ports:
       - "3001:3001"
     environment:
-      - DATABASE_URL=${DATABASE_URL}
-      - REDIS_URL=${REDIS_URL}
+      - DATABASE_URL=postgres://postgres:postgres@db:5432/energy_scada?sslmode=disable
+      - REDIS_URL=redis://redis:6379
       - PORT=3001
     restart: always
     depends_on:
       - redis
       - db
-
-  frontend:
-    build:
-      context: ./frontend
-    ports:
-      - "3000:3000"
-    environment:
-      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
-    restart: always
-    depends_on:
-      - backend
 
   redis:
     image: redis:alpine
@@ -33,10 +22,14 @@ services:
 
   db:
     image: timescale/timescaledb:latest-pg15
+    ports:
+      - "5432:5432"
     environment:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
       - POSTGRES_DB=energy_scada
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
   influxdb:
     image: influxdb:latest
     ports:

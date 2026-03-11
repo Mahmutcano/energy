@@ -1,6 +1,6 @@
 import { io, Socket } from 'socket.io-client';
 
-const PRODUCTION_URL = 'https://energy-production-5fa5.up.railway.app';
+const PRODUCTION_URL = 'https://amusing-inspiration-production-a099.up.railway.app';
 const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL ||
     (typeof window !== 'undefined' && !window.location.hostname.includes('localhost')
         ? PRODUCTION_URL

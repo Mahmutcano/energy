@@ -7,7 +7,7 @@ export async function apiRequest(endpoint: string, options: RequestInit = {}) {
     const token = localStorage.getItem('auth_token');
 
     // Production Fallback
-    const PRODUCTION_URL = 'https://energy-production-5fa5.up.railway.app';
+    const PRODUCTION_URL = 'https://amusing-inspiration-production-a099.up.railway.app';
     const apiUrl = process.env.NEXT_PUBLIC_API_URL ||
         (typeof window !== 'undefined' && !window.location.hostname.includes('localhost')
             ? PRODUCTION_URL

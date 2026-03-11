@@ -16,10 +16,8 @@ RUN cd backend-go && go mod download
 # Copy the source code
 COPY backend-go/ ./backend-go/
 
-# Build the Go app with build cache mounts and IDs for speed
-RUN --mount=type=cache,id=go-build,target=/root/.cache/go-build \
-    --mount=type=cache,id=go-mod,target=/go/pkg/mod \
-    cd backend-go && go build -v -a -installsuffix cgo -o scada-server ./cmd/server/main.go
+# Build the Go app
+RUN cd backend-go && go build -v -a -installsuffix cgo -o scada-server ./cmd/server/main.go
 
 # Start a new minimal stage from scratch
 FROM alpine:latest  

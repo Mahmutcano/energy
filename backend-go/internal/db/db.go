@@ -46,31 +46,29 @@ func Connect() error {
 	// Set up Timescale Pool
 	timescaleURL := os.Getenv("TIMESCALE_URL")
 	if timescaleURL != "" {
-
 		tsConfig, err := pgxpool.ParseConfig(timescaleURL)
-		if err == nil {
-			tsConfig.MaxConns = 25
-			tsConfig.MinConns = 5
-			tsConfig.MaxConnLifetime = time.Hour
-			tsConfig.MaxConnIdleTime = 30 * time.Minute
-
-			ts, err := pgxpool.NewWithConfig(context.Background(), tsConfig)
-			if err == nil {
-				if err := ts.Ping(context.Background()); err == nil {
-					TimescalePool = ts
-					log.Println("[DB] Connected to TimescaleDB successfully")
-				} else {
-					log.Printf("[DB] Warning: Could not ping TimescaleDB: %v", err)
-					TimescalePool = pool
-				}
-			} else {
-				TimescalePool = pool
-			}
-		} else {
-			TimescalePool = pool
+		if err != nil {
+			return fmt.Errorf("unable to parse TIMESCALE_URL: %v", err)
 		}
+
+		tsConfig.MaxConns = 25
+		tsConfig.MinConns = 5
+
+		ts, err := pgxpool.NewWithConfig(context.Background(), tsConfig)
+		if err != nil {
+			return fmt.Errorf("unable to create TimescaleDB pool: %v", err)
+		}
+
+		if err := ts.Ping(context.Background()); err != nil {
+			return fmt.Errorf("unable to ping TimescaleDB at %s: %v", timescaleURL, err)
+		}
+
+		TimescalePool = ts
+		log.Println("[DB] Connected to TimescaleDB successfully")
 	} else {
+		// If no dedicated TimescaleDB, fallback to main Pool (ONLY IF NOT IN PRODUCTION)
 		TimescalePool = pool
+		log.Println("[DB] Using main PostgreSQL pool for Telemetry (No TIMESCALE_URL set)")
 	}
 
 	return nil

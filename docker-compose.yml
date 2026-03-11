@@ -33,8 +33,8 @@ services:
     restart: always
 
   db:
-    image: timescale/timescaledb:latest-pg15
-    shm_size: '512mb' # TimescaleDB için kritik: Paylaşılan bellek miktarını artırır
+    image: timescale/timescaledb:2.14.2-pg15 # Daha kararlı sürüm
+    shm_size: '1gb' # Belleği 1GB'a çıkardım
     ports:
       - "5432:5432"
     environment:

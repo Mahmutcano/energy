@@ -1,8 +1,8 @@
 services:
-  app:
+  backend:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.backend
     ports:
       - "3001:3001"
     environment:
@@ -13,6 +13,18 @@ services:
     depends_on:
       - redis
       - db
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+    restart: always
+    depends_on:
+      - backend
 
   redis:
     image: redis:alpine

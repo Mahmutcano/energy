@@ -1,0 +1,23 @@
+FROM node:20-alpine AS builder
+
+WORKDIR /app
+
+COPY frontend/package*.json ./frontend/
+RUN cd frontend && npm install
+
+COPY . .
+RUN cd frontend && npm run build
+
+FROM node:20-alpine
+
+WORKDIR /app
+
+COPY --from=builder /app/frontend/package*.json ./frontend/
+COPY --from=builder /app/frontend/.next ./frontend/.next
+COPY --from=builder /app/frontend/public ./frontend/public
+COPY --from=builder /app/frontend/node_modules ./frontend/node_modules
+COPY --from=builder /app/frontend/next.config.ts ./frontend/
+
+EXPOSE 3000
+
+CMD ["sh", "-c", "cd frontend && npm run start"]

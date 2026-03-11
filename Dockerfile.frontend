@@ -17,6 +17,8 @@ COPY --from=builder /app/frontend/.next ./frontend/.next
 COPY --from=builder /app/frontend/public ./frontend/public
 COPY --from=builder /app/frontend/node_modules ./frontend/node_modules
 COPY --from=builder /app/frontend/next.config.ts ./frontend/
+# Railway environment needs this for dynamic routes if any
+COPY --from=builder /app/frontend/src ./frontend/src 
 
 EXPOSE 3000
 

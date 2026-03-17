@@ -31,12 +31,13 @@ type DatasheetPoint struct {
 	Ioa2CellNo        *int      `json:"ioa2CellNo"`
 	Ioa3VoltageLevel  *int      `json:"ioa3VoltageLevel"`
 	ScadaAddress      *int      `json:"scadaAddress"`
+	RecordingInterval *int      `json:"recordingInterval"`
 }
 
 func GetDatasheetPoints(c *gin.Context) {
 	profileID := c.Query("profileId")
 	if profileID == "" {
-		profileID = c.Param("profileId") // Fallback for path-style
+		profileID = c.Param("profileId")
 	}
 	rows, err := db.Pool.Query(context.Background(), `
 		SELECT 
@@ -44,7 +45,7 @@ func GetDatasheetPoints(c *gin.Context) {
 			"isActive", "functionCode", "multiplier", "wordSwap", "feederName", 
 			"signalType", "signalDescription", "dataType", "signalSource", 
 			"componentId", "componentText", "ioa1ObjectAddress", "ioa2CellNo", 
-			"ioa3VoltageLevel", "scadaAddress"
+			"ioa3VoltageLevel", "scadaAddress", "recordingInterval"
 		FROM "DatasheetPoint"
 		WHERE profile_id = $1
 	`, profileID)
@@ -62,7 +63,7 @@ func GetDatasheetPoints(c *gin.Context) {
 			&p.IsActive, &p.FunctionCode, &p.Multiplier, &p.WordSwap, &p.FeederName,
 			&p.SignalType, &p.SignalDescription, &p.DataType, &p.SignalSource,
 			&p.ComponentID, &p.ComponentText, &p.Ioa1ObjectAddress, &p.Ioa2CellNo,
-			&p.Ioa3VoltageLevel, &p.ScadaAddress,
+			&p.Ioa3VoltageLevel, &p.ScadaAddress, &p.RecordingInterval,
 		); err != nil {
 			continue
 		}
@@ -77,7 +78,33 @@ func GetDatasheetPoints(c *gin.Context) {
 }
 
 func CreateDatasheetPoint(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"id": uuid.New(), "message": "created mock (to be implemented)"})
+	var p DatasheetPoint
+	if err := c.ShouldBindJSON(&p); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	p.ID = uuid.New()
+	_, err := db.Pool.Exec(context.Background(), `
+		INSERT INTO "DatasheetPoint" (
+			id, profile_id, "dataName", "dataValue", "registerAddress", 
+			"isActive", "functionCode", "multiplier", "wordSwap", "feederName", 
+			"signalType", "signalDescription", "dataType", "signalSource", 
+			"componentId", "componentText", "ioa1ObjectAddress", "ioa2CellNo", 
+			"ioa3VoltageLevel", "scadaAddress", "recordingInterval"
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
+	`, p.ID, p.ProfileID, p.DataName, p.DataValue, p.RegisterAddress,
+		p.IsActive, p.FunctionCode, p.Multiplier, p.WordSwap, p.FeederName,
+		p.SignalType, p.SignalDescription, p.DataType, p.SignalSource,
+		p.ComponentID, p.ComponentText, p.Ioa1ObjectAddress, p.Ioa2CellNo,
+		p.Ioa3VoltageLevel, p.ScadaAddress, p.RecordingInterval)
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusCreated, p)
 }
 
 // BulkCreateDatasheetPoints handles POST /api/datasheets/bulk
@@ -103,6 +130,7 @@ func BulkCreateDatasheetPoints(c *gin.Context) {
 			Ioa3VoltageLevel  *int     `json:"ioa3VoltageLevel"`
 			ScadaAddress      *int     `json:"scadaAddress"`
 			IsActive          bool     `json:"isActive"`
+			RecordingInterval *int     `json:"recordingInterval"`
 		} `json:"points"`
 	}
 
@@ -120,12 +148,14 @@ func BulkCreateDatasheetPoints(c *gin.Context) {
 				id, profile_id, "dataName", "dataValue", "registerAddress", 
 				"functionCode", multiplier, "wordSwap", "feederName", "signalType", 
 				"signalDescription", "dataType", "signalSource", "componentId", 
-				"componentText", "ioa1ObjectAddress", "ioa2CellNo", "ioa3VoltageLevel", "scadaAddress", "isActive"
-			) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
+				"componentText", "ioa1ObjectAddress", "ioa2CellNo", "ioa3VoltageLevel", 
+				"scadaAddress", "isActive", "recordingInterval"
+			) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
 		`, id, req.ProfileID, p.DataName, p.DataValue, p.RegisterAddress,
 			p.FunctionCode, p.Multiplier, p.WordSwap, p.FeederName, p.SignalType,
 			p.SignalDescription, p.DataType, p.SignalSource, p.ComponentID,
-			p.ComponentText, p.Ioa1ObjectAddress, p.Ioa2CellNo, p.Ioa3VoltageLevel, p.ScadaAddress, p.IsActive)
+			p.ComponentText, p.Ioa1ObjectAddress, p.Ioa2CellNo, p.Ioa3VoltageLevel, 
+			p.ScadaAddress, p.IsActive, p.RecordingInterval)
 
 		if err == nil {
 			inserted++
@@ -135,6 +165,56 @@ func BulkCreateDatasheetPoints(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"length": inserted, "message": "bulk success"})
 }
 
+func UpdateDatasheetPoint(c *gin.Context) {
+	idStr := c.Param("id")
+	pointID, err := uuid.Parse(idStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID"})
+		return
+	}
+
+	var p DatasheetPoint
+	if err := c.ShouldBindJSON(&p); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	_, err = db.Pool.Exec(context.Background(), `
+		UPDATE "DatasheetPoint" SET
+			"dataName" = $1, "dataValue" = $2, "registerAddress" = $3, 
+			"isActive" = $4, "functionCode" = $5, "multiplier" = $6, "wordSwap" = $7, "feederName" = $8, 
+			"signalType" = $9, "signalDescription" = $10, "dataType" = $11, "signalSource" = $12, 
+			"componentId" = $13, "componentText" = $14, "ioa1ObjectAddress" = $15, "ioa2CellNo" = $16, 
+			"ioa3VoltageLevel" = $17, "scadaAddress" = $18, "recordingInterval" = $19
+		WHERE id = $20
+	`, p.DataName, p.DataValue, p.RegisterAddress,
+		p.IsActive, p.FunctionCode, p.Multiplier, p.WordSwap, p.FeederName,
+		p.SignalType, p.SignalDescription, p.DataType, p.SignalSource,
+		p.ComponentID, p.ComponentText, p.Ioa1ObjectAddress, p.Ioa2CellNo,
+		p.Ioa3VoltageLevel, p.ScadaAddress, p.RecordingInterval, pointID)
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	p.ID = pointID
+	c.JSON(http.StatusOK, p)
+}
+
 func DeleteDatasheetPoint(c *gin.Context) {
+	idStr := c.Param("id")
+	pointID, err := uuid.Parse(idStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID"})
+		return
+	}
+
+	_, err = db.Pool.Exec(context.Background(), `DELETE FROM "DatasheetPoint" WHERE id = $1`, pointID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
 	c.JSON(http.StatusOK, gin.H{"message": "deleted"})
 }

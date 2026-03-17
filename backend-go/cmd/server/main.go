@@ -86,12 +86,16 @@ func main() {
 			protected.GET("/companies", handlers.GetCompanies)
 			protected.GET("/devices", handlers.GetDevices)
 			protected.GET("/comm-protocols", handlers.GetCommProtocols)
+			protected.POST("/comm-protocols", handlers.CreateCommProtocol)
+			protected.PATCH("/comm-protocols/:id", handlers.UpdateCommProtocol)
+			protected.DELETE("/comm-protocols/:id", handlers.DeleteCommProtocol)
 
 			protected.GET("/datasheet-profiles", handlers.GetDatasheetProfiles)
 			protected.GET("/datasheets", handlers.GetDatasheetPoints)
 			protected.GET("/datasheets/:profileId", handlers.GetDatasheetPoints)
 			protected.POST("/datasheets", handlers.CreateDatasheetPoint)
 			protected.POST("/datasheets/bulk", handlers.BulkCreateDatasheetPoints)
+			protected.PATCH("/datasheets/:id", handlers.UpdateDatasheetPoint)
 			protected.DELETE("/datasheets/:id", handlers.DeleteDatasheetPoint)
 
 			protected.GET("/telemetry/history", handlers.GetTelemetryHistory)

@@ -36,6 +36,7 @@ interface DataSheet {
     ioa2CellNo: number | null;
     ioa3VoltageLevel: number | null;
     scadaAddress: number | null;
+    recordingInterval: number | null;
 }
 
 const defaultFormData = {
@@ -59,6 +60,7 @@ const defaultFormData = {
     ioa2CellNo: '',
     ioa3VoltageLevel: '',
     scadaAddress: '',
+    recordingInterval: '1',
 };
 
 // Form validation errors
@@ -185,6 +187,7 @@ function DataSheetsContent() {
             ioa2CellNo: sheet.ioa2CellNo?.toString() || '',
             ioa3VoltageLevel: sheet.ioa3VoltageLevel?.toString() || '',
             scadaAddress: sheet.scadaAddress?.toString() || '',
+            recordingInterval: sheet.recordingInterval?.toString() || '1',
         });
         setIsModalOpen(true);
     };
@@ -314,6 +317,7 @@ function DataSheetsContent() {
                 body.ioa3VoltageLevel = int(formData.ioa3VoltageLevel);
                 body.scadaAddress = int(formData.scadaAddress);
             }
+            body.recordingInterval = int(formData.recordingInterval);
 
             const url = editingSheet ? `/api/datasheets/${editingSheet.id}` : '/api/datasheets';
             const method = editingSheet ? 'PATCH' : 'POST';
@@ -425,6 +429,7 @@ function DataSheetsContent() {
                             functionCode: findValue(['FC', 'Function', 'Fonksiyon']),
                             multiplier: findValue(['Multiplier', 'Çarpan']),
                             wordSwap: row['Swap'] || row['Word Swap'] === 'YES' || row['Word Swap'] === 'EVET' || row['Swap'] === true,
+                            recordingInterval: findValue(['Interval', 'Aralık', 'Kayıt Süresi', 'Kayıt Aralığı', 'KAYIT ARALIĞI']) || 1,
                             isActive: true
                         };
                     } else {
@@ -440,6 +445,7 @@ function DataSheetsContent() {
                             ioa2CellNo: findValue(['IOA2', 'IOA Cell No', 'Hücre No', 'IOA2 ( Hücre No)', 'IOA2 (Hücre No)', 'IOA2']),
                             ioa3VoltageLevel: findValue(['IOA3', 'IOA Voltage Level', 'Gerilim Seviyesi', 'IOA3 ( Gerilim Seviyesi)', 'IOA3 (Gerilim Seviyesi)']),
                             scadaAddress: findValue(['SCADA Address', 'SCADA Adresi', 'SCADA ADRESİ', 'ADRES', 'ADDRESS']),
+                            recordingInterval: findValue(['Interval', 'Aralık', 'Kayıt Süresi', 'Kayıt Aralığı', 'KAYIT ARALIĞI']) || 1,
                             isActive: true
                         };
                     }
@@ -455,6 +461,7 @@ function DataSheetsContent() {
                     if (cleaned.ioa2CellNo !== undefined) cleaned.ioa2CellNo = parseInt(cleaned.ioa2CellNo);
                     if (cleaned.ioa3VoltageLevel !== undefined) cleaned.ioa3VoltageLevel = parseInt(cleaned.ioa3VoltageLevel);
                     if (cleaned.scadaAddress !== undefined) cleaned.scadaAddress = parseInt(cleaned.scadaAddress);
+                    if (cleaned.recordingInterval !== undefined) cleaned.recordingInterval = parseInt(cleaned.recordingInterval);
 
                     // Specific logic for IEC104 dataName
                     if (!isModbus && !p.dataName) {
@@ -629,6 +636,7 @@ function DataSheetsContent() {
                                         <th className={headerCellClass}>SCADA ADDRESS</th>
                                     </>
                                 )}
+                                <th className={headerCellClass}>REC (MIN)</th>
                                 <th className={headerCellClass}>STATUS</th>
                                 <th className={`${headerCellClass} text-right`}>ACTIONS</th>
                             </tr>
@@ -697,6 +705,9 @@ function DataSheetsContent() {
                                             <td className={`${cellClass} font-mono tabular-nums text-cyan-400 font-bold`}>{sheet.scadaAddress ?? '-'}</td>
                                         </>
                                     )}
+                                    <td className={`${cellClass} font-mono text-slate-500 text-center`}>
+                                        {sheet.recordingInterval ?? '1'}m
+                                    </td>
                                     <td className={cellClass}>
                                         <div className="flex items-center gap-2">
                                             <div className={`w-2 h-2 rounded-full ${sheet.isActive ? 'bg-brand-green shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-slate-700'}`} />
@@ -821,6 +832,16 @@ function DataSheetsContent() {
                                     </button>
                                 </div>
                             </div>
+
+                            {/* Common Field: Recording Interval */}
+                            <div className="pt-4 border-t border-slate-800/40">
+                                 <InputField
+                                    label="KAYIT SÜRESİ (DAKİKA)" name="recordingInterval" type="number" required
+                                    value={formData.recordingInterval}
+                                    onChange={(val) => setFormData({ ...formData, recordingInterval: val })}
+                                    placeholder="e.g. 1"
+                                />
+                            </div>
                         </>
                     ) : (
                         <>
@@ -931,8 +952,8 @@ function DataSheetsContent() {
                                 />
                             </div>
 
-                            {/* Section 4: Metadata (Optional) */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {/* Section 4: Metadata & Recording */}
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                 <InputField
                                     label="DISPLAY NAME" name="dataName"
                                     value={formData.dataName}
@@ -944,6 +965,12 @@ function DataSheetsContent() {
                                     value={formData.dataValue}
                                     onChange={(val) => setFormData({ ...formData, dataValue: val })}
                                     placeholder="e.g. kV, A, Hz"
+                                />
+                                <InputField
+                                    label="KAYIT SÜRESİ (DAKİKA)" name="recordingInterval" type="number" required
+                                    value={formData.recordingInterval}
+                                    onChange={(val) => setFormData({ ...formData, recordingInterval: val })}
+                                    placeholder="e.g. 1"
                                 />
                             </div>
                         </>

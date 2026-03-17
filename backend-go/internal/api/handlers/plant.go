@@ -8,6 +8,7 @@ import (
 	"energy-scada-platform/internal/models"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
 func GetPlants(c *gin.Context) {
@@ -32,4 +33,27 @@ func GetPlants(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, plants)
+}
+
+func CreatePlant(c *gin.Context) {
+	var p models.Plant
+	if err := c.ShouldBindJSON(&p); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	p.ID = uuid.New()
+	p.IsActive = true
+
+	_, err := db.Pool.Exec(context.Background(), `
+		INSERT INTO "Plant" (id, company_id, "plantName", "plantType", latitude, longitude, "isActive")
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
+	`, p.ID, p.CompanyID, p.PlantName, p.PlantType, p.Latitude, p.Longitude, p.IsActive)
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusCreated, p)
 }

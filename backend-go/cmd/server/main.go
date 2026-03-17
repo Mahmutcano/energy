@@ -64,7 +64,7 @@ func main() {
 	// CORS Setup
 	r.Use(cors.New(cors.Config{
 		AllowOriginFunc:  func(origin string) bool { return true },
-		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization", "X-Requested-With", "Upgrade", "Connection", "Sec-WebSocket-Key", "Sec-WebSocket-Accept", "Sec-WebSocket-Version", "Sec-WebSocket-Protocol", "Sec-WebSocket-Extensions"},
 		ExposeHeaders:    []string{"Content-Length"},
 		AllowCredentials: true,
@@ -83,6 +83,7 @@ func main() {
 		protected.Use(middleware.AuthMiddleware())
 		{
 			protected.GET("/plants", handlers.GetPlants)
+			protected.POST("/plants", handlers.CreatePlant)
 			protected.GET("/companies", handlers.GetCompanies)
 			protected.GET("/devices", handlers.GetDevices)
 			protected.GET("/comm-protocols", handlers.GetCommProtocols)

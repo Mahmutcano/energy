@@ -92,6 +92,9 @@ func main() {
 			protected.DELETE("/comm-protocols/:id", handlers.DeleteCommProtocol)
 
 			protected.GET("/datasheet-profiles", handlers.GetDatasheetProfiles)
+			protected.POST("/datasheet-profiles", handlers.CreateDatasheetProfile)
+			protected.PATCH("/datasheet-profiles/:id", handlers.UpdateDatasheetProfile)
+			protected.DELETE("/datasheet-profiles/:id", handlers.DeleteDatasheetProfile)
 			protected.GET("/datasheets", handlers.GetDatasheetPoints)
 			protected.GET("/datasheets/:profileId", handlers.GetDatasheetPoints)
 			protected.POST("/datasheets", handlers.CreateDatasheetPoint)

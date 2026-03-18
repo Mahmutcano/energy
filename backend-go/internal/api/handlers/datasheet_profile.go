@@ -54,3 +54,76 @@ func GetDatasheetProfiles(c *gin.Context) {
 
 	c.JSON(http.StatusOK, profiles)
 }
+
+func CreateDatasheetProfile(c *gin.Context) {
+	var req struct {
+		Name         string `json:"name"`
+		ProtocolType string `json:"protocolType"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	profileID := uuid.New()
+	_, err := db.Pool.Exec(context.Background(), `
+		INSERT INTO "DatasheetProfile" (id, name, "protocolType", "isActive")
+		VALUES ($1, $2, $3, $4)
+	`, profileID, req.Name, req.ProtocolType, true)
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{"id": profileID, "name": req.Name, "protocolType": req.ProtocolType})
+}
+
+func UpdateDatasheetProfile(c *gin.Context) {
+	idStr := c.Param("id")
+	profileID, err := uuid.Parse(idStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID"})
+		return
+	}
+
+	var req struct {
+		Name         string `json:"name"`
+		ProtocolType string `json:"protocolType"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	_, err = db.Pool.Exec(context.Background(), `
+		UPDATE "DatasheetProfile" SET name = $1, "protocolType" = $2
+		WHERE id = $3
+	`, req.Name, req.ProtocolType, profileID)
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Profile updated successfully"})
+}
+
+func DeleteDatasheetProfile(c *gin.Context) {
+	idStr := c.Param("id")
+	profileID, err := uuid.Parse(idStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID"})
+		return
+	}
+
+	_, err = db.Pool.Exec(context.Background(), `DELETE FROM "DatasheetProfile" WHERE id = $1`, profileID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Profile deleted successfully"})
+}

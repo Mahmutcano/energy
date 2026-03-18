@@ -2,8 +2,10 @@ package handlers
 
 import (
 	"context"
+	"log"
 	"net/http"
 
+	"energy-scada-platform/internal/api/response"
 	"energy-scada-platform/internal/db"
 
 	"github.com/gin-gonic/gin"
@@ -49,7 +51,7 @@ func GetDevices(c *gin.Context) {
 		LEFT JOIN "DatasheetProfile" dp ON d.datasheet_profile_id = dp.id
 	`)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		response.Error(c, http.StatusInternalServerError, response.ErrDatabase, err.Error())
 		return
 	}
 	defer rows.Close()
@@ -63,6 +65,7 @@ func GetDevices(c *gin.Context) {
 			&d.ID, &d.DeviceName, &d.DeviceType, &d.IsActive, &d.ProtocolConfigID, &d.DatasheetProfileID,
 			&pcName, &pcProto, &plantID, &plantName, &dpName, &dpProto,
 		); err != nil {
+			log.Printf("[DB] Error scanning device: %v", err)
 			continue
 		}
 
@@ -91,5 +94,9 @@ func GetDevices(c *gin.Context) {
 		devices = append(devices, d)
 	}
 
-	c.JSON(http.StatusOK, devices)
+	if devices == nil {
+		devices = []DeviceInfo{}
+	}
+
+	response.Success(c, http.StatusOK, devices)
 }

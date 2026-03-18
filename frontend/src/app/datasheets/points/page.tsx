@@ -133,15 +133,17 @@ function DataSheetsContent() {
             try {
                 const profileRes = await apiRequest('/api/datasheet-profiles');
                 if (profileRes.ok) {
-                    const profiles = await profileRes.json();
-                    const p = profiles.find((x: any) => x.id === profileId);
+                    const result = await profileRes.json();
+                    const profiles = result.success ? result.data : result;
+                    const p = Array.isArray(profiles) ? profiles.find((x: any) => x.id === profileId) : null;
                     if (p) setProfile(p);
                 }
 
                 const sheetRes = await apiRequest(`/api/datasheets?profileId=${profileId}`);
                 if (sheetRes.ok) {
-                    const sheets = await sheetRes.json();
-                    setDataSheets(sheets);
+                    const result = await sheetRes.json();
+                    const sheets = result.success ? result.data : result;
+                    setDataSheets(Array.isArray(sheets) ? sheets : []);
                 }
             } catch (err) {
                 console.error("Failed to fetch datasheets:", err);
@@ -206,8 +208,9 @@ function DataSheetsContent() {
                 setDataSheets(dataSheets.filter(s => s.id !== pointToDelete.id));
                 setPointToDelete(null);
             } else {
-                const data = await res.json();
-                toast.error(data.error || 'Delete failed');
+                const result = await res.json();
+                const errorMessage = result.error?.message || result.error || 'Delete failed';
+                toast.error(errorMessage);
             }
         } catch (err) {
             console.error('Delete error:', err);
@@ -334,19 +337,20 @@ function DataSheetsContent() {
                 setEditingSheet(null);
                 setFormErrors({});
                 setServerError('');
-                const newData = await res.json();
+                const result = await res.json();
+                const newData = result.success ? result.data : result;
                 if (method === 'POST') {
                     setDataSheets([...dataSheets, newData]);
                 } else {
                     setDataSheets(dataSheets.map(s => s.id === newData.id ? newData : s));
                 }
             } else {
-                const data = await res.json();
-                if (typeof data.error === 'string') {
-                    setServerError(data.error);
-                } else if (Array.isArray(data.error)) {
-                    const errMsg = data.error.map((e: any) => e.message).join(', ');
-                    setServerError(errMsg);
+                const result = await res.json();
+                const error = result.error;
+                if (typeof error === 'string') {
+                    setServerError(error);
+                } else if (error && typeof error === 'object') {
+                    setServerError(error.message || 'Operation failed');
                 } else {
                     setServerError('Operation failed');
                 }
@@ -488,16 +492,19 @@ function DataSheetsContent() {
 
                 if (res.ok) {
                     const result = await res.json();
-                    toast.success(`Successfully imported ${result.length} data points`);
+                    const data = result.success ? result.data : result;
+                    toast.success(`Successfully imported ${data.length || 0} data points`);
                     // Refresh data
                     const refreshRes = await apiRequest(`/api/datasheets?profileId=${profileId}`);
                     if (refreshRes.ok) {
-                        const sheets = await refreshRes.json();
-                        setDataSheets(sheets);
+                        const refreshResult = await refreshRes.json();
+                        const sheets = refreshResult.success ? refreshResult.data : refreshResult;
+                        setDataSheets(Array.isArray(sheets) ? sheets : []);
                     }
                 } else {
-                    const error = await res.json();
-                    toast.error(error.error || 'Import failed');
+                    const result = await res.json();
+                    const errorMessage = result.error?.message || result.error || 'Import failed';
+                    toast.error(errorMessage);
                 }
             } catch (err) {
                 console.error('Import error:', err);

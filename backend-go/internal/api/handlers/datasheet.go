@@ -2,8 +2,10 @@ package handlers
 
 import (
 	"context"
+	"log"
 	"net/http"
 
+	"energy-scada-platform/internal/api/response"
 	"energy-scada-platform/internal/db"
 
 	"github.com/gin-gonic/gin"
@@ -50,7 +52,7 @@ func GetDatasheetPoints(c *gin.Context) {
 		WHERE profile_id = $1
 	`, profileID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		response.Error(c, http.StatusInternalServerError, response.ErrDatabase, err.Error())
 		return
 	}
 	defer rows.Close()
@@ -65,6 +67,7 @@ func GetDatasheetPoints(c *gin.Context) {
 			&p.ComponentID, &p.ComponentText, &p.Ioa1ObjectAddress, &p.Ioa2CellNo,
 			&p.Ioa3VoltageLevel, &p.ScadaAddress, &p.RecordingInterval,
 		); err != nil {
+			log.Printf("[DB] Error scanning datasheet point: %v", err)
 			continue
 		}
 		points = append(points, p)
@@ -74,13 +77,13 @@ func GetDatasheetPoints(c *gin.Context) {
 		points = []DatasheetPoint{}
 	}
 
-	c.JSON(http.StatusOK, points)
+	response.Success(c, http.StatusOK, points)
 }
 
 func CreateDatasheetPoint(c *gin.Context) {
 	var p DatasheetPoint
 	if err := c.ShouldBindJSON(&p); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		response.Error(c, http.StatusBadRequest, response.ErrInvalidInput, err.Error())
 		return
 	}
 
@@ -100,11 +103,11 @@ func CreateDatasheetPoint(c *gin.Context) {
 		p.Ioa3VoltageLevel, p.ScadaAddress, p.RecordingInterval)
 
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		response.Error(c, http.StatusInternalServerError, response.ErrDatabase, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusCreated, p)
+	response.Success(c, http.StatusCreated, p)
 }
 
 // BulkCreateDatasheetPoints handles POST /api/datasheets/bulk
@@ -135,7 +138,7 @@ func BulkCreateDatasheetPoints(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		response.Error(c, http.StatusBadRequest, response.ErrInvalidInput, err.Error())
 		return
 	}
 
@@ -162,20 +165,20 @@ func BulkCreateDatasheetPoints(c *gin.Context) {
 		}
 	}
 
-	c.JSON(http.StatusOK, gin.H{"length": inserted, "message": "bulk success"})
+	response.Success(c, http.StatusOK, gin.H{"length": inserted, "message": "bulk success"})
 }
 
 func UpdateDatasheetPoint(c *gin.Context) {
 	idStr := c.Param("id")
 	pointID, err := uuid.Parse(idStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID"})
+		response.Error(c, http.StatusBadRequest, response.ErrInvalidInput, "Invalid ID")
 		return
 	}
 
 	var p DatasheetPoint
 	if err := c.ShouldBindJSON(&p); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		response.Error(c, http.StatusBadRequest, response.ErrInvalidInput, err.Error())
 		return
 	}
 
@@ -194,27 +197,27 @@ func UpdateDatasheetPoint(c *gin.Context) {
 		p.Ioa3VoltageLevel, p.ScadaAddress, p.RecordingInterval, pointID)
 
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		response.Error(c, http.StatusInternalServerError, response.ErrDatabase, err.Error())
 		return
 	}
 
 	p.ID = pointID
-	c.JSON(http.StatusOK, p)
+	response.Success(c, http.StatusOK, p)
 }
 
 func DeleteDatasheetPoint(c *gin.Context) {
 	idStr := c.Param("id")
 	pointID, err := uuid.Parse(idStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID"})
+		response.Error(c, http.StatusBadRequest, response.ErrInvalidInput, "Invalid ID")
 		return
 	}
 
 	_, err = db.Pool.Exec(context.Background(), `DELETE FROM "DatasheetPoint" WHERE id = $1`, pointID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		response.Error(c, http.StatusInternalServerError, response.ErrDatabase, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "deleted"})
+	response.Success(c, http.StatusOK, gin.H{"message": "deleted"})
 }

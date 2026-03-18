@@ -40,8 +40,10 @@ export default function DatasheetProfilesPage() {
         try {
             const res = await apiRequest('/api/datasheet-profiles');
             if (res.ok) {
-                const data = await res.json();
-                setProfiles(data);
+                const result = await res.json();
+                // Destructure if using systematic response, fallback to direct array if not
+                const data = result.success ? result.data : result;
+                setProfiles(Array.isArray(data) ? data : []);
             }
         } catch (err) {
             console.error("Failed to fetch profiles:", err);
@@ -76,8 +78,9 @@ export default function DatasheetProfilesPage() {
                 setProfiles(profiles.filter(p => p.id !== profileToDelete.id));
                 setProfileToDelete(null);
             } else {
-                const data = await res.json();
-                toast.error(data.error || 'Delete failed');
+                const result = await res.json();
+                const errorMessage = result.error?.message || result.error || 'Delete failed';
+                toast.error(errorMessage);
             }
         } catch (err) {
             console.error('Delete error:', err);
@@ -107,8 +110,9 @@ export default function DatasheetProfilesPage() {
                 setIsModalOpen(false);
                 fetchProfiles();
             } else {
-                const data = await res.json();
-                toast.error(data.error || 'Operation failed');
+                const result = await res.json();
+                const errorMessage = result.error?.message || result.error || 'Operation failed';
+                toast.error(errorMessage);
             }
         } catch (err) {
             console.error('Save error:', err);

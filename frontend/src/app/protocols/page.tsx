@@ -87,13 +87,17 @@ function ProtocolsContent() {
         try {
             const res = await apiRequest('/api/comm-protocols');
             if (res.ok) {
-                let data = await res.json();
+                const result = await res.json();
+                let data = result.success ? result.data : result;
+                if (!Array.isArray(data)) data = [];
+                
                 if (initialPlantId) {
                     data = data.filter((p: CommProtocol) => p.plantId === initialPlantId);
                 }
                 setProtocols(data);
             }
-        } catch (err) {
+        }
+ catch (err) {
             console.error('Failed to fetch protocols:', err);
         } finally {
             setLoading(false);
@@ -103,8 +107,13 @@ function ProtocolsContent() {
     const fetchPlants = async () => {
         try {
             const plantRes = await apiRequest('/api/plants');
-            if (plantRes.ok) setPlants(await plantRes.json());
-        } catch (err) {
+            if (plantRes.ok) {
+                const result = await plantRes.json();
+                const data = result.success ? result.data : result;
+                setPlants(Array.isArray(data) ? data : []);
+            }
+        }
+ catch (err) {
             console.error('Failed to fetch plants:', err);
         }
     };
@@ -112,8 +121,13 @@ function ProtocolsContent() {
     const fetchCompanies = async () => {
         try {
             const compRes = await apiRequest('/api/companies');
-            if (compRes.ok) setCompanies(await compRes.json());
-        } catch (err) {
+            if (compRes.ok) {
+                const result = await compRes.json();
+                const data = result.success ? result.data : result;
+                setCompanies(Array.isArray(data) ? data : []);
+            }
+        }
+ catch (err) {
             console.error('Failed to fetch companies:', err);
         }
     }
@@ -229,8 +243,9 @@ function ProtocolsContent() {
                 setEditingProtocol(null);
                 fetchProtocols();
             } else {
-                const data = await res.json();
-                toast.error(data.error || 'Operation failed');
+                const result = await res.json();
+                const errorMessage = result.error?.message || result.error || 'Operation failed';
+                toast.error(errorMessage);
             }
         } catch (err) {
             console.error('Create error:', err);
@@ -256,14 +271,16 @@ function ProtocolsContent() {
                 body: JSON.stringify(body)
             });
             if (res.ok) {
-                const newPlant = await res.json();
+                const result = await res.json();
+                const newPlant = result.success ? result.data : result;
                 toast.success('Plant created');
                 await fetchPlants();
                 setFormData({ ...formData, plantId: newPlant.id });
                 setIsPlantModalOpen(false);
             } else {
-                const data = await res.json();
-                toast.error(data.error || 'Plant creation failed');
+                const result = await res.json();
+                const errorMessage = result.error?.message || result.error || 'Plant creation failed';
+                toast.error(errorMessage);
             }
         } catch (err) {
             toast.error('An error occurred');

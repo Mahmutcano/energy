@@ -2,8 +2,10 @@ package handlers
 
 import (
 	"context"
+	"log"
 	"net/http"
 
+	"energy-scada-platform/internal/api/response"
 	"energy-scada-platform/internal/db"
 	"energy-scada-platform/internal/models"
 
@@ -18,7 +20,7 @@ func GetPlants(c *gin.Context) {
 		JOIN "CompanyProfile" c ON p.company_id = c.id
 	`)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		response.Error(c, http.StatusInternalServerError, response.ErrDatabase, err.Error())
 		return
 	}
 	defer rows.Close()
@@ -27,18 +29,23 @@ func GetPlants(c *gin.Context) {
 	for rows.Next() {
 		var p models.Plant
 		if err := rows.Scan(&p.ID, &p.CompanyID, &p.PlantName, &p.PlantType, &p.Latitude, &p.Longitude, &p.IsActive, &p.CompanyName); err != nil {
+			log.Printf("[DB] Error scanning plant: %v", err)
 			continue
 		}
 		plants = append(plants, p)
 	}
 
-	c.JSON(http.StatusOK, plants)
+	if plants == nil {
+		plants = []models.Plant{}
+	}
+
+	response.Success(c, http.StatusOK, plants)
 }
 
 func CreatePlant(c *gin.Context) {
 	var p models.Plant
 	if err := c.ShouldBindJSON(&p); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		response.Error(c, http.StatusBadRequest, response.ErrInvalidInput, "Eksik veya hatalı tesis verisi: "+err.Error())
 		return
 	}
 
@@ -51,9 +58,10 @@ func CreatePlant(c *gin.Context) {
 	`, p.ID, p.CompanyID, p.PlantName, p.PlantType, p.Latitude, p.Longitude, p.IsActive)
 
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		log.Printf("[DB] Insert Error (Plant): %v", err)
+		response.Error(c, http.StatusInternalServerError, response.ErrDatabase, "Tesis oluşturulurken bir hata oluştu")
 		return
 	}
 
-	c.JSON(http.StatusCreated, p)
+	response.Success(c, http.StatusCreated, p)
 }

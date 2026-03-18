@@ -2,8 +2,10 @@ package handlers
 
 import (
 	"context"
+	"log"
 	"net/http"
 
+	"energy-scada-platform/internal/api/response"
 	"energy-scada-platform/internal/db"
 
 	"github.com/gin-gonic/gin"
@@ -21,7 +23,7 @@ func GetCompanies(c *gin.Context) {
 		SELECT id, name, "isActive" FROM "CompanyProfile"
 	`)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		response.Error(c, http.StatusInternalServerError, response.ErrDatabase, err.Error())
 		return
 	}
 	defer rows.Close()
@@ -30,10 +32,15 @@ func GetCompanies(c *gin.Context) {
 	for rows.Next() {
 		var comp Company
 		if err := rows.Scan(&comp.ID, &comp.Name, &comp.IsActive); err != nil {
+			log.Printf("[DB] Error scanning company: %v", err)
 			continue
 		}
 		companies = append(companies, comp)
 	}
 
-	c.JSON(http.StatusOK, companies)
+	if companies == nil {
+		companies = []Company{}
+	}
+
+	response.Success(c, http.StatusOK, companies)
 }

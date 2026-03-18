@@ -83,13 +83,17 @@ function DevicesContent() {
         try {
             const res = await apiRequest('/api/devices');
             if (res.ok) {
-                let data = await res.json();
+                const result = await res.json();
+                let data = result.success ? result.data : result;
+                if (!Array.isArray(data)) data = [];
+
                 if (initialProtocolId) {
                     data = data.filter((d: Device) => d.protocolConfigId === initialProtocolId);
                 }
                 setDevices(data);
             }
-        } catch (err) {
+        }
+        catch (err) {
             console.error('Failed to fetch devices:', err);
         } finally {
             setLoading(false);
@@ -100,10 +104,12 @@ function DevicesContent() {
         try {
             const res = await apiRequest('/api/comm-protocols');
             if (res.ok) {
-                const data = await res.json();
-                setProtocols(data);
+                const result = await res.json();
+                const data = result.success ? result.data : result;
+                setProtocols(Array.isArray(data) ? data : []);
             }
-        } catch (err) {
+        }
+        catch (err) {
             console.error('Failed to fetch protocols:', err);
         }
     };
@@ -112,10 +118,12 @@ function DevicesContent() {
         try {
             const res = await apiRequest('/api/datasheet-profiles');
             if (res.ok) {
-                const data = await res.json();
-                setProfiles(data);
+                const result = await res.json();
+                const data = result.success ? result.data : result;
+                setProfiles(Array.isArray(data) ? data : []);
             }
-        } catch (err) {
+        }
+        catch (err) {
             console.error('Failed to fetch profiles:', err);
         }
     };
@@ -123,8 +131,13 @@ function DevicesContent() {
     const fetchPlants = async () => {
         try {
             const res = await apiRequest('/api/plants');
-            if (res.ok) setPlants(await res.json());
-        } catch (err) {
+            if (res.ok) {
+                const result = await res.json();
+                const data = result.success ? result.data : result;
+                setPlants(Array.isArray(data) ? data : []);
+            }
+        }
+        catch (err) {
             console.error('Failed to fetch plants:', err);
         }
     };
@@ -174,8 +187,9 @@ function DevicesContent() {
                 setDeviceToDelete(null);
                 fetchDevices();
             } else {
-                const data = await res.json();
-                toast.error(data.error || 'Delete failed');
+                const result = await res.json();
+                const errorMessage = result.error?.message || result.error || 'Delete failed';
+                toast.error(errorMessage);
             }
         } catch (err) {
             console.error('Delete error:', err);
@@ -230,8 +244,9 @@ function DevicesContent() {
                 setEditingDevice(null);
                 fetchDevices();
             } else {
-                const data = await res.json();
-                toast.error(data.error || 'Operation failed');
+                const result = await res.json();
+                const errorMessage = result.error?.message || result.error || 'Operation failed';
+                toast.error(errorMessage);
             }
         } catch (err) {
             console.error('Create/Update error:', err);
@@ -268,14 +283,16 @@ function DevicesContent() {
                 body: JSON.stringify(body)
             });
             if (res.ok) {
-                const newProto = await res.json();
+                const result = await res.json();
+                const newProto = result.success ? result.data : result;
                 toast.success('Protocol created');
                 await fetchProtocols();
                 setFormData({ ...formData, protocolConfigId: newProto.id });
                 setIsProtocolModalOpen(false);
             } else {
-                const data = await res.json();
-                toast.error(data.error || 'Protocol creation failed');
+                const result = await res.json();
+                const errorMessage = result.error?.message || result.error || 'Protocol creation failed';
+                toast.error(errorMessage);
             }
         } catch (err) {
             toast.error('An error occurred');
@@ -293,15 +310,17 @@ function DevicesContent() {
                 body: JSON.stringify(newProfileData)
             });
             if (res.ok) {
-                const newProf = await res.json();
+                const result = await res.json();
+                const newProf = result.success ? result.data : result;
                 toast.success('Datasheet profile created');
                 await fetchProfiles();
                 setFormData({ ...formData, datasheetProfileId: newProf.id });
                 setIsProfileModalOpen(false);
                 setNewProfileData({ name: '', protocolType: 'MODBUS' });
             } else {
-                const data = await res.json();
-                toast.error(data.error || 'Profile creation failed');
+                const result = await res.json();
+                const errorMessage = result.error?.message || result.error || 'Profile creation failed';
+                toast.error(errorMessage);
             }
         } catch (err) {
             toast.error('An error occurred');

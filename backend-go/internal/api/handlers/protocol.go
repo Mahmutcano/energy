@@ -2,8 +2,10 @@ package handlers
 
 import (
 	"context"
+	"log"
 	"net/http"
 
+	"energy-scada-platform/internal/api/response"
 	"energy-scada-platform/internal/db"
 
 	"github.com/gin-gonic/gin"
@@ -32,7 +34,7 @@ func GetCommProtocols(c *gin.Context) {
 		LEFT JOIN "IEC104Config" ic ON pc.id = ic.protocol_id
 	`)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		response.Error(c, http.StatusInternalServerError, response.ErrDatabase, err.Error())
 		return
 	}
 	defer rows.Close()
@@ -51,6 +53,7 @@ func GetCommProtocols(c *gin.Context) {
 			&iIP, &iPort, &iAsdu, &iT0, &iT1, &iT2, &iT3, &iK, &iW,
 		)
 		if err != nil {
+			log.Printf("[DB] Error scanning comm protocol: %v", err)
 			continue
 		}
 
@@ -87,25 +90,25 @@ func GetCommProtocols(c *gin.Context) {
 		results = append(results, res)
 	}
 
-	c.JSON(http.StatusOK, results)
+	response.Success(c, http.StatusOK, results)
 }
 
 func CreateCommProtocol(c *gin.Context) {
 	var req struct {
-		ConfigName   string    `json:"configName"`
-		ProtocolType string    `json:"protocolType"`
-		PlantID      uuid.UUID `json:"plantId"`
+		ConfigName   string    `json:"configName" binding:"required"`
+		ProtocolType string    `json:"protocolType" binding:"required"`
+		PlantID      uuid.UUID `json:"plantId" binding:"required"`
 		ModbusConfig *struct {
-			IPAddress  string `json:"ipAddress"`
-			Port       int    `json:"port"`
+			IPAddress  string `json:"ipAddress" binding:"required"`
+			Port       int    `json:"port" binding:"required"`
 			SlaveID    int    `json:"slaveId"`
 			Timeout    int    `json:"timeout"`
 			RetryCount int    `json:"retryCount"`
 		} `json:"modbusConfig"`
 		IEC104Config *struct {
-			IPAddress string `json:"ipAddress"`
-			Port      int    `json:"port"`
-			AsduAddr  int    `json:"asduAddr"`
+			IPAddress string `json:"ipAddress" binding:"required"`
+			Port      int    `json:"port" binding:"required"`
+			AsduAddr  int    `json:"asduAddr" binding:"required"`
 			T0        int    `json:"t0"`
 			T1        int    `json:"t1"`
 			T2        int    `json:"t2"`
@@ -116,14 +119,14 @@ func CreateCommProtocol(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		response.Error(c, http.StatusBadRequest, response.ErrInvalidInput, "Eksik veya hatalı parametre: "+err.Error())
 		return
 	}
 
 	ctx := context.Background()
 	tx, err := db.Pool.Begin(ctx)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		response.Error(c, http.StatusInternalServerError, response.ErrDatabase, "İşlem başlatılamadı")
 		return
 	}
 	defer tx.Rollback(ctx)
@@ -134,7 +137,7 @@ func CreateCommProtocol(c *gin.Context) {
 		VALUES ($1, $2, $3, $4, $5)
 	`, protocolID, req.PlantID, req.ProtocolType, req.ConfigName, true)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create protocol config: " + err.Error()})
+		response.Error(c, http.StatusInternalServerError, response.ErrDatabase, "Ana konfigürasyon kaydedilemedi")
 		return
 	}
 
@@ -153,41 +156,41 @@ func CreateCommProtocol(c *gin.Context) {
 	}
 
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create protocol details: " + err.Error()})
+		response.Error(c, http.StatusInternalServerError, response.ErrDatabase, "Alt konfigürasyon kaydedilemedi: "+err.Error())
 		return
 	}
 
 	if err := tx.Commit(ctx); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		response.Error(c, http.StatusInternalServerError, response.ErrDatabase, "Değişiklikler uygulanamadı")
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"id": protocolID, "message": "Protocol created successfully"})
+	response.Success(c, http.StatusCreated, gin.H{"id": protocolID, "message": "Protokol başarıyla oluşturuldu"})
 }
 
 func UpdateCommProtocol(c *gin.Context) {
 	idStr := c.Param("id")
 	protocolID, err := uuid.Parse(idStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID"})
+		response.Error(c, http.StatusBadRequest, response.ErrInvalidInput, "Geçersiz ID")
 		return
 	}
 
 	var req struct {
-		ConfigName   string    `json:"configName"`
-		ProtocolType string    `json:"protocolType"`
-		PlantID      uuid.UUID `json:"plantId"`
+		ConfigName   string    `json:"configName" binding:"required"`
+		ProtocolType string    `json:"protocolType" binding:"required"`
+		PlantID      uuid.UUID `json:"plantId" binding:"required"`
 		ModbusConfig *struct {
-			IPAddress  string `json:"ipAddress"`
-			Port       int    `json:"port"`
+			IPAddress  string `json:"ipAddress" binding:"required"`
+			Port       int    `json:"port" binding:"required"`
 			SlaveID    int    `json:"slaveId"`
 			Timeout    int    `json:"timeout"`
 			RetryCount int    `json:"retryCount"`
 		} `json:"modbusConfig"`
 		IEC104Config *struct {
-			IPAddress string `json:"ipAddress"`
-			Port      int    `json:"port"`
-			AsduAddr  int    `json:"asduAddr"`
+			IPAddress string `json:"ipAddress" binding:"required"`
+			Port      int    `json:"port" binding:"required"`
+			AsduAddr  int    `json:"asduAddr" binding:"required"`
 			T0        int    `json:"t0"`
 			T1        int    `json:"t1"`
 			T2        int    `json:"t2"`
@@ -198,25 +201,30 @@ func UpdateCommProtocol(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		response.Error(c, http.StatusBadRequest, response.ErrInvalidInput, "Hatalı veri: "+err.Error())
 		return
 	}
 
 	ctx := context.Background()
 	tx, err := db.Pool.Begin(ctx)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		response.Error(c, http.StatusInternalServerError, response.ErrDatabase, "İşlem hatası")
 		return
 	}
 	defer tx.Rollback(ctx)
 
-	_, err = tx.Exec(ctx, `
+	result, err := tx.Exec(ctx, `
 		UPDATE "ProtocolConfig" 
 		SET "configName" = $1, "protocolType" = $2, plant_id = $3
 		WHERE id = $4
 	`, req.ConfigName, req.ProtocolType, req.PlantID, protocolID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		response.Error(c, http.StatusInternalServerError, response.ErrDatabase, err.Error())
+		return
+	}
+
+	if result.RowsAffected() == 0 {
+		response.Error(c, http.StatusNotFound, response.ErrNotFound, "Konfigürasyon bulunamadı")
 		return
 	}
 
@@ -239,32 +247,37 @@ func UpdateCommProtocol(c *gin.Context) {
 	}
 
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		response.Error(c, http.StatusInternalServerError, response.ErrDatabase, err.Error())
 		return
 	}
 
 	if err := tx.Commit(ctx); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		response.Error(c, http.StatusInternalServerError, response.ErrDatabase, "Kayıt hatası")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Protocol updated successfully"})
+	response.Success(c, http.StatusOK, gin.H{"message": "Protokol başarıyla güncellendi"})
 }
 
 func DeleteCommProtocol(c *gin.Context) {
 	idStr := c.Param("id")
 	protocolID, err := uuid.Parse(idStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID"})
+		response.Error(c, http.StatusBadRequest, response.ErrInvalidInput, "Geçersiz ID")
 		return
 	}
 
 	ctx := context.Background()
-	_, err = db.Pool.Exec(ctx, `DELETE FROM "ProtocolConfig" WHERE id = $1`, protocolID)
+	result, err := db.Pool.Exec(ctx, `DELETE FROM "ProtocolConfig" WHERE id = $1`, protocolID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		response.Error(c, http.StatusInternalServerError, response.ErrDatabase, "Silme hatası")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Protocol deleted successfully"})
+	if result.RowsAffected() == 0 {
+		response.Error(c, http.StatusNotFound, response.ErrNotFound, "Kayıt bulunamadı")
+		return
+	}
+
+	response.Success(c, http.StatusOK, gin.H{"message": "Protokol başarıyla silindi"})
 }

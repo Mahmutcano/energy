@@ -2,8 +2,10 @@ package handlers
 
 import (
 	"context"
+	"log"
 	"net/http"
 
+	"energy-scada-platform/internal/api/response"
 	"energy-scada-platform/internal/db"
 
 	"github.com/gin-gonic/gin"
@@ -31,7 +33,7 @@ func GetDatasheetProfiles(c *gin.Context) {
 		FROM "DatasheetProfile" dp
 	`)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		response.Error(c, http.StatusInternalServerError, response.ErrDatabase, err.Error())
 		return
 	}
 	defer rows.Close()
@@ -41,6 +43,7 @@ func GetDatasheetProfiles(c *gin.Context) {
 		var p DatasheetProfile
 		var cCount ProfileCount
 		if err := rows.Scan(&p.ID, &p.Name, &p.ProtocolType, &cCount.Points, &cCount.Devices); err != nil {
+			log.Printf("[DB] Error scanning datasheet profile: %v", err)
 			continue
 		}
 		p.Count = &cCount
@@ -52,17 +55,24 @@ func GetDatasheetProfiles(c *gin.Context) {
 		profiles = []DatasheetProfile{}
 	}
 
-	c.JSON(http.StatusOK, profiles)
+	response.Success(c, http.StatusOK, profiles)
 }
 
 func CreateDatasheetProfile(c *gin.Context) {
+	log.Println("[API] POST /api/datasheet-profiles hit")
 	var req struct {
-		Name         string `json:"name"`
-		ProtocolType string `json:"protocolType"`
+		Name         string `json:"name" binding:"required"`
+		ProtocolType string `json:"protocolType" binding:"required"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		response.Error(c, http.StatusBadRequest, response.ErrInvalidInput, "İsim ve protokol tipi zorunludur")
+		return
+	}
+
+	// Double check ProtocolType enum
+	if req.ProtocolType != "MODBUS" && req.ProtocolType != "IEC104" {
+		response.Error(c, http.StatusBadRequest, response.ErrInvalidInput, "Protokol tipi MODBUS veya IEC104 olmalıdır")
 		return
 	}
 
@@ -73,57 +83,72 @@ func CreateDatasheetProfile(c *gin.Context) {
 	`, profileID, req.Name, req.ProtocolType, true)
 
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		log.Printf("[DB] INSERT Error (DatasheetProfile): %v", err)
+		response.Error(c, http.StatusInternalServerError, response.ErrDatabase, "Veritabanına kaydedilirken bir hata oluştu")
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"id": profileID, "name": req.Name, "protocolType": req.ProtocolType})
+	response.Success(c, http.StatusCreated, gin.H{
+		"id":           profileID,
+		"name":         req.Name,
+		"protocolType": req.ProtocolType,
+	})
 }
 
 func UpdateDatasheetProfile(c *gin.Context) {
 	idStr := c.Param("id")
 	profileID, err := uuid.Parse(idStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID"})
+		response.Error(c, http.StatusBadRequest, response.ErrInvalidInput, "Geçersiz ID formatı")
 		return
 	}
 
 	var req struct {
-		Name         string `json:"name"`
-		ProtocolType string `json:"protocolType"`
+		Name         string `json:"name" binding:"required"`
+		ProtocolType string `json:"protocolType" binding:"required"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		response.Error(c, http.StatusBadRequest, response.ErrInvalidInput, "İsim ve protokol tipi zorunludur")
 		return
 	}
 
-	_, err = db.Pool.Exec(context.Background(), `
+	result, err := db.Pool.Exec(context.Background(), `
 		UPDATE "DatasheetProfile" SET name = $1, "protocolType" = $2
 		WHERE id = $3
 	`, req.Name, req.ProtocolType, profileID)
 
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		response.Error(c, http.StatusInternalServerError, response.ErrDatabase, "Güncelleme sırasında bir veritabanı hatası oluştu")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Profile updated successfully"})
+	if result.RowsAffected() == 0 {
+		response.Error(c, http.StatusNotFound, response.ErrNotFound, "Profil bulunamadı")
+		return
+	}
+
+	response.Success(c, http.StatusOK, gin.H{"message": "Profil başarıyla güncellendi"})
 }
 
 func DeleteDatasheetProfile(c *gin.Context) {
 	idStr := c.Param("id")
 	profileID, err := uuid.Parse(idStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID"})
+		response.Error(c, http.StatusBadRequest, response.ErrInvalidInput, "Geçersiz ID formatı")
 		return
 	}
 
-	_, err = db.Pool.Exec(context.Background(), `DELETE FROM "DatasheetProfile" WHERE id = $1`, profileID)
+	result, err := db.Pool.Exec(context.Background(), `DELETE FROM "DatasheetProfile" WHERE id = $1`, profileID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		response.Error(c, http.StatusInternalServerError, response.ErrDatabase, "Silme işlemi sırasında bir veritabanı hatası oluştu")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Profile deleted successfully"})
+	if result.RowsAffected() == 0 {
+		response.Error(c, http.StatusNotFound, response.ErrNotFound, "Profil bulunamadı")
+		return
+	}
+
+	response.Success(c, http.StatusOK, gin.H{"message": "Profil başarıyla silindi"})
 }

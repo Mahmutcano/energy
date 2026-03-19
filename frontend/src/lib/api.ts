@@ -33,5 +33,15 @@ export async function apiRequest(endpoint: string, options: RequestInit = {}) {
         }
     }
 
+    // Intercept .json() to handle standardized response format
+    const originalJson = response.json.bind(response);
+    response.json = async () => {
+        const result = await originalJson();
+        if (result && typeof result === 'object' && result.success === true && 'data' in result) {
+            return result.data;
+        }
+        return result;
+    };
+
     return response;
 }

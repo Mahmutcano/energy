@@ -52,22 +52,11 @@ export default function Dashboard() {
           apiRequest('/api/plants'),
         ]);
 
-        const getResponseData = async (res: Response) => {
-          if (!res.ok) return [];
-          try {
-            const result = await res.json();
-            const data = result.success ? result.data : result;
-            return Array.isArray(data) ? data : [];
-          } catch (e) {
-            return [];
-          }
-        };
-
-        const devices = await getResponseData(devRes);
-        const alarms = await getResponseData(alarmRes);
-        const protos = await getResponseData(protoRes);
-        const companies = await getResponseData(compRes);
-        const plants = await getResponseData(plantRes);
+        const devices = devRes.ok ? await devRes.json() : [];
+        const alarms = alarmRes.ok ? await alarmRes.json() : [];
+        const protos = protoRes.ok ? await protoRes.json() : [];
+        const companies = compRes.ok ? await compRes.json() : [];
+        const plants = plantRes.ok ? await plantRes.json() : [];
 
         setProtocols(protos.slice(0, 4));
         setStats({

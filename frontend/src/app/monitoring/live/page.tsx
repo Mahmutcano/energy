@@ -507,18 +507,6 @@ export default function LiveMonitoringPage() {
     const [protocolStatuses, setProtocolStatuses] = useState<Record<string, string>>({});
     const [isFlushing, setIsFlushing] = useState(false);
 
-    const getResponseData = async (res: Response, defaultValue: any = []) => {
-        if (!res.ok) return defaultValue;
-        try {
-            const result = await res.json();
-            const data = result.success ? result.data : result;
-            if (Array.isArray(defaultValue) && !Array.isArray(data)) return defaultValue;
-            return data || defaultValue;
-        } catch (e) {
-            return defaultValue;
-        }
-    };
-
     useEffect(() => {
         setSocketConnected(socket.connected);
         const onConnect = () => setSocketConnected(true);
@@ -545,8 +533,8 @@ export default function LiveMonitoringPage() {
                 apiRequest('/api/companies'),
                 apiRequest('/api/system/protocol-statuses')
             ]);
-            if (compRes.ok) setCompanies(await getResponseData(compRes, []));
-            if (statusRes.ok) setProtocolStatuses(await getResponseData(statusRes, {}));
+            if (compRes.ok) setCompanies(await compRes.json());
+            if (statusRes.ok) setProtocolStatuses(await statusRes.json());
         } catch (err) {
             console.error("Fetch initial error:", err);
         } finally {
@@ -583,7 +571,7 @@ export default function LiveMonitoringPage() {
             try {
                 const res = await apiRequest('/api/plants');
                 if (res.ok) {
-                    const allPlants = await getResponseData(res, []);
+                    const allPlants = await res.json();
                     setPlants(allPlants.filter((p: any) => p.companyId === selectedCompany));
                 }
             } catch (err) {
@@ -604,7 +592,7 @@ export default function LiveMonitoringPage() {
             try {
                 const res = await apiRequest('/api/devices');
                 if (res.ok) {
-                    const allDevices = await getResponseData(res, []);
+                    const allDevices = await res.json();
                     setDevices(allDevices.filter((d: any) => d.protocol?.plant?.id === selectedPlant));
                 }
             } catch (err) {
@@ -625,7 +613,7 @@ export default function LiveMonitoringPage() {
                 if (selectedDevice.protocolConfigId) {
                     const protoRes = await apiRequest('/api/comm-protocols');
                     if (protoRes.ok) {
-                        const protos = await getResponseData(protoRes, []);
+                        const protos = await protoRes.json();
                         const proto = protos.find((p: any) => p.id === selectedDevice.protocolConfigId);
                         if (proto) {
                             setProtocolType(proto.protocolType);
@@ -635,7 +623,7 @@ export default function LiveMonitoringPage() {
                 }
                 if (selectedDevice.datasheetProfileId) {
                     const res = await apiRequest(`/api/datasheets?profileId=${selectedDevice.datasheetProfileId}`);
-                    if (res.ok) setPoints(await getResponseData(res, []));
+                    if (res.ok) setPoints(await res.json());
                 }
             } catch (err) {
                 console.error("Fetch points error:", err);

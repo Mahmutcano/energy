@@ -118,28 +118,29 @@ func UpdateDevice(c *gin.Context) {
 	}
 
 	// Dynamic update based on provided fields
-	var query string
+	var queryParts []string
 	var args []interface{}
 	idx := 1
 
-	if isActive, ok := body["isActive"]; ok {
-		query += fmt.Sprintf("\"isActive\" = $%d, ", idx)
-		args = append(args, isActive)
-		idx++
+	fields := []string{"deviceName", "deviceType", "isActive", "isRecording", "protocolConfigId", "datasheetProfileId"}
+	for _, f := range fields {
+		if val, ok := body[f]; ok {
+			queryParts = append(queryParts, fmt.Sprintf("\"%s\" = $%d", f, idx))
+			args = append(args, val)
+			idx++
+		}
 	}
 
-	if isRecording, ok := body["isRecording"]; ok {
-		query += fmt.Sprintf("\"isRecording\" = $%d, ", idx)
-		args = append(args, isRecording)
-		idx++
-	}
-
-	if query == "" {
-		response.Error(c, http.StatusBadRequest, response.ErrInvalidInput, "No fields to update")
+	if len(queryParts) == 0 {
+		response.Error(c, http.StatusBadRequest, response.ErrInvalidInput, "Güncellenecek alan bulunamadı")
 		return
 	}
 
-	query = "UPDATE \"Device\" SET " + query[:len(query)-2] + " WHERE id = $" + fmt.Sprintf("%d", idx)
+	query := "UPDATE \"Device\" SET " + fmt.Sprintf("%s", queryParts[0])
+	for i := 1; i < len(queryParts); i++ {
+		query += ", " + queryParts[i]
+	}
+	query += " WHERE id = $" + fmt.Sprintf("%d", idx)
 	args = append(args, id)
 
 	_, err = db.Pool.Exec(context.Background(), query, args...)
@@ -149,4 +150,49 @@ func UpdateDevice(c *gin.Context) {
 	}
 
 	response.Success(c, http.StatusOK, gin.H{"message": "Cihaz güncellendi"})
+}
+
+func CreateDevice(c *gin.Context) {
+	var body struct {
+		DeviceName         string     `json:"deviceName" binding:"required"`
+		DeviceType         string     `json:"deviceType" binding:"required"`
+		IsActive           bool       `json:"isActive"`
+		ProtocolConfigID   uuid.UUID  `json:"protocolConfigId" binding:"required"`
+		DatasheetProfileID *uuid.UUID `json:"datasheetProfileId"`
+	}
+
+	if err := c.ShouldBindJSON(&body); err != nil {
+		response.Error(c, http.StatusBadRequest, response.ErrInvalidInput, err.Error())
+		return
+	}
+
+	id := uuid.New()
+	_, err := db.Pool.Exec(context.Background(), `
+		INSERT INTO "Device" (id, "deviceName", "deviceType", "isActive", "isRecording", protocol_config_id, datasheet_profile_id)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
+	`, id, body.DeviceName, body.DeviceType, body.IsActive, true, body.ProtocolConfigID, body.DatasheetProfileID)
+
+	if err != nil {
+		response.Error(c, http.StatusInternalServerError, response.ErrDatabase, err.Error())
+		return
+	}
+
+	response.Success(c, http.StatusCreated, gin.H{"id": id, "message": "Cihaz oluşturuldu"})
+}
+
+func DeleteDevice(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		response.Error(c, http.StatusBadRequest, response.ErrInvalidInput, "Cihaz ID hatalı")
+		return
+	}
+
+	_, err = db.Pool.Exec(context.Background(), "DELETE FROM \"Device\" WHERE id = $1", id)
+	if err != nil {
+		response.Error(c, http.StatusInternalServerError, response.ErrDatabase, err.Error())
+		return
+	}
+
+	response.Success(c, http.StatusOK, gin.H{"message": "Cihaz silindi"})
 }

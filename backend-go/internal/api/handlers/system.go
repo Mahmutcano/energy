@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"time"
 
+	"energy-scada-platform/internal/api/response"
 	"energy-scada-platform/internal/db"
 	"energy-scada-platform/internal/protocols"
 	"energy-scada-platform/internal/redis"
@@ -38,7 +39,7 @@ func FlushTelemetryQueue(c *gin.Context) {
 }
 
 func HealthCheck(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{
+	response.Success(c, http.StatusOK, gin.H{
 		"status":       "OPERATIONAL",
 		"responseTime": 15,
 		"timestamp":    time.Now().Format(time.RFC3339),
@@ -76,10 +77,15 @@ func HealthCheck(c *gin.Context) {
 }
 
 func GetRecordingSettings(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{
-		"enabled":       true,
-		"interval":      60,
-		"retentionDays": 30,
+	response.Success(c, http.StatusOK, gin.H{
+		"sampleIntervalSec": 10,
+		"retentionHours":    72,
+		"isRecording":       true,
+		"maxRecordsTotal":   1000000,
+		"db": gin.H{
+			"tableSize":    "12MB",
+			"totalRecords": 150000,
+		},
 	})
 }
 
@@ -135,5 +141,5 @@ func GetSchemaStats(c *gin.Context) {
 			"relations": []string{},
 		},
 	}
-	c.JSON(http.StatusOK, nodes)
+	response.Success(c, http.StatusOK, nodes)
 }

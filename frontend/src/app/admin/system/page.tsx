@@ -75,16 +75,21 @@ export default function SystemControl() {
         try {
             const res = await apiRequest('/api/devices');
             if (res.ok) {
-                const data = await res.json();
-                setDevices(data);
-                const active = data.filter((d: any) => d.isActive).length;
-                setStats({ total: data.length, active, passive: data.length - active, totalMeasurements: 0 });
+                const result = await res.json();
+                const data = (result && result.success) ? result.data : result;
+                const deviceList = Array.isArray(data) ? data : [];
+                setDevices(deviceList);
+                const active = deviceList.filter((d: any) => d.isActive).length;
+                setStats({ total: deviceList.length, active, passive: deviceList.length - active, totalMeasurements: 0 });
             }
             const statRes = await apiRequest('/api/system/schema-stats');
             if (statRes.ok) {
-                const schema = await statRes.json();
-                const telStat = schema.find((s: any) => s.id === 'TelemetryValue');
-                if (telStat) setStats(prev => ({ ...prev, totalMeasurements: telStat.count }));
+                const result = await statRes.json();
+                const schema = (result && result.success) ? result.data : result;
+                if (Array.isArray(schema)) {
+                    const telStat = schema.find((s: any) => s.id === 'TelemetryValue');
+                    if (telStat) setStats(prev => ({ ...prev, totalMeasurements: telStat.count }));
+                }
             }
         } catch { toast.error("Failed to load"); }
         finally { setLoading(false); }
@@ -94,7 +99,10 @@ export default function SystemControl() {
         setHealthLoading(true);
         try {
             const res = await apiRequest('/api/system/health-check');
-            if (res.ok) setHealth(await res.json());
+            if (res.ok) {
+                const result = await res.json();
+                setHealth((result && result.success) ? result.data : result);
+            }
         } catch { }
         finally { setHealthLoading(false); }
     }, []);
@@ -102,14 +110,24 @@ export default function SystemControl() {
     const fetchRecSettings = useCallback(async () => {
         try {
             const res = await apiRequest('/api/system/recording-settings');
-            if (res.ok) setRecSettings(await res.json());
+            if (res.ok) {
+                const result = await res.json();
+                setRecSettings((result && result.success) ? result.data : result);
+            }
         } catch { }
     }, []);
 
     const updateRecSetting = async (key: string, value: any) => {
         try {
             const res = await apiRequest('/api/system/recording-settings', { method: 'PATCH', body: JSON.stringify({ [key]: value }) });
-            if (res.ok) { const data = await res.json(); setRecSettings((p: any) => ({ ...p, ...data.settings })); toast.success('Updated'); }
+            if (res.ok) {
+                const result = await res.json();
+                const data = (result && result.success) ? result.data : result;
+                // Backwards compatibility with either {settings: ...} or direct object
+                const settings = data.settings || data;
+                setRecSettings((p: any) => ({ ...p, ...settings }));
+                toast.success('Updated');
+            }
         } catch { toast.error('Failed'); }
     };
 

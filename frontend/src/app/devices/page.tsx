@@ -244,8 +244,13 @@ function DevicesContent() {
                 setEditingDevice(null);
                 fetchDevices();
             } else {
-                const result = await res.json();
-                const errorMessage = result.error?.message || result.error || 'Operation failed';
+                let errorMessage = 'Operation failed';
+                try {
+                    const result = await res.json();
+                    errorMessage = result.error?.message || result.error || result.message || errorMessage;
+                } catch (e) {
+                    // JSON parse failed, apiRequest should have already toasted a generic error
+                }
                 toast.error(errorMessage);
             }
         } catch (err) {

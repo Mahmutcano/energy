@@ -6,6 +6,7 @@ import { apiRequest } from '@/lib/api';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
+import Modal from '@/components/Modal';
 
 interface DatasheetProfile {
     id: string;
@@ -41,8 +42,7 @@ export default function DatasheetProfilesPage() {
             const res = await apiRequest('/api/datasheet-profiles');
             if (res.ok) {
                 const result = await res.json();
-                // Destructure if using systematic response, fallback to direct array if not
-                const data = result.success ? result.data : result;
+                const data = (result && result.success) ? result.data : result;
                 setProfiles(Array.isArray(data) ? data : []);
             }
         } catch (err) {
@@ -189,121 +189,87 @@ export default function DatasheetProfilesPage() {
                 ))}
             </div>
 
-            <AnimatePresence>
-                {isModalOpen && (
-                    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
-                        <motion.div
-                            initial={{ scale: 0.95, opacity: 0 }}
-                            animate={{ scale: 1, opacity: 1 }}
-                            exit={{ scale: 0.95, opacity: 0 }}
-                            className="card-base w-full max-w-md bg-slate-950 border-slate-800 overflow-hidden shadow-2xl"
-                        >
-                            <div className="p-6 border-b border-slate-800 bg-slate-900/30 flex justify-between items-center">
-                                <div>
-                                    <h2 className="text-lg font-bold text-white tracking-tight">{editingProfile ? 'Edit Profile' : 'Create Profile'}</h2>
-                                    <p className="text-[10px] text-slate-500 tracking-widest uppercase mt-0.5">Profile Configuration</p>
-                                </div>
-                                <button onClick={handleCloseModal} className="text-slate-500 hover:text-white transition-colors">
-                                    <X size={20} />
-                                </button>
-                            </div>
-                            <form onSubmit={handleSubmit} className="p-6 space-y-5">
-                                <div className="space-y-1.5">
-                                    <label className="text-[10px] font-bold text-slate-500 tracking-widest uppercase mb-1.5 block">PROFILE NAME</label>
-                                    <input
-                                        type="text"
-                                        autoFocus
-                                        value={formData.name}
-                                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                        className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 focus:ring-4 focus:ring-brand-green/10 outline-none transition-all"
-                                        placeholder="e.g. Huawei SUN2000"
-                                        required
-                                    />
-                                </div>
-                                <div className="space-y-1.5">
-                                    <label className="text-[10px] font-bold text-slate-500 tracking-widest uppercase mb-1.5 block">PROTOCOL TYPE</label>
-                                    <select
-                                        value={formData.protocolType}
-                                        onChange={(e) => setFormData({ ...formData, protocolType: e.target.value })}
-                                        className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 focus:ring-4 focus:ring-brand-green/10 outline-none transition-all cursor-pointer"
-                                        required
-                                    >
-                                        <option value="MODBUS">MODBUS</option>
-                                        <option value="IEC104">IEC 104</option>
-                                    </select>
-                                </div>
-                                <div className="pt-2 space-y-3">
-                                    <button
-                                        type="submit"
-                                        disabled={isSubmitting}
-                                        className="w-full py-4 bg-brand-green text-white font-black tracking-[0.2em] text-xs rounded-xl hover:scale-[1.01] active:scale-[0.99] transition-all uppercase shadow-lg shadow-brand-green/20"
-                                    >
-                                        {isSubmitting ? 'SAVING...' : editingProfile ? 'UPDATE PROFILE' : 'CREATE PROFILE'}
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={handleCloseModal}
-                                        className="w-full py-3 bg-transparent text-slate-500 font-bold tracking-widest text-xs hover:text-white transition-all uppercase"
-                                    >
-                                        Cancel
-                                    </button>
-                                </div>
-                            </form>
-                        </motion.div>
+            <Modal
+                isOpen={isModalOpen}
+                onClose={handleCloseModal}
+                title={editingProfile ? 'Edit Profile' : 'Create Profile'}
+                subtitle="Profile Configuration"
+                icon={FileText}
+                maxWidth="md"
+            >
+                <form onSubmit={handleSubmit} className="space-y-4">
+                    <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold text-slate-500 tracking-widest uppercase mb-1.5 block">PROFILE NAME</label>
+                        <input
+                            type="text"
+                            autoFocus
+                            value={formData.name}
+                            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                            className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 focus:ring-4 focus:ring-brand-green/10 outline-none transition-all"
+                            placeholder="e.g. Huawei SUN2000"
+                            required
+                        />
                     </div>
-                )}
-            </AnimatePresence>
-
-            {/* Delete Confirmation Modal */}
-            <AnimatePresence>
-                {profileToDelete && (
-                    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
-                        <motion.div
-                            initial={{ scale: 0.95, opacity: 0 }}
-                            animate={{ scale: 1, opacity: 1 }}
-                            exit={{ scale: 0.95, opacity: 0 }}
-                            className="card-base w-full max-w-sm bg-slate-950 border-slate-800 overflow-hidden shadow-2xl shadow-red-500/10"
+                    <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold text-slate-500 tracking-widest uppercase mb-1.5 block">PROTOCOL TYPE</label>
+                        <select
+                            value={formData.protocolType}
+                            onChange={(e) => setFormData({ ...formData, protocolType: e.target.value })}
+                            className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 focus:ring-4 focus:ring-brand-green/10 outline-none transition-all cursor-pointer"
+                            required
                         >
-                            <div className="p-6 text-center space-y-4">
-                                <div className="w-16 h-16 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-500 flex items-center justify-center mx-auto mb-6">
-                                    <AlertTriangle size={32} />
-                                </div>
-
-                                <div>
-                                    <h3 className="text-lg font-bold text-white tracking-tight">Delete Profile</h3>
-                                    <p className="text-sm text-slate-400 mt-2 leading-relaxed">
-                                        Are you sure you want to delete <span className="font-bold text-white">{profileToDelete.name}</span>? This action cannot be undone.
-                                    </p>
-                                </div>
-
-                                <div className="grid grid-cols-2 gap-3 pt-4">
-                                    <button
-                                        onClick={() => setProfileToDelete(null)}
-                                        disabled={isDeleting}
-                                        className="py-3 px-4 rounded-xl border border-slate-800 text-slate-400 font-bold text-xs hover:bg-slate-900 transition-colors disabled:opacity-50 tracking-widest uppercase"
-                                    >
-                                        Cancel
-                                    </button>
-                                    <button
-                                        onClick={confirmDelete}
-                                        disabled={isDeleting}
-                                        className="py-3 px-4 rounded-xl bg-red-500 text-white font-bold text-xs hover:bg-red-600 shadow-lg shadow-red-500/20 transition-all disabled:opacity-50 tracking-widest uppercase flex items-center justify-center gap-2"
-                                    >
-                                        {isDeleting ? (
-                                            <>
-                                                <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                                Deleting...
-                                            </>
-                                        ) : (
-                                            'Yes, Delete'
-                                        )}
-                                    </button>
-                                </div>
-                            </div>
-                        </motion.div>
+                            <option value="MODBUS">MODBUS</option>
+                            <option value="IEC104">IEC 104</option>
+                        </select>
                     </div>
-                )}
-            </AnimatePresence>
+                    <div className="pt-2">
+                        <button
+                            type="submit"
+                            disabled={isSubmitting}
+                            className="w-full py-4 bg-brand-green text-white font-black tracking-[0.2em] text-xs rounded-xl hover:scale-[1.01] active:scale-[0.99] transition-all uppercase shadow-lg shadow-brand-green/20"
+                        >
+                            {isSubmitting ? 'SAVING...' : editingProfile ? 'UPDATE PROFILE' : 'CREATE PROFILE'}
+                        </button>
+                    </div>
+                </form>
+            </Modal>
+
+            <Modal
+                isOpen={!!profileToDelete}
+                onClose={() => setProfileToDelete(null)}
+                title="Delete Profile"
+                icon={AlertTriangle}
+                maxWidth="sm"
+            >
+                <div className="text-center space-y-4">
+                    <div className="w-12 h-12 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 flex items-center justify-center mx-auto mb-4">
+                        <AlertTriangle size={24} />
+                    </div>
+
+                    <div>
+                        <p className="text-sm text-slate-400 leading-relaxed">
+                            Are you sure you want to delete <span className="font-bold text-white">{profileToDelete?.name}</span>? This action cannot be undone.
+                        </p>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3 pt-2">
+                        <button
+                            onClick={() => setProfileToDelete(null)}
+                            disabled={isDeleting}
+                            className="py-2.5 px-4 rounded-lg border border-slate-800 text-slate-400 font-bold text-[10px] hover:bg-slate-900 transition-colors disabled:opacity-50 tracking-widest uppercase"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            onClick={confirmDelete}
+                            disabled={isDeleting}
+                            className="py-2.5 px-4 rounded-lg bg-red-500 text-white font-bold text-[10px] hover:bg-red-600 shadow-lg shadow-red-500/20 transition-all disabled:opacity-50 tracking-widest uppercase flex items-center justify-center gap-2"
+                        >
+                            {isDeleting ? 'Deleting...' : 'Yes, Delete'}
+                        </button>
+                    </div>
+                </div>
+            </Modal>
         </div>
     );
 }

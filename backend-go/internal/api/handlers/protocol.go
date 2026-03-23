@@ -268,14 +268,32 @@ func DeleteCommProtocol(c *gin.Context) {
 	}
 
 	ctx := context.Background()
-	result, err := db.Pool.Exec(ctx, `DELETE FROM "ProtocolConfig" WHERE id = $1`, protocolID)
+	tx, err := db.Pool.Begin(ctx)
 	if err != nil {
-		response.Error(c, http.StatusInternalServerError, response.ErrDatabase, "Silme hatası")
+		response.Error(c, http.StatusInternalServerError, response.ErrDatabase, "İşlem başlatılamadı")
+		return
+	}
+	defer tx.Rollback(ctx)
+
+	// Önce alt konfigürasyonları ve cihazları silelim
+	_, _ = tx.Exec(ctx, `DELETE FROM "Device" WHERE protocol_config_id = $1`, protocolID)
+	_, _ = tx.Exec(ctx, `DELETE FROM "ModbusConfig" WHERE protocol_id = $1`, protocolID)
+	_, _ = tx.Exec(ctx, `DELETE FROM "IEC104Config" WHERE protocol_id = $1`, protocolID)
+
+	// Şimdi ana konfigürasyonu silelim
+	result, err := tx.Exec(ctx, `DELETE FROM "ProtocolConfig" WHERE id = $1`, protocolID)
+	if err != nil {
+		response.Error(c, http.StatusInternalServerError, response.ErrDatabase, "Silme hatası: "+err.Error())
 		return
 	}
 
 	if result.RowsAffected() == 0 {
 		response.Error(c, http.StatusNotFound, response.ErrNotFound, "Kayıt bulunamadı")
+		return
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		response.Error(c, http.StatusInternalServerError, response.ErrDatabase, "Değişiklikler uygulanamadı")
 		return
 	}
 

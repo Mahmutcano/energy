@@ -75,9 +75,9 @@ export default function Modal({
         <AnimatePresence>
             {isOpen && (
                 <div
-                    className="fixed inset-0 overflow-y-auto outline-none flex items-center justify-center p-4"
-                    style={{ zIndex }}
+                    className="fixed inset-0 overflow-y-auto outline-none z-[200]"
                 >
+                    <div className="min-h-full flex flex-col items-center justify-center p-4">
                     {/* Backdrop */}
                     <motion.div
                         initial={{ opacity: 0 }}
@@ -120,6 +120,7 @@ export default function Modal({
                             {children}
                         </div>
                     </motion.div>
+                    </div>
                 </div>
             )}
         </AnimatePresence>

@@ -91,8 +91,8 @@ func CreateUser(c *gin.Context) {
 	defer tx.Rollback(context.Background())
 
 	_, err = tx.Exec(context.Background(), `
-		INSERT INTO "AppUser" (id, email, "firstName", "lastName", "adminType", "userCode", "createdAt")
-		VALUES ($1, $2, $3, $4, $5, $6, NOW())
+		INSERT INTO "AppUser" (id, email, "firstName", "lastName", "adminType", "userCode")
+		VALUES ($1, $2, $3, $4, $5, $6)
 	`, id, body.Email, firstName, lastName, body.Role, userCode)
 
 	if err != nil {
@@ -102,8 +102,8 @@ func CreateUser(c *gin.Context) {
 
 	if body.CompanyProfileId != nil {
 		_, err = tx.Exec(context.Background(), `
-			INSERT INTO "AppUserProfile" (id, user_id, company_id, "permissionLevel", "createdAt")
-			VALUES ($1, $2, $3, 'READ', NOW())
+			INSERT INTO "AppUserProfile" (id, user_id, company_id, "permissionLevel")
+			VALUES ($1, $2, $3, 'READ')
 		`, uuid.New(), id, *body.CompanyProfileId)
 		if err != nil {
 			response.Error(c, http.StatusInternalServerError, response.ErrDatabase, err.Error())

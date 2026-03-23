@@ -65,8 +65,8 @@ func CreateCompany(c *gin.Context) {
 
 	id := uuid.New()
 	_, err := db.Pool.Exec(context.Background(), `
-		INSERT INTO "CompanyProfile" (id, name, address, phone, email, representative, "taxOffice", "taxNumber", "isActive", "createdAt")
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())
+		INSERT INTO "CompanyProfile" (id, name, address, phone, email, representative, "taxOffice", "taxNumber", "isActive")
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 	`, id, req.Name, req.Address, req.Phone, req.Email, req.Representative, req.TaxOffice, req.TaxNumber, req.IsActive)
 
 	if err != nil {

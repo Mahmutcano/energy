@@ -1006,56 +1006,42 @@ function DataSheetsContent() {
                 </form>
             </Modal>
 
-            {/* Delete Confirmation Modal */}
-            <AnimatePresence>
-                {pointToDelete && (
-                    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
-                        <motion.div
-                            initial={{ scale: 0.95, opacity: 0 }}
-                            animate={{ scale: 1, opacity: 1 }}
-                            exit={{ scale: 0.95, opacity: 0 }}
-                            className="card-base w-full max-w-sm bg-slate-950 border-slate-800 overflow-hidden shadow-2xl shadow-red-500/10"
-                        >
-                            <div className="p-6 text-center space-y-4">
-                                <div className="w-16 h-16 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-500 flex items-center justify-center mx-auto mb-6">
-                                    <AlertTriangle size={32} />
-                                </div>
-
-                                <div>
-                                    <h3 className="text-lg font-bold text-white tracking-tight">Delete Data Point</h3>
-                                    <p className="text-sm text-slate-400 mt-2 leading-relaxed">
-                                        Are you sure you want to delete <span className="font-bold text-white">{isModbus ? pointToDelete.dataName : (pointToDelete.signalDescription || pointToDelete.componentId || 'this point')}</span>?
-                                    </p>
-                                </div>
-
-                                <div className="grid grid-cols-2 gap-3 pt-4">
-                                    <button
-                                        onClick={() => setPointToDelete(null)}
-                                        disabled={isDeleting}
-                                        className="py-3 px-4 rounded-xl border border-slate-800 text-slate-400 font-bold text-xs hover:bg-slate-900 transition-colors disabled:opacity-50 tracking-widest uppercase"
-                                    >
-                                        Cancel
-                                    </button>
-                                    <button
-                                        onClick={confirmDelete}
-                                        disabled={isDeleting}
-                                        className="py-3 px-4 rounded-xl bg-red-500 text-white font-bold text-xs hover:bg-red-600 shadow-lg shadow-red-500/20 transition-all disabled:opacity-50 tracking-widest uppercase flex items-center justify-center gap-2"
-                                    >
-                                        {isDeleting ? (
-                                            <>
-                                                <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                                Deleting...
-                                            </>
-                                        ) : (
-                                            'Yes, Delete'
-                                        )}
-                                    </button>
-                                </div>
-                            </div>
-                        </motion.div>
+            <Modal
+                isOpen={!!pointToDelete}
+                onClose={() => setPointToDelete(null)}
+                title="Delete Data Point"
+                icon={AlertTriangle}
+                maxWidth="sm"
+            >
+                <div className="text-center space-y-4 font-sans">
+                    <div className="w-12 h-12 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 flex items-center justify-center mx-auto mb-4">
+                        <AlertTriangle size={24} />
                     </div>
-                )}
-            </AnimatePresence>
+
+                    <div>
+                        <p className="text-sm text-slate-400 leading-relaxed">
+                            Are you sure you want to delete <span className="font-bold text-white">{pointToDelete?.dataName}</span>? This action cannot be undone.
+                        </p>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3 pt-2">
+                        <button
+                            onClick={() => setPointToDelete(null)}
+                            disabled={isDeleting}
+                            className="py-2.5 px-4 rounded-lg border border-slate-800 text-slate-400 font-bold text-[10px] hover:bg-slate-900 transition-colors disabled:opacity-50 tracking-widest uppercase"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            onClick={confirmDelete}
+                            disabled={isDeleting}
+                            className="py-2.5 px-4 rounded-lg bg-red-500 text-white font-bold text-[10px] hover:bg-red-600 shadow-lg shadow-red-500/20 transition-all disabled:opacity-50 tracking-widest uppercase flex items-center justify-center gap-2"
+                        >
+                            {isDeleting ? 'Deleting...' : 'Yes, Delete'}
+                        </button>
+                    </div>
+                </div>
+            </Modal>
         </div>
     );
 }

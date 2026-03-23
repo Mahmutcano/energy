@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net/http"
 
@@ -33,6 +34,7 @@ type DeviceInfo struct {
 	DeviceName         string         `json:"deviceName"`
 	DeviceType         string         `json:"deviceType"`
 	IsActive           bool           `json:"isActive"`
+	IsRecording        bool           `json:"isRecording"`
 	ProtocolConfigID   uuid.UUID      `json:"protocolConfigId"`
 	DatasheetProfileID *uuid.UUID     `json:"datasheetProfileId"`
 	Protocol           *ProtocolBrief `json:"protocol,omitempty"`
@@ -42,7 +44,7 @@ type DeviceInfo struct {
 func GetDevices(c *gin.Context) {
 	rows, err := db.Pool.Query(context.Background(), `
 		SELECT 
-			d.id, d."deviceName", d."deviceType", d."isActive", d.protocol_config_id, d.datasheet_profile_id,
+			d.id, d."deviceName", d."deviceType", d."isActive", d."isRecording", d.protocol_config_id, d.datasheet_profile_id,
 			pc."configName", pc."protocolType", pc.plant_id, p."plantName",
 			dp.name as profile_name, dp."protocolType" as profile_proto
 		FROM "Device" d
@@ -62,7 +64,7 @@ func GetDevices(c *gin.Context) {
 		var pcName, pcProto, plantName, dpName, dpProto *string
 		var plantID *uuid.UUID
 		if err := rows.Scan(
-			&d.ID, &d.DeviceName, &d.DeviceType, &d.IsActive, &d.ProtocolConfigID, &d.DatasheetProfileID,
+			&d.ID, &d.DeviceName, &d.DeviceType, &d.IsActive, &d.IsRecording, &d.ProtocolConfigID, &d.DatasheetProfileID,
 			&pcName, &pcProto, &plantID, &plantName, &dpName, &dpProto,
 		); err != nil {
 			log.Printf("[DB] Error scanning device: %v", err)
@@ -99,4 +101,52 @@ func GetDevices(c *gin.Context) {
 	}
 
 	response.Success(c, http.StatusOK, devices)
+}
+
+func UpdateDevice(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		response.Error(c, http.StatusBadRequest, response.ErrInvalidInput, "Cihaz ID hatalı")
+		return
+	}
+
+	var body map[string]interface{}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		response.Error(c, http.StatusBadRequest, response.ErrInvalidInput, err.Error())
+		return
+	}
+
+	// Dynamic update based on provided fields
+	var query string
+	var args []interface{}
+	idx := 1
+
+	if isActive, ok := body["isActive"]; ok {
+		query += fmt.Sprintf("\"isActive\" = $%d, ", idx)
+		args = append(args, isActive)
+		idx++
+	}
+
+	if isRecording, ok := body["isRecording"]; ok {
+		query += fmt.Sprintf("\"isRecording\" = $%d, ", idx)
+		args = append(args, isRecording)
+		idx++
+	}
+
+	if query == "" {
+		response.Error(c, http.StatusBadRequest, response.ErrInvalidInput, "No fields to update")
+		return
+	}
+
+	query = "UPDATE \"Device\" SET " + query[:len(query)-2] + " WHERE id = $" + fmt.Sprintf("%d", idx)
+	args = append(args, id)
+
+	_, err = db.Pool.Exec(context.Background(), query, args...)
+	if err != nil {
+		response.Error(c, http.StatusInternalServerError, response.ErrDatabase, err.Error())
+		return
+	}
+
+	response.Success(c, http.StatusOK, gin.H{"message": "Cihaz güncellendi"})
 }

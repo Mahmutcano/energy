@@ -92,7 +92,7 @@ func (s *IEC104Service) simulateTelemetry(protocolID uuid.UUID) {
 
 	// Get points
 	rows, err := db.Pool.Query(context.Background(), `
-		SELECT d.id, dp.id, dp."dataName", dp."dataValue", dp."scadaAddress"
+		SELECT d.id, dp.id, dp."dataName", dp."dataValue", dp."scadaAddress", d."isRecording"
 		FROM "Device" d
 		JOIN "DatasheetPoint" dp ON d.datasheet_profile_id = dp.profile_id
 		WHERE d.protocol_config_id = $1 AND d."isActive" = true AND dp."isActive" = true AND dp."scadaAddress" IS NOT NULL
@@ -104,18 +104,19 @@ func (s *IEC104Service) simulateTelemetry(protocolID uuid.UUID) {
 	defer rows.Close()
 
 	type SimPoint struct {
-		DeviceID uuid.UUID
-		PointID  uuid.UUID
-		Name     string
-		Unit     string
-		Address  int
+		DeviceID    uuid.UUID
+		PointID     uuid.UUID
+		Name        string
+		Unit        string
+		Address     int
+		IsRecording bool
 	}
 
 	var points []SimPoint
 	for rows.Next() {
 		var p SimPoint
 		var dataValue *string
-		if err := rows.Scan(&p.DeviceID, &p.PointID, &p.Name, &dataValue, &p.Address); err != nil {
+		if err := rows.Scan(&p.DeviceID, &p.PointID, &p.Name, &dataValue, &p.Address, &p.IsRecording); err != nil {
 			continue
 		}
 		if dataValue != nil {
@@ -179,7 +180,9 @@ func (s *IEC104Service) simulateTelemetry(protocolID uuid.UUID) {
 			}
 
 			// Push to redis so the worker persists it to TimescaleDB
-			redisSvc.PushTelemetry(telemetry)
+			if p.IsRecording {
+				redisSvc.PushTelemetry(telemetry)
+			}
 		}
 	}
 }

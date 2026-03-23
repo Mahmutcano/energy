@@ -138,7 +138,7 @@ func (s *ModbusService) StopProtocol(id uuid.UUID) {
 func (s *ModbusService) fetchPointsForProtocol(protocolID uuid.UUID) []models.PointToPoll {
 	// Simple query: Fetch active points for all devices in this protocol
 	rows, err := db.Pool.Query(context.Background(), `
-		SELECT dp."registerAddress", d.id, dp.id, dp."dataName", dp."dataValue", dp."functionCode", dp.multiplier, dp."wordSwap", dp."dataType"
+		SELECT dp."registerAddress", d.id, dp.id, dp."dataName", dp."dataValue", dp."functionCode", dp.multiplier, dp."wordSwap", dp."dataType", d."isRecording"
 		FROM "Device" d
 		JOIN "DatasheetPoint" dp ON d.datasheet_profile_id = dp.profile_id
 		WHERE d.protocol_config_id = $1 AND d."isActive" = true AND dp."isActive" = true AND dp."registerAddress" IS NOT NULL
@@ -154,7 +154,7 @@ func (s *ModbusService) fetchPointsForProtocol(protocolID uuid.UUID) []models.Po
 		var dataType, dataValue *string
 		var multiplier *float32
 		var registerAddress, functionCode *int
-		if err := rows.Scan(&registerAddress, &p.DeviceID, &p.PointID, &p.Name, &dataValue, &functionCode, &multiplier, &p.WordSwap, &dataType); err != nil {
+		if err := rows.Scan(&registerAddress, &p.DeviceID, &p.PointID, &p.Name, &dataValue, &functionCode, &multiplier, &p.WordSwap, &dataType, &p.IsRecording); err != nil {
 			continue
 		}
 		if registerAddress != nil {
@@ -276,7 +276,9 @@ func (s *ModbusService) runPollLoop(ctx context.Context, protocolID uuid.UUID, i
 				// Mark device as seen in AlarmService
 				services.GetAlarmService(s.socket).MarkDeviceSeen(point.DeviceID)
 
-				redisSvc.PushTelemetry(telemetry)
+				if point.IsRecording {
+					redisSvc.PushTelemetry(telemetry)
+				}
 			}
 		}
 	}

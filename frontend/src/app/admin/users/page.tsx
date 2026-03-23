@@ -38,8 +38,9 @@ export default function UsersPage() {
         try {
             const res = await apiRequest('/api/users');
             if (res.ok) {
-                const data = await res.json();
-                setUsers(data);
+                const result = await res.json();
+                const data = (result && result.success) ? result.data : result;
+                setUsers(Array.isArray(data) ? data : []);
             }
         } catch (err) {
             console.error('Failed to fetch users:', err);
@@ -51,7 +52,11 @@ export default function UsersPage() {
     const fetchCompanies = async () => {
         try {
             const res = await apiRequest('/api/companies');
-            if (res.ok) setCompanies(await res.json());
+            if (res.ok) {
+                const result = await res.json();
+                const data = (result && result.success) ? result.data : result;
+                setCompanies(Array.isArray(data) ? data : []);
+            }
         } catch (err) {
             console.error('Failed to fetch companies:', err);
         }
@@ -75,13 +80,9 @@ export default function UsersPage() {
                 toast.success('Kullanıcı başarıyla silindi');
                 setUserToDelete(null);
                 fetchUsers();
-            } else {
-                const data = await res.json();
-                toast.error(data.error || 'Silme işlemi başarısız');
             }
         } catch (err) {
             console.error('Delete error:', err);
-            toast.error('Bir hata oluştu');
         } finally {
             setIsDeleting(false);
         }
@@ -108,9 +109,6 @@ export default function UsersPage() {
                 setIsModalOpen(false);
                 setFormData({ email: '', password: '', name: '', role: 'NORMAL_USER', companyProfileId: '' });
                 fetchUsers();
-            } else {
-                const data = await res.json();
-                toast.error(data.error || 'İşlem başarısız');
             }
         } catch (err) {
             console.error('Create error:', err);

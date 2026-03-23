@@ -88,7 +88,7 @@ function ProtocolsContent() {
             const res = await apiRequest('/api/comm-protocols');
             if (res.ok) {
                 const result = await res.json();
-                let data = result.success ? result.data : result;
+                let data = (result && result.success) ? result.data : result;
                 if (!Array.isArray(data)) data = [];
                 
                 if (initialPlantId) {
@@ -109,7 +109,7 @@ function ProtocolsContent() {
             const plantRes = await apiRequest('/api/plants');
             if (plantRes.ok) {
                 const result = await plantRes.json();
-                const data = result.success ? result.data : result;
+                const data = (result && result.success) ? result.data : result;
                 setPlants(Array.isArray(data) ? data : []);
             }
         }
@@ -123,7 +123,7 @@ function ProtocolsContent() {
             const compRes = await apiRequest('/api/companies');
             if (compRes.ok) {
                 const result = await compRes.json();
-                const data = result.success ? result.data : result;
+                const data = (result && result.success) ? result.data : result;
                 setCompanies(Array.isArray(data) ? data : []);
             }
         }
@@ -183,6 +183,7 @@ function ProtocolsContent() {
         try {
             const res = await apiRequest(`/api/comm-protocols/${protocolToDelete.id}`, { method: 'DELETE' });
             if (res.ok) {
+                toast.success('Protokol başarıyla silindi');
                 setProtocols(protocols.filter(p => p.id !== protocolToDelete.id));
                 setProtocolToDelete(null);
             } else {
@@ -237,19 +238,14 @@ function ProtocolsContent() {
                 body: JSON.stringify(body)
             });
             if (res.ok) {
-                toast.success(editingProtocol ? 'Protocol updated' : 'Protocol created');
+                toast.success(editingProtocol ? 'Protokol güncellendi' : 'Protokol oluşturuldu');
                 setIsModalOpen(false);
                 setFormData({ ...defaultFormData, plantId: initialPlantId });
                 setEditingProtocol(null);
                 fetchProtocols();
-            } else {
-                const result = await res.json();
-                const errorMessage = result.error?.message || result.error || 'Operation failed';
-                toast.error(errorMessage);
             }
         } catch (err) {
             console.error('Create error:', err);
-            toast.error('An error occurred');
         } finally {
             setIsSubmitting(false);
             submittingRef.current = false;

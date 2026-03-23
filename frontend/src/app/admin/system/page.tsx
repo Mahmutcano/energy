@@ -16,6 +16,7 @@ interface Device {
     deviceName: string;
     deviceType: string;
     isActive: boolean;
+    isRecording: boolean;
     protocol: {
         id: string;
         configName: string;
@@ -128,15 +129,18 @@ export default function SystemControl() {
         return () => { clearInterval(d); clearInterval(h); };
     }, [fetchHealth, fetchRecSettings]);
 
-    const toggleDevice = async (device: Device) => {
-        const next = !device.isActive;
-        const t = toast.loading(`Toggling...`);
+    const toggleDeviceField = async (device: Device, field: 'isActive' | 'isRecording') => {
+        const next = !device[field];
+        const label = field === 'isActive' ? 'Communication' : 'Recording';
+        const t = toast.loading(`Toggling ${label}...`);
         try {
-            const res = await apiRequest(`/api/devices/${device.id}`, { method: 'PATCH', body: JSON.stringify({ isActive: next }) });
+            const res = await apiRequest(`/api/devices/${device.id}`, { method: 'PATCH', body: JSON.stringify({ [field]: next }) });
             if (res.ok) {
-                toast.success(`${device.deviceName} ${next ? 'ON' : 'OFF'}`, { id: t });
-                setDevices(p => p.map(d => d.id === device.id ? { ...d, isActive: next } : d));
-                setStats(p => ({ ...p, active: next ? p.active + 1 : p.active - 1, passive: next ? p.passive - 1 : p.passive + 1 }));
+                toast.success(`${device.deviceName} ${label} ${next ? 'ON' : 'OFF'}`, { id: t });
+                setDevices(p => p.map(d => d.id === device.id ? { ...d, [field]: next } : d));
+                if (field === 'isActive') {
+                    setStats(p => ({ ...p, active: next ? p.active + 1 : p.active - 1, passive: next ? p.passive - 1 : p.passive + 1 }));
+                }
             } else toast.error("Failed", { id: t });
         } catch { toast.error("Error", { id: t }); }
     };
@@ -228,9 +232,9 @@ export default function SystemControl() {
                             <thead className="sticky top-0 z-10 bg-slate-950">
                                 <tr>
                                     <th className="px-4 py-2 text-[8px] font-bold text-slate-500 uppercase tracking-widest border-b border-white/[0.03]">Device</th>
-                                    <th className="px-4 py-2 text-[8px] font-bold text-slate-500 uppercase tracking-widest border-b border-white/[0.03]">Plant / Protocol</th>
-                                    <th className="px-4 py-2 text-[8px] font-bold text-slate-500 uppercase tracking-widest border-b border-white/[0.03] text-center">Status</th>
-                                    <th className="px-4 py-2 text-[8px] font-bold text-slate-500 uppercase tracking-widest border-b border-white/[0.03] text-right">Toggle</th>
+                                    <th className="px-4 py-2 text-[8px] font-bold text-slate-500 uppercase tracking-widest border-b border-white/[0.03] text-center">Protocol</th>
+                                    <th className="px-4 py-2 text-[8px] font-bold text-slate-500 uppercase tracking-widest border-b border-white/[0.03] text-center whitespace-nowrap">COM / REC</th>
+                                    <th className="px-4 py-2 text-[8px] font-bold text-slate-500 uppercase tracking-widest border-b border-white/[0.03] text-right">Controls</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-white/[0.02]">
@@ -254,26 +258,41 @@ export default function SystemControl() {
                                                 <span className="text-[8px] font-medium text-slate-600">{device.protocol.protocolType} • {device.protocol.configName}</span>
                                             </td>
                                             <td className="px-4 py-2">
-                                                <div className="flex justify-center">
-                                                    {device.isActive ? (
-                                                        <span className="flex items-center gap-1 px-2 py-0.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded text-[8px] font-bold uppercase">
-                                                            <Activity size={8} className="animate-pulse" /> REC
-                                                        </span>
-                                                    ) : (
-                                                        <span className="flex items-center gap-1 px-2 py-0.5 bg-slate-900 border border-slate-800 text-slate-600 rounded text-[8px] font-bold uppercase">
-                                                            <Power size={8} /> OFF
-                                                        </span>
-                                                    )}
+                                                <div className="flex justify-center gap-1">
+                                                    <span className={clsx("flex items-center gap-1 px-1.5 py-0.5 rounded text-[7px] font-bold uppercase",
+                                                        device.isActive ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" : "bg-slate-900 text-slate-600 border border-slate-800")}>
+                                                        {device.isActive ? <Timer size={7} className="animate-pulse" /> : <WifiOff size={7} />} {device.isActive ? 'Active' : 'Idle'}
+                                                    </span>
+                                                    <span className={clsx("flex items-center gap-1 px-1.5 py-0.5 rounded text-[7px] font-bold uppercase",
+                                                        device.isRecording ? "bg-blue-500/10 text-blue-400 border border-blue-500/20" : "bg-slate-900 text-slate-600 border border-slate-800")}>
+                                                        <Database size={7} /> {device.isRecording ? 'Record' : 'Skip'}
+                                                    </span>
                                                 </div>
                                             </td>
                                             <td className="px-4 py-2">
-                                                <div className="flex justify-end">
-                                                    <button onClick={() => toggleDevice(device)}
-                                                        className={clsx("relative w-10 h-5 rounded-full transition-all duration-300 flex items-center p-0.5 border",
-                                                            device.isActive ? "bg-brand-green/20 border-brand-green/40" : "bg-slate-900 border-slate-800")}>
-                                                        <div className={clsx("w-4 h-4 rounded-full transition-all duration-500 shadow",
-                                                            device.isActive ? "translate-x-5 bg-brand-green" : "translate-x-0 bg-slate-700")}></div>
-                                                    </button>
+                                                <div className="flex justify-end gap-3">
+                                                    {/* COM Toggle */}
+                                                    <div className="flex flex-col items-center gap-1">
+                                                        <button onClick={() => toggleDeviceField(device, 'isActive')}
+                                                            title="Toggle Communication"
+                                                            className={clsx("relative w-8 h-4 rounded-full transition-all duration-300 flex items-center p-0.5 border",
+                                                                device.isActive ? "bg-brand-green/20 border-brand-green/40" : "bg-slate-900 border-slate-800")}>
+                                                            <div className={clsx("w-3 h-3 rounded-full transition-all duration-500 shadow",
+                                                                device.isActive ? "translate-x-4 bg-brand-green" : "translate-x-0 bg-slate-700")}></div>
+                                                        </button>
+                                                        <span className="text-[6px] font-bold text-slate-600 uppercase">COM</span>
+                                                    </div>
+                                                    {/* REC Toggle */}
+                                                    <div className="flex flex-col items-center gap-1">
+                                                        <button onClick={() => toggleDeviceField(device, 'isRecording')}
+                                                            title="Toggle Recording"
+                                                            className={clsx("relative w-8 h-4 rounded-full transition-all duration-300 flex items-center p-0.5 border",
+                                                                device.isRecording ? "bg-blue-500/20 border-blue-500/40" : "bg-slate-900 border-slate-800")}>
+                                                            <div className={clsx("w-3 h-3 rounded-full transition-all duration-500 shadow",
+                                                                device.isRecording ? "translate-x-4 bg-blue-500" : "translate-x-0 bg-slate-700")}></div>
+                                                        </button>
+                                                        <span className="text-[6px] font-bold text-slate-600 uppercase">REC</span>
+                                                    </div>
                                                 </div>
                                             </td>
                                         </motion.tr>

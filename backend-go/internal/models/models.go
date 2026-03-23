@@ -21,8 +21,8 @@ type Plant struct {
 	CompanyID   uuid.UUID `json:"companyId"`
 	PlantName   string    `json:"plantName"`
 	PlantType   string    `json:"plantType"`
-	Latitude    *string   `json:"latitude"`
-	Longitude   *string   `json:"longitude"`
+	Latitude    *float64  `json:"latitude"`
+	Longitude   *float64  `json:"longitude"`
 	IsActive    bool      `json:"isActive"`
 	CompanyName string    `json:"companyName,omitempty"`
 }
@@ -70,6 +70,7 @@ type PointToPoll struct {
 	Multiplier   float64   `json:"multiplier"`
 	WordSwap     bool      `json:"wordSwap"`
 	DataType     string    `json:"dataType"`
+	IsRecording  bool      `json:"isRecording"`
 }
 
 type TelemetryData struct {

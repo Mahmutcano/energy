@@ -43,8 +43,9 @@ export default function CompaniesPage() {
         try {
             const res = await apiRequest('/api/companies');
             if (res.ok) {
-                const data = await res.json();
-                setCompanies(data);
+                const result = await res.json();
+                const data = (result && result.success) ? result.data : result;
+                setCompanies(Array.isArray(data) ? data : []);
             }
         } catch (err) {
             console.error('Failed to fetch companies:', err);
@@ -77,6 +78,7 @@ export default function CompaniesPage() {
         try {
             const res = await apiRequest(`/api/companies/${companyToDelete.id}`, { method: 'DELETE' });
             if (res.ok) {
+                toast.success('Firma başarıyla silindi');
                 setCompanies(companies.filter(c => c.id !== companyToDelete.id));
                 setCompanyToDelete(null);
             } else {
@@ -108,17 +110,13 @@ export default function CompaniesPage() {
             });
 
             if (res.ok) {
-                toast.success(editingCompany ? 'Company updated' : 'Company created');
+                toast.success(editingCompany ? 'Firma güncellendi' : 'Firma oluşturuldu');
                 setIsModalOpen(false);
                 setEditingCompany(null);
                 fetchCompanies();
-            } else {
-                const data = await res.json();
-                toast.error(data.error || 'Operation failed');
             }
         } catch (err) {
             console.error('Submit error:', err);
-            toast.error('An error occurred');
         } finally {
             setIsSubmitting(false);
             submittingRef.current = false;

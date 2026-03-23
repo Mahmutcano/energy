@@ -19,6 +19,7 @@ interface Plant {
     company?: { id: string; name: string };
     protocols?: any[];
     plantType: 'SOLAR' | 'WIND' | 'HYDRO';
+    isActive: boolean;
     createdAt: string;
 }
 
@@ -60,7 +61,10 @@ function PlantsContent() {
         try {
             const res = await apiRequest('/api/plants');
             if (res.ok) {
-                let data = await res.json();
+                const result = await res.json();
+                let data = (result && result.success) ? result.data : result;
+                if (!Array.isArray(data)) data = [];
+                
                 if (initialCompanyId) {
                     data = data.filter((p: Plant) => p.companyId === initialCompanyId);
                 }
@@ -77,8 +81,9 @@ function PlantsContent() {
         try {
             const res = await apiRequest('/api/companies');
             if (res.ok) {
-                const data = await res.json();
-                setCompanies(data);
+                const result = await res.json();
+                const data = (result && result.success) ? result.data : result;
+                setCompanies(Array.isArray(data) ? data : []);
             }
         } catch (err) {
             console.error('Failed to fetch companies:', err);
@@ -117,16 +122,12 @@ function PlantsContent() {
         try {
             const res = await apiRequest(`/api/plants/${plantToDelete.id}`, { method: 'DELETE' });
             if (res.ok) {
-                toast.success('Plant deleted successfully');
+                toast.success('Santral başarıyla silindi');
                 setPlantToDelete(null);
                 fetchPlants();
-            } else {
-                const data = await res.json();
-                toast.error(data.error || 'Delete failed');
             }
         } catch (err) {
             console.error('Delete error:', err);
-            toast.error('An error occurred');
         } finally {
             setIsDeleting(false);
         }
@@ -154,17 +155,13 @@ function PlantsContent() {
             });
 
             if (res.ok) {
-                toast.success(editingPlant ? 'Plant updated' : 'Plant created');
+                toast.success(editingPlant ? 'Santral güncellendi' : 'Santral oluşturuldu');
                 setIsModalOpen(false);
                 setEditingPlant(null);
                 fetchPlants();
-            } else {
-                const data = await res.json();
-                toast.error(data.error || 'Operation failed');
             }
         } catch (err) {
             console.error('Submit error:', err);
-            toast.error('An error occurred');
         } finally {
             setIsSubmitting(false);
             submittingRef.current = false;

@@ -84,6 +84,8 @@ func main() {
 		{
 			protected.GET("/plants", handlers.GetPlants)
 			protected.POST("/plants", handlers.CreatePlant)
+			protected.PATCH("/plants/:id", handlers.UpdatePlant)
+			protected.DELETE("/plants/:id", handlers.DeletePlant)
 			protected.GET("/companies", handlers.GetCompanies)
 			protected.POST("/companies", handlers.CreateCompany)
 			protected.PATCH("/companies/:id", handlers.UpdateCompany)
@@ -92,6 +94,7 @@ func main() {
 			protected.POST("/users", handlers.CreateUser)
 			protected.DELETE("/users/:id", handlers.DeleteUser)
 			protected.GET("/devices", handlers.GetDevices)
+			protected.PATCH("/devices/:id", handlers.UpdateDevice)
 			protected.GET("/comm-protocols", handlers.GetCommProtocols)
 			protected.POST("/comm-protocols", handlers.CreateCommProtocol)
 			protected.PATCH("/comm-protocols/:id", handlers.UpdateCommProtocol)

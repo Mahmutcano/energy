@@ -18,6 +18,7 @@ interface DataSheet {
     id: string;
     dataName: string;
     dataValue: string | null;
+    dataExplanation: string | null;
     registerAddress: number | null;
     isActive: boolean;
     // Modbus
@@ -42,6 +43,7 @@ interface DataSheet {
 const defaultFormData = {
     dataName: '',
     dataValue: '',
+    dataExplanation: '',
     registerAddress: '',
     isActive: true,
     // Modbus
@@ -173,6 +175,7 @@ function DataSheetsContent() {
         setFormData({
             dataName: sheet.dataName || '',
             dataValue: sheet.dataValue || '',
+            dataExplanation: sheet.dataExplanation || '',
             registerAddress: sheet.registerAddress?.toString() || '',
             isActive: sheet.isActive ?? true,
             functionCode: sheet.functionCode?.toString() || '',
@@ -299,6 +302,7 @@ function DataSheetsContent() {
                 profileId: profileId,
                 dataName,
                 dataValue: formData.dataValue || null,
+                dataExplanation: formData.dataExplanation || null,
                 registerAddress: int(formData.registerAddress),
                 isActive: formData.isActive,
             };
@@ -391,8 +395,8 @@ function DataSheetsContent() {
                 let headerRowIndex = 0;
                 for (let i = 0; i < Math.min(rows.length, 10); i++) {
                     const rowStr = JSON.stringify(rows[i]);
-                    // Check for common keywords
-                    if (rowStr.includes('SCADA ADRESİ') || rowStr.includes('SİNYAL AÇIKLAMASI') || rowStr.includes('REGISTER ADDRESS')) {
+                    // Check for common keywords including new Modbus headers
+                    if (rowStr.includes('SCADA ADRESİ') || rowStr.includes('SİNYAL AÇIKLAMASI') || rowStr.includes('REGISTER ADDRESS') || rowStr.includes('Note-1') || rowStr.includes('Address') || rowStr.includes('Scaling')) {
                         headerRowIndex = i;
                         break;
                     }
@@ -426,21 +430,34 @@ function DataSheetsContent() {
                     };
 
                     if (isModbus) {
+                        // Concatenate Note-1 and Note-2 for dataName if they exist, otherwise use single field fallback
+                        const name1 = findValue(['Note-1', 'Notes-1', 'Not-1']);
+                        const name2 = findValue(['Note-2', 'Notes-2', 'Not-2']);
+                        let combinedName = '';
+                        if (name1 || name2) {
+                            combinedName = `${name1 || ''} ${name2 || ''}`.trim();
+                        }
+
                         return {
-                            dataName: findValue(['Data Name', 'Veri Adı', 'Name', 'Adı', 'Sinyal Açıklaması', 'SİNYAL AÇIKLAMASI']),
-                            dataValue: findValue(['Unit', 'Birim', 'Value', 'Değer', 'DATA TİPİ', 'Birim']),
-                            registerAddress: findValue(['Address', 'Adres', 'Register', 'REGISTER ADDRESS', 'SCADA ADRESİ', 'Adres']),
-                            functionCode: findValue(['FC', 'Function', 'Fonksiyon']),
-                            multiplier: findValue(['Multiplier', 'Çarpan']),
+                            dataName: name1 || findValue(['Data Name', 'Veri Adı', 'Name', 'Adı', 'Sinyal Açıklaması', 'SİNYAL AÇIKLAMASI']),
+                            dataValue: findValue(['Unit', 'Birim', 'Value', 'Değer', 'Birim', 'DATA TİPİ']),
+                            dataExplanation: name2 || findValue(['Description', 'Açıklama', 'Explanation', 'DATA_NAME_FOR_MODBUS']),
+                            dataType: findValue(['Data Type', 'Veri Tipi', 'Tip', 'Type']),
+                            registerAddress: findValue(['Address', 'Adres', 'Register', 'REGISTER ADDRESS', 'SCADA ADRESİ', 'Adres', 'Addres']),
+                            functionCode: findValue(['FC', 'Function', 'Fonksiyon']) || 3, // Default to 3 for Modbus read input registers if not specified
+                            multiplier: findValue(['Scaling', 'Çarpan', 'Multiplier', 'Scale']),
                             wordSwap: row['Swap'] || row['Word Swap'] === 'YES' || row['Word Swap'] === 'EVET' || row['Swap'] === true,
-                            recordingInterval: findValue(['Interval', 'Aralık', 'Kayıt Süresi', 'Kayıt Aralığı', 'KAYIT ARALIĞI']) || 1,
+                            recordingInterval: findValue(['Saklama Süresi', 'Interval', 'Aralık', 'Kayıt Süresi', 'Kayıt Aralığı', 'KAYIT ARALIĞI']) || 1,
                             isActive: true
                         };
                     } else {
+                        const description = findValue(['Signal Description', 'Sinyal Açıklaması', 'Açıklama', 'SİNYAL AÇIKLAMASI']);
                         return {
                             feederName: findValue(['Feeder', 'Fider', 'Hücre Adı', 'Hücre', 'FİDER/HÜCRE İSMİ']),
                             signalType: findValue(['Signal Type', 'Sinyal Tipi', 'Tip', 'SİNYAL TİPİ']),
-                            signalDescription: findValue(['Signal Description', 'Sinyal Açıklaması', 'Açıklama', 'SİNYAL AÇIKLAMASI']),
+                            signalDescription: description,
+                            dataExplanation: description,
+                            dataName: findValue(['Signal Name', 'Sinyal Adı', 'Adı', 'Name']),
                             dataType: findValue(['Data Type', 'Veri Tipi', 'DATA TİPİ', 'TIP', 'TİP']),
                             signalSource: findValue(['Source', 'Kaynak', 'Sinyal Kaynağı', 'SİNYAL KAYNAĞI']),
                             componentId: findValue(['Component ID', 'Komponent ID', 'KOMPONENT ID']),
@@ -460,12 +477,21 @@ function DataSheetsContent() {
                     const cleaned: any = { ...p };
                     if (cleaned.registerAddress !== undefined) cleaned.registerAddress = parseInt(cleaned.registerAddress);
                     if (cleaned.functionCode !== undefined) cleaned.functionCode = parseInt(cleaned.functionCode);
-                    if (cleaned.multiplier !== undefined) cleaned.multiplier = parseFloat(cleaned.multiplier);
+                    if (cleaned.multiplier !== undefined) {
+                        // Handle comma in scaling string (e.g. "0,001")
+                        let multStr = cleaned.multiplier.toString().replace(',', '.');
+                        cleaned.multiplier = parseFloat(multStr);
+                    }
                     if (cleaned.ioa1ObjectAddress !== undefined) cleaned.ioa1ObjectAddress = parseInt(cleaned.ioa1ObjectAddress);
                     if (cleaned.ioa2CellNo !== undefined) cleaned.ioa2CellNo = parseInt(cleaned.ioa2CellNo);
                     if (cleaned.ioa3VoltageLevel !== undefined) cleaned.ioa3VoltageLevel = parseInt(cleaned.ioa3VoltageLevel);
                     if (cleaned.scadaAddress !== undefined) cleaned.scadaAddress = parseInt(cleaned.scadaAddress);
-                    if (cleaned.recordingInterval !== undefined) cleaned.recordingInterval = parseInt(cleaned.recordingInterval);
+                    if (cleaned.recordingInterval !== undefined) {
+                        // Handle "30dk" and other strings with numbers
+                        let intervalVal = cleaned.recordingInterval.toString();
+                        let matches = intervalVal.match(/\d+/);
+                        cleaned.recordingInterval = matches ? parseInt(matches[0]) : 1;
+                    }
 
                     // Specific logic for IEC104 dataName
                     if (!isModbus && !p.dataName) {
@@ -622,7 +648,8 @@ function DataSheetsContent() {
                                 {isModbus ? (
                                     <>
                                         <th className={headerCellClass}>DATA NAME</th>
-                                        <th className={headerCellClass}>DATA VALUE</th>
+                                        <th className={headerCellClass}>DATA EXPLANATION</th>
+                                        <th className={headerCellClass}>DATA VALUE (UNIT)</th>
                                         <th className={headerCellClass}>REGISTER ADDRESS</th>
                                         <th className={headerCellClass}>FUNCTION CODE</th>
                                         <th className={headerCellClass}>MULTIPLIER</th>
@@ -650,9 +677,9 @@ function DataSheetsContent() {
                         </thead>
                         <tbody>
                             {loading ? (
-                                <tr><td colSpan={isModbus ? 8 : 13} className="px-6 py-12 text-center text-sm text-slate-500 animate-pulse">Loading data points...</td></tr>
+                                <tr><td colSpan={isModbus ? 9 : 13} className="px-6 py-12 text-center text-sm text-slate-500 animate-pulse">Loading data points...</td></tr>
                             ) : filteredSheets.length === 0 ? (
-                                <tr><td colSpan={isModbus ? 8 : 13} className="px-6 py-12 text-center text-sm text-slate-500">No data points found in this profile.</td></tr>
+                                <tr><td colSpan={isModbus ? 9 : 13} className="px-6 py-12 text-center text-sm text-slate-500">No data points found in this profile.</td></tr>
                             ) : filteredSheets.map((sheet) => (
                                 <tr key={sheet.id} className="border-b border-slate-800/30 hover:bg-slate-800/20 transition-all">
                                     {isModbus ? (
@@ -662,6 +689,9 @@ function DataSheetsContent() {
                                                     <Tag size={14} className="text-slate-600 flex-shrink-0" />
                                                     <span className="font-bold text-white">{sheet.dataName}</span>
                                                 </div>
+                                            </td>
+                                            <td className={`${cellClass} text-slate-400 max-w-[200px] truncate`} title={sheet.dataExplanation ?? ''}>
+                                                {sheet.dataExplanation || '-'}
                                             </td>
                                             <td className={`${cellClass} text-slate-400`}>{sheet.dataValue ?? '-'}</td>
                                             <td className={`${cellClass} font-mono tabular-nums text-amber-400 font-bold`}>{sheet.registerAddress ?? '-'}</td>
@@ -777,7 +807,7 @@ function DataSheetsContent() {
                             </div>
 
                             {/* Section 1: Identity */}
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <InputField
                                     label="DATA NAME" name="dataName" required autoFocus
                                     value={formData.dataName}
@@ -786,8 +816,17 @@ function DataSheetsContent() {
                                         setFormData({ ...formData, dataName: val });
                                         if (formErrors.dataName) setFormErrors({ ...formErrors, dataName: '' });
                                     }}
-                                    placeholder="e.g. Current L1"
+                                    placeholder="e.g. Voltage L1"
                                 />
+                                <InputField
+                                    label="DATA EXPLANATION" name="dataExplanation"
+                                    value={formData.dataExplanation}
+                                    onChange={(val) => setFormData({ ...formData, dataExplanation: val })}
+                                    placeholder="e.g. A Phase-Neutral Voltage"
+                                />
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <InputField
                                     label="DATA VALUE (UNIT)" name="dataValue"
                                     value={formData.dataValue}
@@ -888,18 +927,30 @@ function DataSheetsContent() {
                                 />
                             </div>
 
-                            {/* Row 2: Signal Description (full width) */}
-                            <InputField
-                                label="SIGNAL DESCRIPTION" name="signalDescription" maxLength={250}
-                                value={formData.signalDescription}
-                                error={formErrors.signalDescription}
-                                onChange={(val) => {
-                                    setFormData({ ...formData, signalDescription: val });
-                                    if (formErrors.signalDescription) setFormErrors({ ...formErrors, signalDescription: '' });
-                                }}
-                                placeholder="e.g. VAN (KV), IA (A), FREQUENCY (Hz)"
-                                required
-                            />
+                            {/* Row 2: Signal Description & Explanation (full width) */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <InputField
+                                    label="SIGNAL DESCRIPTION" name="signalDescription" maxLength={250}
+                                    value={formData.signalDescription}
+                                    error={formErrors.signalDescription}
+                                    onChange={(val) => {
+                                        setFormData({ ...formData, signalDescription: val, dataExplanation: val });
+                                        if (formErrors.signalDescription) setFormErrors({ ...formErrors, signalDescription: '' });
+                                    }}
+                                    placeholder="e.g. VAN (KV), IA (A), FREQUENCY (Hz)"
+                                    required
+                                />
+                                <InputField
+                                    label="DATA NAME" name="dataName" maxLength={100}
+                                    value={formData.dataName}
+                                    error={formErrors.dataName}
+                                    onChange={(val) => {
+                                        setFormData({ ...formData, dataName: val });
+                                        if (formErrors.dataName) setFormErrors({ ...formErrors, dataName: '' });
+                                    }}
+                                    placeholder="e.g. L1-N Voltage"
+                                />
+                            </div>
 
                             {/* Section 2: Component Details */}
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

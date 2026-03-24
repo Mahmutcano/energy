@@ -100,7 +100,7 @@ export class ModbusService {
                                     functionCode: point.functionCode || 3,
                                     multiplier: point.multiplier || 1,
                                     wordSwap: point.wordSwap || false,
-                                    dataType: (point.dataType || 'int16').toLowerCase()
+                                    dataType: (point.dataType || 'int16').toLowerCase().replace('float', 'float32').replace('long', 'int32').replace('double', 'float32')
                                 });
                             }
                         }
@@ -247,18 +247,24 @@ export class ModbusService {
 
                     val = val * (point.multiplier || 1);
 
-                    redisService.pushTelemetry({
-                        protocolId,
-                        deviceId: point.deviceId,
-                        pointId: point.pointId,
-                        ioa: point.address,
-                        value: val,
-                        unit: point.unit,
-                        name: point.name,
-                        timestamp: new Date()
-                    });
-                } catch (err) { }
-            }
+                        redisService.pushTelemetry({
+                            protocolId,
+                            deviceId: point.deviceId,
+                            pointId: point.pointId,
+                            ioa: point.address,
+                            value: val,
+                            unit: point.unit,
+                            name: point.name,
+                            timestamp: new Date()
+                        });
+                    } catch (err: any) {
+                        console.warn(`[Modbus] ⚠️ Poll Error [Protocol: ${protocolId}|Addr: ${point.address}]: ${err.message || 'Unknown'}`);
+                        // Update status to ERROR if multiple fails occur (handled by updateStatus)
+                        if (err.message && (err.message.includes('timeout') || err.message.includes('ECONN'))) {
+                            this.updateStatus(protocolId, 'ERROR');
+                        }
+                    }
+                }
         }, 250);
 
         const clientData = this.clients.get(protocolId);
@@ -270,7 +276,8 @@ export class ModbusService {
         port: number,
         slaveId: number,
         address: number,
-        quantity: number
+        quantity: number,
+        functionCode?: number
     }): Promise<any> {
         return new Promise((resolve, reject) => {
             const socket = new net.Socket();
@@ -287,14 +294,21 @@ export class ModbusService {
 
             socket.on('connect', async () => {
                 try {
-                    const resp = await client.readHoldingRegisters(params.address, params.quantity);
-                    const body = (resp.response as any)._body;
+                    let resp;
+                    const fc = Number(params.functionCode || 3);
+                    if (fc === 4) {
+                        resp = await client.readInputRegisters(params.address, params.quantity);
+                    } else {
+                        resp = await client.readHoldingRegisters(params.address, params.quantity);
+                    }
+                    
+                    const body = resp.response.body as any;
                     resolved = true;
                     clearTimeout(timeout);
                     socket.end();
                     resolve({
                         success: true,
-                        values: body._values,
+                        values: body.values || body._values,
                         rawData: body
                     });
                 } catch (err: any) {

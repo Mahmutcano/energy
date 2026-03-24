@@ -141,6 +141,7 @@ export const datasheetPoint = pgTable('DatasheetPoint', {
     profileId: uuid('profile_id').notNull().references(() => datasheetProfile.id, { onDelete: 'cascade' }),
     dataName: text('dataName').notNull(),
     dataValue: text('dataValue'),
+    dataExplanation: text('dataExplanation'),
     registerAddress: integer('registerAddress'),
     isActive: boolean('isActive').default(true).notNull(),
     functionCode: integer('functionCode'),

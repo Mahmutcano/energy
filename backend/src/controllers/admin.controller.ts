@@ -10,16 +10,13 @@ export const testModbus = async (req: Request, res: Response) => {
     try {
         const { ip, port, slaveId, address, functionCode } = req.body;
 
-        if (functionCode !== '03' && functionCode !== 3) {
-            return res.status(400).json({ message: 'Şu an sadece "03 - Read Holding Registers" desteklenmektedir.' });
-        }
-
         const result = await modbusService.testModbusConnection({
             ip,
             port: Number(port),
             slaveId: Number(slaveId),
             address: Number(address),
-            quantity: 1
+            quantity: 1,
+            functionCode: Number(functionCode || 3)
         });
 
         res.json(result);

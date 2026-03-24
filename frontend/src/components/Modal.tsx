@@ -35,7 +35,7 @@ export default function Modal({
     icon: Icon,
     children,
     maxWidth = 'lg',
-    zIndex = 200
+    zIndex = 1000
 }: ModalProps) {
     const [mounted, setMounted] = useState(false);
     const modalRef = React.useRef<HTMLDivElement>(null);
@@ -75,7 +75,8 @@ export default function Modal({
         <AnimatePresence>
             {isOpen && (
                 <div
-                    className="fixed inset-0 overflow-y-auto outline-none z-[200]"
+                    className="fixed inset-0 overflow-y-auto outline-none"
+                    style={{ zIndex }}
                 >
                     <div className="min-h-full flex flex-col items-center justify-center p-4">
                     {/* Backdrop */}
@@ -85,6 +86,7 @@ export default function Modal({
                         exit={{ opacity: 0 }}
                         onClick={onClose}
                         className="fixed inset-0 bg-black/60 backdrop-blur-sm"
+                        style={{ zIndex: -1 }}
                     />
 
                     {/* Modal Content */}
@@ -93,7 +95,8 @@ export default function Modal({
                         animate={{ scale: 1, opacity: 1, y: 0 }}
                         exit={{ scale: 0.98, opacity: 0, y: 10 }}
                         transition={{ duration: 0.15, ease: "easeOut" }}
-                        className={`card-base w-full ${maxWidthClasses[maxWidth]} bg-slate-950 border-slate-800 shadow-2xl overflow-hidden relative z-[201]`}
+                        className={`card-base w-full ${maxWidthClasses[maxWidth]} bg-slate-950 border-slate-800 shadow-2xl overflow-hidden relative`}
+                        style={{ zIndex: 1 }}
                     >
                         <div className="px-4 py-3 border-b border-slate-800 flex justify-between items-center bg-slate-900/50 backdrop-blur-md">
                             <div className="flex items-center gap-2.5">

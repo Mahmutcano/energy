@@ -180,11 +180,13 @@ function PlantsContent() {
                 body: JSON.stringify(body)
             });
             if (res.ok) {
-                const newCompany = await res.json();
+                const result = await res.json();
+                const newCompany = (result && result.success) ? result.data : result;
+                const companyId = newCompany.id || newCompany;
                 toast.success('Company created');
                 await fetchCompanies();
-                setEditingPlant(prev => prev ? { ...prev, companyId: newCompany.id } : null);
-                setFormData(prev => ({ ...prev, companyId: newCompany.id }));
+                setEditingPlant(prev => prev ? { ...prev, companyId : (typeof companyId === 'string' ? companyId : companyId.id) } : null);
+                setFormData(prev => ({ ...prev, companyId: (typeof companyId === 'string' ? companyId : companyId.id) }));
                 setIsCompanyModalOpen(false);
             } else {
                 const data = await res.json();

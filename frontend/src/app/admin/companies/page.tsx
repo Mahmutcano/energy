@@ -82,6 +82,9 @@ export default function CompaniesPage() {
                 setCompanies(companies.filter(c => c.id !== companyToDelete.id));
                 setCompanyToDelete(null);
             } else {
+                const result = await res.json();
+                const errorMessage = result.error?.message || result.error || 'Firma silinemedi';
+                toast.error(errorMessage);
                 fetchCompanies();
             }
         } catch (err) {

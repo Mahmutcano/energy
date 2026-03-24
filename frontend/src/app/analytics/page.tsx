@@ -33,7 +33,10 @@ export default function Analytics() {
         const fetchInitial = async () => {
             try {
                 const res = await apiRequest('/api/companies');
-                if (res.ok) setCompanies(await res.json());
+                if (res.ok) {
+                    const result = await res.json();
+                    setCompanies((result && result.success) ? result.data : (Array.isArray(result) ? result : []));
+                }
             } catch (err) { console.error("Fetch companies error:", err); }
         };
         fetchInitial();
@@ -43,7 +46,11 @@ export default function Analytics() {
         if (!selectedCompany) { setPlants([]); return; }
         const fetchPlants = async () => {
             const res = await apiRequest('/api/plants');
-            if (res.ok) { const all = await res.json(); setPlants(all.filter((p: any) => p.companyId === selectedCompany)); }
+            if (res.ok) {
+                const result = await res.json();
+                const all = (result && result.success) ? result.data : (Array.isArray(result) ? result : []);
+                setPlants(Array.isArray(all) ? all.filter((p: any) => p.companyId === selectedCompany) : []);
+            }
         };
         fetchPlants();
         setSelectedPlant(''); setSelectedDevice(''); setSelectedPoint('');
@@ -53,7 +60,11 @@ export default function Analytics() {
         if (!selectedPlant) { setDevices([]); return; }
         const fetchDevices = async () => {
             const res = await apiRequest('/api/devices');
-            if (res.ok) { const all = await res.json(); setDevices(all.filter((d: any) => d.protocol?.plant?.id === selectedPlant)); }
+            if (res.ok) {
+                const result = await res.json();
+                const all = (result && result.success) ? result.data : (Array.isArray(result) ? result : []);
+                setDevices(Array.isArray(all) ? all.filter((d: any) => d.protocol?.plant?.id === selectedPlant) : []);
+            }
         };
         fetchDevices();
         setSelectedDevice(''); setSelectedPoint('');
@@ -65,7 +76,10 @@ export default function Analytics() {
             const device = devices.find(d => d.id === selectedDevice);
             if (device?.datasheetProfileId) {
                 const res = await apiRequest(`/api/datasheets?profileId=${device.datasheetProfileId}`);
-                if (res.ok) setPoints(await res.json());
+                if (res.ok) {
+                    const result = await res.json();
+                    setPoints((result && result.success) ? result.data : (Array.isArray(result) ? result : []));
+                }
             }
         };
         fetchPoints();
@@ -82,8 +96,9 @@ export default function Analytics() {
             if (!startDate && !endDate) url += `&hours=${hours}`;
             const res = await apiRequest(url);
             if (res.ok) {
-                const data = await res.json();
-                setChartData(data.map((d: any) => ({ time: d.time, value: d.value })));
+                const result = await res.json();
+                const data = (result && result.success) ? result.data : (Array.isArray(result) ? result : []);
+                setChartData(Array.isArray(data) ? data.map((d: any) => ({ time: d.time, value: d.value })) : []);
             } else toast.error("Failed to fetch");
         } catch { toast.error("Network error"); }
         finally { setLoading(false); }

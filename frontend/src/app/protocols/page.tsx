@@ -88,13 +88,13 @@ function ProtocolsContent() {
             const res = await apiRequest('/api/comm-protocols');
             if (res.ok) {
                 const result = await res.json();
-                let data = (result && result.success) ? result.data : result;
-                if (!Array.isArray(data)) data = [];
+                const data = (result && result.success) ? result.data : (Array.isArray(result) ? result : []);
                 
+                let filteredData = Array.isArray(data) ? data : [];
                 if (initialPlantId) {
-                    data = data.filter((p: CommProtocol) => p.plantId === initialPlantId);
+                    filteredData = filteredData.filter((p: CommProtocol) => p.plantId === initialPlantId);
                 }
-                setProtocols(data);
+                setProtocols(filteredData);
             }
         }
  catch (err) {
@@ -109,7 +109,7 @@ function ProtocolsContent() {
             const plantRes = await apiRequest('/api/plants');
             if (plantRes.ok) {
                 const result = await plantRes.json();
-                const data = (result && result.success) ? result.data : result;
+                const data = (result && result.success) ? result.data : (Array.isArray(result) ? result : []);
                 setPlants(Array.isArray(data) ? data : []);
             }
         }
@@ -123,7 +123,7 @@ function ProtocolsContent() {
             const compRes = await apiRequest('/api/companies');
             if (compRes.ok) {
                 const result = await compRes.json();
-                const data = (result && result.success) ? result.data : result;
+                const data = (result && result.success) ? result.data : (Array.isArray(result) ? result : []);
                 setCompanies(Array.isArray(data) ? data : []);
             }
         }
@@ -187,6 +187,9 @@ function ProtocolsContent() {
                 setProtocols(protocols.filter(p => p.id !== protocolToDelete.id));
                 setProtocolToDelete(null);
             } else {
+                const result = await res.json();
+                const errorMessage = result.error?.message || result.error || 'Silme hatası';
+                toast.error(errorMessage);
                 fetchProtocols();
             }
         } catch (err) {
@@ -269,9 +272,10 @@ function ProtocolsContent() {
             if (res.ok) {
                 const result = await res.json();
                 const newPlant = result.success ? result.data : result;
+                const plantId = newPlant.id || newPlant;
                 toast.success('Plant created');
                 await fetchPlants();
-                setFormData({ ...formData, plantId: newPlant.id });
+                setFormData({ ...formData, plantId: (typeof plantId === 'string' ? plantId : plantId.id) });
                 setIsPlantModalOpen(false);
             } else {
                 const result = await res.json();

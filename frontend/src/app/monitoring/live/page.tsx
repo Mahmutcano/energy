@@ -533,8 +533,14 @@ export default function LiveMonitoringPage() {
                 apiRequest('/api/companies'),
                 apiRequest('/api/system/protocol-statuses')
             ]);
-            if (compRes.ok) setCompanies(await compRes.json());
-            if (statusRes.ok) setProtocolStatuses(await statusRes.json());
+            if (compRes.ok) {
+                const result = await compRes.json();
+                setCompanies((result && result.success) ? result.data : (Array.isArray(result) ? result : []));
+            }
+            if (statusRes.ok) {
+                const result = await statusRes.json();
+                setProtocolStatuses((result && result.success) ? result.data : result);
+            }
         } catch (err) {
             console.error("Fetch initial error:", err);
         } finally {
@@ -571,8 +577,9 @@ export default function LiveMonitoringPage() {
             try {
                 const res = await apiRequest('/api/plants');
                 if (res.ok) {
-                    const allPlants = await res.json();
-                    setPlants(allPlants.filter((p: any) => p.companyId === selectedCompany));
+                    const result = await res.json();
+                    const allPlants = (result && result.success) ? result.data : (Array.isArray(result) ? result : []);
+                    setPlants(Array.isArray(allPlants) ? allPlants.filter((p: any) => p.companyId === selectedCompany) : []);
                 }
             } catch (err) {
                 console.error("Fetch plants error:", err);
@@ -592,8 +599,9 @@ export default function LiveMonitoringPage() {
             try {
                 const res = await apiRequest('/api/devices');
                 if (res.ok) {
-                    const allDevices = await res.json();
-                    setDevices(allDevices.filter((d: any) => d.protocol?.plant?.id === selectedPlant));
+                    const result = await res.json();
+                    const allDevices = (result && result.success) ? result.data : (Array.isArray(result) ? result : []);
+                    setDevices(Array.isArray(allDevices) ? allDevices.filter((d: any) => d.protocol?.plant?.id === selectedPlant) : []);
                 }
             } catch (err) {
                 console.error("Fetch devices error:", err);
@@ -613,8 +621,9 @@ export default function LiveMonitoringPage() {
                 if (selectedDevice.protocolConfigId) {
                     const protoRes = await apiRequest('/api/comm-protocols');
                     if (protoRes.ok) {
-                        const protos = await protoRes.json();
-                        const proto = protos.find((p: any) => p.id === selectedDevice.protocolConfigId);
+                        const result = await protoRes.json();
+                        const protos = (result && result.success) ? result.data : (Array.isArray(result) ? result : []);
+                        const proto = Array.isArray(protos) ? protos.find((p: any) => p.id === selectedDevice.protocolConfigId) : null;
                         if (proto) {
                             setProtocolType(proto.protocolType);
                             if (proto.iec104Config) setAsduAddr(proto.iec104Config.asduAddr);
@@ -623,7 +632,10 @@ export default function LiveMonitoringPage() {
                 }
                 if (selectedDevice.datasheetProfileId) {
                     const res = await apiRequest(`/api/datasheets?profileId=${selectedDevice.datasheetProfileId}`);
-                    if (res.ok) setPoints(await res.json());
+                    if (res.ok) {
+                        const result = await res.json();
+                        setPoints((result && result.success) ? result.data : (Array.isArray(result) ? result : []));
+                    }
                 }
             } catch (err) {
                 console.error("Fetch points error:", err);

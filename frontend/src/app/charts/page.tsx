@@ -276,21 +276,33 @@ const AddPanelModal = ({ open, onClose, onAdd, existingPanelIds }: {
 
     useEffect(() => {
         if (!open) return;
-        apiRequest('/api/companies').then(r => r.ok ? r.json() : []).then(setCompanies);
+        apiRequest('/api/companies').then(async r => {
+            if (!r.ok) return [];
+            const res = await r.json();
+            return (res && res.success) ? res.data : (Array.isArray(res) ? res : []);
+        }).then(setCompanies);
     }, [open]);
 
     useEffect(() => {
         if (!selCompany) { setPlants([]); return; }
-        apiRequest('/api/plants').then(r => r.ok ? r.json() : []).then((all: any[]) =>
-            setPlants(all.filter(p => p.companyId === selCompany))
+        apiRequest('/api/plants').then(async r => {
+            if (!r.ok) return [];
+            const res = await r.json();
+            return (res && res.success) ? res.data : (Array.isArray(res) ? res : []);
+        }).then((all: any[]) =>
+            setPlants(Array.isArray(all) ? all.filter(p => p.companyId === selCompany) : [])
         );
         setSelPlant(''); setSelDevice(null); setPoints([]);
     }, [selCompany]);
 
     useEffect(() => {
         if (!selPlant) { setDevices([]); return; }
-        apiRequest('/api/devices').then(r => r.ok ? r.json() : []).then((all: any[]) =>
-            setDevices(all.filter(d => d.protocol?.plant?.id === selPlant))
+        apiRequest('/api/devices').then(async r => {
+            if (!r.ok) return [];
+            const res = await r.json();
+            return (res && res.success) ? res.data : (Array.isArray(res) ? res : []);
+        }).then((all: any[]) =>
+            setDevices(Array.isArray(all) ? all.filter(d => d.protocol?.plant?.id === selPlant) : [])
         );
         setSelDevice(null); setPoints([]);
     }, [selPlant]);
@@ -298,7 +310,11 @@ const AddPanelModal = ({ open, onClose, onAdd, existingPanelIds }: {
     useEffect(() => {
         if (!selDevice?.datasheetProfileId) { setPoints([]); return; }
         apiRequest(`/api/datasheets?profileId=${selDevice.datasheetProfileId}`)
-            .then(r => r.ok ? r.json() : []).then(setPoints);
+            .then(async r => {
+                if (!r.ok) return [];
+                const res = await r.json();
+                return (res && res.success) ? res.data : (Array.isArray(res) ? res : []);
+            }).then(setPoints);
     }, [selDevice]);
 
     if (!open) return null;
@@ -437,7 +453,11 @@ export default function ChartsPage() {
 
         // Immediately fetch historical data from DB to pre-populate the chart
         apiRequest(`/api/telemetry/history?deviceId=${device.id}&pointId=${point.id}&hours=1`)
-            .then(r => r.ok ? r.json() : [])
+            .then(async r => {
+                if (!r.ok) return [];
+                const res = await r.json();
+                return (res && res.success) ? res.data : (Array.isArray(res) ? res : []);
+            })
             .then((history: any[]) => {
                 if (!history || history.length === 0) {
                     console.log(`[CHART] No historical data for ${point.dataName}`);

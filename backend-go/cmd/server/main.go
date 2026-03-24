@@ -133,6 +133,8 @@ func main() {
 				system.POST("/flush-telemetry", handlers.FlushTelemetryQueue)
 				system.GET("/health-check", handlers.HealthCheck)
 				system.GET("/recording-settings", handlers.GetRecordingSettings)
+				system.PATCH("/recording-settings", handlers.UpdateRecordingSettings)
+				system.POST("/run-retention", handlers.RunRetention)
 				system.GET("/schema-stats", handlers.GetSchemaStats)
 			}
 		}

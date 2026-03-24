@@ -136,7 +136,13 @@ export default function SystemControl() {
         const t = toast.loading('Cleaning...');
         try {
             const res = await apiRequest('/api/system/run-retention', { method: 'POST' });
-            if (res.ok) { const d = await res.json(); toast.success(`Cleaned ${d.deleted} records`, { id: t }); fetchRecSettings(); }
+            if (res.ok) {
+                const result = await res.json();
+                const data = (result && result.success) ? result.data : result;
+                const deletedCount = data?.deleted || data?.count || 0;
+                toast.success(`Cleaned ${deletedCount} records`, { id: t });
+                fetchRecSettings();
+            }
         } catch { toast.error('Failed', { id: t }); }
     };
 

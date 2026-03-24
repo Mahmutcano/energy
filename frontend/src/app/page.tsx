@@ -52,13 +52,19 @@ export default function Dashboard() {
           apiRequest('/api/plants'),
         ]);
 
-        const devices = devRes.ok ? await devRes.json() : [];
-        const alarms = alarmRes.ok ? await alarmRes.json() : [];
-        const protos = protoRes.ok ? await protoRes.json() : [];
-        const companies = compRes.ok ? await compRes.json() : [];
-        const plants = plantRes.ok ? await plantRes.json() : [];
+        const extractData = async (res: Response) => {
+          if (!res.ok) return [];
+          const result = await res.json();
+          return (result && result.success) ? result.data : (Array.isArray(result) ? result : []);
+        };
 
-        setProtocols(protos.slice(0, 4));
+        const devices = await extractData(devRes);
+        const alarms = await extractData(alarmRes);
+        const protos = await extractData(protoRes);
+        const companies = await extractData(compRes);
+        const plants = await extractData(plantRes);
+
+        setProtocols(Array.isArray(protos) ? protos.slice(0, 4) : []);
         setStats({
           companies: companies.length,
           plants: plants.length,

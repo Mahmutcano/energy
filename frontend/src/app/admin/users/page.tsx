@@ -80,6 +80,11 @@ export default function UsersPage() {
                 toast.success('Kullanıcı başarıyla silindi');
                 setUserToDelete(null);
                 fetchUsers();
+            } else {
+                const result = await res.json();
+                const errorMessage = result.error?.message || result.error || 'Kullanıcı silinemedi';
+                toast.error(errorMessage);
+                fetchUsers();
             }
         } catch (err) {
             console.error('Delete error:', err);

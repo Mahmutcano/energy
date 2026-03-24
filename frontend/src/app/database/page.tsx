@@ -48,7 +48,9 @@ export default function DatabasePage() {
         try {
             const res = await apiRequest('/api/system/schema-stats');
             if (res.ok) {
-                setSchema(await res.json());
+                const result = await res.json();
+                const data = (result && result.success) ? result.data : (Array.isArray(result) ? result : []);
+                setSchema(Array.isArray(data) ? data : []);
             }
         } catch (err) {
             console.error('Failed to fetch schema:', err);

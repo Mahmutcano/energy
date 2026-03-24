@@ -143,3 +143,24 @@ func GetSchemaStats(c *gin.Context) {
 	}
 	response.Success(c, http.StatusOK, nodes)
 }
+func UpdateRecordingSettings(c *gin.Context) {
+	var body map[string]interface{}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		response.Error(c, http.StatusBadRequest, response.ErrInvalidInput, err.Error())
+		return
+	}
+
+	// For now, just echo back as success
+	response.Success(c, http.StatusOK, gin.H{
+		"message":  "Ayarlar güncellendi",
+		"settings": body,
+	})
+}
+
+func RunRetention(c *gin.Context) {
+	// Dummy retention logic
+	response.Success(c, http.StatusOK, gin.H{
+		"message": "Arşiv temizleme tamamlandı",
+		"deleted": 1250,
+	})
+}

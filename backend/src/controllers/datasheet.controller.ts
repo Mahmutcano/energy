@@ -113,25 +113,29 @@ export const deleteDatasheetProfile = async (req: Request<{ id: string }>, res: 
 
 const createDataPointSchema = z.object({
     profileId: z.string().uuid("Geçersiz Profil ID"),
-    dataName: z.string().min(1, "Data adı zorunludur"),
-    dataValue: z.string().optional().nullable(),
+    data: z.string().min(1, "Data alanı zorunludur"), // Combined Name/Value/Signal field
+    dataName: z.string().optional().nullable(), // Legacy support
+    dataValue: z.string().optional().nullable(), // Legacy support
     dataExplanation: z.string().optional().nullable(),
-    registerAddress: z.number().int().min(0).optional().nullable(),
+    address: z.coerce.number().int().min(0).optional().nullable(),
+    registerAddress: z.number().int().min(0).optional().nullable(), // Legacy support
     isActive: z.boolean().optional().default(true),
-    functionCode: z.number().int().min(1).max(4).optional().nullable(),
+    functionCode: z.number().int().min(1).max(16).optional().nullable(),
     multiplier: z.number().optional().nullable(),
     wordSwap: z.boolean().optional().nullable(),
     feederName: z.string().max(100).optional().nullable(),
     signalType: z.string().max(100).optional().nullable(),
-    signalDescription: z.string().max(250).optional().nullable(),
+    signalDescription: z.string().max(250).optional().nullable(), // Legacy support
     dataType: z.string().max(50).optional().nullable(),
+    type: z.string().max(50).optional().nullable(), // Legacy support
+    format: z.string().max(50).optional().nullable(), // Legacy support
     signalSource: z.string().max(100).optional().nullable(),
     componentId: z.string().max(100).optional().nullable(),
-    componentText: z.string().max(250).optional().nullable(),
-    ioa1ObjectAddress: z.coerce.number().int().min(0).optional().nullable(),
+    componentText: z.string().max(250).optional().nullable(), // Legacy support
+    ioa1ObjectAddress: z.coerce.number().int().min(0).optional().nullable(), // Legacy support
     ioa2CellNo: z.coerce.number().int().min(0).optional().nullable(),
     ioa3VoltageLevel: z.coerce.number().int().min(0).optional().nullable(),
-    scadaAddress: z.coerce.number().int().min(0).optional().nullable(),
+    scadaAddress: z.coerce.number().int().min(0).optional().nullable(), // Legacy support
 });
 
 export const getDatasheetPoints = async (req: Request, res: Response) => {
@@ -145,12 +149,19 @@ export const getDatasheetPoints = async (req: Request, res: Response) => {
         const points = await db.query.datasheetPoint.findMany({
             where: whereClause,
             orderBy: [
-                asc(schema.datasheetPoint.ioa1ObjectAddress),
-                asc(schema.datasheetPoint.registerAddress),
-                asc(schema.datasheetPoint.dataName)
+                asc(schema.datasheetPoint.address),
+                asc(schema.datasheetPoint.data)
             ]
         });
-        res.json(points);
+
+        // Map 'data' to 'dataName' for frontend compatibility
+        const mappedPoints = points.map(p => ({
+            ...p,
+            dataName: p.data
+        }));
+
+        res.json(mappedPoints);
+
     } catch (error) {
         return handleErrorResponse(res, error);
     }
@@ -170,38 +181,37 @@ export const createDatasheetPoint = async (req: Request, res: Response) => {
         const existingPoint = await db.query.datasheetPoint.findFirst({
             where: and(
                 eq(schema.datasheetPoint.profileId, data.profileId),
-                eq(schema.datasheetPoint.dataName, data.dataName)
+                eq(schema.datasheetPoint.data, data.data || data.dataName || 'Unnamed')
             )
         });
         if (existingPoint) {
             throw new AppError(
                 ErrorCode.VALIDATION_FAILED,
-                `"${data.dataName}" adında bir veri noktası bu profilde zaten mevcut / Data point name already exists in profile`,
+                `"${data.data}" adında bir veri noktası bu profilde zaten mevcut / Data point already exists`,
                 409
             );
         }
 
+        const unifiedData = data.data ?? data.dataName ?? data.signalDescription;
+        const unifiedExplanation = data.dataExplanation ?? data.componentText;
+        const unifiedAddress = data.address ?? data.registerAddress ?? data.ioa1ObjectAddress ?? data.scadaAddress;
+
         const [point] = await db.insert(schema.datasheetPoint).values({
             profileId: data.profileId,
-            dataName: data.dataName,
-            dataValue: data.dataValue,
-            dataExplanation: data.dataExplanation,
-            registerAddress: data.registerAddress,
+            data: unifiedData || 'Unnamed',
+            dataExplanation: unifiedExplanation,
+            address: unifiedAddress,
             isActive: data.isActive,
             functionCode: data.functionCode,
             multiplier: data.multiplier,
             wordSwap: data.wordSwap,
             feederName: data.feederName,
             signalType: data.signalType,
-            signalDescription: data.signalDescription,
-            dataType: data.dataType,
+            dataType: data.dataType ?? data.type ?? data.format,
             signalSource: data.signalSource,
             componentId: data.componentId,
-            componentText: data.componentText,
-            ioa1ObjectAddress: data.ioa1ObjectAddress,
             ioa2CellNo: data.ioa2CellNo,
             ioa3VoltageLevel: data.ioa3VoltageLevel,
-            scadaAddress: data.scadaAddress
         }).returning();
 
         try {
@@ -238,31 +248,30 @@ export const bulkCreateDatasheetPoints = async (req: Request, res: Response) => 
                 const existing = await tx.query.datasheetPoint.findFirst({
                     where: and(
                         eq(schema.datasheetPoint.profileId, profileId),
-                        eq(schema.datasheetPoint.dataName, validated.dataName)
+                        eq(schema.datasheetPoint.data, validated.data || validated.dataName || 'Unnamed')
                     )
                 });
 
+                const unifiedData = validated.data ?? validated.dataName ?? validated.signalDescription;
+                const unifiedExplanation = validated.dataExplanation ?? validated.componentText;
+                const unifiedAddress = validated.address ?? validated.registerAddress ?? validated.ioa1ObjectAddress ?? validated.scadaAddress;
+
                 const values = {
                     profileId: profileId,
-                    dataName: validated.dataName,
-                    dataValue: validated.dataValue,
-                    dataExplanation: validated.dataExplanation,
-                    registerAddress: validated.registerAddress,
+                    data: unifiedData || 'Unnamed',
+                    dataExplanation: unifiedExplanation,
+                    address: unifiedAddress,
                     isActive: validated.isActive,
                     functionCode: validated.functionCode,
                     multiplier: validated.multiplier,
                     wordSwap: validated.wordSwap,
                     feederName: validated.feederName,
                     signalType: validated.signalType,
-                    signalDescription: validated.signalDescription,
-                    dataType: validated.dataType,
+                    dataType: validated.dataType ?? validated.type ?? validated.format,
                     signalSource: validated.signalSource,
                     componentId: validated.componentId,
-                    componentText: validated.componentText,
-                    ioa1ObjectAddress: validated.ioa1ObjectAddress,
                     ioa2CellNo: validated.ioa2CellNo,
-                    ioa3VoltageLevel: validated.ioa3VoltageLevel,
-                    scadaAddress: validated.scadaAddress
+                    ioa3VoltageLevel: validated.ioa3VoltageLevel
                 };
 
                 if (existing) {
@@ -297,8 +306,40 @@ export const updateDatasheetPoint = async (req: Request<{ id: string }>, res: Re
     const { id } = req.params;
     try {
         const data = createDataPointSchema.partial().parse(req.body);
+
+        // Unified field mapping for updates
+        const updateValues: any = { ...data };
+        
+        if (data.data || data.dataName || data.signalDescription) {
+            updateValues.data = data.data ?? data.dataName ?? data.signalDescription;
+        }
+
+        if (data.registerAddress !== undefined || data.ioa1ObjectAddress !== undefined || data.scadaAddress !== undefined) {
+            updateValues.address = data.address ?? data.registerAddress ?? data.ioa1ObjectAddress ?? data.scadaAddress;
+        }
+        
+        if (data.signalDescription !== undefined || data.componentText !== undefined) {
+            updateValues.dataExplanation = data.dataExplanation ?? data.componentText;
+        }
+
+        if (data.dataType !== undefined || data.type !== undefined || data.format !== undefined) {
+            updateValues.dataType = data.dataType ?? data.type ?? data.format;
+        }
+
+        // Remove legacy fields from update object
+        delete updateValues.dataName;
+        delete updateValues.dataValue;
+        delete updateValues.type;
+        delete updateValues.format;
+        delete updateValues.registerAddress;
+        delete updateValues.ioa1ObjectAddress;
+        delete updateValues.scadaAddress;
+        delete updateValues.signalDescription;
+        delete updateValues.componentText;
+
+
         const [point] = await db.update(schema.datasheetPoint)
-            .set(data as any)
+            .set(updateValues)
             .where(eq(schema.datasheetPoint.id, id))
             .returning();
 

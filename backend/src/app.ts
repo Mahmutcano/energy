@@ -21,9 +21,13 @@ import systemRoutes from './routes/system.routes';
 import telemetryRoutes from './routes/telemetry.routes';
 
 const app = express();
-app.use(compression({ threshold: 1024 })); // Compress responses > 1KB
-app.use(cors());
+app.use(compression({ threshold: 1024 }));
+app.use(cors({
+    origin: true, // Reflect request origin
+    credentials: true
+}));
 app.use(express.json({ limit: '2mb' }));
+
 
 app.use('/api/auth', authRoutes);
 // Admin routes (Modbus Test)

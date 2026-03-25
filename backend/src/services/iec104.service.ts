@@ -129,13 +129,13 @@ export class IEC104Service {
                             const entry: IOAMapEntry = {
                                 pointId: point.id,
                                 deviceId: device.id,
-                                dataName: point.dataName,
-                                description: point.signalDescription || point.dataName || 'Unknown',
-                                unit: point.dataType || point.dataValue || 'UNIT',
+                                dataName: point.data,
+                                description: point.dataExplanation || point.data || 'Unknown',
+                                unit: point.dataType || 'UNIT',
                                 multiplier: point.multiplier || 1
                             };
 
-                            const registerPoints = [point.scadaAddress, point.ioa1ObjectAddress]
+                            const registerPoints = [point.address]
                                 .filter(addr => addr !== null && addr !== undefined)
                                 .map(Number);
 

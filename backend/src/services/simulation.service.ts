@@ -77,9 +77,7 @@ class SimulationService {
                     for (const device of proto.devices) {
                         if (device.datasheetProfile) {
                             for (const point of device.datasheetProfile.points) {
-                                const address = proto.protocolType === 'MODBUS'
-                                    ? point.registerAddress
-                                    : (point.scadaAddress || point.ioa1ObjectAddress);
+                                const address = point.address;
 
                                 if (address !== null) {
                                     let baseValue = 220;
@@ -92,9 +90,10 @@ class SimulationService {
                                         ioa: address,
                                         value,
                                         unit: point.dataType || 'UNIT',
-                                        name: point.dataName,
+                                        name: point.data,
                                         timestamp: new Date()
                                     }));
+
                                 }
                             }
                         }

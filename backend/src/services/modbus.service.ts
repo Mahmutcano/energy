@@ -90,13 +90,13 @@ export class ModbusService {
                 for (const device of protocol.devices) {
                     if (device.datasheetProfile) {
                         for (const point of device.datasheetProfile.points) {
-                            if (point.registerAddress !== null) {
+                            if (point.address !== null && point.address !== undefined) {
                                 pointsToPoll.push({
-                                    address: point.registerAddress,
+                                    address: point.address,
                                     deviceId: device.id,
                                     pointId: point.id,
-                                    name: point.dataName,
-                                    unit: point.dataValue || 'UNIT',
+                                    name: point.data,
+                                    unit: point.dataType || 'UNIT',
                                     functionCode: point.functionCode || 3,
                                     multiplier: point.multiplier || 1,
                                     wordSwap: point.wordSwap || false,

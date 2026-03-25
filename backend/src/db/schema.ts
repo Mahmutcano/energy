@@ -139,30 +139,27 @@ export const datasheetProfile = pgTable('DatasheetProfile', {
 export const datasheetPoint = pgTable('DatasheetPoint', {
     id: uuid('id').primaryKey().defaultRandom(),
     profileId: uuid('profile_id').notNull().references(() => datasheetProfile.id, { onDelete: 'cascade' }),
-    dataName: text('dataName').notNull(),
-    dataValue: text('dataValue'),
-    dataExplanation: text('dataExplanation'),
-    registerAddress: integer('registerAddress'),
+    data: text('data').notNull(),              // Unified: dataName, dataValue, signalDescription
+    dataExplanation: text('dataExplanation'),  // Unified: componentText, explanation
+    address: integer('address'),               // Merged field for Modbus Register or IEC104 IOA
     isActive: boolean('isActive').default(true).notNull(),
-    functionCode: integer('functionCode'),
+    functionCode: integer('functionCode'),     // Modbus specific
     multiplier: real('multiplier'),
     wordSwap: boolean('wordSwap').default(false),
     feederName: text('feederName'),
     signalType: text('signalType'),
-    signalDescription: text('signalDescription'),
     dataType: text('dataType'),
     signalSource: text('signalSource'),
     componentId: text('componentId'),
-    componentText: text('componentText'),
-    ioa1ObjectAddress: integer('ioa1ObjectAddress'),
-    ioa2CellNo: integer('ioa2CellNo'),
-    ioa3VoltageLevel: integer('ioa3VoltageLevel'),
-    scadaAddress: integer('scadaAddress'),
+    ioa2CellNo: integer('ioa2CellNo'),         // 104 Specific
+    ioa3VoltageLevel: integer('ioa3VoltageLevel'), // 104 Specific
 }, (table) => ({
     profileIdIdx: index('DatasheetPoint_profile_id_idx').on(table.profileId),
-    dataNameIdx: index('DatasheetPoint_dataName_idx').on(table.dataName),
-    registerAddressIdx: index('DatasheetPoint_registerAddress_idx').on(table.registerAddress),
+    dataIdx: index('DatasheetPoint_data_idx').on(table.data),
+    addressIdx: index('DatasheetPoint_address_idx').on(table.address),
 }));
+
+
 
 export const telemetryValue = pgTable('telemetry_value', {
     id: bigint('id', { mode: 'bigint' }).primaryKey().generatedAlwaysAsIdentity(),

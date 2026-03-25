@@ -67,7 +67,7 @@ export const testIEC104 = async (req: Request, res: Response) => {
         if (config?.protocol) {
             config.protocol.devices.forEach(dev => {
                 dev.datasheetProfile?.points.forEach(point => {
-                    const registerPoints = [point.scadaAddress, point.ioa1ObjectAddress]
+                    const registerPoints = [point.address]
                         .filter(addr => addr !== null && addr !== undefined)
                         .map(Number);
 
@@ -76,12 +76,13 @@ export const testIEC104 = async (req: Request, res: Response) => {
                             ioaMap.set(addr, []);
                         }
                         ioaMap.get(addr)!.push({
-                            name: point.signalDescription || point.dataName,
+                            name: point.dataExplanation || point.data,
                             unit: point.dataType || '',
                             multiplier: point.multiplier || 1
                         });
                     }
                 });
+
             });
         }
 

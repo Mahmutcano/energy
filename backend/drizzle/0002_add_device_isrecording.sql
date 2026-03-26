@@ -1,0 +1,1 @@
+ALTER TABLE "Device" ADD COLUMN "isRecording" boolean DEFAULT true NOT NULL;

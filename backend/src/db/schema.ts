@@ -130,6 +130,7 @@ export const device = pgTable('Device', {
     deviceName: text('deviceName').notNull(),
     deviceType: deviceTypeEnum('deviceType').notNull(),
     isActive: boolean('isActive').default(true).notNull(),
+    isRecording: boolean('isRecording').default(true).notNull(),
     createdAt: timestamp('createdAt').defaultNow().notNull(),
     datasheetProfileId: uuid('datasheet_profile_id').references(() => datasheetProfile.id),
 }, (table) => ({

@@ -23,6 +23,7 @@ const MENU_GROUPS = [
             { name: 'Companies', href: '/admin/companies', icon: Building2 },
             { name: 'Users', href: '/admin/users', icon: ShieldCheck },
             { name: 'System Control', href: '/admin/system', icon: Layers },
+            { name: 'YTBS Sync', href: '/admin/ytbs', icon: Database },
         ]
     },
     {

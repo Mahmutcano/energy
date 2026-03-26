@@ -260,3 +260,65 @@ export const telemetryValueRelations = relations(telemetryValue, ({ one }) => ({
 export const communicationAlarmRelations = relations(communicationAlarm, ({ one }) => ({
     device: one(device, { fields: [communicationAlarm.deviceId], references: [device.id] }),
 }));
+
+// --- YTBS Integration Tables ---
+
+export const ytbsPlant = pgTable('YtbsPlant', {
+    id: uuid('id').primaryKey().defaultRandom(),
+    plantId: uuid('plant_id').notNull().references(() => plant.id, { onDelete: 'cascade' }),
+    ytbsId: integer('ytbs_id').notNull(),
+    licenseNo: text('license_no').notNull(),
+    plantName: text('plant_name').notNull(),
+    capacityAc: doublePrecision('capacity_ac').notNull(),
+    isActive: boolean('isActive').default(true).notNull(),
+}, (table) => ({
+    plantIdIdx: index('YtbsPlant_plant_id_idx').on(table.plantId),
+    ytbsIdIdx: index('YtbsPlant_ytbs_id_idx').on(table.ytbsId),
+}));
+
+export const ytbsHourlyProduction = pgTable('YtbsHourlyProduction', {
+    id: uuid('id').primaryKey().defaultRandom(),
+    ytbsPlantId: uuid('ytbs_plant_id').notNull().references(() => ytbsPlant.id, { onDelete: 'cascade' }),
+    readingDate: text('reading_date').notNull(),
+    readingHour: text('reading_hour').notNull(),
+    valueMwh: doublePrecision('value_mwh').notNull(),
+    isSent: boolean('is_sent').default(false).notNull(),
+    lastAttemptAt: timestamp('last_attempt_at', { withTimezone: true }),
+    retryCount: integer('retry_count').default(0).notNull(),
+    createdAt: timestamp('createdAt').defaultNow().notNull(),
+}, (table) => ({
+    ytbsPlantIdIdx: index('YtbsHourlyProduction_ytbs_plant_id_idx').on(table.ytbsPlantId),
+    readingDateIdx: index('YtbsHourlyProduction_reading_date_idx').on(table.readingDate),
+    isSentIdx: index('YtbsHourlyProduction_is_sent_idx').on(table.isSent),
+}));
+
+export const ytbsInstantProduction = pgTable('YtbsInstantProduction', {
+    id: uuid('id').primaryKey().defaultRandom(),
+    ytbsPlantId: uuid('ytbs_plant_id').notNull().references(() => ytbsPlant.id, { onDelete: 'cascade' }),
+    readingDate: text('reading_date').notNull(),
+    readingTime: text('reading_time').notNull(),
+    valueMw: doublePrecision('value_mw').notNull(),
+    isSent: boolean('is_sent').default(false).notNull(),
+    lastAttemptAt: timestamp('last_attempt_at', { withTimezone: true }),
+    retryCount: integer('retry_count').default(0).notNull(),
+    createdAt: timestamp('createdAt').defaultNow().notNull(),
+}, (table) => ({
+    ytbsPlantIdIdx: index('YtbsInstantProduction_ytbs_plant_id_idx').on(table.ytbsPlantId),
+    readingDateIdx: index('YtbsInstantProduction_reading_date_idx').on(table.readingDate),
+    isSentIdx: index('YtbsInstantProduction_is_sent_idx').on(table.isSent),
+}));
+
+export const ytbsPlantRelations = relations(ytbsPlant, ({ one, many }) => ({
+    plant: one(plant, { fields: [ytbsPlant.plantId], references: [plant.id] }),
+    hourlyProductions: many(ytbsHourlyProduction),
+    instantProductions: many(ytbsInstantProduction),
+}));
+
+export const ytbsHourlyProductionRelations = relations(ytbsHourlyProduction, ({ one }) => ({
+    ytbsPlant: one(ytbsPlant, { fields: [ytbsHourlyProduction.ytbsPlantId], references: [ytbsPlant.id] }),
+}));
+
+export const ytbsInstantProductionRelations = relations(ytbsInstantProduction, ({ one }) => ({
+    ytbsPlant: one(ytbsPlant, { fields: [ytbsInstantProduction.ytbsPlantId], references: [ytbsPlant.id] }),
+}));
+

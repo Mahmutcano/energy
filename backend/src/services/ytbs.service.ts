@@ -151,6 +151,14 @@ export class YtbsService {
     }
 
     /**
+     * Expose a manual sync trigger
+     */
+    public triggerSync() {
+        console.log('[YTBS] Manual sync triggered.');
+        this.processPendingRecords().catch(err => console.error(err));
+    }
+
+    /**
      * Finds unsent records in YtbsHourlyProduction and YtbsInstantProduction
      * and attempts to send them to TEİAŞ. 
      */

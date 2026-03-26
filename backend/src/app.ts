@@ -19,6 +19,7 @@ import companyRoutes from './routes/company.routes';
 import datasheetRoutes from './routes/datasheet.routes';
 import systemRoutes from './routes/system.routes';
 import telemetryRoutes from './routes/telemetry.routes';
+import ytbsRoutes from './routes/ytbs.routes';
 
 const app = express();
 app.use(compression({ threshold: 1024 }));
@@ -44,6 +45,7 @@ app.use('/api', companyRoutes);
 app.use('/api', datasheetRoutes);
 app.use('/api', telemetryRoutes);
 app.use('/api/system', systemRoutes);
+app.use('/api/ytbs', ytbsRoutes);
 
 const server = http.createServer(app);
 const io = new Server(server, {

@@ -1,0 +1,1415 @@
+{
+  "id": "5139b745-ce4e-4f3c-a34f-3b413e7e606c",
+  "prevId": "113cfd6b-12c4-4be4-853a-14cdb63f36b0",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.AppUser": {
+      "name": "AppUser",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "userCode": {
+          "name": "userCode",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "firstName": {
+          "name": "firstName",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "lastName": {
+          "name": "lastName",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "adminType": {
+          "name": "adminType",
+          "type": "AdminType",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "isActive": {
+          "name": "isActive",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        }
+      },
+      "indexes": {
+        "AppUser_userCode_idx": {
+          "name": "AppUser_userCode_idx",
+          "columns": [
+            {
+              "expression": "userCode",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "AppUser_email_idx": {
+          "name": "AppUser_email_idx",
+          "columns": [
+            {
+              "expression": "email",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "AppUser_userCode_unique": {
+          "name": "AppUser_userCode_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "userCode"
+          ]
+        },
+        "AppUser_email_unique": {
+          "name": "AppUser_email_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "email"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.AppUserProfile": {
+      "name": "AppUserProfile",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "company_id": {
+          "name": "company_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "plant_id": {
+          "name": "plant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "device_id": {
+          "name": "device_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "permissionLevel": {
+          "name": "permissionLevel",
+          "type": "PermissionLevel",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "isActive": {
+          "name": "isActive",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        }
+      },
+      "indexes": {
+        "AppUserProfile_user_id_idx": {
+          "name": "AppUserProfile_user_id_idx",
+          "columns": [
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "AppUserProfile_company_id_idx": {
+          "name": "AppUserProfile_company_id_idx",
+          "columns": [
+            {
+              "expression": "company_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "AppUserProfile_plant_id_idx": {
+          "name": "AppUserProfile_plant_id_idx",
+          "columns": [
+            {
+              "expression": "plant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "AppUserProfile_device_id_idx": {
+          "name": "AppUserProfile_device_id_idx",
+          "columns": [
+            {
+              "expression": "device_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "AppUserProfile_user_id_AppUser_id_fk": {
+          "name": "AppUserProfile_user_id_AppUser_id_fk",
+          "tableFrom": "AppUserProfile",
+          "tableTo": "AppUser",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "AppUserProfile_company_id_CompanyProfile_id_fk": {
+          "name": "AppUserProfile_company_id_CompanyProfile_id_fk",
+          "tableFrom": "AppUserProfile",
+          "tableTo": "CompanyProfile",
+          "columnsFrom": [
+            "company_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "AppUserProfile_plant_id_Plant_id_fk": {
+          "name": "AppUserProfile_plant_id_Plant_id_fk",
+          "tableFrom": "AppUserProfile",
+          "tableTo": "Plant",
+          "columnsFrom": [
+            "plant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "AppUserProfile_device_id_Device_id_fk": {
+          "name": "AppUserProfile_device_id_Device_id_fk",
+          "tableFrom": "AppUserProfile",
+          "tableTo": "Device",
+          "columnsFrom": [
+            "device_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.CommunicationAlarm": {
+      "name": "CommunicationAlarm",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "device_id": {
+          "name": "device_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "CommunicationAlarmStatus",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'ACTIVE'"
+        },
+        "startTime": {
+          "name": "startTime",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "endTime": {
+          "name": "endTime",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "lastSeenAt": {
+          "name": "lastSeenAt",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "message": {
+          "name": "message",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "CommunicationAlarm_device_id_idx": {
+          "name": "CommunicationAlarm_device_id_idx",
+          "columns": [
+            {
+              "expression": "device_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "CommunicationAlarm_status_idx": {
+          "name": "CommunicationAlarm_status_idx",
+          "columns": [
+            {
+              "expression": "status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "CommunicationAlarm_device_id_Device_id_fk": {
+          "name": "CommunicationAlarm_device_id_Device_id_fk",
+          "tableFrom": "CommunicationAlarm",
+          "tableTo": "Device",
+          "columnsFrom": [
+            "device_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.CompanyProfile": {
+      "name": "CompanyProfile",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "address": {
+          "name": "address",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "phone": {
+          "name": "phone",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "representative": {
+          "name": "representative",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "taxOffice": {
+          "name": "taxOffice",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "taxNumber": {
+          "name": "taxNumber",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "isActive": {
+          "name": "isActive",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        }
+      },
+      "indexes": {
+        "CompanyProfile_name_idx": {
+          "name": "CompanyProfile_name_idx",
+          "columns": [
+            {
+              "expression": "name",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "CompanyProfile_name_unique": {
+          "name": "CompanyProfile_name_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "name"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.DatasheetPoint": {
+      "name": "DatasheetPoint",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "profile_id": {
+          "name": "profile_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "data": {
+          "name": "data",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "dataExplanation": {
+          "name": "dataExplanation",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "address": {
+          "name": "address",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "isActive": {
+          "name": "isActive",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "functionCode": {
+          "name": "functionCode",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "multiplier": {
+          "name": "multiplier",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "wordSwap": {
+          "name": "wordSwap",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false,
+          "default": false
+        },
+        "feederName": {
+          "name": "feederName",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "signalType": {
+          "name": "signalType",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "dataType": {
+          "name": "dataType",
+          "type": "DataType",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "signalSource": {
+          "name": "signalSource",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "componentId": {
+          "name": "componentId",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ioa2CellNo": {
+          "name": "ioa2CellNo",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ioa3VoltageLevel": {
+          "name": "ioa3VoltageLevel",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "DatasheetPoint_profile_id_idx": {
+          "name": "DatasheetPoint_profile_id_idx",
+          "columns": [
+            {
+              "expression": "profile_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "DatasheetPoint_data_idx": {
+          "name": "DatasheetPoint_data_idx",
+          "columns": [
+            {
+              "expression": "data",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "DatasheetPoint_address_idx": {
+          "name": "DatasheetPoint_address_idx",
+          "columns": [
+            {
+              "expression": "address",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "DatasheetPoint_profile_id_DatasheetProfile_id_fk": {
+          "name": "DatasheetPoint_profile_id_DatasheetProfile_id_fk",
+          "tableFrom": "DatasheetPoint",
+          "tableTo": "DatasheetProfile",
+          "columnsFrom": [
+            "profile_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.DatasheetProfile": {
+      "name": "DatasheetProfile",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "protocolType": {
+          "name": "protocolType",
+          "type": "ProtocolType",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.Device": {
+      "name": "Device",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "protocol_config_id": {
+          "name": "protocol_config_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "deviceName": {
+          "name": "deviceName",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "deviceType": {
+          "name": "deviceType",
+          "type": "DeviceType",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "isActive": {
+          "name": "isActive",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "createdAt": {
+          "name": "createdAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "datasheet_profile_id": {
+          "name": "datasheet_profile_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "Device_protocol_config_id_idx": {
+          "name": "Device_protocol_config_id_idx",
+          "columns": [
+            {
+              "expression": "protocol_config_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "Device_deviceName_idx": {
+          "name": "Device_deviceName_idx",
+          "columns": [
+            {
+              "expression": "deviceName",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "Device_protocol_config_id_ProtocolConfig_id_fk": {
+          "name": "Device_protocol_config_id_ProtocolConfig_id_fk",
+          "tableFrom": "Device",
+          "tableTo": "ProtocolConfig",
+          "columnsFrom": [
+            "protocol_config_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "Device_datasheet_profile_id_DatasheetProfile_id_fk": {
+          "name": "Device_datasheet_profile_id_DatasheetProfile_id_fk",
+          "tableFrom": "Device",
+          "tableTo": "DatasheetProfile",
+          "columnsFrom": [
+            "datasheet_profile_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.IEC104Config": {
+      "name": "IEC104Config",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "protocol_id": {
+          "name": "protocol_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ipAddress": {
+          "name": "ipAddress",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "port": {
+          "name": "port",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "asduAddr": {
+          "name": "asduAddr",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "t0": {
+          "name": "t0",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "t1": {
+          "name": "t1",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "t2": {
+          "name": "t2",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "t3": {
+          "name": "t3",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "k": {
+          "name": "k",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "w": {
+          "name": "w",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "IEC104Config_ipAddress_idx": {
+          "name": "IEC104Config_ipAddress_idx",
+          "columns": [
+            {
+              "expression": "ipAddress",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "IEC104Config_protocol_id_ProtocolConfig_id_fk": {
+          "name": "IEC104Config_protocol_id_ProtocolConfig_id_fk",
+          "tableFrom": "IEC104Config",
+          "tableTo": "ProtocolConfig",
+          "columnsFrom": [
+            "protocol_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "IEC104Config_protocol_id_unique": {
+          "name": "IEC104Config_protocol_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "protocol_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.ModbusConfig": {
+      "name": "ModbusConfig",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "protocol_id": {
+          "name": "protocol_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ipAddress": {
+          "name": "ipAddress",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "port": {
+          "name": "port",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "slaveId": {
+          "name": "slaveId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "timeout": {
+          "name": "timeout",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "retryCount": {
+          "name": "retryCount",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "ModbusConfig_ipAddress_idx": {
+          "name": "ModbusConfig_ipAddress_idx",
+          "columns": [
+            {
+              "expression": "ipAddress",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "ModbusConfig_protocol_id_ProtocolConfig_id_fk": {
+          "name": "ModbusConfig_protocol_id_ProtocolConfig_id_fk",
+          "tableFrom": "ModbusConfig",
+          "tableTo": "ProtocolConfig",
+          "columnsFrom": [
+            "protocol_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "ModbusConfig_protocol_id_unique": {
+          "name": "ModbusConfig_protocol_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "protocol_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.Plant": {
+      "name": "Plant",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "company_id": {
+          "name": "company_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "plantName": {
+          "name": "plantName",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "plantType": {
+          "name": "plantType",
+          "type": "PlantType",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "latitude": {
+          "name": "latitude",
+          "type": "numeric(10, 8)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "longitude": {
+          "name": "longitude",
+          "type": "numeric(11, 8)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "isActive": {
+          "name": "isActive",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        }
+      },
+      "indexes": {
+        "Plant_company_id_idx": {
+          "name": "Plant_company_id_idx",
+          "columns": [
+            {
+              "expression": "company_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "Plant_company_id_CompanyProfile_id_fk": {
+          "name": "Plant_company_id_CompanyProfile_id_fk",
+          "tableFrom": "Plant",
+          "tableTo": "CompanyProfile",
+          "columnsFrom": [
+            "company_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.ProtocolConfig": {
+      "name": "ProtocolConfig",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "plant_id": {
+          "name": "plant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "protocolType": {
+          "name": "protocolType",
+          "type": "ProtocolType",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "configName": {
+          "name": "configName",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "isActive": {
+          "name": "isActive",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        }
+      },
+      "indexes": {
+        "ProtocolConfig_plant_id_idx": {
+          "name": "ProtocolConfig_plant_id_idx",
+          "columns": [
+            {
+              "expression": "plant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "ProtocolConfig_plant_id_Plant_id_fk": {
+          "name": "ProtocolConfig_plant_id_Plant_id_fk",
+          "tableFrom": "ProtocolConfig",
+          "tableTo": "Plant",
+          "columnsFrom": [
+            "plant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.telemetry_value": {
+      "name": "telemetry_value",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "bigint",
+          "primaryKey": true,
+          "notNull": true,
+          "identity": {
+            "type": "always",
+            "name": "telemetry_value_id_seq",
+            "schema": "public",
+            "increment": "1",
+            "startWith": "1",
+            "minValue": "1",
+            "maxValue": "9223372036854775807",
+            "cache": "1",
+            "cycle": false
+          }
+        },
+        "device_id": {
+          "name": "device_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "point_id": {
+          "name": "point_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "measurement_time": {
+          "name": "measurement_time",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "value_numeric": {
+          "name": "value_numeric",
+          "type": "double precision",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "quality": {
+          "name": "quality",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "raw_payload": {
+          "name": "raw_payload",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "tv_point_time_idx": {
+          "name": "tv_point_time_idx",
+          "columns": [
+            {
+              "expression": "point_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "measurement_time",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "tv_device_time_idx": {
+          "name": "tv_device_time_idx",
+          "columns": [
+            {
+              "expression": "device_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "measurement_time",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "tv_time_idx": {
+          "name": "tv_time_idx",
+          "columns": [
+            {
+              "expression": "measurement_time",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "telemetry_value_device_id_Device_id_fk": {
+          "name": "telemetry_value_device_id_Device_id_fk",
+          "tableFrom": "telemetry_value",
+          "tableTo": "Device",
+          "columnsFrom": [
+            "device_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "telemetry_value_point_id_DatasheetPoint_id_fk": {
+          "name": "telemetry_value_point_id_DatasheetPoint_id_fk",
+          "tableFrom": "telemetry_value",
+          "tableTo": "DatasheetPoint",
+          "columnsFrom": [
+            "point_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {
+    "public.AdminType": {
+      "name": "AdminType",
+      "schema": "public",
+      "values": [
+        "SUPER_ADMIN",
+        "COMPANY_ADMIN",
+        "NORMAL_USER"
+      ]
+    },
+    "public.CommunicationAlarmStatus": {
+      "name": "CommunicationAlarmStatus",
+      "schema": "public",
+      "values": [
+        "ACTIVE",
+        "RESOLVED"
+      ]
+    },
+    "public.DataType": {
+      "name": "DataType",
+      "schema": "public",
+      "values": [
+        "BYTE",
+        "WORD",
+        "DWORD",
+        "LWORD",
+        "SINT",
+        "USINT",
+        "INT",
+        "UINT",
+        "DINT",
+        "UDINT",
+        "LINT",
+        "ULINT",
+        "FLOAT32",
+        "DOUBLE64"
+      ]
+    },
+    "public.DeviceType": {
+      "name": "DeviceType",
+      "schema": "public",
+      "values": [
+        "INVERTER",
+        "ANALYZER",
+        "RELAY"
+      ]
+    },
+    "public.PermissionLevel": {
+      "name": "PermissionLevel",
+      "schema": "public",
+      "values": [
+        "READ",
+        "WRITE",
+        "FULL"
+      ]
+    },
+    "public.PlantType": {
+      "name": "PlantType",
+      "schema": "public",
+      "values": [
+        "SOLAR",
+        "WIND",
+        "HYDRO"
+      ]
+    },
+    "public.ProtocolType": {
+      "name": "ProtocolType",
+      "schema": "public",
+      "values": [
+        "MODBUS",
+        "IEC104"
+      ]
+    }
+  },
+  "schemas": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}

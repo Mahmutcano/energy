@@ -75,6 +75,23 @@ const inputClass = "w-full px-4 py-2.5 bg-slate-900/50 border border-slate-800 r
 const inputErrorClass = "w-full px-4 py-2.5 bg-slate-900/50 border border-red-500/50 rounded-xl text-sm text-white focus:border-red-400 focus:ring-4 focus:ring-red-500/10 outline-none transition-all";
 const labelClass = "text-[10px] font-bold text-slate-500 tracking-widest uppercase mb-1.5 block";
 
+const MODBUS_DATA_TYPES = [
+    { label: 'BYTE (8 bit, 0-255)', value: 'BYTE' },
+    { label: 'WORD (16 bit, 0-65535)', value: 'WORD' },
+    { label: 'DWORD (32 bit, 0-4.2B)', value: 'DWORD' },
+    { label: 'LWORD (64 bit)', value: 'LWORD' },
+    { label: 'SINT (8 bit, -128 to 127)', value: 'SINT' },
+    { label: 'USINT (8 bit, 0-255)', value: 'USINT' },
+    { label: 'INT (16 bit, -32K to 32K)', value: 'INT' },
+    { label: 'UINT (16 bit, 0-65K)', value: 'UINT' },
+    { label: 'DINT (32 bit, -2.1B to 2.1B)', value: 'DINT' },
+    { label: 'UDINT (32 bit, 0-4.2B)', value: 'UDINT' },
+    { label: 'LINT (64 bit)', value: 'LINT' },
+    { label: 'ULINT (64 bit)', value: 'ULINT' },
+    { label: 'FLOAT32 (32 bit Float)', value: 'FLOAT32' },
+    { label: 'DOUBLE64 (64 bit Double)', value: 'DOUBLE64' },
+];
+
 const InputField = ({ label, name, value, onChange, placeholder, type = 'text', required = false, step, maxLength, error, autoFocus = false }: {
     label: string; name: string; value: string; onChange: (val: string) => void;
     placeholder?: string; type?: string; required?: boolean; step?: string; maxLength?: number; error?: string; autoFocus?: boolean;
@@ -546,7 +563,7 @@ function DataSheetsContent() {
 
     const downloadTemplate = () => {
         const headers = isModbus
-            ? [['Data Name', 'Unit', 'Address', 'FC', 'Multiplier', 'Word Swap']]
+            ? [['Data Name', 'Unit', 'Data Type', 'Address', 'FC', 'Multiplier', 'Word Swap']]
             : [['Feeder', 'Signal Type', 'Signal Description', 'Data Type', 'Source', 'Component ID', 'Component Text', 'IOA1', 'IOA2', 'IOA3', 'SCADA Address']];
 
         const ws = XLSX.utils.aoa_to_sheet(headers);
@@ -650,6 +667,7 @@ function DataSheetsContent() {
                                         <th className={headerCellClass}>DATA NAME</th>
                                         <th className={headerCellClass}>DATA EXPLANATION</th>
                                         <th className={headerCellClass}>DATA VALUE (UNIT)</th>
+                                        <th className={headerCellClass}>DATA TYPE</th>
                                         <th className={headerCellClass}>REGISTER ADDRESS</th>
                                         <th className={headerCellClass}>FUNCTION CODE</th>
                                         <th className={headerCellClass}>MULTIPLIER</th>
@@ -694,6 +712,13 @@ function DataSheetsContent() {
                                                 {sheet.dataExplanation || '-'}
                                             </td>
                                             <td className={`${cellClass} text-slate-400`}>{sheet.dataValue ?? '-'}</td>
+                                            <td className={cellClass}>
+                                                {sheet.dataType ? (
+                                                    <span className="px-2 py-0.5 rounded bg-purple-500/10 text-purple-400 text-[10px] font-bold">
+                                                        {sheet.dataType}
+                                                    </span>
+                                                ) : '-'}
+                                            </td>
                                             <td className={`${cellClass} font-mono tabular-nums text-amber-400 font-bold`}>{sheet.registerAddress ?? '-'}</td>
                                             <td className={cellClass}>
                                                 {sheet.functionCode ? (
@@ -826,13 +851,26 @@ function DataSheetsContent() {
                                 />
                             </div>
 
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                 <InputField
                                     label="DATA VALUE (UNIT)" name="dataValue"
                                     value={formData.dataValue}
                                     onChange={(val) => setFormData({ ...formData, dataValue: val })}
                                     placeholder="e.g. A, V, kW"
                                 />
+                                <div className="space-y-1.5">
+                                    <label className={labelClass}>DATA TYPE</label>
+                                    <select
+                                        value={formData.dataType}
+                                        onChange={(e) => setFormData({ ...formData, dataType: e.target.value })}
+                                        className={inputClass}
+                                    >
+                                        <option value="">Select Data Type</option>
+                                        {MODBUS_DATA_TYPES.map(type => (
+                                            <option key={type.value} value={type.value}>{type.label}</option>
+                                        ))}
+                                    </select>
+                                </div>
                                 <InputField
                                     label="REGISTER ADDRESS" name="registerAddress" type="number" required
                                     value={formData.registerAddress}
@@ -919,12 +957,19 @@ function DataSheetsContent() {
                                     }}
                                     placeholder="e.g. ANALOG"
                                 />
-                                <InputField
-                                    label="DATA TYPE" name="dataType" maxLength={50}
-                                    value={formData.dataType}
-                                    onChange={(val) => setFormData({ ...formData, dataType: val })}
-                                    placeholder="e.g. MFI"
-                                />
+                                <div className="space-y-1.5">
+                                    <label className={labelClass}>DATA TYPE</label>
+                                    <select
+                                        value={formData.dataType}
+                                        onChange={(e) => setFormData({ ...formData, dataType: e.target.value })}
+                                        className={inputClass}
+                                    >
+                                        <option value="">Select Data Type</option>
+                                        {MODBUS_DATA_TYPES.map(type => (
+                                            <option key={type.value} value={type.value}>{type.label}</option>
+                                        ))}
+                                    </select>
+                                </div>
                             </div>
 
                             {/* Row 2: Signal Description & Explanation (full width) */}

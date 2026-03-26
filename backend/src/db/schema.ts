@@ -24,6 +24,13 @@ export const protocolTypeEnum = pgEnum('ProtocolType', ['MODBUS', 'IEC104']);
 export const deviceTypeEnum = pgEnum('DeviceType', ['INVERTER', 'ANALYZER', 'RELAY']);
 export const communicationAlarmStatusEnum = pgEnum('CommunicationAlarmStatus', ['ACTIVE', 'RESOLVED']);
 
+export const dataTypeEnum = pgEnum('DataType', [
+    'BYTE', 'WORD', 'DWORD', 'LWORD',
+    'SINT', 'USINT', 'INT', 'UINT',
+    'DINT', 'UDINT', 'LINT', 'ULINT',
+    'FLOAT32', 'DOUBLE64'
+]);
+
 // Tables
 export const appUser = pgTable('AppUser', {
     id: uuid('id').primaryKey().defaultRandom(),
@@ -148,7 +155,7 @@ export const datasheetPoint = pgTable('DatasheetPoint', {
     wordSwap: boolean('wordSwap').default(false),
     feederName: text('feederName'),
     signalType: text('signalType'),
-    dataType: text('dataType'),
+    dataType: dataTypeEnum('dataType'),
     signalSource: text('signalSource'),
     componentId: text('componentId'),
     ioa2CellNo: integer('ioa2CellNo'),         // 104 Specific

@@ -35,6 +35,7 @@ export default function ModbusTestPage() {
     const [slaveId, setSlaveId] = useState('255');
     const [functionCode, setFunctionCode] = useState('03');
     const [address, setAddress] = useState('29');
+    const [dataType, setDataType] = useState('WORD');
 
     // UI State
     const [isTesting, setIsTesting] = useState(false);
@@ -233,6 +234,25 @@ export default function ModbusTestPage() {
                                         onChange={(e) => setAddress(e.target.value)}
                                         className="w-full h-12 bg-slate-950/50 border border-slate-800 rounded-xl px-4 text-xs font-black text-amber-500 outline-none focus:border-brand-green/30 transition-all font-mono"
                                     />
+                                </div>
+
+                                <div className="space-y-3 group">
+                                    <label className="text-[9px] font-black text-slate-600  tracking-widest ml-1 group-focus-within:text-brand-green transition-colors">Data Type</label>
+                                    <select
+                                        value={dataType}
+                                        onChange={(e) => setDataType(e.target.value)}
+                                        className="w-full h-12 bg-slate-950/50 border border-slate-800 rounded-xl px-4 text-xs font-black text-white outline-none focus:border-brand-green/30 transition-all"
+                                    >
+                                        <option value="BYTE">BYTE</option>
+                                        <option value="WORD">WORD</option>
+                                        <option value="DWORD">DWORD</option>
+                                        <option value="FLOAT32">FLOAT32</option>
+                                        <option value="DOUBLE64">DOUBLE64</option>
+                                        <option value="INT">INT</option>
+                                        <option value="UINT">UINT</option>
+                                        <option value="DINT">DINT</option>
+                                        <option value="UDINT">UDINT</option>
+                                    </select>
                                 </div>
 
                                 <div className="pt-4 flex gap-3">

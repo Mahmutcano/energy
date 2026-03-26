@@ -8,15 +8,16 @@ import { Protocol } from 'iec104-protocol';
 
 export const testModbus = async (req: Request, res: Response) => {
     try {
-        const { ip, port, slaveId, address, functionCode } = req.body;
+        const { ip, port, slaveId, address, functionCode, dataType } = req.body;
 
         const result = await modbusService.testModbusConnection({
             ip,
             port: Number(port),
             slaveId: Number(slaveId),
             address: Number(address),
-            quantity: 1,
-            functionCode: Number(functionCode || 3)
+            quantity: (dataType === 'FLOAT32' || dataType === 'DWORD' || dataType === 'INT32' || dataType === 'UINT32' || dataType === 'REAL') ? 2 : (dataType === 'DOUBLE64' || dataType === 'LWORD') ? 4 : 1,
+            functionCode: Number(functionCode || 3),
+            dataType
         });
 
         res.json(result);

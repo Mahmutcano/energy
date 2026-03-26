@@ -277,7 +277,8 @@ export class ModbusService {
         slaveId: number,
         address: number,
         quantity: number,
-        functionCode?: number
+        functionCode?: number,
+        dataType?: string
     }): Promise<any> {
         return new Promise((resolve, reject) => {
             const socket = new net.Socket();
@@ -302,14 +303,34 @@ export class ModbusService {
                         resp = await client.readHoldingRegisters(params.address, params.quantity);
                     }
                     
-                    const body = resp.response.body as any;
+                    const values = resp.response.body.values || (resp.response.body as any)._values;
+                    let decodedValue: any = values;
+
+                    if (params.dataType && values.length > 0) {
+                        const buffer = Buffer.alloc(values.length * 2);
+                        for (let i = 0; i < values.length; i++) {
+                            buffer.writeUInt16BE(values[i], i * 2);
+                        }
+
+                        const type = params.dataType.toUpperCase();
+                        if (type === 'BYTE' || type === 'USINT') decodedValue = buffer.length >= 1 ? buffer.readUInt8(0) : values[0];
+                        else if (type === 'SINT') decodedValue = buffer.length >= 1 ? buffer.readInt8(0) : values[0];
+                        else if (type === 'WORD' || type === 'UINT') decodedValue = buffer.length >= 2 ? buffer.readUInt16BE(0) : values[0];
+                        else if (type === 'INT') decodedValue = buffer.length >= 2 ? buffer.readInt16BE(0) : values[0];
+                        else if (type === 'DWORD' || type === 'UDINT') decodedValue = buffer.length >= 4 ? buffer.readUInt32BE(0) : values[0];
+                        else if (type === 'DINT') decodedValue = buffer.length >= 4 ? buffer.readInt32BE(0) : values[0];
+                        else if (type === 'FLOAT32' || type === 'REAL') decodedValue = buffer.length >= 4 ? buffer.readFloatBE(0) : values[0];
+                        else if (type === 'DOUBLE64') decodedValue = buffer.length >= 8 ? buffer.readDoubleBE(0) : values[0];
+                    }
+
                     resolved = true;
                     clearTimeout(timeout);
                     socket.end();
                     resolve({
                         success: true,
-                        values: body.values || body._values,
-                        rawData: body
+                        values: values,
+                        decodedValue: decodedValue,
+                        rawData: resp.response.body
                     });
                 } catch (err: any) {
                     resolved = true;

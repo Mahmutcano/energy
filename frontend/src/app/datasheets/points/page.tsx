@@ -38,6 +38,10 @@ interface DataSheet {
     ioa3VoltageLevel: number | null;
     scadaAddress: number | null;
     recordingInterval: number | null;
+    createdAt: string;
+    updatedAt: string;
+    createdBy: string | null;
+    updatedBy: string | null;
 }
 
 const defaultFormData = {
@@ -332,7 +336,6 @@ function DataSheetsContent() {
                 body.feederName = formData.feederName || null;
                 body.signalType = formData.signalType || null;
                 body.signalDescription = formData.signalDescription || null;
-                body.dataType = formData.dataType || null;
                 body.signalSource = formData.signalSource || null;
                 body.componentId = formData.componentId || null;
                 body.componentText = formData.componentText || null;
@@ -341,6 +344,7 @@ function DataSheetsContent() {
                 body.ioa3VoltageLevel = int(formData.ioa3VoltageLevel);
                 body.scadaAddress = int(formData.scadaAddress);
             }
+            body.dataType = formData.dataType || null;
             body.recordingInterval = int(formData.recordingInterval);
 
             const url = editingSheet ? `/api/datasheets/${editingSheet.id}` : '/api/datasheets';
@@ -475,6 +479,7 @@ function DataSheetsContent() {
                             signalDescription: description,
                             dataExplanation: description,
                             dataName: findValue(['Signal Name', 'Sinyal Adı', 'Adı', 'Name']),
+                            dataValue: findValue(['Unit', 'Birim', 'Value', 'Değer']),
                             dataType: findValue(['Data Type', 'Veri Tipi', 'DATA TİPİ', 'TIP', 'TİP']),
                             signalSource: findValue(['Source', 'Kaynak', 'Sinyal Kaynağı', 'SİNYAL KAYNAĞI']),
                             componentId: findValue(['Component ID', 'Komponent ID', 'KOMPONENT ID']),
@@ -678,6 +683,7 @@ function DataSheetsContent() {
                                         <th className={headerCellClass}>FEEDER/CELL NAME</th>
                                         <th className={headerCellClass}>SIGNAL TYPE</th>
                                         <th className={headerCellClass}>SIGNAL DESCRIPTION</th>
+                                        <th className={headerCellClass}>DATA VALUE (UNIT)</th>
                                         <th className={headerCellClass}>DATA TYPE</th>
                                         <th className={headerCellClass}>SIGNAL SOURCE</th>
                                         <th className={headerCellClass}>COMPONENT ID</th>
@@ -688,6 +694,8 @@ function DataSheetsContent() {
                                         <th className={headerCellClass}>SCADA ADDRESS</th>
                                     </>
                                 )}
+                                <th className={headerCellClass}>CREATED AT/BY</th>
+                                <th className={headerCellClass}>UPDATED AT/BY</th>
                                 <th className={headerCellClass}>REC (MIN)</th>
                                 <th className={headerCellClass}>STATUS</th>
                                 <th className={`${headerCellClass} text-right`}>ACTIONS</th>
@@ -749,6 +757,7 @@ function DataSheetsContent() {
                                             <td className={`${cellClass} max-w-[180px] truncate`} title={sheet.signalDescription ?? ''}>
                                                 {sheet.signalDescription ?? '-'}
                                             </td>
+                                            <td className={`${cellClass} text-slate-400`}>{sheet.dataValue ?? '-'}</td>
                                             <td className={cellClass}>
                                                 {sheet.dataType ? (
                                                     <span className="px-2 py-0.5 rounded bg-purple-500/10 text-purple-400 text-[10px] font-bold">
@@ -767,6 +776,20 @@ function DataSheetsContent() {
                                             <td className={`${cellClass} font-mono tabular-nums text-cyan-400 font-bold`}>{sheet.scadaAddress ?? '-'}</td>
                                         </>
                                     )}
+                                    <td className={cellClass}>
+                                        <div className="flex flex-col text-[10px] text-slate-300 font-bold tracking-tighter tabular-nums">
+                                            <span>{sheet.createdAt ? new Date(sheet.createdAt).toLocaleDateString('tr-TR') : '-'}</span>
+                                            <span className="opacity-50 font-medium">{sheet.createdAt ? new Date(sheet.createdAt).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }) : ''}</span>
+                                            {sheet.createdBy && <span className="text-[8px] text-slate-600 mt-1 truncate max-w-[80px]" title={sheet.createdBy}>BY: {sheet.createdBy.substring(0, 8)}</span>}
+                                        </div>
+                                    </td>
+                                    <td className={cellClass}>
+                                        <div className="flex flex-col text-[10px] text-amber-500/80 font-bold tracking-tighter tabular-nums">
+                                            <span>{sheet.updatedAt ? new Date(sheet.updatedAt).toLocaleDateString('tr-TR') : '-'}</span>
+                                            <span className="opacity-50 font-medium">{sheet.updatedAt ? new Date(sheet.updatedAt).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }) : ''}</span>
+                                            {sheet.updatedBy && <span className="text-[8px] text-slate-600 mt-1 truncate max-w-[80px]" title={sheet.updatedBy}>BY: {sheet.updatedBy.substring(0, 8)}</span>}
+                                        </div>
+                                    </td>
                                     <td className={`${cellClass} font-mono text-slate-500 text-center`}>
                                         {sheet.recordingInterval ?? '1'}m
                                     </td>
@@ -899,12 +922,24 @@ function DataSheetsContent() {
                                         <option value="4">4 - Read Input Registers</option>
                                     </select>
                                 </div>
-                                <InputField
-                                    label="MULTIPLIER" name="multiplier" type="number" step="0.0001"
-                                    value={formData.multiplier}
-                                    onChange={(val) => setFormData({ ...formData, multiplier: val })}
-                                    placeholder="e.g. 0.1, 0.001"
-                                />
+                                <div className="space-y-1.5">
+                                    <label className={labelClass}>MULTIPLIER (SCALING)</label>
+                                    <select
+                                        value={formData.multiplier}
+                                        onChange={(e) => setFormData({ ...formData, multiplier: e.target.value })}
+                                        className={inputClass}
+                                    >
+                                        <option value="">Select Multiplier</option>
+                                        <option value="1">1 (None)</option>
+                                        <option value="10">10</option>
+                                        <option value="100">100</option>
+                                        <option value="1000">1000 (e.g. kV to V)</option>
+                                        <option value="0.1">0.1</option>
+                                        <option value="0.01">0.01</option>
+                                        <option value="0.001">0.001 (e.g. V to kV)</option>
+                                        <option value="0.0001">0.0001</option>
+                                    </select>
+                                </div>
                                 <div className="flex items-center justify-between p-4 bg-slate-900/30 rounded-xl border border-slate-800/40 h-[50px] self-end">
                                     <span className={labelClass + " !mb-0"}>WORD SWAP</span>
                                     <button

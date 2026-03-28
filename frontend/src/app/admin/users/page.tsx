@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { Users, Plus, X, ShieldCheck, Mail, Building2, Trash2, AlertTriangle } from 'lucide-react';
+import { Users, Plus, X, ShieldCheck, Mail, Building2, Trash2, AlertTriangle, Pencil } from 'lucide-react';
 import { apiRequest } from '@/lib/api';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
@@ -14,7 +14,10 @@ interface User {
     role: 'SUPER_ADMIN' | 'COMPANY_ADMIN' | 'NORMAL_USER';
     companyProfileId: string | null;
     companyProfile?: { id: string; name: string } | null;
-    createdAt?: string;
+    createdAt: string;
+    updatedAt: string;
+    createdBy?: string | null;
+    updatedBy?: string | null;
 }
 
 export default function UsersPage() {
@@ -23,6 +26,7 @@ export default function UsersPage() {
     const [loading, setLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [editingUser, setEditingUser] = useState<User | null>(null);
     const [formData, setFormData] = useState({
         email: '',
         password: '',
@@ -67,6 +71,24 @@ export default function UsersPage() {
         fetchCompanies();
     }, []);
 
+    const openCreateModal = () => {
+        setEditingUser(null);
+        setFormData({ email: '', password: '', name: '', role: 'NORMAL_USER', companyProfileId: '' });
+        setIsModalOpen(true);
+    };
+
+    const openEditModal = (user: User) => {
+        setEditingUser(user);
+        setFormData({
+            email: user.email || '',
+            password: '',
+            name: user.name || '',
+            role: user.role || 'NORMAL_USER',
+            companyProfileId: user.companyProfile?.id || '',
+        });
+        setIsModalOpen(true);
+    };
+
     const handleDeleteClick = (user: User) => {
         setUserToDelete(user);
     };
@@ -93,30 +115,55 @@ export default function UsersPage() {
         }
     };
 
-    const handleCreate = async (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (submittingRef.current) return;
         submittingRef.current = true;
         setIsSubmitting(true);
         try {
-            const res = await apiRequest('/api/users', {
-                method: 'POST',
-                body: JSON.stringify({
-                    email: formData.email,
-                    password: formData.password,
-                    name: formData.name,
-                    role: formData.role,
-                    companyProfileId: formData.companyProfileId || null,
-                })
-            });
-            if (res.ok) {
-                toast.success('Kullanıcı başarıyla oluşturuldu');
-                setIsModalOpen(false);
-                setFormData({ email: '', password: '', name: '', role: 'NORMAL_USER', companyProfileId: '' });
-                fetchUsers();
+            if (editingUser) {
+                // UPDATE
+                const res = await apiRequest(`/api/users/${editingUser.id}`, {
+                    method: 'PATCH',
+                    body: JSON.stringify({
+                        email: formData.email,
+                        name: formData.name,
+                        role: formData.role,
+                        companyProfileId: formData.companyProfileId || null,
+                    })
+                });
+                if (res.ok) {
+                    toast.success('Kullanıcı güncellendi');
+                    setIsModalOpen(false);
+                    fetchUsers();
+                } else {
+                    const result = await res.json();
+                    toast.error(result.error?.message || result.error || 'Güncelleme başarısız');
+                }
+            } else {
+                // CREATE
+                const res = await apiRequest('/api/users', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        email: formData.email,
+                        password: formData.password,
+                        name: formData.name,
+                        role: formData.role,
+                        companyProfileId: formData.companyProfileId || null,
+                    })
+                });
+                if (res.ok) {
+                    toast.success('Kullanıcı başarıyla oluşturuldu');
+                    setIsModalOpen(false);
+                    setFormData({ email: '', password: '', name: '', role: 'NORMAL_USER', companyProfileId: '' });
+                    fetchUsers();
+                } else {
+                    const result = await res.json();
+                    toast.error(result.error?.message || result.error || 'Oluşturma başarısız');
+                }
             }
         } catch (err) {
-            console.error('Create error:', err);
+            console.error('Submit error:', err);
         } finally {
             setIsSubmitting(false);
             submittingRef.current = false;
@@ -142,7 +189,7 @@ export default function UsersPage() {
                 </div>
 
                 <button
-                    onClick={() => setIsModalOpen(true)}
+                    onClick={openCreateModal}
                     className="flex items-center gap-3 px-6 py-3 bg-brand-green text-white rounded-xl text-xs font-bold shadow-lg shadow-brand-green/20 hover:scale-[1.02] transition-all  tracking-widest"
                 >
                     <Plus size={16} strokeWidth={3} /> New User
@@ -171,14 +218,16 @@ export default function UsersPage() {
                                 <th className="px-6 py-4">Email</th>
                                 <th className="px-6 py-4">Role</th>
                                 <th className="px-6 py-4">Company</th>
+                                <th className="px-6 py-4">Created At/By</th>
+                                <th className="px-6 py-4">Updated At/By</th>
                                 <th className="px-6 py-4 text-center">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
                             {loading ? (
-                                <tr><td colSpan={5} className="px-6 py-12 text-center text-sm text-slate-500 animate-pulse">Loading users...</td></tr>
+                                <tr><td colSpan={7} className="px-6 py-12 text-center text-sm text-slate-500 animate-pulse">Loading users...</td></tr>
                             ) : users.length === 0 ? (
-                                <tr><td colSpan={5} className="px-6 py-12 text-center text-sm text-slate-500">No users found</td></tr>
+                                <tr><td colSpan={7} className="px-6 py-12 text-center text-sm text-slate-500">No users found</td></tr>
                             ) : users.map((user) => (
                                 <tr key={user.id} className="border-b border-slate-800/30 hover:bg-slate-800/20 transition-all">
                                     <td className="px-6 py-4">
@@ -198,8 +247,33 @@ export default function UsersPage() {
                                     <td className="px-6 py-4 text-sm text-slate-400">
                                         {user.companyProfile?.name || '—'}
                                     </td>
+                                    <td className="px-6 py-4">
+                                        <div className="flex flex-col">
+                                            <span className="text-[10px] font-bold text-slate-300 tabular-nums">
+                                                {user.createdAt ? new Date(user.createdAt).toLocaleDateString('tr-TR') : '—'}
+                                            </span>
+                                            <span className="text-[9px] text-slate-600 font-medium tabular-nums">
+                                                {user.createdAt ? new Date(user.createdAt).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }) : ''}
+                                            </span>
+                                            {user.createdBy && <span className="text-[8px] text-slate-700 mt-1 truncate max-w-[80px]" title={user.createdBy}>BY: {user.createdBy.substring(0, 8)}</span>}
+                                        </div>
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        <div className="flex flex-col">
+                                            <span className="text-[10px] font-bold text-amber-500/80 tabular-nums">
+                                                {user.updatedAt ? new Date(user.updatedAt).toLocaleDateString('tr-TR') : '—'}
+                                            </span>
+                                            <span className="text-[9px] text-slate-600 font-medium tabular-nums">
+                                                {user.updatedAt ? new Date(user.updatedAt).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }) : ''}
+                                            </span>
+                                            {user.updatedBy && <span className="text-[8px] text-slate-700 mt-1 truncate max-w-[80px]" title={user.updatedBy}>BY: {user.updatedBy.substring(0, 8)}</span>}
+                                        </div>
+                                    </td>
                                     <td className="px-6 py-4 text-center">
-                                        <div className="flex justify-center">
+                                        <div className="flex justify-center gap-2">
+                                            <button title="Edit" onClick={() => openEditModal(user)} className="p-2 rounded-md bg-slate-900 border border-slate-700 hover:text-brand-green hover:border-brand-green/50 transition-colors text-slate-400">
+                                                <Pencil size={14} />
+                                            </button>
                                             <button title="Delete" onClick={() => handleDeleteClick(user)} className="p-2 rounded-md bg-slate-900 border border-slate-700 hover:text-red-500 hover:border-red-500/50 transition-colors text-slate-400">
                                                 <Trash2 size={14} />
                                             </button>
@@ -212,16 +286,16 @@ export default function UsersPage() {
                 </div>
             </div>
 
-            {/* Create Modal */}
+            {/* Create / Edit Modal */}
             <Modal
                 isOpen={isModalOpen}
                 onClose={() => setIsModalOpen(false)}
-                title="New User"
-                subtitle="Create user account"
+                title={editingUser ? 'Edit User' : 'New User'}
+                subtitle={editingUser ? 'Update user details' : 'Create user account'}
                 icon={ShieldCheck}
                 maxWidth="lg"
             >
-                <form onSubmit={handleCreate} className="space-y-4">
+                <form onSubmit={handleSubmit} className="space-y-4">
                     <div className="space-y-2">
                         <label className="text-xs font-bold text-slate-400  tracking-widest uppercase">Name</label>
                         <input
@@ -244,17 +318,19 @@ export default function UsersPage() {
                             required
                         />
                     </div>
-                    <div className="space-y-2">
-                        <label className="text-xs font-bold text-slate-400  tracking-widest uppercase">Password</label>
-                        <input
-                            type="password"
-                            value={formData.password}
-                            onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                            className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none"
-                            placeholder="••••••••"
-                            required
-                        />
-                    </div>
+                    {!editingUser && (
+                        <div className="space-y-2">
+                            <label className="text-xs font-bold text-slate-400  tracking-widest uppercase">Password</label>
+                            <input
+                                type="password"
+                                value={formData.password}
+                                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                                className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none"
+                                placeholder="••••••••"
+                                required
+                            />
+                        </div>
+                    )}
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <label className="text-xs font-bold text-slate-400  tracking-widest uppercase">Role</label>
@@ -287,7 +363,7 @@ export default function UsersPage() {
                         disabled={isSubmitting}
                         className="w-full py-4 bg-brand-green disabled:bg-brand-green/50 text-white font-bold  tracking-widest text-[10px] uppercase rounded-xl shadow-lg shadow-brand-green/20 hover:scale-[1.01] transition-all"
                     >
-                        {isSubmitting ? 'Creating...' : 'Create User'}
+                        {isSubmitting ? 'Saving...' : editingUser ? 'UPDATE USER' : 'CREATE USER'}
                     </button>
                 </form>
             </Modal>

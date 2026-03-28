@@ -31,6 +31,9 @@ interface Device {
     protocol?: ProtocolConfig;
     datasheetProfile?: DatasheetProfile;
     createdAt?: string;
+    updatedAt?: string;
+    createdBy?: string | null;
+    updatedBy?: string | null;
 }
 
 function DevicesContent() {
@@ -396,15 +399,17 @@ function DevicesContent() {
                                 <th className="px-6 py-4">Type</th>
                                 <th className="px-6 py-4">Protocol Config</th>
                                 <th className="px-6 py-4">Datasheet Profile</th>
+                                <th className="px-6 py-4">Created At/By</th>
+                                <th className="px-6 py-4">Updated At/By</th>
                                 <th className="px-6 py-4">Status</th>
                                 <th className="px-6 py-4 text-right">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
                             {loading ? (
-                                <tr><td colSpan={6} className="px-6 py-12 text-center text-sm text-slate-500 animate-pulse">Loading devices...</td></tr>
+                                <tr><td colSpan={8} className="px-6 py-12 text-center text-sm text-slate-500 animate-pulse">Loading devices...</td></tr>
                             ) : filteredDevices.length === 0 ? (
-                                <tr><td colSpan={6} className="px-6 py-12 text-center text-sm text-slate-500">No devices found</td></tr>
+                                <tr><td colSpan={8} className="px-6 py-12 text-center text-sm text-slate-500">No devices found</td></tr>
                             ) : filteredDevices.map((device) => (
                                 <tr key={device.id} className="border-b border-slate-800/30 hover:bg-slate-800/20 transition-all">
                                     <td className="px-6 py-4">
@@ -437,6 +442,28 @@ function DevicesContent() {
                                         ) : (
                                             <span className="text-xs text-slate-600 italic">No Profile Assigned</span>
                                         )}
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        <div className="flex flex-col">
+                                            <span className="text-[10px] font-bold text-slate-300 tabular-nums">
+                                                {device.createdAt ? new Date(device.createdAt).toLocaleDateString('tr-TR') : '-'}
+                                            </span>
+                                            <span className="text-[9px] text-slate-600 font-medium tabular-nums">
+                                                {device.createdAt ? new Date(device.createdAt).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }) : '-'}
+                                            </span>
+                                            {device.createdBy && <span className="text-[8px] text-slate-700 mt-1 truncate max-w-[80px]" title={device.createdBy}>BY: {device.createdBy.substring(0, 8)}</span>}
+                                        </div>
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        <div className="flex flex-col">
+                                            <span className="text-[10px] font-bold text-amber-500/80 tabular-nums">
+                                                {device.updatedAt ? new Date(device.updatedAt).toLocaleDateString('tr-TR') : '-'}
+                                            </span>
+                                            <span className="text-[9px] text-slate-600 font-medium tabular-nums">
+                                                {device.updatedAt ? new Date(device.updatedAt).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }) : '-'}
+                                            </span>
+                                            {device.updatedBy && <span className="text-[8px] text-slate-700 mt-1 truncate max-w-[80px]" title={device.updatedBy}>BY: {device.updatedBy.substring(0, 8)}</span>}
+                                        </div>
                                     </td>
                                     <td className="px-6 py-4">
                                         <div className="flex items-center gap-2">
@@ -539,17 +566,7 @@ function DevicesContent() {
                             required
                         />
                     </div>
-                    {editingDevice && (
-                        <div className="space-y-2">
-                            <label className="text-xs font-bold text-slate-400  tracking-widest uppercase">Created Date</label>
-                            <input
-                                type="datetime-local"
-                                value={formData.createdAt}
-                                onChange={(e) => setFormData({ ...formData, createdAt: e.target.value })}
-                                className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none"
-                            />
-                        </div>
-                    )}
+
                     <div className="flex items-center justify-between p-4 bg-slate-900/30 rounded-xl border border-slate-800/40">
                         <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Active Status</span>
                         <button

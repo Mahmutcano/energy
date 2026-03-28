@@ -19,9 +19,12 @@ interface CompanyProfile {
     taxOffice: string | null;
     taxNumber: number | null;
     isActive: boolean;
-    plants?: any[];
-    users?: any[];
     createdAt: string;
+    updatedAt: string;
+    createdBy?: string | null;
+    updatedBy?: string | null;
+    plantCount?: number;
+    userCount?: number;
 }
 
 const defaultFormData = {
@@ -178,20 +181,41 @@ export default function CompaniesPage() {
                                 </span>
                             </div>
                         </div>
+                        
+                        <div className="flex flex-col gap-2 mb-4 px-1">
+                            <div className="flex items-center justify-between text-[10px] text-slate-600 font-bold uppercase tracking-tighter">
+                                <div className="flex flex-col">
+                                    <span>Created At</span>
+                                    {company.createdBy && <span className="text-[8px] text-slate-700 font-medium lowercase">by: {company.createdBy.substring(0, 8)}</span>}
+                                </div>
+                                <span className="text-slate-500 tabular-nums text-right">
+                                    {company.createdAt ? new Date(company.createdAt).toLocaleDateString('tr-TR') + ' ' + new Date(company.createdAt).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }) : '—'}
+                                </span>
+                            </div>
+                            <div className="flex items-center justify-between text-[10px] text-slate-600 font-bold uppercase tracking-tighter">
+                                <div className="flex flex-col">
+                                    <span>Last Update</span>
+                                    {company.updatedBy && <span className="text-[8px] text-slate-700 font-medium lowercase">by: {company.updatedBy.substring(0, 8)}</span>}
+                                </div>
+                                <span className="text-amber-500/80 tabular-nums text-right">
+                                    {company.updatedAt ? new Date(company.updatedAt).toLocaleDateString('tr-TR') + ' ' + new Date(company.updatedAt).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }) : '—'}
+                                </span>
+                            </div>
+                        </div>
 
                         <div className="grid grid-cols-3 gap-4 mt-4 pt-4 border-t border-slate-800/40">
                             <div className="flex items-center gap-2">
                                 <Factory size={14} className="text-slate-600" />
                                 <div>
                                     <p className="text-[10px] font-bold text-slate-600 ">Plants</p>
-                                    <p className="text-sm font-bold text-white tabular-nums">{company.plants?.length || 0}</p>
+                                    <p className="text-sm font-bold text-white tabular-nums">{company.plantCount || 0}</p>
                                 </div>
                             </div>
                             <div className="flex items-center gap-2">
                                 <Users size={14} className="text-slate-600" />
                                 <div>
                                     <p className="text-[10px] font-bold text-slate-600 ">Users</p>
-                                    <p className="text-sm font-bold text-white tabular-nums">{company.users?.length || 0}</p>
+                                    <p className="text-sm font-bold text-white tabular-nums">{company.userCount || 0}</p>
                                 </div>
                             </div>
                             <div className="flex justify-end gap-2">

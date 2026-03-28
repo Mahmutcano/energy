@@ -12,6 +12,10 @@ interface DatasheetProfile {
     id: string;
     name: string;
     protocolType: string;
+    createdAt: string;
+    updatedAt: string;
+    createdBy?: string | null;
+    updatedBy?: string | null;
     _count?: {
         points: number;
         devices: number;
@@ -167,6 +171,27 @@ export default function DatasheetProfilesPage() {
                                 <button title="Delete" onClick={() => handleDeleteClick(profile)} className="p-2 rounded-md bg-slate-900 border border-slate-800/40 hover:text-red-500 hover:border-red-500/50 transition-colors text-slate-400">
                                     <Trash2 size={14} />
                                 </button>
+                            </div>
+                        </div>
+
+                        <div className="flex flex-col gap-2 mb-4 px-1">
+                            <div className="flex items-center justify-between text-[10px] text-slate-600 font-bold uppercase tracking-tighter">
+                                <div className="flex flex-col">
+                                    <span>Created At</span>
+                                    {profile.createdBy && <span className="text-[8px] text-slate-700 font-medium lowercase">by: {profile.createdBy.substring(0, 8)}</span>}
+                                </div>
+                                <span className="text-slate-500 tabular-nums text-right">
+                                    {profile.createdAt ? new Date(profile.createdAt).toLocaleDateString('tr-TR') + ' ' + new Date(profile.createdAt).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }) : '—'}
+                                </span>
+                            </div>
+                            <div className="flex items-center justify-between text-[10px] text-slate-600 font-bold uppercase tracking-tighter">
+                                <div className="flex flex-col">
+                                    <span>Last Update</span>
+                                    {profile.updatedBy && <span className="text-[8px] text-slate-700 font-medium lowercase">by: {profile.updatedBy.substring(0, 8)}</span>}
+                                </div>
+                                <span className="text-amber-500/80 tabular-nums text-right">
+                                    {profile.updatedAt ? new Date(profile.updatedAt).toLocaleDateString('tr-TR') + ' ' + new Date(profile.updatedAt).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }) : '—'}
+                                </span>
                             </div>
                         </div>
 

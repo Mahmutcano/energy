@@ -21,6 +21,9 @@ interface Plant {
     plantType: 'SOLAR' | 'WIND' | 'HYDRO';
     isActive: boolean;
     createdAt: string;
+    updatedAt: string;
+    createdBy: string | null;
+    updatedBy: string | null;
 }
 
 interface CompanyProfile {
@@ -263,9 +266,30 @@ function PlantsContent() {
                                     <p className="text-xs text-slate-500 mt-0.5">{plant.company?.name || 'N/A'}</p>
                                 </div>
                             </div>
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 text-[10px] font-bold text-brand-green">
                                 <div className="w-2 h-2 rounded-full bg-brand-green animate-pulse"></div>
-                                <span className="text-[10px] font-bold text-brand-green ">Active</span>
+                                <span>Active</span>
+                            </div>
+                        </div>
+
+                        <div className="flex flex-col gap-2 mb-4 px-1">
+                            <div className="flex items-center justify-between text-[10px] text-slate-600 font-bold uppercase tracking-tighter">
+                                <div className="flex flex-col">
+                                    <span>Created At</span>
+                                    {plant.createdBy && <span className="text-[8px] text-slate-700 font-medium lowercase">by: {plant.createdBy.substring(0, 8)}</span>}
+                                </div>
+                                <span className="text-slate-500 tabular-nums text-right">
+                                    {plant.createdAt ? new Date(plant.createdAt).toLocaleDateString('tr-TR') + ' ' + new Date(plant.createdAt).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }) : '—'}
+                                </span>
+                            </div>
+                            <div className="flex items-center justify-between text-[10px] text-slate-600 font-bold uppercase tracking-tighter">
+                                <div className="flex flex-col">
+                                    <span>Last Update</span>
+                                    {plant.updatedBy && <span className="text-[8px] text-slate-700 font-medium lowercase">by: {plant.updatedBy.substring(0, 8)}</span>}
+                                </div>
+                                <span className="text-amber-500/80 tabular-nums text-right">
+                                    {plant.updatedAt ? new Date(plant.updatedAt).toLocaleDateString('tr-TR') + ' ' + new Date(plant.updatedAt).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }) : '—'}
+                                </span>
                             </div>
                         </div>
 

@@ -43,25 +43,20 @@ func GetModbusService(socket *socket.Server) *ModbusService {
 }
 
 func (s *ModbusService) Start() {
-	log.Println("[MODBUS] Master Service Starting (Go/Goroutines)...")
+	log.Println("[MODBUS] Master Service Starting...")
 	go s.periodicReload()
 }
 
 func (s *ModbusService) periodicReload() {
-	ticker := time.NewTicker(60 * time.Second)
+	ticker := time.NewTicker(30 * time.Second) // 30 saniyeye düşürdüm ki değişiklikler hızlı gelsin
 	defer ticker.Stop()
-
-	// Initial reload
 	s.ReloadConfigs()
-
 	for range ticker.C {
-		log.Println("[MODBUS] 🕒 Periodic systematic config check...")
 		s.ReloadConfigs()
 	}
 }
 
 func (s *ModbusService) ReloadConfigs() {
-	// Query DB for all active Modbus configs
 	rows, err := db.Pool.Query(context.Background(), `
 		SELECT pc.id, mc."ipAddress", mc.port, mc."slaveId", mc.timeout
 		FROM "ProtocolConfig" pc
@@ -75,7 +70,6 @@ func (s *ModbusService) ReloadConfigs() {
 	defer rows.Close()
 
 	activeInDB := make(map[uuid.UUID]bool)
-
 	for rows.Next() {
 		var protocolID uuid.UUID
 		var ip string
@@ -85,38 +79,37 @@ func (s *ModbusService) ReloadConfigs() {
 		}
 		activeInDB[protocolID] = true
 
-		configHash := fmt.Sprintf("%s:%d:%d", ip, port, slaveID)
+		// GÜNCELLEME: Hash'e noktaların bilgisini de ekliyoruz ki DataType/Multiplier değişince restart atsın
+		points := s.fetchPointsForProtocol(protocolID)
+		pointsHash := fmt.Sprintf("%v", points) // Noktaların içeriğini string'e çevirip hashliyoruz
+		configHash := fmt.Sprintf("%s:%d:%d:%s", ip, port, slaveID, pointsHash)
 
 		s.mu.RLock()
 		currentHash, ok := s.activeInstances[protocolID]
 		s.mu.RUnlock()
 
+		// Eğer hash değişmişse (DataType, Multiplier veya IP/Port), poller'ı durdur ve yeniden başlat
 		if ok && currentHash != configHash {
-			log.Printf("[MODBUS] 🔄 Config changed for Protocol %s. Restarting...", protocolID)
+			log.Printf("[MODBUS] 🔄 Configuration change detected for %s. Restarting poller...", protocolID)
 			s.StopProtocol(protocolID)
 		}
 
 		if !ok || currentHash != configHash {
-			// Get points for this protocol
-			points := s.fetchPointsForProtocol(protocolID)
 			if len(points) > 0 {
 				ctx, cancel := context.WithCancel(context.Background())
 				s.mu.Lock()
 				s.activeInstances[protocolID] = configHash
 				s.cancels[protocolID] = cancel
 				s.mu.Unlock()
-
 				go s.runPollLoop(ctx, protocolID, ip, port, slaveID, timeout, points)
 			}
 		}
 	}
 
-	// Stop protocols that are no longer active in DB
 	s.mu.Lock()
 	for pID := range s.activeInstances {
 		if !activeInDB[pID] {
-			log.Printf("[MODBUS] 🛑 Stopping non-active Protocol %s", pID)
-			s.mu.Unlock() // avoid deadlock
+			s.mu.Unlock()
 			s.StopProtocol(pID)
 			s.mu.Lock()
 		}
@@ -135,8 +128,17 @@ func (s *ModbusService) StopProtocol(id uuid.UUID) {
 	s.mu.Unlock()
 }
 
+func (s *ModbusService) GetStatuses() map[string]string {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	res := make(map[string]string)
+	for k, v := range s.statuses {
+		res[k.String()] = v
+	}
+	return res
+}
+
 func (s *ModbusService) fetchPointsForProtocol(protocolID uuid.UUID) []models.PointToPoll {
-	// Simple query: Fetch active points for all devices in this protocol
 	rows, err := db.Pool.Query(context.Background(), `
 		SELECT dp.address, d.id, dp.id, dp."dataName", NULL as data_value, dp."functionCode", dp.multiplier, dp."wordSwap", dp."dataType", d."isRecording"
 		FROM "Device" d
@@ -155,26 +157,22 @@ func (s *ModbusService) fetchPointsForProtocol(protocolID uuid.UUID) []models.Po
 		var multiplier *float64
 		var registerAddress, functionCode *int
 		if err := rows.Scan(&registerAddress, &p.DeviceID, &p.PointID, &p.Name, &dataValue, &functionCode, &multiplier, &p.WordSwap, &dataType, &p.IsRecording); err != nil {
-			log.Printf("[MODBUS] Failed to scan point row: %v", err)
 			continue
 		}
 		if registerAddress != nil {
 			p.Address = *registerAddress
 		}
+		p.FunctionCode = 3
 		if functionCode != nil {
 			p.FunctionCode = *functionCode
-		} else {
-			p.FunctionCode = 3
 		}
+		p.Multiplier = 1.0
 		if multiplier != nil {
-			p.Multiplier = float64(*multiplier)
-		} else {
-			p.Multiplier = 1.0
+			p.Multiplier = *multiplier
 		}
+		p.DataType = "INT"
 		if dataType != nil {
 			p.DataType = *dataType
-		} else {
-			p.DataType = "INT"
 		}
 		if dataValue != nil {
 			p.Unit = *dataValue
@@ -184,58 +182,49 @@ func (s *ModbusService) fetchPointsForProtocol(protocolID uuid.UUID) []models.Po
 	return points
 }
 
+func (s *ModbusService) getRegisterCount(dataType string) uint16 {
+	switch dataType {
+	case "BYTE", "SINT", "USINT", "WORD", "INT", "UINT":
+		return 1
+	case "DWORD", "DINT", "UDINT", "FLOAT32":
+		return 2
+	case "LWORD", "LINT", "ULINT", "DOUBLE64":
+		return 4
+	default:
+		return 1
+	}
+}
+
 func (s *ModbusService) setStatus(id uuid.UUID, status string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.statuses[id] != status {
 		s.statuses[id] = status
 		if s.socket != nil {
-			msg := map[string]string{
-				"protocolId": id.String(),
-				"status":     status,
-			}
+			msg := map[string]string{"protocolId": id.String(), "status": status}
 			s.socket.Sockets().Emit("protocol:status", msg)
 		}
 	}
 }
 
-func (s *ModbusService) GetStatuses() map[string]string {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	res := make(map[string]string)
-	for k, v := range s.statuses {
-		res[k.String()] = v
-	}
-	return res
-}
-
 func (s *ModbusService) runPollLoop(ctx context.Context, protocolID uuid.UUID, ip string, port, slaveID, timeout int, points []models.PointToPoll) {
-	log.Printf("[MODBUS] 🔋 Iniciating Goroutine Poller for Protocol %s (%s:%d)", protocolID, ip, port)
-
 	handler := modbus.NewTCPClientHandler(fmt.Sprintf("%s:%d", ip, port))
 	handler.Timeout = time.Duration(timeout) * time.Millisecond
 	handler.SlaveId = byte(slaveID)
-
 	client := modbus.NewClient(handler)
 	defer handler.Close()
 
 	ticker := time.NewTicker(250 * time.Millisecond)
 	defer ticker.Stop()
-
 	redisSvc := redis.GetInstance()
 
 	for {
 		select {
 		case <-ctx.Done():
-			log.Printf("[MODBUS] 🛑 Context cancelled for Poller %s", protocolID)
 			return
 		case <-ticker.C:
 			for _, point := range points {
-				count := uint16(1)
-				if point.DataType == "FLOAT32" || point.DataType == "INT32" || point.DataType == "UINT32" || point.DataType == "DWORD" {
-					count = 2
-				}
-
+				count := s.getRegisterCount(point.DataType)
 				var results []byte
 				var err error
 
@@ -246,77 +235,88 @@ func (s *ModbusService) runPollLoop(ctx context.Context, protocolID uuid.UUID, i
 				}
 
 				if err != nil {
-					log.Printf("[MODBUS] Read Error for %s (Addr: %d): %v", protocolID, point.Address, err)
 					s.setStatus(protocolID, "DISCONNECTED")
-					handler.Close() // Force connection reset to clear corrupt transaction IDs/buffers
-					time.Sleep(1 * time.Second)
 					continue
 				}
 
-				// Small delay to prevent flooding Modbus Gateways with back-to-back requests
-				time.Sleep(50 * time.Millisecond)
-
 				s.setStatus(protocolID, "CONNECTED")
-
 				if len(results) < int(count*2) {
 					continue
 				}
 
 				val := s.parseValue(results, point)
-				val = val * point.Multiplier
 
 				telemetry := models.TelemetryData{
-					ProtocolID: protocolID,
-					DeviceID:   point.DeviceID,
-					PointID:    point.PointID,
-					IOA:        point.Address,
-					Value:      val,
-					Unit:       point.Unit,
-					Name:       point.Name,
-					Timestamp:  time.Now(),
+					ProtocolID: protocolID, DeviceID: point.DeviceID, PointID: point.PointID,
+					IOA: point.Address, Value: val, Unit: point.Unit,
+					Name: point.Name, Timestamp: time.Now(),
 				}
 
 				if s.socket != nil {
 					s.socket.Sockets().Emit(fmt.Sprintf("telemetry:raw:%s", protocolID), telemetry)
 				}
-
-				// Mark device as seen in AlarmService
 				services.GetAlarmService(s.socket).MarkDeviceSeen(point.DeviceID)
-
 				if point.IsRecording {
 					redisSvc.PushTelemetry(telemetry)
 				}
+
+				time.Sleep(30 * time.Millisecond)
 			}
 		}
 	}
 }
 
-func (s *ModbusService) parseValue(b []byte, p models.PointToPoll) float64 {
-	if len(b) == 2 {
-		val := binary.BigEndian.Uint16(b)
-		if p.DataType == "INT" || p.DataType == "SINT" {
-			return float64(int16(val))
-		}
-		return float64(val)
-	} else if len(b) == 4 {
-		var val uint32
-		if p.WordSwap {
-			val = uint32(binary.BigEndian.Uint16(b[2:]))<<16 | uint32(binary.BigEndian.Uint16(b[:2]))
-		} else {
-			val = binary.BigEndian.Uint32(b)
-		}
-
-		switch p.DataType {
-		case "FLOAT32":
-			bits := val
-			return float64(math.Float32frombits(bits))
-		case "INT32":
-			return float64(int32(val))
-		case "UINT32", "DWORD":
-			return float64(val)
-		default:
-			return float64(val)
-		}
+func (s *ModbusService) bytesToUint32(b []byte, swap bool) uint32 {
+	if len(b) < 4 {
+		return 0
 	}
-	return 0
+	if swap {
+		return uint32(binary.BigEndian.Uint16(b[2:]))<<16 | uint32(binary.BigEndian.Uint16(b[:2]))
+	}
+	return binary.BigEndian.Uint32(b)
+}
+
+func (s *ModbusService) parseValue(b []byte, p models.PointToPoll) float64 {
+	var finalValue float64
+
+	switch p.DataType {
+	case "BYTE", "USINT":
+		finalValue = float64(b[1])
+	case "SINT":
+		finalValue = float64(int8(b[1]))
+	case "WORD", "UINT":
+		finalValue = float64(binary.BigEndian.Uint16(b))
+	case "INT":
+		finalValue = float64(int16(binary.BigEndian.Uint16(b)))
+	case "FLOAT32":
+		bits := s.bytesToUint32(b, p.WordSwap)
+		finalValue = float64(math.Float32frombits(bits))
+	case "INT32", "DINT":
+		bits := s.bytesToUint32(b, p.WordSwap)
+		finalValue = float64(int32(bits))
+	case "UINT32", "DWORD", "UDINT":
+		bits := s.bytesToUint32(b, p.WordSwap)
+		finalValue = float64(bits)
+	case "DOUBLE64":
+		if len(b) >= 8 {
+			bits := binary.BigEndian.Uint64(b)
+			finalValue = math.Float64frombits(bits)
+		}
+	case "LINT":
+		if len(b) >= 8 {
+			finalValue = float64(int64(binary.BigEndian.Uint64(b)))
+		}
+	case "ULINT", "LWORD":
+		if len(b) >= 8 {
+			finalValue = float64(binary.BigEndian.Uint64(b))
+		}
+	default:
+		finalValue = float64(binary.BigEndian.Uint16(b))
+	}
+
+	if math.IsNaN(finalValue) || math.IsInf(finalValue, 0) {
+		return 0
+	}
+
+	return finalValue * p.Multiplier
 }

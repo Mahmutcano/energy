@@ -92,6 +92,7 @@ func main() {
 			protected.DELETE("/companies/:id", handlers.DeleteCompany)
 			protected.GET("/users", handlers.GetUsers)
 			protected.POST("/users", handlers.CreateUser)
+			protected.PATCH("/users/:id", handlers.UpdateUser)
 			protected.DELETE("/users/:id", handlers.DeleteUser)
 			protected.GET("/devices", handlers.GetDevices)
 			protected.POST("/devices", handlers.CreateDevice)

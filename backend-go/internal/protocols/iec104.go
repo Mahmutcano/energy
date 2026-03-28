@@ -54,7 +54,7 @@ func (s *IEC104Service) ReloadConfigs() {
 	rows, err := db.Pool.Query(context.Background(), `
 		SELECT pc.id, ic."ipAddress", ic.port, ic."asduAddr"
 		FROM "ProtocolConfig" pc
-		JOIN "IEC104Config" ic ON pc.id = ic.protocol_id
+		JOIN "IEC104Config" ic ON pc.id = ic."protocolId"
 		WHERE pc."protocolType" = 'IEC104' AND pc."isActive" = true
 	`)
 	if err != nil {
@@ -92,10 +92,10 @@ func (s *IEC104Service) simulateTelemetry(protocolID uuid.UUID) {
 
 	// Get points
 	rows, err := db.Pool.Query(context.Background(), `
-		SELECT d.id, dp.id, dp."dataName", dp."dataValue", dp."scadaAddress", d."isRecording"
+		SELECT d.id, dp.id, dp."dataName", NULL as data_value, dp.address, d."isRecording"
 		FROM "Device" d
-		JOIN "DatasheetPoint" dp ON d.datasheet_profile_id = dp.profile_id
-		WHERE d.protocol_config_id = $1 AND d."isActive" = true AND dp."isActive" = true AND dp."scadaAddress" IS NOT NULL
+		JOIN "DatasheetPoint" dp ON d."datasheetProfileId" = dp."profileId"
+		WHERE d."protocolConfigId" = $1 AND d."isActive" = true AND dp."isActive" = true AND dp.address IS NOT NULL
 	`, protocolID)
 
 	if err != nil {

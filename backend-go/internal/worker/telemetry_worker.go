@@ -65,7 +65,7 @@ func (w *TelemetryWorker) processBatch() {
 
 	// High-performance CopyFrom
 	identifier := pgx.Identifier{"TelemetryValue"}
-	columns := []string{"device_id", "pointId", "measurementTime", "valueNumeric"}
+	columns := []string{"deviceId", "pointId", "measurementTime", "valueNumeric"}
 
 	rows := [][]interface{}{}
 	for _, d := range buffer {

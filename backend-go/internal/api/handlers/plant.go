@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"time"
 
 	"energy-scada-platform/internal/api/response"
 	"energy-scada-platform/internal/db"
@@ -12,32 +13,79 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 )
 
 func GetPlants(c *gin.Context) {
-	rows, err := db.Pool.Query(context.Background(), `
-		SELECT p.id, p.company_id, p."plantName", p."plantType", p.latitude, p.longitude, p."isActive", c.name as company_name
-		FROM "Plant" p
-		JOIN "CompanyProfile" c ON p.company_id = c.id
-	`)
+	companyID, role := getUserCompanyID(c)
+
+	var rows pgx.Rows
+	var err error
+
+	if role == "SUPER_ADMIN" {
+		rows, err = db.Pool.Query(context.Background(), `
+			SELECT p.id, p."companyId", p."plantName", p."plantType", p.latitude, p.longitude, p."isActive", c.name as company_name, 
+			       p."createdAt", p."updatedAt", p."createdBy", p."updatedBy"
+			FROM "Plant" p
+			JOIN "CompanyProfile" c ON p."companyId" = c.id
+			ORDER BY p."createdAt" DESC
+		`)
+	} else if companyID != nil {
+		rows, err = db.Pool.Query(context.Background(), `
+			SELECT p.id, p."companyId", p."plantName", p."plantType", p.latitude, p.longitude, p."isActive", c.name as company_name, 
+			       p."createdAt", p."updatedAt", p."createdBy", p."updatedBy"
+			FROM "Plant" p
+			JOIN "CompanyProfile" c ON p."companyId" = c.id
+			WHERE p."companyId" = $1
+			ORDER BY p."createdAt" DESC
+		`, *companyID)
+	} else {
+		response.Success(c, http.StatusOK, []any{})
+		return
+	}
 	if err != nil {
 		response.Error(c, http.StatusInternalServerError, response.ErrDatabase, err.Error())
 		return
 	}
 	defer rows.Close()
 
-	var plants []models.Plant
+	var plants []any
 	for rows.Next() {
 		var p models.Plant
-		if err := rows.Scan(&p.ID, &p.CompanyID, &p.PlantName, &p.PlantType, &p.Latitude, &p.Longitude, &p.IsActive, &p.CompanyName); err != nil {
+		var createdAt, updatedAt time.Time
+		var createdBy, updatedBy *uuid.UUID
+		if err := rows.Scan(&p.ID, &p.CompanyID, &p.PlantName, &p.PlantType, &p.Latitude, &p.Longitude, &p.IsActive, &p.CompanyName, &createdAt, &updatedAt, &createdBy, &updatedBy); err != nil {
 			log.Printf("[DB] Error scanning plant: %v", err)
 			continue
 		}
-		plants = append(plants, p)
+
+		// Fetch protocol count for this plant
+		var protoCount int
+		_ = db.Pool.QueryRow(context.Background(), `SELECT COUNT(*) FROM "ProtocolConfig" WHERE "plantId" = $1`, p.ID).Scan(&protoCount)
+
+		// Create a dummy array of the right length so frontend's .length works
+		protocols := make([]int, protoCount)
+
+		plants = append(plants, gin.H{
+			"id":          p.ID,
+			"companyId":   p.CompanyID,
+			"plantName":   p.PlantName,
+			"plantType":   p.PlantType,
+			"latitude":    p.Latitude,
+			"longitude":   p.Longitude,
+			"isActive":    p.IsActive,
+			"companyName": p.CompanyName,
+			"company":     gin.H{"id": p.CompanyID, "name": p.CompanyName},
+			"createdAt":   createdAt,
+			"updatedAt":   updatedAt,
+			"createdBy":   createdBy,
+			"updatedBy":   updatedBy,
+			"protocols":   protocols,
+		})
 	}
 
 	if plants == nil {
-		plants = []models.Plant{}
+		plants = []any{}
 	}
 
 	response.Success(c, http.StatusOK, plants)
@@ -50,13 +98,21 @@ func CreatePlant(c *gin.Context) {
 		return
 	}
 
+	// Get creator
+	var creatorID *uuid.UUID
+	uidStr, _ := c.Get("user_id")
+	if uidStr != nil {
+		uid, _ := uuid.Parse(uidStr.(string))
+		creatorID = &uid
+	}
+
 	p.ID = uuid.New()
 	p.IsActive = true
 
 	_, err := db.Pool.Exec(context.Background(), `
-		INSERT INTO "Plant" (id, company_id, "plantName", "plantType", latitude, longitude, "isActive")
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
-	`, p.ID, p.CompanyID, p.PlantName, p.PlantType, p.Latitude, p.Longitude, p.IsActive)
+		INSERT INTO "Plant" (id, "companyId", "plantName", "plantType", latitude, longitude, "isActive", "createdAt", "updatedAt", "createdBy", "updatedBy")
+		VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW(), $8, $9)
+	`, p.ID, p.CompanyID, p.PlantName, p.PlantType, p.Latitude, p.Longitude, p.IsActive, creatorID, creatorID)
 
 	if err != nil {
 		log.Printf("[DB] Insert Error (Plant): %v", err)
@@ -85,7 +141,7 @@ func UpdatePlant(c *gin.Context) {
 	idx := 1
 
 	if val, ok := body["companyId"]; ok {
-		query += fmt.Sprintf("company_id = $%d, ", idx)
+		query += fmt.Sprintf("\"companyId\" = $%d, ", idx)
 		args = append(args, val)
 		idx++
 	}
@@ -120,7 +176,16 @@ func UpdatePlant(c *gin.Context) {
 		return
 	}
 
-	query = "UPDATE \"Plant\" SET " + query[:len(query)-2] + " WHERE id = $" + fmt.Sprintf("%d", idx)
+	query = "UPDATE \"Plant\" SET " + query + "\"updatedAt\" = NOW(), \"updatedBy\" = $" + fmt.Sprintf("%d", idx) + " WHERE id = $" + fmt.Sprintf("%d", idx+1)
+	
+	// Get updater ID from context (JWT)
+	updaterIDStr, _ := c.Get("user_id")
+	if updaterIDStr != nil {
+		uid, _ := uuid.Parse(updaterIDStr.(string))
+		args = append(args, uid)
+	} else {
+		args = append(args, nil)
+	}
 	args = append(args, id)
 
 	_, err = db.Pool.Exec(context.Background(), query, args...)
@@ -154,7 +219,7 @@ func DeletePlant(c *gin.Context) {
 	
 	// 1. Protokollerin ID listesini alalım
 	var protocolIDs []uuid.UUID
-	rows, _ := tx.Query(ctx, `SELECT id FROM "ProtocolConfig" WHERE plant_id = $1`, id)
+	rows, _ := tx.Query(ctx, `SELECT id FROM "ProtocolConfig" WHERE "plantId" = $1`, id)
 	for rows.Next() {
 		var pid uuid.UUID
 		if err := rows.Scan(&pid); err == nil {
@@ -165,13 +230,13 @@ func DeletePlant(c *gin.Context) {
 
 	// 2. Alt konfigürasyonları ve cihazları silelim
 	for _, pid := range protocolIDs {
-		_, _ = tx.Exec(ctx, `DELETE FROM "Device" WHERE protocol_config_id = $1`, pid)
-		_, _ = tx.Exec(ctx, `DELETE FROM "ModbusConfig" WHERE protocol_id = $1`, pid)
-		_, _ = tx.Exec(ctx, `DELETE FROM "IEC104Config" WHERE protocol_id = $1`, pid)
+		_, _ = tx.Exec(ctx, `DELETE FROM "Device" WHERE "protocolConfigId" = $1`, pid)
+		_, _ = tx.Exec(ctx, `DELETE FROM "ModbusConfig" WHERE "protocolId" = $1`, pid)
+		_, _ = tx.Exec(ctx, `DELETE FROM "IEC104Config" WHERE "protocolId" = $1`, pid)
 	}
 
 	// 3. Protokolleri silelim
-	_, err = tx.Exec(ctx, `DELETE FROM "ProtocolConfig" WHERE plant_id = $1`, id)
+	_, err = tx.Exec(ctx, `DELETE FROM "ProtocolConfig" WHERE "plantId" = $1`, id)
 	if err != nil {
 		response.Error(c, http.StatusInternalServerError, response.ErrDatabase, "Tesis protokolleri silinemedi: "+err.Error())
 		return

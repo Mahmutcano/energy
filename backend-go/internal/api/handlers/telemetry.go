@@ -17,7 +17,7 @@ func GetTelemetry(c *gin.Context) {
 	rows, err := db.TimescalePool.Query(context.Background(), `
 		SELECT "pointId", "measurementTime", "valueNumeric"
 		FROM "TelemetryValue"
-		WHERE device_id = $1 AND "measurementTime" > NOW() - INTERVAL '1 hour'
+		WHERE "deviceId" = $1 AND "measurementTime" > NOW() - INTERVAL '1 hour'
 		ORDER BY "measurementTime" ASC
 	`, deviceID)
 
@@ -63,7 +63,7 @@ func GetTelemetryHistory(c *gin.Context) {
 	query := `
 		SELECT "measurementTime", "valueNumeric"
 		FROM "TelemetryValue"
-		WHERE device_id = $1 AND "pointId" = $2 AND "measurementTime" > NOW() - $3::interval
+		WHERE "deviceId" = $1 AND "pointId" = $2 AND "measurementTime" > NOW() - $3::interval
 		ORDER BY "measurementTime" ASC
 	`
 	rows, err := db.TimescalePool.Query(context.Background(), query, deviceID, pointID, interval)

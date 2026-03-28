@@ -65,7 +65,7 @@ func (s *ModbusService) ReloadConfigs() {
 	rows, err := db.Pool.Query(context.Background(), `
 		SELECT pc.id, mc."ipAddress", mc.port, mc."slaveId", mc.timeout
 		FROM "ProtocolConfig" pc
-		JOIN "ModbusConfig" mc ON pc.id = mc.protocol_id
+		JOIN "ModbusConfig" mc ON pc.id = mc."protocolId"
 		WHERE pc."protocolType" = 'MODBUS' AND pc."isActive" = true
 	`)
 	if err != nil {
@@ -138,10 +138,10 @@ func (s *ModbusService) StopProtocol(id uuid.UUID) {
 func (s *ModbusService) fetchPointsForProtocol(protocolID uuid.UUID) []models.PointToPoll {
 	// Simple query: Fetch active points for all devices in this protocol
 	rows, err := db.Pool.Query(context.Background(), `
-		SELECT dp."registerAddress", d.id, dp.id, dp."dataName", dp."dataValue", dp."functionCode", dp.multiplier, dp."wordSwap", dp."dataType", d."isRecording"
+		SELECT dp.address, d.id, dp.id, dp."dataName", NULL as data_value, dp."functionCode", dp.multiplier, dp."wordSwap", dp."dataType", d."isRecording"
 		FROM "Device" d
-		JOIN "DatasheetPoint" dp ON d.datasheet_profile_id = dp.profile_id
-		WHERE d.protocol_config_id = $1 AND d."isActive" = true AND dp."isActive" = true AND dp."registerAddress" IS NOT NULL
+		JOIN "DatasheetPoint" dp ON d."datasheetProfileId" = dp."profileId"
+		WHERE d."protocolConfigId" = $1 AND d."isActive" = true AND dp."isActive" = true AND dp.address IS NOT NULL
 	`, protocolID)
 	if err != nil {
 		return nil
@@ -152,9 +152,10 @@ func (s *ModbusService) fetchPointsForProtocol(protocolID uuid.UUID) []models.Po
 	for rows.Next() {
 		var p models.PointToPoll
 		var dataType, dataValue *string
-		var multiplier *float32
+		var multiplier *float64
 		var registerAddress, functionCode *int
 		if err := rows.Scan(&registerAddress, &p.DeviceID, &p.PointID, &p.Name, &dataValue, &functionCode, &multiplier, &p.WordSwap, &dataType, &p.IsRecording); err != nil {
+			log.Printf("[MODBUS] Failed to scan point row: %v", err)
 			continue
 		}
 		if registerAddress != nil {
@@ -173,7 +174,7 @@ func (s *ModbusService) fetchPointsForProtocol(protocolID uuid.UUID) []models.Po
 		if dataType != nil {
 			p.DataType = *dataType
 		} else {
-			p.DataType = "int16"
+			p.DataType = "INT"
 		}
 		if dataValue != nil {
 			p.Unit = *dataValue
@@ -231,7 +232,7 @@ func (s *ModbusService) runPollLoop(ctx context.Context, protocolID uuid.UUID, i
 		case <-ticker.C:
 			for _, point := range points {
 				count := uint16(1)
-				if point.DataType == "float32" || point.DataType == "int32" || point.DataType == "uint32" {
+				if point.DataType == "FLOAT32" || point.DataType == "INT32" || point.DataType == "UINT32" || point.DataType == "DWORD" {
 					count = 2
 				}
 
@@ -245,9 +246,15 @@ func (s *ModbusService) runPollLoop(ctx context.Context, protocolID uuid.UUID, i
 				}
 
 				if err != nil {
+					log.Printf("[MODBUS] Read Error for %s (Addr: %d): %v", protocolID, point.Address, err)
 					s.setStatus(protocolID, "DISCONNECTED")
+					handler.Close() // Force connection reset to clear corrupt transaction IDs/buffers
+					time.Sleep(1 * time.Second)
 					continue
 				}
+
+				// Small delay to prevent flooding Modbus Gateways with back-to-back requests
+				time.Sleep(50 * time.Millisecond)
 
 				s.setStatus(protocolID, "CONNECTED")
 
@@ -287,7 +294,7 @@ func (s *ModbusService) runPollLoop(ctx context.Context, protocolID uuid.UUID, i
 func (s *ModbusService) parseValue(b []byte, p models.PointToPoll) float64 {
 	if len(b) == 2 {
 		val := binary.BigEndian.Uint16(b)
-		if p.DataType == "int16" {
+		if p.DataType == "INT" || p.DataType == "SINT" {
 			return float64(int16(val))
 		}
 		return float64(val)
@@ -300,12 +307,14 @@ func (s *ModbusService) parseValue(b []byte, p models.PointToPoll) float64 {
 		}
 
 		switch p.DataType {
-		case "float32":
+		case "FLOAT32":
 			bits := val
 			return float64(math.Float32frombits(bits))
-		case "int32":
+		case "INT32":
 			return float64(int32(val))
-		default: // uint32
+		case "UINT32", "DWORD":
+			return float64(val)
+		default:
 			return float64(val)
 		}
 	}

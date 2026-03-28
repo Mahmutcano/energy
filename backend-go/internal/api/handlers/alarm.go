@@ -23,7 +23,7 @@ type AlarmResponse struct {
 
 func GetAlarms(c *gin.Context) {
 	rows, err := db.Pool.Query(context.Background(), `
-		SELECT id, device_id, message, status, "startTime", "endTime", "lastSeenAt"
+		SELECT id, "deviceId", message, status, "startTime", "endTime", "lastSeenAt"
 		FROM "CommunicationAlarm"
 		ORDER BY "startTime" DESC LIMIT 100
 	`)

@@ -5,12 +5,15 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
+	"time"
 
 	"energy-scada-platform/internal/api/response"
 	"energy-scada-platform/internal/db"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 )
 
 type ProtocolBrief struct {
@@ -37,21 +40,50 @@ type DeviceInfo struct {
 	IsRecording        bool           `json:"isRecording"`
 	ProtocolConfigID   uuid.UUID      `json:"protocolConfigId"`
 	DatasheetProfileID *uuid.UUID     `json:"datasheetProfileId"`
+	CreatedAt          time.Time      `json:"createdAt"`
+	UpdatedAt          time.Time      `json:"updatedAt"`
+	CreatedBy          *uuid.UUID     `json:"createdBy"`
+	UpdatedBy          *uuid.UUID     `json:"updatedBy"`
 	Protocol           *ProtocolBrief `json:"protocol,omitempty"`
 	DatasheetProfile   *ProfileBrief  `json:"datasheetProfile,omitempty"`
 }
 
 func GetDevices(c *gin.Context) {
-	rows, err := db.Pool.Query(context.Background(), `
-		SELECT 
-			d.id, d."deviceName", d."deviceType", d."isActive", d."isRecording", d.protocol_config_id, d.datasheet_profile_id,
-			pc."configName", pc."protocolType", pc.plant_id, p."plantName",
-			dp.name as profile_name, dp."protocolType" as profile_proto
-		FROM "Device" d
-		LEFT JOIN "ProtocolConfig" pc ON d.protocol_config_id = pc.id
-		LEFT JOIN "Plant" p ON pc.plant_id = p.id
-		LEFT JOIN "DatasheetProfile" dp ON d.datasheet_profile_id = dp.id
-	`)
+	companyID, role := getUserCompanyID(c)
+	var rows pgx.Rows
+	var err error
+
+	if role == "SUPER_ADMIN" {
+		rows, err = db.Pool.Query(context.Background(), `
+			SELECT 
+				d.id, d."deviceName", d."deviceType", d."isActive", d."isRecording", d."protocolConfigId", d."datasheetProfileId",
+				pc."configName", pc."protocolType", pc."plantId", p."plantName",
+				dp.name as profile_name, dp."protocolType" as profile_proto,
+				d."createdAt", d."updatedAt", d."createdBy", d."updatedBy"
+			FROM "Device" d
+			LEFT JOIN "ProtocolConfig" pc ON d."protocolConfigId" = pc.id
+			LEFT JOIN "Plant" p ON pc."plantId" = p.id
+			LEFT JOIN "DatasheetProfile" dp ON d."datasheetProfileId" = dp.id
+			ORDER BY d."createdAt" DESC
+		`)
+	} else if companyID != nil {
+		rows, err = db.Pool.Query(context.Background(), `
+			SELECT 
+				d.id, d."deviceName", d."deviceType", d."isActive", d."isRecording", d."protocolConfigId", d."datasheetProfileId",
+				pc."configName", pc."protocolType", pc."plantId", p."plantName",
+				dp.name as profile_name, dp."protocolType" as profile_proto,
+				d."createdAt", d."updatedAt", d."createdBy", d."updatedBy"
+			FROM "Device" d
+			JOIN "ProtocolConfig" pc ON d."protocolConfigId" = pc.id
+			JOIN "Plant" p ON pc."plantId" = p.id
+			LEFT JOIN "DatasheetProfile" dp ON d."datasheetProfileId" = dp.id
+			WHERE p."companyId" = $1
+			ORDER BY d."createdAt" DESC
+		`, *companyID)
+	} else {
+		response.Success(c, http.StatusOK, []any{})
+		return
+	}
 	if err != nil {
 		response.Error(c, http.StatusInternalServerError, response.ErrDatabase, err.Error())
 		return
@@ -66,6 +98,7 @@ func GetDevices(c *gin.Context) {
 		if err := rows.Scan(
 			&d.ID, &d.DeviceName, &d.DeviceType, &d.IsActive, &d.IsRecording, &d.ProtocolConfigID, &d.DatasheetProfileID,
 			&pcName, &pcProto, &plantID, &plantName, &dpName, &dpProto,
+			&d.CreatedAt, &d.UpdatedAt, &d.CreatedBy, &d.UpdatedBy,
 		); err != nil {
 			log.Printf("[DB] Error scanning device: %v", err)
 			continue
@@ -122,25 +155,34 @@ func UpdateDevice(c *gin.Context) {
 	var args []interface{}
 	idx := 1
 
-	fields := []string{"deviceName", "deviceType", "isActive", "isRecording", "protocolConfigId", "datasheetProfileId"}
-	for _, f := range fields {
-		if val, ok := body[f]; ok {
-			queryParts = append(queryParts, fmt.Sprintf("\"%s\" = $%d", f, idx))
+	fieldMapping := map[string]string{
+		"deviceName":         "\"deviceName\"",
+		"deviceType":         "\"deviceType\"",
+		"isActive":           "\"isActive\"",
+		"isRecording":        "\"isRecording\"",
+		"protocolConfigId":   "\"protocolConfigId\"",
+		"datasheetProfileId": "\"datasheetProfileId\"",
+	}
+
+	for jsonField, dbColumn := range fieldMapping {
+		if val, ok := body[jsonField]; ok {
+			queryParts = append(queryParts, fmt.Sprintf("%s = $%d", dbColumn, idx))
 			args = append(args, val)
 			idx++
 		}
 	}
 
-	if len(queryParts) == 0 {
-		response.Error(c, http.StatusBadRequest, response.ErrInvalidInput, "Güncellenecek alan bulunamadı")
-		return
+	query := "UPDATE \"Device\" SET " + strings.Join(queryParts, ", ")
+	query += ", \"updatedAt\" = NOW(), \"updatedBy\" = $" + fmt.Sprintf("%d", idx) + " WHERE id = $" + fmt.Sprintf("%d", idx+1)
+	
+	// Get updater ID from context (JWT)
+	updaterIDStr, _ := c.Get("user_id")
+	if updaterIDStr != nil {
+		uid, _ := uuid.Parse(updaterIDStr.(string))
+		args = append(args, uid)
+	} else {
+		args = append(args, nil)
 	}
-
-	query := "UPDATE \"Device\" SET " + fmt.Sprintf("%s", queryParts[0])
-	for i := 1; i < len(queryParts); i++ {
-		query += ", " + queryParts[i]
-	}
-	query += " WHERE id = $" + fmt.Sprintf("%d", idx)
 	args = append(args, id)
 
 	_, err = db.Pool.Exec(context.Background(), query, args...)
@@ -166,11 +208,19 @@ func CreateDevice(c *gin.Context) {
 		return
 	}
 
+	// Get creator
+	var creatorID *uuid.UUID
+	uidStr, _ := c.Get("user_id")
+	if uidStr != nil {
+		uid, _ := uuid.Parse(uidStr.(string))
+		creatorID = &uid
+	}
+
 	id := uuid.New()
 	_, err := db.Pool.Exec(context.Background(), `
-		INSERT INTO "Device" (id, "deviceName", "deviceType", "isActive", "isRecording", protocol_config_id, datasheet_profile_id)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
-	`, id, body.DeviceName, body.DeviceType, body.IsActive, true, body.ProtocolConfigID, body.DatasheetProfileID)
+		INSERT INTO "Device" (id, "deviceName", "deviceType", "isActive", "isRecording", "protocolConfigId", "datasheetProfileId", "createdAt", "updatedAt", "createdBy", "updatedBy")
+		VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW(), $8, $9)
+	`, id, body.DeviceName, body.DeviceType, body.IsActive, true, body.ProtocolConfigID, body.DatasheetProfileID, creatorID, creatorID)
 
 	if err != nil {
 		response.Error(c, http.StatusInternalServerError, response.ErrDatabase, err.Error())
@@ -188,7 +238,10 @@ func DeleteDevice(c *gin.Context) {
 		return
 	}
 
-	_, err = db.Pool.Exec(context.Background(), "DELETE FROM \"Device\" WHERE id = $1", id)
+	// Delete related alarms first
+	_, _ = db.Pool.Exec(context.Background(), `DELETE FROM "CommunicationAlarm" WHERE "deviceId" = $1`, id)
+
+	_, err = db.Pool.Exec(context.Background(), `DELETE FROM "Device" WHERE id = $1`, id)
 	if err != nil {
 		response.Error(c, http.StatusInternalServerError, response.ErrDatabase, err.Error())
 		return

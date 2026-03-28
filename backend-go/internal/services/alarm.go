@@ -46,7 +46,7 @@ func (s *AlarmService) Init() {
 
 	// Load existing active alarms from DB
 	rows, err := db.Pool.Query(context.Background(), `
-		SELECT device_id FROM "CommunicationAlarm" WHERE status = 'ACTIVE'
+		SELECT "deviceId" FROM "CommunicationAlarm" WHERE status = 'ACTIVE'
 	`)
 	if err != nil {
 		log.Printf("[ALARM] Failed to initialize existing alarms: %v", err)
@@ -119,7 +119,7 @@ func (s *AlarmService) CreateCommAlarm(deviceID uuid.UUID) {
 	s.mu.Unlock()
 
 	_, err := db.Pool.Exec(context.Background(), `
-		INSERT INTO "CommunicationAlarm" (id, device_id, message, status, "startTime", "lastSeenAt")
+		INSERT INTO "CommunicationAlarm" (id, "deviceId", message, status, "startTime", "lastSeenAt")
 		VALUES ($1, $2, 'Veri akışı kesildi / Data stream interrupted', 'ACTIVE', $3, $4)
 	`, uuid.New(), deviceID, time.Now(), lastSeenAt)
 
@@ -152,7 +152,7 @@ func (s *AlarmService) ResolveCommAlarm(deviceID uuid.UUID) {
 
 	_, err := db.Pool.Exec(context.Background(), `
 		UPDATE "CommunicationAlarm" SET status = 'RESOLVED', "endTime" = $1
-		WHERE device_id = $2 AND status = 'ACTIVE'
+		WHERE "deviceId" = $2 AND status = 'ACTIVE'
 	`, time.Now(), deviceID)
 
 	if err != nil {

@@ -7,15 +7,21 @@ import (
 
 	"energy-scada-platform/internal/api/response"
 	"energy-scada-platform/internal/db"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 )
 
 type DatasheetProfile struct {
 	ID           uuid.UUID     `json:"id"`
 	Name         string        `json:"name"`
 	ProtocolType string        `json:"protocolType"`
+	CreatedAt    time.Time     `json:"createdAt"`
+	UpdatedAt    time.Time     `json:"updatedAt"`
+	CreatedBy    *uuid.UUID    `json:"createdBy"`
+	UpdatedBy    *uuid.UUID    `json:"updatedBy"`
 	Count        *ProfileCount `json:"_count,omitempty"`
 }
 
@@ -25,12 +31,17 @@ type ProfileCount struct {
 }
 
 func GetDatasheetProfiles(c *gin.Context) {
-	rows, err := db.Pool.Query(context.Background(), `
+	var rows pgx.Rows
+	var err error
+
+	rows, err = db.Pool.Query(context.Background(), `
 		SELECT 
 			dp.id, dp.name, dp."protocolType",
-			(SELECT COUNT(*) FROM "DatasheetPoint" p WHERE p.profile_id = dp.id) as point_count,
-			(SELECT COUNT(*) FROM "Device" d WHERE d.datasheet_profile_id = dp.id) as device_count
+			(SELECT COUNT(*) FROM "DatasheetPoint" p WHERE p."profileId" = dp.id) as point_count,
+			(SELECT COUNT(*) FROM "Device" d WHERE d."datasheetProfileId" = dp.id) as device_count,
+			dp."createdAt", dp."updatedAt", dp."createdBy", dp."updatedBy"
 		FROM "DatasheetProfile" dp
+		ORDER BY dp."createdAt" DESC
 	`)
 	if err != nil {
 		response.Error(c, http.StatusInternalServerError, response.ErrDatabase, err.Error())
@@ -42,7 +53,7 @@ func GetDatasheetProfiles(c *gin.Context) {
 	for rows.Next() {
 		var p DatasheetProfile
 		var cCount ProfileCount
-		if err := rows.Scan(&p.ID, &p.Name, &p.ProtocolType, &cCount.Points, &cCount.Devices); err != nil {
+		if err := rows.Scan(&p.ID, &p.Name, &p.ProtocolType, &cCount.Points, &cCount.Devices, &p.CreatedAt, &p.UpdatedAt, &p.CreatedBy, &p.UpdatedBy); err != nil {
 			log.Printf("[DB] Error scanning datasheet profile: %v", err)
 			continue
 		}
@@ -76,11 +87,19 @@ func CreateDatasheetProfile(c *gin.Context) {
 		return
 	}
 
+	// Get creator
+	var creatorID *uuid.UUID
+	uidStr, _ := c.Get("user_id")
+	if uidStr != nil {
+		uid, _ := uuid.Parse(uidStr.(string))
+		creatorID = &uid
+	}
+
 	profileID := uuid.New()
 	_, err := db.Pool.Exec(context.Background(), `
-		INSERT INTO "DatasheetProfile" (id, name, "protocolType", "isActive")
-		VALUES ($1, $2, $3, $4)
-	`, profileID, req.Name, req.ProtocolType, true)
+		INSERT INTO "DatasheetProfile" (id, name, "protocolType", "createdAt", "updatedAt", "createdBy", "updatedBy")
+		VALUES ($1, $2, $3, NOW(), NOW(), $4, $5)
+	`, profileID, req.Name, req.ProtocolType, creatorID, creatorID)
 
 	if err != nil {
 		log.Printf("[DB] INSERT Error (DatasheetProfile): %v", err)
@@ -113,10 +132,18 @@ func UpdateDatasheetProfile(c *gin.Context) {
 		return
 	}
 
+	// Get updater ID
+	var updaterID *uuid.UUID
+	uidStr, _ := c.Get("user_id")
+	if uidStr != nil {
+		uid, _ := uuid.Parse(uidStr.(string))
+		updaterID = &uid
+	}
+
 	result, err := db.Pool.Exec(context.Background(), `
-		UPDATE "DatasheetProfile" SET name = $1, "protocolType" = $2
-		WHERE id = $3
-	`, req.Name, req.ProtocolType, profileID)
+		UPDATE "DatasheetProfile" SET name = $1, "protocolType" = $2, "updatedAt" = NOW(), "updatedBy" = $3
+		WHERE id = $4
+	`, req.Name, req.ProtocolType, updaterID, profileID)
 
 	if err != nil {
 		response.Error(c, http.StatusInternalServerError, response.ErrDatabase, "Güncelleme sırasında bir veritabanı hatası oluştu")

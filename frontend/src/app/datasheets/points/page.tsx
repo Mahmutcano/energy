@@ -576,14 +576,20 @@ function DataSheetsContent() {
         XLSX.writeFile(wb, `${protocolType}_Template.xlsx`);
     };
 
-    const filteredSheets = dataSheets.filter(s =>
-        s.dataName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (s.dataValue && s.dataValue.toLowerCase().includes(searchQuery.toLowerCase())) ||
-        (s.signalDescription && s.signalDescription.toLowerCase().includes(searchQuery.toLowerCase())) ||
-        (s.feederName && s.feederName.toLowerCase().includes(searchQuery.toLowerCase())) ||
-        (s.componentId && s.componentId.toLowerCase().includes(searchQuery.toLowerCase())) ||
-        (s.componentText && s.componentText.toLowerCase().includes(searchQuery.toLowerCase()))
-    );
+    const filteredSheets = dataSheets
+        .filter(s =>
+            s.dataName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            (s.dataValue && s.dataValue.toLowerCase().includes(searchQuery.toLowerCase())) ||
+            (s.signalDescription && s.signalDescription.toLowerCase().includes(searchQuery.toLowerCase())) ||
+            (s.feederName && s.feederName.toLowerCase().includes(searchQuery.toLowerCase())) ||
+            (s.componentId && s.componentId.toLowerCase().includes(searchQuery.toLowerCase())) ||
+            (s.componentText && s.componentText.toLowerCase().includes(searchQuery.toLowerCase()))
+        )
+        .sort((a, b) => {
+            const addrA = a.registerAddress ?? a.ioa1ObjectAddress ?? a.scadaAddress ?? Infinity;
+            const addrB = b.registerAddress ?? b.ioa1ObjectAddress ?? b.scadaAddress ?? Infinity;
+            return addrA - addrB;
+        });
 
     if (!profileId) {
         return (

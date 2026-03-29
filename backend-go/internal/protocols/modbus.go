@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"strings"
 	"sync"
 	"time"
 
@@ -172,7 +173,20 @@ func (s *ModbusService) fetchPointsForProtocol(protocolID uuid.UUID) []models.Po
 		}
 		p.DataType = "INT"
 		if dataType != nil {
-			p.DataType = *dataType
+			p.DataType = strings.ToUpper(*dataType)
+			// Handle common aliases
+			if p.DataType == "FLOAT" {
+				p.DataType = "FLOAT32"
+			}
+			if p.DataType == "DOUBLE" {
+				p.DataType = "DOUBLE64"
+			}
+			if p.DataType == "DINT" || p.DataType == "INT32" {
+				p.DataType = "DINT"
+			}
+			if p.DataType == "UDINT" || p.DataType == "UINT32" || p.DataType == "DWORD" {
+				p.DataType = "UDINT"
+			}
 		}
 		if dataValue != nil {
 			p.Unit = *dataValue
@@ -186,9 +200,9 @@ func (s *ModbusService) getRegisterCount(dataType string) uint16 {
 	switch dataType {
 	case "BYTE", "SINT", "USINT", "WORD", "INT", "UINT":
 		return 1
-	case "DWORD", "DINT", "UDINT", "FLOAT32":
+	case "DWORD", "DINT", "UDINT", "FLOAT32", "INT32", "UINT32", "FLOAT":
 		return 2
-	case "LWORD", "LINT", "ULINT", "DOUBLE64":
+	case "LWORD", "LINT", "ULINT", "DOUBLE64", "DOUBLE":
 		return 4
 	default:
 		return 1
@@ -277,6 +291,12 @@ func (s *ModbusService) bytesToUint32(b []byte, swap bool) uint32 {
 }
 
 func (s *ModbusService) parseValue(b []byte, p models.PointToPoll) float64 {
+	// GÜNCELLEME: FLOAT32 veya DOUBLE64 verilerinde multiplier 0.001 seçilse bile 1.0 gibi davranmalı
+	// Çünkü bu tipler genellikle zaten ondalıklı veri barındırır.
+	if (p.DataType == "FLOAT32" || p.DataType == "DOUBLE64" || p.DataType == "FLOAT" || p.DataType == "DOUBLE") && p.Multiplier == 0.001 {
+		p.Multiplier = 1.0
+	}
+
 	var finalValue float64
 
 	switch p.DataType {
@@ -297,18 +317,10 @@ func (s *ModbusService) parseValue(b []byte, p models.PointToPoll) float64 {
 	case "UINT32", "DWORD", "UDINT":
 		bits := s.bytesToUint32(b, p.WordSwap)
 		finalValue = float64(bits)
-	case "DOUBLE64":
+	case "DOUBLE64", "DOUBLE":
 		if len(b) >= 8 {
 			bits := binary.BigEndian.Uint64(b)
 			finalValue = math.Float64frombits(bits)
-		}
-	case "LINT":
-		if len(b) >= 8 {
-			finalValue = float64(int64(binary.BigEndian.Uint64(b)))
-		}
-	case "ULINT", "LWORD":
-		if len(b) >= 8 {
-			finalValue = float64(binary.BigEndian.Uint64(b))
 		}
 	default:
 		finalValue = float64(binary.BigEndian.Uint16(b))

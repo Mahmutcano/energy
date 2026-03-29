@@ -41,7 +41,7 @@ type DeviceInfo struct {
 	ProtocolConfigID   uuid.UUID      `json:"protocolConfigId"`
 	DatasheetProfileID *uuid.UUID     `json:"datasheetProfileId"`
 	CreatedAt          time.Time      `json:"createdAt"`
-	UpdatedAt          time.Time      `json:"updatedAt"`
+	UpdatedAt          *time.Time     `json:"updatedAt"`
 	CreatedBy          *uuid.UUID     `json:"createdBy"`
 	UpdatedBy          *uuid.UUID     `json:"updatedBy"`
 	Protocol           *ProtocolBrief `json:"protocol,omitempty"`
@@ -177,12 +177,12 @@ func UpdateDevice(c *gin.Context) {
 	
 	// Get updater ID from context (JWT)
 	updaterIDStr, _ := c.Get("user_id")
+	var updaterID *uuid.UUID
 	if updaterIDStr != nil {
 		uid, _ := uuid.Parse(updaterIDStr.(string))
-		args = append(args, uid)
-	} else {
-		args = append(args, nil)
+		updaterID = &uid
 	}
+	args = append(args, updaterID)
 	args = append(args, id)
 
 	_, err = db.Pool.Exec(context.Background(), query, args...)
@@ -219,8 +219,8 @@ func CreateDevice(c *gin.Context) {
 	id := uuid.New()
 	_, err := db.Pool.Exec(context.Background(), `
 		INSERT INTO "Device" (id, "deviceName", "deviceType", "isActive", "isRecording", "protocolConfigId", "datasheetProfileId", "createdAt", "updatedAt", "createdBy", "updatedBy")
-		VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW(), $8, $9)
-	`, id, body.DeviceName, body.DeviceType, body.IsActive, true, body.ProtocolConfigID, body.DatasheetProfileID, creatorID, creatorID)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NULL, $8, NULL)
+	`, id, body.DeviceName, body.DeviceType, body.IsActive, true, body.ProtocolConfigID, body.DatasheetProfileID, creatorID)
 
 	if err != nil {
 		response.Error(c, http.StatusInternalServerError, response.ErrDatabase, err.Error())

@@ -37,7 +37,7 @@ type DatasheetPoint struct {
 	ScadaAddress      *int      `json:"scadaAddress"`
 	RecordingInterval *int      `json:"recordingInterval"`
 	CreatedAt         time.Time `json:"createdAt"`
-	UpdatedAt         time.Time `json:"updatedAt"`
+	UpdatedAt         *time.Time `json:"updatedAt"`
 	CreatedBy         *uuid.UUID `json:"createdBy"`
 	UpdatedBy         *uuid.UUID `json:"updatedBy"`
 }
@@ -53,7 +53,7 @@ func GetDatasheetPoints(c *gin.Context) {
 			"isActive", "functionCode", multiplier, "wordSwap", "feederName", 
 			"signalType", "dataExplanation" as "signalDescription", "dataType", "signalSource", 
 			"componentId", "dataExplanation" as "componentText", address as "ioa1ObjectAddress", "ioa2CellNo", 
-			"ioa3VoltageLevel", address as "scadaAddress", NULL as "recordingInterval",
+			"ioa3VoltageLevel", address as "scadaAddress", "recordingInterval",
 			"createdAt", "updatedAt", "createdBy", "updatedBy"
 		FROM "DatasheetPoint"
 		WHERE "profileId" = $1
@@ -126,13 +126,13 @@ func CreateDatasheetPoint(c *gin.Context) {
 			id, "profileId", "dataName", address, "dataExplanation", 
 			"isActive", "functionCode", multiplier, "wordSwap", "feederName", 
 			"signalType", "dataType", "signalSource", 
-			"componentId", "ioa2CellNo", "ioa3VoltageLevel", unit, 
+			"componentId", "ioa2CellNo", "ioa3VoltageLevel", unit, "recordingInterval",
 			"createdAt", "updatedAt", "createdBy", "updatedBy"
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, NOW(), NOW(), $18, $19)
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, NOW(), NULL, $19, NULL)
 	`, p.ID, p.ProfileID, p.DataName, address, dataExt,
 	p.IsActive, p.FunctionCode, p.Multiplier, p.WordSwap, p.FeederName,
 	p.SignalType, p.DataType, p.SignalSource,
-	p.ComponentID, p.Ioa2CellNo, p.Ioa3VoltageLevel, p.DataValue, userID, userID)
+	p.ComponentID, p.Ioa2CellNo, p.Ioa3VoltageLevel, p.DataValue, p.RecordingInterval, userID)
 
 	if err != nil {
 		response.Error(c, http.StatusInternalServerError, response.ErrDatabase, err.Error())
@@ -208,12 +208,13 @@ func BulkCreateDatasheetPoints(c *gin.Context) {
 				id, "profileId", "dataName", address, "dataExplanation", 
 				"isActive", "functionCode", multiplier, "wordSwap", "feederName", 
 				"signalType", "dataType", "signalSource", "componentId", 
-				"ioa2CellNo", "ioa3VoltageLevel", unit, "createdAt", "updatedAt", "createdBy", "updatedBy"
-			) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, NOW(), NOW(), $18, $19)
+				"ioa2CellNo", "ioa3VoltageLevel", unit, "recordingInterval", 
+				"createdAt", "updatedAt", "createdBy", "updatedBy"
+			) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, NOW(), NULL, $19, NULL)
 		`, id, req.ProfileID, p.DataName, address, dataExt,
 			p.IsActive, p.FunctionCode, p.Multiplier, p.WordSwap, p.FeederName,
 			p.SignalType, p.DataType, p.SignalSource, p.ComponentID,
-			p.Ioa2CellNo, p.Ioa3VoltageLevel, p.DataValue, creatorID, creatorID)
+			p.Ioa2CellNo, p.Ioa3VoltageLevel, p.DataValue, p.RecordingInterval, creatorID)
 
 		if err == nil {
 			inserted++
@@ -267,12 +268,12 @@ func UpdateDatasheetPoint(c *gin.Context) {
 			"isActive" = $4, "functionCode" = $5, multiplier = $6, "wordSwap" = $7, "feederName" = $8, 
 			"signalType" = $9, "dataType" = $10, "signalSource" = $11, 
 			"componentId" = $12, "ioa2CellNo" = $13, "ioa3VoltageLevel" = $14,
-			unit = $15, "updatedAt" = NOW(), "updatedBy" = $16
-		WHERE id = $17
+			unit = $15, "recordingInterval" = $16, "updatedAt" = NOW(), "updatedBy" = $17
+		WHERE id = $18
 	`, p.DataName, address, dataExt,
 		p.IsActive, p.FunctionCode, p.Multiplier, p.WordSwap, p.FeederName,
 		p.SignalType, p.DataType, p.SignalSource,
-		p.ComponentID, p.Ioa2CellNo, p.Ioa3VoltageLevel, p.DataValue, updaterID, pointID)
+		p.ComponentID, p.Ioa2CellNo, p.Ioa3VoltageLevel, p.DataValue, p.RecordingInterval, updaterID, pointID)
 
 	if err != nil {
 		response.Error(c, http.StatusInternalServerError, response.ErrDatabase, err.Error())

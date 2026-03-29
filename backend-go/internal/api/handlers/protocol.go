@@ -180,8 +180,8 @@ func CreateCommProtocol(c *gin.Context) {
 	protocolID := uuid.New()
 	_, err = tx.Exec(ctx, `
 		INSERT INTO "ProtocolConfig" (id, "plantId", "protocolType", "configName", "isActive", "createdAt", "updatedAt", "createdBy", "updatedBy")
-		VALUES ($1, $2, $3, $4, $5, NOW(), NOW(), $6, $7)
-	`, protocolID, req.PlantID, req.ProtocolType, req.ConfigName, true, creatorID, creatorID)
+		VALUES ($1, $2, $3, $4, $5, NOW(), NULL, $6, NULL)
+	`, protocolID, req.PlantID, req.ProtocolType, req.ConfigName, true, creatorID)
 	if err != nil {
 		response.Error(c, http.StatusInternalServerError, response.ErrDatabase, "Ana konfigürasyon kaydedilemedi")
 		return

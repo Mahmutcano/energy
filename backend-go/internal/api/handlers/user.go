@@ -23,7 +23,7 @@ type User struct {
 	CompanyProfileId *uuid.UUID `json:"companyProfileId"`
 	CompanyProfile   *gin.H     `json:"companyProfile"`
 	CreatedAt        time.Time  `json:"createdAt"`
-	UpdatedAt        time.Time  `json:"updatedAt"`
+	UpdatedAt        *time.Time `json:"updatedAt"`
 	CreatedBy        *uuid.UUID `json:"createdBy"`
 	UpdatedBy        *uuid.UUID `json:"updatedBy"`
 }
@@ -126,8 +126,8 @@ func CreateUser(c *gin.Context) {
 
 	_, err = tx.Exec(context.Background(), `
 		INSERT INTO "AppUser" (id, email, "firstName", "lastName", "adminType", "userCode", "createdAt", "updatedAt", "createdBy", "updatedBy")
-		VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW(), $7, $8)
-	`, id, body.Email, firstName, lastName, body.Role, userCode, creatorID, creatorID)
+		VALUES ($1, $2, $3, $4, $5, $6, NOW(), NULL, $7, NULL)
+	`, id, body.Email, firstName, lastName, body.Role, userCode, creatorID)
 
 	if err != nil {
 		response.Error(c, http.StatusInternalServerError, response.ErrDatabase, err.Error())

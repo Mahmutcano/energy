@@ -52,7 +52,8 @@ func GetPlants(c *gin.Context) {
 	var plants []any
 	for rows.Next() {
 		var p models.Plant
-		var createdAt, updatedAt time.Time
+		var createdAt time.Time
+		var updatedAt *time.Time
 		var createdBy, updatedBy *uuid.UUID
 		if err := rows.Scan(&p.ID, &p.CompanyID, &p.PlantName, &p.PlantType, &p.Latitude, &p.Longitude, &p.IsActive, &p.CompanyName, &createdAt, &updatedAt, &createdBy, &updatedBy); err != nil {
 			log.Printf("[DB] Error scanning plant: %v", err)
@@ -111,8 +112,8 @@ func CreatePlant(c *gin.Context) {
 
 	_, err := db.Pool.Exec(context.Background(), `
 		INSERT INTO "Plant" (id, "companyId", "plantName", "plantType", latitude, longitude, "isActive", "createdAt", "updatedAt", "createdBy", "updatedBy")
-		VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW(), $8, $9)
-	`, p.ID, p.CompanyID, p.PlantName, p.PlantType, p.Latitude, p.Longitude, p.IsActive, creatorID, creatorID)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NULL, $8, NULL)
+	`, p.ID, p.CompanyID, p.PlantName, p.PlantType, p.Latitude, p.Longitude, p.IsActive, creatorID)
 
 	if err != nil {
 		log.Printf("[DB] Insert Error (Plant): %v", err)
@@ -180,12 +181,12 @@ func UpdatePlant(c *gin.Context) {
 	
 	// Get updater ID from context (JWT)
 	updaterIDStr, _ := c.Get("user_id")
+	var updaterID *uuid.UUID
 	if updaterIDStr != nil {
 		uid, _ := uuid.Parse(updaterIDStr.(string))
-		args = append(args, uid)
-	} else {
-		args = append(args, nil)
+		updaterID = &uid
 	}
+	args = append(args, updaterID)
 	args = append(args, id)
 
 	_, err = db.Pool.Exec(context.Background(), query, args...)

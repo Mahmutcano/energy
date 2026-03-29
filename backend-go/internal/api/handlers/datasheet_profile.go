@@ -19,7 +19,7 @@ type DatasheetProfile struct {
 	Name         string        `json:"name"`
 	ProtocolType string        `json:"protocolType"`
 	CreatedAt    time.Time     `json:"createdAt"`
-	UpdatedAt    time.Time     `json:"updatedAt"`
+	UpdatedAt    *time.Time    `json:"updatedAt"`
 	CreatedBy    *uuid.UUID    `json:"createdBy"`
 	UpdatedBy    *uuid.UUID    `json:"updatedBy"`
 	Count        *ProfileCount `json:"_count,omitempty"`
@@ -98,8 +98,8 @@ func CreateDatasheetProfile(c *gin.Context) {
 	profileID := uuid.New()
 	_, err := db.Pool.Exec(context.Background(), `
 		INSERT INTO "DatasheetProfile" (id, name, "protocolType", "createdAt", "updatedAt", "createdBy", "updatedBy")
-		VALUES ($1, $2, $3, NOW(), NOW(), $4, $5)
-	`, profileID, req.Name, req.ProtocolType, creatorID, creatorID)
+		VALUES ($1, $2, $3, NOW(), NULL, $4, NULL)
+	`, profileID, req.Name, req.ProtocolType, creatorID)
 
 	if err != nil {
 		log.Printf("[DB] INSERT Error (DatasheetProfile): %v", err)

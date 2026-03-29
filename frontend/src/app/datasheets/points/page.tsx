@@ -460,16 +460,16 @@ function DataSheetsContent() {
                         }
 
                         return {
-                            dataName: name1 || findValue(['Data Name', 'Veri Adı', 'Name', 'Adı', 'Sinyal Açıklaması', 'SİNYAL AÇIKLAMASI']),
-                            dataValue: findValue(['Unit', 'Birim', 'Value', 'Değer', 'Birim', 'DATA TİPİ']),
-                            dataExplanation: name2 || findValue(['Description', 'Açıklama', 'Explanation', 'DATA_NAME_FOR_MODBUS']),
-                            dataType: findValue(['Data Type', 'Veri Tipi', 'Tip', 'Type']),
-                            registerAddress: findValue(['Address', 'Adres', 'Register', 'REGISTER ADDRESS', 'SCADA ADRESİ', 'Adres', 'Addres']),
-                            functionCode: findValue(['FC', 'Function', 'Fonksiyon']) || 3, // Default to 3 for Modbus read input registers if not specified
-                            multiplier: findValue(['Scaling', 'Çarpan', 'Multiplier', 'Scale']),
-                            wordSwap: row['Swap'] || row['Word Swap'] === 'YES' || row['Word Swap'] === 'EVET' || row['Swap'] === true,
-                            recordingInterval: findValue(['Saklama Süresi', 'Interval', 'Aralık', 'Kayıt Süresi', 'Kayıt Aralığı', 'KAYIT ARALIĞI']) || 1,
-                            isActive: true
+                            dataName: findValue(['DATA NAME', 'Data Name', 'Veri Adı', 'Name', 'Adı', 'Sinyal Açıklaması']),
+                            dataValue: findValue(['DATA VALUE (UNIT)', 'Unit', 'Birim', 'Value', 'Değer']),
+                            dataExplanation: findValue(['DATA EXPLANATION', 'Description', 'Açıklama', 'Explanation']),
+                            dataType: findValue(['DATA TYPE', 'Data Type', 'Veri Tipi', 'Type']),
+                            registerAddress: findValue(['REGISTER ADDRESS', 'Address', 'Adres', 'Register', 'SCADA ADRESİ']),
+                            functionCode: findValue(['FUNCTION CODE', 'FC', 'Function', 'Fonksiyon']) || 3,
+                            multiplier: findValue(['Multiplier', 'Scaling', 'Çarpan', 'Scale']),
+                            wordSwap: row['WORD SWAP'] === 'YES' || row['WORD SWAP'] === 'EVET' || row['WORD SWAP'] === true || findValue(['Word Swap', 'Swap']) === 'YES',
+                            recordingInterval: findValue(['REC (MIN)', 'Saklama Süresi', 'Interval', 'Aralık', 'Kayıt Süresi', 'Kayıt Aralığı']) || 1,
+                            isActive: findValue(['STATUS', 'DURUM']) === 'INACTIVE' || findValue(['STATUS', 'DURUM']) === 'HAYIR' ? false : true
                         };
                     } else {
                         const description = findValue(['Signal Description', 'Sinyal Açıklaması', 'Açıklama', 'SİNYAL AÇIKLAMASI']);
@@ -509,7 +509,6 @@ function DataSheetsContent() {
                     if (cleaned.ioa3VoltageLevel !== undefined) cleaned.ioa3VoltageLevel = parseInt(cleaned.ioa3VoltageLevel);
                     if (cleaned.scadaAddress !== undefined) cleaned.scadaAddress = parseInt(cleaned.scadaAddress);
                     if (cleaned.recordingInterval !== undefined) {
-                        // Handle "30dk" and other strings with numbers
                         let intervalVal = cleaned.recordingInterval.toString();
                         let matches = intervalVal.match(/\d+/);
                         cleaned.recordingInterval = matches ? parseInt(matches[0]) : 1;
@@ -568,8 +567,8 @@ function DataSheetsContent() {
 
     const downloadTemplate = () => {
         const headers = isModbus
-            ? [['Data Name', 'Unit', 'Data Type', 'Address', 'FC', 'Multiplier', 'Word Swap']]
-            : [['Feeder', 'Signal Type', 'Signal Description', 'Data Type', 'Source', 'Component ID', 'Component Text', 'IOA1', 'IOA2', 'IOA3', 'SCADA Address']];
+            ? [['DATA NAME', 'DATA EXPLANATION', 'DATA VALUE (UNIT)', 'DATA TYPE', 'REGISTER ADDRESS', 'FUNCTION CODE', 'MULTIPLIER', 'WORD SWAP', 'CREATED AT/BY', 'UPDATED AT/BY', 'REC (MIN)', 'STATUS']]
+            : [['FEEDER/CELL NAME', 'SIGNAL TYPE', 'SIGNAL DESCRIPTION', 'DATA VALUE (UNIT)', 'DATA TYPE', 'SIGNAL SOURCE', 'COMPONENT ID', 'COMPONENT TEXT', 'IOA (OBJECT ADDR)', 'IOA (CELL NO)', 'IOA (VOLTAGE LVL)', 'SCADA ADDRESS', 'CREATED AT/BY', 'UPDATED AT/BY', 'REC (MIN)', 'STATUS']];
 
         const ws = XLSX.utils.aoa_to_sheet(headers);
         const wb = XLSX.utils.book_new();

@@ -161,6 +161,7 @@ export const datasheetPoint = pgTable('DatasheetPoint', {
     componentId: text('componentId'),
     ioa2CellNo: integer('ioa2CellNo'),         // 104 Specific
     ioa3VoltageLevel: integer('ioa3VoltageLevel'), // 104 Specific
+    recordingInterval: integer('recordingInterval').default(1),
 }, (table) => ({
     profileIdIdx: index('DatasheetPoint_profile_id_idx').on(table.profileId),
     dataIdx: index('DatasheetPoint_data_idx').on(table.data),

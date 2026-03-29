@@ -729,7 +729,12 @@ export default function LiveMonitoringPage() {
         .filter(p =>
             p.dataName.toLowerCase().includes(searchQuery.toLowerCase()) ||
             (p.signalDescription && p.signalDescription.toLowerCase().includes(searchQuery.toLowerCase()))
-        );
+        )
+        .sort((a, b) => {
+            const addrA = a.scadaAddress ?? a.ioa1ObjectAddress ?? a.registerAddress ?? Infinity;
+            const addrB = b.scadaAddress ?? b.ioa1ObjectAddress ?? b.registerAddress ?? Infinity;
+            return addrA - addrB;
+        });
 
     return (
         <div className="space-y-8 pb-20 animate-in-up">

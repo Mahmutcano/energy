@@ -57,7 +57,7 @@ func GetDatasheetPoints(c *gin.Context) {
 			"createdAt", "updatedAt", "createdBy", "updatedBy"
 		FROM "DatasheetPoint"
 		WHERE "profileId" = $1
-		ORDER BY "createdAt" DESC
+		ORDER BY address ASC NULLS LAST
 	`, profileID)
 	if err != nil {
 		response.Error(c, http.StatusInternalServerError, response.ErrDatabase, err.Error())

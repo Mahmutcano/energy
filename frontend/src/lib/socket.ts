@@ -31,6 +31,16 @@ class SocketService {
         return SocketService.instance;
     }
 
+    public reconnect() {
+        if (!this.socket.connected) {
+            console.log('[SOCKET] Manually triggering reconnection...');
+            this.socket.connect();
+        } else {
+            console.log('[SOCKET] Resetting connection...');
+            this.socket.disconnect().connect();
+        }
+    }
+
     private setupListeners() {
         this.socket.on('connect', () => {
             console.log('[SOCKET] Connected to server');

@@ -17,6 +17,8 @@ import {
   Building2
 } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { socket, socketService } from '@/lib/socket';
+import toast from 'react-hot-toast';
 
 interface DashboardStats {
   companies: number;
@@ -40,6 +42,21 @@ export default function Dashboard() {
   });
   const [protocols, setProtocols] = useState<CommProtocol[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isSocketConnected, setIsSocketConnected] = useState(socket.connected);
+
+  useEffect(() => {
+    socket.on('connect', () => setIsSocketConnected(true));
+    socket.on('disconnect', () => setIsSocketConnected(false));
+    return () => {
+      socket.off('connect');
+      socket.off('disconnect');
+    };
+  }, []);
+
+  const handleReconnect = () => {
+    socketService.reconnect();
+    toast.success('Bağlantı yenileme isteği gönderildi / Reconnection requested');
+  };
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -109,6 +126,23 @@ export default function Dashboard() {
               </div>
             </div>
           ))}
+
+          {/* New Reconnect Global Button */}
+          <button
+            onClick={handleReconnect}
+            className={`flex items-center gap-3 px-5 py-3 bg-slate-950/40 border ${isSocketConnected ? 'border-brand-green/30' : 'border-red-500/30'} rounded-xl hover:bg-slate-900/60 transition-all group`}
+            title="Soket Bağlantısını Yenile (Refresh Socket)"
+          >
+            <div className={`p-2 rounded-lg bg-slate-900/60 border ${isSocketConnected ? 'border-brand-green/20' : 'border-red-500/20'}`}>
+              <Activity size={14} className={`${isSocketConnected ? 'text-brand-green' : 'text-red-500'} group-hover:rotate-180 transition-transform duration-500`} />
+            </div>
+            <div className="flex flex-col leading-none items-start">
+              <span className="text-[9px] font-bold text-slate-600 tracking-widest mb-1">DATA BRIDGE</span>
+              <span className={`text-[10px] font-black uppercase ${isSocketConnected ? 'text-brand-green' : 'text-red-500'}`}>
+                {isSocketConnected ? 'Online (Refresh)' : 'OFFLINE (RECONNECT)'}
+              </span>
+            </div>
+          </button>
         </div>
       </div>
 

@@ -38,6 +38,7 @@ interface DataSheet {
     ioa3VoltageLevel: number | null;
     scadaAddress: number | null;
     recordingInterval: number | null;
+    measurementType: string | null;
     createdAt: string;
     updatedAt: string;
     createdBy: string | null;
@@ -67,6 +68,7 @@ const defaultFormData = {
     ioa3VoltageLevel: '',
     scadaAddress: '',
     recordingInterval: '1',
+    measurementType: '',
 };
 
 // Form validation errors
@@ -94,6 +96,28 @@ const MODBUS_DATA_TYPES = [
     { label: 'ULINT (64 bit)', value: 'ULINT' },
     { label: 'FLOAT32 (32 bit Float)', value: 'FLOAT32' },
     { label: 'DOUBLE64 (64 bit Double)', value: 'DOUBLE64' },
+];
+
+const MEASUREMENT_TYPES = [
+    { label: 'Nötr Gerilimi', value: 'NEUTRAL_VOLTAGE' },
+    { label: 'Faz Gerilimi', value: 'PHASE_VOLTAGE' },
+    { label: 'Faz Akımı', value: 'PHASE_CURRENT' },
+    { label: 'Aktif Güç', value: 'ACTIVE_POWER' },
+    { label: 'Toplam Aktif Güç', value: 'TOTAL_ACTIVE_POWER' },
+    { label: 'Görünür Güç', value: 'APPARENT_POWER' },
+    { label: 'Toplam Görünür Güç', value: 'TOTAL_APPARENT_POWER' },
+    { label: 'Reaktif Güç', value: 'REACTIVE_POWER' },
+    { label: 'Toplam Reaktif Güç', value: 'TOTAL_REACTIVE_POWER' },
+    { label: 'Güç Faktörü', value: 'POWER_FACTOR' },
+    { label: 'Frekans', value: 'FREQUENCY' },
+    { label: 'İmport Aktif Enerji', value: 'IMPORT_ACTIVE_ENERGY' },
+    { label: 'Export Aktif Enerji', value: 'EXPORT_ACTIVE_ENERGY' },
+    { label: 'İndüktif Reaktif Enerji', value: 'INDUCTIVE_REACTIVE_ENERGY' },
+    { label: 'Kapasitif Reaktif Enerji', value: 'CAPACITIVE_REACTIVE_ENERGY' },
+    { label: 'Harmonik Gerilim', value: 'HARMONIC_VOLTAGE' },
+    { label: 'Harmonik Akım', value: 'HARMONIC_CURRENT' },
+    { label: 'Flicker Short Time', value: 'FLICKER_SHORT_TIME' },
+    { label: 'Flicker Long Time', value: 'FLICKER_LONG_TIME' },
 ];
 
 const InputField = ({ label, name, value, onChange, placeholder, type = 'text', required = false, step, maxLength, error, autoFocus = false }: {
@@ -214,6 +238,7 @@ function DataSheetsContent() {
             ioa3VoltageLevel: sheet.ioa3VoltageLevel?.toString() || '',
             scadaAddress: sheet.scadaAddress?.toString() || '',
             recordingInterval: sheet.recordingInterval?.toString() || '1',
+            measurementType: sheet.measurementType || '',
         });
         setIsModalOpen(true);
     };
@@ -346,6 +371,7 @@ function DataSheetsContent() {
             }
             body.dataType = formData.dataType || null;
             body.recordingInterval = int(formData.recordingInterval);
+            body.measurementType = formData.measurementType || null;
 
             const url = editingSheet ? `/api/datasheets/${editingSheet.id}` : '/api/datasheets';
             const method = editingSheet ? 'PATCH' : 'POST';
@@ -469,6 +495,7 @@ function DataSheetsContent() {
                             multiplier: findValue(['Multiplier', 'Scaling', 'Çarpan', 'Scale']),
                             wordSwap: row['WORD SWAP'] === 'YES' || row['WORD SWAP'] === 'EVET' || row['WORD SWAP'] === true || findValue(['Word Swap', 'Swap']) === 'YES',
                             recordingInterval: findValue(['REC (MIN)', 'Saklama Süresi', 'Interval', 'Aralık', 'Kayıt Süresi', 'Kayıt Aralığı']) || 1,
+                            measurementType: findValue(['MEASUREMENT TYPE', 'ÖLÇÜM TİPİ', 'Measurement Type', 'Ölçüm Tipi', 'CATEGORY', 'KATEGORİ', 'Kategori', 'Category']),
                             isActive: findValue(['STATUS', 'DURUM']) === 'INACTIVE' || findValue(['STATUS', 'DURUM']) === 'HAYIR' ? false : true
                         };
                     } else {
@@ -489,6 +516,7 @@ function DataSheetsContent() {
                             ioa3VoltageLevel: findValue(['IOA3', 'IOA Voltage Level', 'Gerilim Seviyesi', 'IOA3 ( Gerilim Seviyesi)', 'IOA3 (Gerilim Seviyesi)']),
                             scadaAddress: findValue(['SCADA Address', 'SCADA Adresi', 'SCADA ADRESİ', 'ADRES', 'ADDRESS']),
                             recordingInterval: findValue(['Interval', 'Aralık', 'Kayıt Süresi', 'Kayıt Aralığı', 'KAYIT ARALIĞI']) || 1,
+                            measurementType: findValue(['MEASUREMENT TYPE', 'ÖLÇÜM TİPİ', 'Measurement Type', 'Ölçüm Tipi', 'CATEGORY', 'KATEGORİ', 'Kategori', 'Category']),
                             isActive: true
                         };
                     }
@@ -514,9 +542,17 @@ function DataSheetsContent() {
                         cleaned.recordingInterval = matches ? parseInt(matches[0]) : 1;
                     }
 
-                    // Specific logic for IEC104 dataName
                     if (!isModbus && !p.dataName) {
                         cleaned.dataName = p.signalDescription || p.componentId || 'IEC104-Point';
+                    }
+
+                    if (cleaned.measurementType) {
+                        const lowerVal = cleaned.measurementType.toLowerCase().trim();
+                        const match = MEASUREMENT_TYPES.find(c => 
+                            c.label.toLowerCase() === lowerVal || 
+                            c.value.toLowerCase() === lowerVal
+                        );
+                        cleaned.measurementType = match ? match.value : null;
                     }
 
                     return cleaned;
@@ -567,8 +603,8 @@ function DataSheetsContent() {
 
     const downloadTemplate = () => {
         const headers = isModbus
-            ? [['DATA NAME', 'DATA EXPLANATION', 'DATA VALUE (UNIT)', 'DATA TYPE', 'REGISTER ADDRESS', 'FUNCTION CODE', 'MULTIPLIER', 'WORD SWAP', 'CREATED AT/BY', 'UPDATED AT/BY', 'REC (MIN)', 'STATUS']]
-            : [['FEEDER/CELL NAME', 'SIGNAL TYPE', 'SIGNAL DESCRIPTION', 'DATA VALUE (UNIT)', 'DATA TYPE', 'SIGNAL SOURCE', 'COMPONENT ID', 'COMPONENT TEXT', 'IOA (OBJECT ADDR)', 'IOA (CELL NO)', 'IOA (VOLTAGE LVL)', 'SCADA ADDRESS', 'CREATED AT/BY', 'UPDATED AT/BY', 'REC (MIN)', 'STATUS']];
+            ? [['DATA NAME', 'DATA EXPLANATION', 'DATA VALUE (UNIT)', 'DATA TYPE', 'REGISTER ADDRESS', 'FUNCTION CODE', 'MULTIPLIER', 'WORD SWAP', 'MEASUREMENT TYPE', 'CREATED AT/BY', 'UPDATED AT/BY', 'REC (MIN)', 'STATUS']]
+            : [['FEEDER/CELL NAME', 'SIGNAL TYPE', 'SIGNAL DESCRIPTION', 'DATA VALUE (UNIT)', 'DATA TYPE', 'SIGNAL SOURCE', 'COMPONENT ID', 'COMPONENT TEXT', 'IOA (OBJECT ADDR)', 'IOA (CELL NO)', 'IOA (VOLTAGE LVL)', 'SCADA ADDRESS', 'MEASUREMENT TYPE', 'CREATED AT/BY', 'UPDATED AT/BY', 'REC (MIN)', 'STATUS']];
 
         const ws = XLSX.utils.aoa_to_sheet(headers);
         const wb = XLSX.utils.book_new();
@@ -583,7 +619,8 @@ function DataSheetsContent() {
             (s.signalDescription && s.signalDescription.toLowerCase().includes(searchQuery.toLowerCase())) ||
             (s.feederName && s.feederName.toLowerCase().includes(searchQuery.toLowerCase())) ||
             (s.componentId && s.componentId.toLowerCase().includes(searchQuery.toLowerCase())) ||
-            (s.componentText && s.componentText.toLowerCase().includes(searchQuery.toLowerCase()))
+            (s.componentText && s.componentText.toLowerCase().includes(searchQuery.toLowerCase())) ||
+            (s.measurementType && s.measurementType.toLowerCase().includes(searchQuery.toLowerCase()))
         )
         .sort((a, b) => {
             const addrA = a.registerAddress ?? a.ioa1ObjectAddress ?? a.scadaAddress ?? Infinity;
@@ -682,6 +719,7 @@ function DataSheetsContent() {
                                         <th className={headerCellClass}>FUNCTION CODE</th>
                                         <th className={headerCellClass}>MULTIPLIER</th>
                                         <th className={headerCellClass}>WORD SWAP</th>
+                                        <th className={headerCellClass}>MEASUREMENT TYPE</th>
                                     </>
                                 ) : (
                                     <>
@@ -697,6 +735,7 @@ function DataSheetsContent() {
                                         <th className={headerCellClass}>IOA (CELL NO)</th>
                                         <th className={headerCellClass}>IOA (VOLTAGE LVL)</th>
                                         <th className={headerCellClass}>SCADA ADDRESS</th>
+                                        <th className={headerCellClass}>MEASUREMENT TYPE</th>
                                     </>
                                 )}
                                 <th className={headerCellClass}>CREATED AT/BY</th>
@@ -746,6 +785,13 @@ function DataSheetsContent() {
                                                     {sheet.wordSwap ? 'YES' : 'NO'}
                                                 </span>
                                             </td>
+                                            <td className={cellClass}>
+                                                {sheet.measurementType ? (
+                                                    <span className="px-2 py-0.5 rounded bg-amber-500/10 text-amber-500 text-[10px] font-bold">
+                                                        {MEASUREMENT_TYPES.find(c => c.value === sheet.measurementType)?.label || sheet.measurementType}
+                                                    </span>
+                                                ) : '-'}
+                                            </td>
                                         </>
                                     ) : (
                                         <>
@@ -779,6 +825,13 @@ function DataSheetsContent() {
                                             <td className={`${cellClass} font-mono tabular-nums text-slate-400`}>{sheet.ioa2CellNo ?? '-'}</td>
                                             <td className={`${cellClass} font-mono tabular-nums text-slate-400`}>{sheet.ioa3VoltageLevel ?? '-'}</td>
                                             <td className={`${cellClass} font-mono tabular-nums text-cyan-400 font-bold`}>{sheet.scadaAddress ?? '-'}</td>
+                                            <td className={cellClass}>
+                                                {sheet.measurementType ? (
+                                                    <span className="px-2 py-0.5 rounded bg-amber-500/10 text-amber-500 text-[10px] font-bold">
+                                                        {MEASUREMENT_TYPES.find(c => c.value === sheet.measurementType)?.label || sheet.measurementType}
+                                                    </span>
+                                                ) : '-'}
+                                            </td>
                                         </>
                                     )}
                                     <td className={cellClass}>
@@ -965,6 +1018,19 @@ function DataSheetsContent() {
                                     onChange={(val) => setFormData({ ...formData, recordingInterval: val })}
                                     placeholder="e.g. 1"
                                 />
+                                <div className="space-y-1.5 flex-1">
+                                    <label className={labelClass}>ÖLÇÜM TİPİ (MEASUREMENT TYPE)</label>
+                                    <select
+                                        value={formData.measurementType}
+                                        onChange={(e) => setFormData({ ...formData, measurementType: e.target.value })}
+                                        className={inputClass}
+                                    >
+                                        <option value="">Measure Type Seçin...</option>
+                                        {MEASUREMENT_TYPES.map(cat => (
+                                            <option key={cat.value} value={cat.value}>{cat.label}</option>
+                                        ))}
+                                    </select>
+                                </div>
                             </div>
                         </>
                     ) : (
@@ -1115,6 +1181,19 @@ function DataSheetsContent() {
                                     onChange={(val) => setFormData({ ...formData, recordingInterval: val })}
                                     placeholder="e.g. 1"
                                 />
+                                <div className="space-y-1.5 flex-1">
+                                    <label className={labelClass}>ÖLÇÜM TİPİ (MEASUREMENT TYPE)</label>
+                                    <select
+                                        value={formData.measurementType}
+                                        onChange={(e) => setFormData({ ...formData, measurementType: e.target.value })}
+                                        className={inputClass}
+                                    >
+                                        <option value="">Measure Type Seçin...</option>
+                                        {MEASUREMENT_TYPES.map(cat => (
+                                            <option key={cat.value} value={cat.value}>{cat.label}</option>
+                                        ))}
+                                    </select>
+                                </div>
                             </div>
                         </>
                     )}

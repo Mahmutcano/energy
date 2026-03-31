@@ -31,6 +31,28 @@ export const dataTypeEnum = pgEnum('DataType', [
     'FLOAT32', 'DOUBLE64'
 ]);
 
+export const measurementTypeEnum = pgEnum('MeasurementType', [
+    'NEUTRAL_VOLTAGE',
+    'PHASE_VOLTAGE',
+    'PHASE_CURRENT',
+    'ACTIVE_POWER',
+    'TOTAL_ACTIVE_POWER',
+    'APPARENT_POWER',
+    'TOTAL_APPARENT_POWER',
+    'REACTIVE_POWER',
+    'TOTAL_REACTIVE_POWER',
+    'POWER_FACTOR',
+    'FREQUENCY',
+    'IMPORT_ACTIVE_ENERGY',
+    'EXPORT_ACTIVE_ENERGY',
+    'INDUCTIVE_REACTIVE_ENERGY',
+    'CAPACITIVE_REACTIVE_ENERGY',
+    'HARMONIC_VOLTAGE',
+    'HARMONIC_CURRENT',
+    'FLICKER_SHORT_TIME',
+    'FLICKER_LONG_TIME'
+]);
+
 // Tables
 export const appUser = pgTable('AppUser', {
     id: uuid('id').primaryKey().defaultRandom(),
@@ -82,9 +104,12 @@ export const plant = pgTable('Plant', {
     latitude: decimal('latitude', { precision: 10, scale: 8 }),
     longitude: decimal('longitude', { precision: 11, scale: 8 }),
     isActive: boolean('isActive').default(true).notNull(),
+    ytbsCode: text('ytbsCode').default('').notNull(),
+    canSendYtbs: boolean('canSendYtbs').default(false).notNull(),
 }, (table) => ({
     companyIdIdx: index('Plant_company_id_idx').on(table.companyId),
 }));
+
 
 export const protocolConfig = pgTable('ProtocolConfig', {
     id: uuid('id').primaryKey().defaultRandom(),
@@ -160,8 +185,9 @@ export const datasheetPoint = pgTable('DatasheetPoint', {
     signalSource: text('signalSource'),
     componentId: text('componentId'),
     ioa2CellNo: integer('ioa2CellNo'),         // 104 Specific
-    ioa3VoltageLevel: integer('ioa3VoltageLevel'), // 104 Specific
+    ioa3VoltageLevel: integer('ioa3Voltage_level'), // 104 Specific
     recordingInterval: integer('recordingInterval').default(1),
+    measurementType: measurementTypeEnum('measurementType'),
 }, (table) => ({
     profileIdIdx: index('DatasheetPoint_profile_id_idx').on(table.profileId),
     dataIdx: index('DatasheetPoint_data_idx').on(table.data),

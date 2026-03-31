@@ -12,6 +12,8 @@ export interface PlantFormData {
     latitude: string;
     longitude: string;
     plantType: 'SOLAR' | 'WIND' | 'HYDRO';
+    ytbsCode: string;
+    canSendYtbs: boolean;
 }
 
 interface PlantFormProps {
@@ -37,6 +39,8 @@ export default function PlantForm({
         latitude: initialData?.latitude || '',
         longitude: initialData?.longitude || '',
         plantType: initialData?.plantType || 'SOLAR',
+        ytbsCode: initialData?.ytbsCode || '',
+        canSendYtbs: initialData?.canSendYtbs || false,
     });
 
     // Sync state with initialData when it changes (important for Modal reuse)
@@ -48,6 +52,8 @@ export default function PlantForm({
                 latitude: initialData.latitude || '',
                 longitude: initialData.longitude || '',
                 plantType: initialData.plantType || 'SOLAR',
+                ytbsCode: initialData.ytbsCode || '',
+                canSendYtbs: initialData.canSendYtbs || false,
             });
         }
     }, [initialData]);
@@ -149,6 +155,35 @@ export default function PlantForm({
                                 placeholder="27.1428"
                             />
                         </div>
+                    </div>
+
+                    <div className="space-y-4 border-t border-slate-800/40 pt-4">
+                        <div className="space-y-2">
+                            <label className="text-xs font-bold text-slate-400 tracking-widest uppercase">YTBS Code</label>
+                            <input
+                                type="text"
+                                value={formData.ytbsCode}
+                                onChange={(e) => setFormData({ ...formData, ytbsCode: e.target.value })}
+                                className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none transition-all placeholder:text-slate-600"
+                                placeholder="YTBS Identification Code"
+                            />
+                        </div>
+
+                        <label className="flex items-center gap-3 group cursor-pointer p-3 bg-slate-900/30 border border-slate-800/50 rounded-xl hover:bg-slate-900/50 transition-all">
+                            <div className="relative flex items-center">
+                                <input
+                                    type="checkbox"
+                                    checked={formData.canSendYtbs}
+                                    onChange={(e) => setFormData({ ...formData, canSendYtbs: e.target.checked })}
+                                    className="peer sr-only"
+                                />
+                                <div className="w-10 h-6 bg-slate-800 rounded-full peer peer-checked:bg-brand-green/30 transition-all after:content-[''] after:absolute after:top-1 after:left-1 after:bg-slate-600 after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-4 peer-checked:after:bg-brand-green"></div>
+                            </div>
+                            <div className="flex flex-col">
+                                <span className="text-xs font-bold text-slate-300 group-hover:text-white transition-colors">YTBS Data Emission</span>
+                                <span className="text-[10px] text-slate-500">Allow this plant to send data to YTBS</span>
+                            </div>
+                        </label>
                     </div>
 
                     <div className="mt-auto">

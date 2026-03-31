@@ -20,6 +20,8 @@ interface Plant {
     protocols?: any[];
     plantType: 'SOLAR' | 'WIND' | 'HYDRO';
     isActive: boolean;
+    ytbsCode: string;
+    canSendYtbs: boolean;
     createdAt: string;
     updatedAt: string;
     createdBy: string | null;
@@ -36,7 +38,9 @@ const defaultFormData = {
     plantName: '',
     latitude: '',
     longitude: '',
-    plantType: 'SOLAR' as 'SOLAR' | 'WIND' | 'HYDRO'
+    plantType: 'SOLAR' as 'SOLAR' | 'WIND' | 'HYDRO',
+    ytbsCode: '',
+    canSendYtbs: false
 };
 
 function PlantsContent() {
@@ -110,7 +114,9 @@ function PlantsContent() {
             plantName: plant.plantName || '',
             latitude: plant.latitude ? plant.latitude.toString() : '',
             longitude: plant.longitude ? plant.longitude.toString() : '',
-            plantType: plant.plantType || 'SOLAR'
+            plantType: plant.plantType || 'SOLAR',
+            ytbsCode: plant.ytbsCode || '',
+            canSendYtbs: plant.canSendYtbs || false
         });
         setIsModalOpen(true);
     };
@@ -147,6 +153,8 @@ function PlantsContent() {
                 latitude: data.latitude ? parseFloat(data.latitude) : null,
                 longitude: data.longitude ? parseFloat(data.longitude) : null,
                 plantType: data.plantType,
+                ytbsCode: data.ytbsCode,
+                canSendYtbs: data.canSendYtbs,
             };
 
             const url = editingPlant ? `/api/plants/${editingPlant.id}` : '/api/plants';
@@ -266,9 +274,21 @@ function PlantsContent() {
                                     <p className="text-xs text-slate-500 mt-0.5">{plant.company?.name || 'N/A'}</p>
                                 </div>
                             </div>
-                            <div className="flex items-center gap-2 text-[10px] font-bold text-brand-green">
-                                <div className="w-2 h-2 rounded-full bg-brand-green animate-pulse"></div>
-                                <span>Active</span>
+                            <div className="flex flex-col items-end gap-1">
+                                <div className="flex items-center gap-2 text-[10px] font-bold text-brand-green">
+                                    <div className="w-2 h-2 rounded-full bg-brand-green animate-pulse"></div>
+                                    <span>Active</span>
+                                </div>
+                                {plant.canSendYtbs ? (
+                                    <div className="flex items-center gap-2 text-[8px] font-bold text-blue-400 bg-blue-400/10 px-2 py-0.5 rounded-full border border-blue-400/20">
+                                        <Activity size={8} />
+                                        <span>YTBS ACTIVE</span>
+                                    </div>
+                                ) : (
+                                    <div className="flex items-center gap-2 text-[8px] font-bold text-slate-500 bg-slate-500/10 px-2 py-0.5 rounded-full border border-slate-500/20">
+                                        <span>YTBS OFF</span>
+                                    </div>
+                                )}
                             </div>
                         </div>
 
@@ -338,8 +358,10 @@ function PlantsContent() {
                         plantName: editingPlant.plantName,
                         latitude: editingPlant.latitude ? editingPlant.latitude.toString() : '',
                         longitude: editingPlant.longitude ? editingPlant.longitude.toString() : '',
-                        plantType: editingPlant.plantType
-                    } : { companyId: initialCompanyId }}
+                        plantType: editingPlant.plantType,
+                        ytbsCode: editingPlant.ytbsCode || '',
+                        canSendYtbs: editingPlant.canSendYtbs || false
+                    } : { companyId: initialCompanyId, ytbsCode: '', canSendYtbs: false }}
                     companies={companies}
                     onSubmit={handlePlantSubmit}
                     onAddNewCompany={() => setIsCompanyModalOpen(true)}

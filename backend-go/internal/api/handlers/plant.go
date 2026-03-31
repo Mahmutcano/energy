@@ -25,7 +25,7 @@ func GetPlants(c *gin.Context) {
 	if role == "SUPER_ADMIN" {
 		rows, err = db.Pool.Query(context.Background(), `
 			SELECT p.id, p."companyId", p."plantName", p."plantType", p.latitude, p.longitude, p."isActive", c.name as company_name, 
-			       p."createdAt", p."updatedAt", p."createdBy", p."updatedBy"
+			       p."createdAt", p."updatedAt", p."createdBy", p."updatedBy", p."ytbsCode", p."canSendYtbs"
 			FROM "Plant" p
 			JOIN "CompanyProfile" c ON p."companyId" = c.id
 			ORDER BY p."createdAt" DESC
@@ -33,7 +33,7 @@ func GetPlants(c *gin.Context) {
 	} else if companyID != nil {
 		rows, err = db.Pool.Query(context.Background(), `
 			SELECT p.id, p."companyId", p."plantName", p."plantType", p.latitude, p.longitude, p."isActive", c.name as company_name, 
-			       p."createdAt", p."updatedAt", p."createdBy", p."updatedBy"
+			       p."createdAt", p."updatedAt", p."createdBy", p."updatedBy", p."ytbsCode", p."canSendYtbs"
 			FROM "Plant" p
 			JOIN "CompanyProfile" c ON p."companyId" = c.id
 			WHERE p."companyId" = $1
@@ -55,7 +55,7 @@ func GetPlants(c *gin.Context) {
 		var createdAt time.Time
 		var updatedAt *time.Time
 		var createdBy, updatedBy *uuid.UUID
-		if err := rows.Scan(&p.ID, &p.CompanyID, &p.PlantName, &p.PlantType, &p.Latitude, &p.Longitude, &p.IsActive, &p.CompanyName, &createdAt, &updatedAt, &createdBy, &updatedBy); err != nil {
+		if err := rows.Scan(&p.ID, &p.CompanyID, &p.PlantName, &p.PlantType, &p.Latitude, &p.Longitude, &p.IsActive, &p.CompanyName, &createdAt, &updatedAt, &createdBy, &updatedBy, &p.YTBSCode, &p.CanSendYTBS); err != nil {
 			log.Printf("[DB] Error scanning plant: %v", err)
 			continue
 		}
@@ -82,6 +82,8 @@ func GetPlants(c *gin.Context) {
 			"createdBy":   createdBy,
 			"updatedBy":   updatedBy,
 			"protocols":   protocols,
+			"ytbsCode":    p.YTBSCode,
+			"canSendYtbs": p.CanSendYTBS,
 		})
 	}
 
@@ -111,9 +113,9 @@ func CreatePlant(c *gin.Context) {
 	p.IsActive = true
 
 	_, err := db.Pool.Exec(context.Background(), `
-		INSERT INTO "Plant" (id, "companyId", "plantName", "plantType", latitude, longitude, "isActive", "createdAt", "updatedAt", "createdBy", "updatedBy")
-		VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NULL, $8, NULL)
-	`, p.ID, p.CompanyID, p.PlantName, p.PlantType, p.Latitude, p.Longitude, p.IsActive, creatorID)
+		INSERT INTO "Plant" (id, "companyId", "plantName", "plantType", latitude, longitude, "isActive", "createdAt", "updatedAt", "createdBy", "updatedBy", "ytbsCode", "canSendYtbs")
+		VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NULL, $8, NULL, $9, $10)
+	`, p.ID, p.CompanyID, p.PlantName, p.PlantType, p.Latitude, p.Longitude, p.IsActive, creatorID, p.YTBSCode, p.CanSendYTBS)
 
 	if err != nil {
 		log.Printf("[DB] Insert Error (Plant): %v", err)
@@ -168,6 +170,16 @@ func UpdatePlant(c *gin.Context) {
 	}
 	if val, ok := body["isActive"]; ok {
 		query += fmt.Sprintf("\"isActive\" = $%d, ", idx)
+		args = append(args, val)
+		idx++
+	}
+	if val, ok := body["ytbsCode"]; ok {
+		query += fmt.Sprintf("\"ytbsCode\" = $%d, ", idx)
+		args = append(args, val)
+		idx++
+	}
+	if val, ok := body["canSendYtbs"]; ok {
+		query += fmt.Sprintf("\"canSendYtbs\" = $%d, ", idx)
 		args = append(args, val)
 		idx++
 	}

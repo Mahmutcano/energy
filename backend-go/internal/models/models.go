@@ -25,7 +25,10 @@ type Plant struct {
 	Longitude   *float64  `json:"longitude"`
 	IsActive    bool      `json:"isActive"`
 	CompanyName string    `json:"companyName,omitempty"`
+	YTBSCode    string    `json:"ytbsCode"`
+	CanSendYTBS bool      `json:"canSendYtbs"`
 }
+
 
 type Device struct {
 	ID                 uuid.UUID  `json:"id"`

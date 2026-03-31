@@ -136,6 +136,7 @@ const createDataPointSchema = z.object({
     ioa2CellNo: z.coerce.number().int().min(0).optional().nullable(),
     ioa3VoltageLevel: z.coerce.number().int().min(0).optional().nullable(),
     scadaAddress: z.coerce.number().int().min(0).optional().nullable(), // Legacy support
+    measurementType: z.string().optional().nullable(),
 });
 
 export const getDatasheetPoints = async (req: Request, res: Response) => {
@@ -212,6 +213,7 @@ export const createDatasheetPoint = async (req: Request, res: Response) => {
             componentId: data.componentId,
             ioa2CellNo: data.ioa2CellNo,
             ioa3VoltageLevel: data.ioa3VoltageLevel,
+            measurementType: data.measurementType as any,
         }).returning();
 
         try {
@@ -271,7 +273,8 @@ export const bulkCreateDatasheetPoints = async (req: Request, res: Response) => 
                     signalSource: validated.signalSource,
                     componentId: validated.componentId,
                     ioa2CellNo: validated.ioa2CellNo,
-                    ioa3VoltageLevel: validated.ioa3VoltageLevel
+                    ioa3VoltageLevel: validated.ioa3VoltageLevel,
+                    measurementType: validated.measurementType as any
                 };
 
                 if (existing) {
@@ -324,6 +327,10 @@ export const updateDatasheetPoint = async (req: Request<{ id: string }>, res: Re
 
         if (data.dataType !== undefined || data.type !== undefined || data.format !== undefined) {
             updateValues.dataType = data.dataType ?? data.type ?? data.format;
+        }
+
+        if (data.measurementType !== undefined) {
+            updateValues.measurementType = data.measurementType;
         }
 
         // Remove legacy fields from update object

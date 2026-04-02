@@ -185,7 +185,8 @@ class WorkerService {
      * THIS IS FULLY SYNCHRONOUS - no await, no DB calls, no blocking.
      */
     private processItem(data: any) {
-        const { deviceId, pointId, protocolId, value, timestamp } = data;
+        const { deviceId, pointId, protocolId, value, ioa, timestamp } = data;
+        console.log(`[WORKER] ProcessItem: dev=${deviceId?.substring(0,8)} point=${pointId?.substring(0,8)} ioa=${ioa} val=${value}`);
         const now = Date.now();
 
         // 0. Update Last Seen for Watchdog (SYNC - just a Map.set)

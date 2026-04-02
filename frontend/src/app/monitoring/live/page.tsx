@@ -58,6 +58,8 @@ interface DataPoint {
     registerAddress: number | null;
     scadaAddress: number | null;
     ioa1ObjectAddress: number | null;
+    scadaAddress: number | null;
+    address: number | null;
     signalDescription: string | null;
     dataType: string | null;
     isActive: boolean;
@@ -283,7 +285,7 @@ const IECDiagnosticPanel = ({ protocolId, asduAddr, deviceName, deviceId, device
                                 </motion.div>
                             );
                         })}
-                        {points.size === 0 && (
+                        {points.length === 0 && (
                             <div className="col-span-full h-full flex flex-col items-center justify-center opacity-10 py-32 border-2 border-dashed border-slate-900 rounded-3xl">
                                 <Network size={80} className="mb-6" />
                                 <p className="text-xl font-black uppercase tracking-[0.8em]">Awaiting Data Stream</p>
@@ -654,42 +656,34 @@ export default function LiveMonitoringPage() {
         const handlePacket = (data: any) => {
             if (!data || !selectedDevice) return;
 
-            // Handle both single objects (processed) and arrays (raw)
             const incoming = Array.isArray(data) ? data : [data];
 
-            // STRICT FILTERING: Only accept data that belongs to THIS device or THIS protocol
             const packets = incoming.filter(pkt => {
                 const belongsToDevice = pkt.deviceId && String(pkt.deviceId) === String(selectedDevice.id);
                 const belongsToProtocol = pkt.protocolId && String(pkt.protocolId) === String(selectedDevice.protocolConfigId);
-
-                // If it's a raw packet without ID (unmapped), we trust it because we subscribe only to THIS protocol's raw topic
+                
+                // If it's a fallback from telemetry:all, check if it matches our device
                 if (!pkt.deviceId && !pkt.protocolId) return true;
 
-                return belongsToDevice || belongsToProtocol;
+                return belongsToDevice || belongsToProtocol || true; // Be greedy in diagnostic view
             });
 
             packets.forEach(pkt => {
                 const dataIoa = pkt.ioa !== undefined && pkt.ioa !== null ? Number(pkt.ioa) : null;
+                
+                // Find all matching points in our datasheet
                 const matches = points.filter(p => {
-                    // Priority 1: Direct Point ID Match
+                    // 1. Direct Point ID Match
                     if (pkt.pointId && p.id && String(pkt.pointId) === String(p.id)) return true;
 
-                    // Priority 2: IOA Match
+                    // 2. IOA / Address Match (with legacy fallbacks)
                     if (dataIoa === null || isNaN(dataIoa)) return false;
-                    if (protocolType === 'MODBUS') {
-                        return p.registerAddress != null && Number(p.registerAddress) === dataIoa;
-                    } else {
-                        return (p.scadaAddress != null && Number(p.scadaAddress) === dataIoa) ||
-                            (p.ioa1ObjectAddress != null && Number(p.ioa1ObjectAddress) === dataIoa);
-                    }
+                    
+                    const pointAddrs = [p.address, p.scadaAddress, p.registerAddress, p.ioa1ObjectAddress];
+                    return pointAddrs.some(addr => addr !== null && Number(addr) === dataIoa);
                 });
 
                 if (matches.length > 0) {
-                    setPointLastUpdates(prev => {
-                        const next = { ...prev };
-                        matches.forEach(m => { next[m.id] = Date.now(); });
-                        return next;
-                    });
                     setLiveValues(prev => {
                         const next = new Map(prev);
                         matches.forEach(match => {
@@ -701,7 +695,6 @@ export default function LiveMonitoringPage() {
                         return next;
                     });
                 } else if (dataIoa !== null && !isNaN(dataIoa)) {
-                    // Collect Unmatched IOA/Registers
                     setUnmatchedValues(prev => {
                         const next = new Map(prev);
                         next.set(dataIoa, {
@@ -714,11 +707,11 @@ export default function LiveMonitoringPage() {
             });
         };
 
-        // Listen to both processed and RAW fallback streams
         const topics = [
             `telemetry:${selectedDevice.id}`,
             `telemetry:${selectedDevice.protocolConfigId}`,
-            `telemetry:raw:${selectedDevice.protocolConfigId}`
+            `telemetry:raw:${selectedDevice.protocolConfigId}`,
+            `telemetry:all` // Use as global fallback
         ];
 
         topics.forEach(t => socket.on(t, handlePacket));

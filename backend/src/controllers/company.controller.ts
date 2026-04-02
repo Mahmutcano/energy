@@ -26,7 +26,7 @@ export const getCompanies = async (req: Request, res: Response) => {
                 }
             },
             extras: {
-                usersCount: sql<number>`(SELECT count(*) FROM "AppUserProfile" WHERE "company_id" = ${schema.companyProfile.id})`.mapWith(Number).as('usersCount')
+                usersCount: sql<number>`(SELECT count(*) FROM "AppUserProfile" WHERE "companyId" = ${schema.companyProfile.id})`.mapWith(Number).as('usersCount')
             }
         });
 

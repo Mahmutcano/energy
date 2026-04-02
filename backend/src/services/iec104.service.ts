@@ -123,9 +123,11 @@ export class IEC104Service {
 
                 // Build IOA Map (Per-protocol sandbox)
                 const ioaMap = new Map<number, IOAMapEntry[]>();
+                let pointCount = 0;
                 for (const device of protocol.devices) {
                     if (device.datasheetProfile) {
                         for (const point of device.datasheetProfile.points) {
+                            pointCount++;
                             const entry: IOAMapEntry = {
                                 pointId: point.id,
                                 deviceId: device.id,
@@ -147,6 +149,7 @@ export class IEC104Service {
                     }
                 }
 
+                console.log(`[IEC104] 📦 Protocol ${protocol.id} (${protocol.configName}): Loaded ${protocol.devices.length} devices, ${pointCount} points.`);
                 this.ioaMaps.set(protocol.id, ioaMap);
 
                 // Establish connection if not already present
@@ -204,6 +207,7 @@ export class IEC104Service {
 
         try {
             const conn = new Protocol(ip, port, (data: any[]) => {
+                console.log(`[IEC104] Callback triggered with ${data?.length || 0} items for protocol ${protocolId}`);
                 // GHOST SAFETY: Ensure this instance belongs to the current IP config
                 const current = this.activeInstances.get(protocolId);
                 if (!current || current.id !== instanceId) {
@@ -218,10 +222,15 @@ export class IEC104Service {
 
 
                 const rawPoints = data
-                    .filter(item => item.CA === undefined || item.CA === asduAddress)
+                    .filter(item => {
+                        const match = item.CA === undefined || item.CA === asduAddress;
+                        if (!match) console.log(`[IEC104] ⚠️ Filtered packet out: CA mismatch. Rx:${item.CA} Expect:${asduAddress}`);
+                        return match;
+                    })
                     .map(item => {
                         const entries = ioaMap.get(item.IOA) || [];
                         const firstEntry = entries[0];
+                        if (!firstEntry) console.log(`[IEC104] ⚠️ IOA ${item.IOA} not found in map (Map size: ${ioaMap.size})`);
                         const rawValue = item.MeasuredValueShort ?? item.MeasuredValueNormalizedWithoutQuality ?? item.MeasuredValueScaled ?? item.val ?? 0;
 
                         return {
@@ -232,6 +241,7 @@ export class IEC104Service {
                             timestamp: new Date(),
                             name: firstEntry?.dataName || 'Unmapped Point',
                             deviceId: firstEntry?.deviceId,
+                            pointId: firstEntry?.pointId,
                             sourceIp: ip
                         };
                     });

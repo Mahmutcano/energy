@@ -74,6 +74,7 @@ class RedisService {
      */
     public async pushTelemetry(data: any) {
         if (this.useFallback || !this.client) {
+            console.log(`[REDIS] Fallback PUSH: mode=${this.useFallback ? 'MEM' : 'NO_CLIENT'}`);
             this.memoryQueue.push(data);
             return;
         }
@@ -91,6 +92,7 @@ class RedisService {
         if (this.pushBuffer.length === 0 || this.useFallback || !this.client) return;
 
         const items = this.pushBuffer.splice(0);
+        console.log(`[REDIS] Pipeline flush: ${items.length} items to ${this.QUEUE_KEY}`);
         try {
             const pipeline = this.client.pipeline();
             for (const item of items) {
@@ -98,6 +100,7 @@ class RedisService {
             }
             await pipeline.exec();
         } catch (err) {
+            console.error('[REDIS] Pipeline exec error:', err);
             // Fallback: push to memory queue
             for (const item of items) {
                 try { this.memoryQueue.push(JSON.parse(item)); } catch { }

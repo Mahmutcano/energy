@@ -157,10 +157,13 @@ export const getDatasheetPoints = async (req: Request, res: Response) => {
             ]
         });
 
-        // Map 'data' to 'dataName' for frontend compatibility
+        // Map fields for frontend compatibility (Address unification)
         const mappedPoints = points.map(p => ({
             ...p,
-            dataName: p.data
+            dataName: p.data,
+            scadaAddress: p.address,
+            registerAddress: p.address,
+            ioa1ObjectAddress: p.address
         }));
 
         res.json(mappedPoints);

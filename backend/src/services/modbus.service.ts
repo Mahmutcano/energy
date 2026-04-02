@@ -195,11 +195,10 @@ export class ModbusService {
     private startPolling(protocolId: string, client: any, points: any[], instanceId: string) {
         if (points.length === 0) return;
 
-        const pollingInterval = setInterval(async () => {
+        const pollOnce = async () => {
             // GHOST CHECK
             if (this.activeInstances.get(protocolId) !== instanceId) {
                 console.log(`[Modbus] 👻 Stopping ghost polling for Instance:${instanceId}`);
-                clearInterval(pollingInterval);
                 return;
             }
 
@@ -214,7 +213,7 @@ export class ModbusService {
                         resp = await client.readHoldingRegisters(point.address, count);
                     }
 
-                    const rawValues = resp.response._body._values;
+                    const rawValues = resp.response._body._values || resp.response.body.values;
                     if (rawValues === undefined || rawValues.length < count) continue;
 
                     let val: number = 0;
@@ -246,6 +245,7 @@ export class ModbusService {
                     }
 
                     val = val * (point.multiplier || 1);
+                    console.log(`[Modbus] ✅ SUCCESS: proto=${protocolId} addr=${point.address} val=${val.toFixed(2)}`);
 
                         redisService.pushTelemetry({
                             protocolId,
@@ -259,16 +259,19 @@ export class ModbusService {
                         });
                     } catch (err: any) {
                         console.warn(`[Modbus] ⚠️ Poll Error [Protocol: ${protocolId}|Addr: ${point.address}]: ${err.message || 'Unknown'}`);
-                        // Update status to ERROR if multiple fails occur (handled by updateStatus)
                         if (err.message && (err.message.includes('timeout') || err.message.includes('ECONN'))) {
                             this.updateStatus(protocolId, 'ERROR');
                         }
                     }
                 }
-        }, 250);
+                
+                // Re-schedule
+                if (this.activeInstances.get(protocolId) === instanceId) {
+                    setTimeout(pollOnce, 500);
+                }
+        };
 
-        const clientData = this.clients.get(protocolId);
-        if (clientData) clientData.pollingInterval = pollingInterval;
+        pollOnce();
     }
 
     public async testModbusConnection(params: {

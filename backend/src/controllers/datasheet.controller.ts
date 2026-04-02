@@ -6,6 +6,7 @@ import { eq, and, sql, asc, getTableColumns } from 'drizzle-orm';
 import { z } from 'zod';
 import { AppError, ErrorCode, handleErrorResponse } from '../utils/errors';
 import { IEC104Service } from '../services/iec104.service';
+import workerService from '../services/worker.service';
 
 // ============================================================
 // Profile Schemas & Controllers
@@ -23,8 +24,8 @@ export const getDatasheetProfiles = async (req: Request, res: Response) => {
         // Get profiles with points and devices count
         const profileList = await db.select({
             ...getTableColumns(schema.datasheetProfile),
-            pointsCount: sql<number>`(SELECT count(*) FROM "DatasheetPoint" WHERE "profile_id" = "DatasheetProfile"."id")`.mapWith(Number),
-            devicesCount: sql<number>`(SELECT count(*) FROM "Device" WHERE "datasheet_profile_id" = "DatasheetProfile"."id")`.mapWith(Number)
+            pointsCount: sql<number>`(SELECT count(*) FROM "DatasheetPoint" WHERE "profileId" = "DatasheetProfile"."id")`.mapWith(Number),
+            devicesCount: sql<number>`(SELECT count(*) FROM "Device" WHERE "datasheetProfileId" = "DatasheetProfile"."id")`.mapWith(Number)
         }).from(schema.datasheetProfile);
 
         // Map it to look like Prisma's output if frontend expects it
@@ -137,6 +138,7 @@ const createDataPointSchema = z.object({
     ioa3VoltageLevel: z.coerce.number().int().min(0).optional().nullable(),
     scadaAddress: z.coerce.number().int().min(0).optional().nullable(), // Legacy support
     measurementType: z.string().optional().nullable(),
+    recordingInterval: z.coerce.number().int().min(0).optional().default(60), // Default 60 seconds
 });
 
 export const getDatasheetPoints = async (req: Request, res: Response) => {
@@ -214,10 +216,12 @@ export const createDatasheetPoint = async (req: Request, res: Response) => {
             ioa2CellNo: data.ioa2CellNo,
             ioa3VoltageLevel: data.ioa3VoltageLevel,
             measurementType: data.measurementType as any,
+            recordingInterval: data.recordingInterval,
         }).returning();
 
         try {
             await IEC104Service.getInstance().reloadConfigs();
+            await workerService.reloadPointIntervals();
         } catch (err) {
             console.error('[IEC104_REFRESH] Failed:', err);
         }
@@ -274,7 +278,8 @@ export const bulkCreateDatasheetPoints = async (req: Request, res: Response) => 
                     componentId: validated.componentId,
                     ioa2CellNo: validated.ioa2CellNo,
                     ioa3VoltageLevel: validated.ioa3VoltageLevel,
-                    measurementType: validated.measurementType as any
+                    measurementType: validated.measurementType as any,
+                    recordingInterval: validated.recordingInterval
                 };
 
                 if (existing) {
@@ -295,8 +300,9 @@ export const bulkCreateDatasheetPoints = async (req: Request, res: Response) => 
 
         try {
             await IEC104Service.getInstance().reloadConfigs();
+            await workerService.reloadPointIntervals();
         } catch (err) {
-            console.error('[BULK_IMPORT] Failed to refresh IEC104 service:', err);
+            console.error('[BULK_IMPORT] Failed to refresh services:', err);
         }
 
         res.status(201).json(result);
@@ -333,6 +339,10 @@ export const updateDatasheetPoint = async (req: Request<{ id: string }>, res: Re
             updateValues.measurementType = data.measurementType;
         }
 
+        if (data.recordingInterval !== undefined) {
+            updateValues.recordingInterval = data.recordingInterval;
+        }
+
         // Remove legacy fields from update object
         delete updateValues.dataName;
         delete updateValues.dataValue;
@@ -352,6 +362,7 @@ export const updateDatasheetPoint = async (req: Request<{ id: string }>, res: Re
 
         try {
             await IEC104Service.getInstance().reloadConfigs();
+            await workerService.reloadPointIntervals();
         } catch (err) {
             console.error('[IEC104_REFRESH] Failed:', err);
         }
@@ -383,6 +394,7 @@ export const deleteDatasheetPoint = async (req: Request<{ id: string }>, res: Re
 
         try {
             await IEC104Service.getInstance().reloadConfigs();
+            await workerService.reloadPointIntervals();
         } catch (err) {
             console.error('[IEC104_REFRESH] Failed:', err);
         }

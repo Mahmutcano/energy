@@ -177,7 +177,7 @@ export const getRecordingSettings = async (req: Request, res: Response) => {
         const settings = simulationService.getSettings();
         const [totalRecords, dbSizeResult] = await Promise.all([
             timescaleDb.select({ count: sql<number>`count(*)` }).from(schema.telemetryValue).then(res => Number(res[0].count)),
-            timescaleDb.execute(sql`SELECT pg_size_pretty(pg_total_relation_size('telemetry_value')) as size`)
+            timescaleDb.execute(sql`SELECT pg_size_pretty(pg_total_relation_size('"TelemetryValue"')) as size`)
         ]);
 
         res.json({

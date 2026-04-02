@@ -83,10 +83,10 @@ export const companyProfile = pgTable('CompanyProfile', {
 
 export const appUserProfile = pgTable('AppUserProfile', {
     id: uuid('id').primaryKey().defaultRandom(),
-    userId: uuid('user_id').notNull().references(() => appUser.id),
-    companyId: uuid('company_id').notNull().references(() => companyProfile.id),
-    plantId: uuid('plant_id').references(() => plant.id),
-    deviceId: uuid('device_id').references(() => device.id),
+    userId: uuid('userId').notNull().references(() => appUser.id),
+    companyId: uuid('companyId').notNull().references(() => companyProfile.id),
+    plantId: uuid('plantId').references(() => plant.id),
+    deviceId: uuid('deviceId').references(() => device.id),
     permissionLevel: permissionLevelEnum('permissionLevel').notNull(),
     isActive: boolean('isActive').default(true).notNull(),
 }, (table) => ({
@@ -98,7 +98,7 @@ export const appUserProfile = pgTable('AppUserProfile', {
 
 export const plant = pgTable('Plant', {
     id: uuid('id').primaryKey().defaultRandom(),
-    companyId: uuid('company_id').notNull().references(() => companyProfile.id),
+    companyId: uuid('companyId').notNull().references(() => companyProfile.id),
     plantName: text('plantName').notNull(),
     plantType: plantTypeEnum('plantType').notNull(),
     latitude: decimal('latitude', { precision: 10, scale: 8 }),
@@ -113,7 +113,7 @@ export const plant = pgTable('Plant', {
 
 export const protocolConfig = pgTable('ProtocolConfig', {
     id: uuid('id').primaryKey().defaultRandom(),
-    plantId: uuid('plant_id').notNull().references(() => plant.id),
+    plantId: uuid('plantId').notNull().references(() => plant.id),
     protocolType: protocolTypeEnum('protocolType').notNull(),
     configName: text('configName').notNull(),
     isActive: boolean('isActive').default(true).notNull(),
@@ -123,7 +123,7 @@ export const protocolConfig = pgTable('ProtocolConfig', {
 
 export const modbusConfig = pgTable('ModbusConfig', {
     id: uuid('id').primaryKey().defaultRandom(),
-    protocolId: uuid('protocol_id').notNull().unique().references(() => protocolConfig.id),
+    protocolId: uuid('protocolId').notNull().unique().references(() => protocolConfig.id),
     ipAddress: text('ipAddress').notNull(),
     port: integer('port').notNull(),
     slaveId: integer('slaveId').notNull(),
@@ -135,7 +135,7 @@ export const modbusConfig = pgTable('ModbusConfig', {
 
 export const iec104Config = pgTable('IEC104Config', {
     id: uuid('id').primaryKey().defaultRandom(),
-    protocolId: uuid('protocol_id').notNull().unique().references(() => protocolConfig.id),
+    protocolId: uuid('protocolId').notNull().unique().references(() => protocolConfig.id),
     ipAddress: text('ipAddress').notNull(),
     port: integer('port').notNull(),
     asduAddr: integer('asduAddr').notNull(),
@@ -151,13 +151,13 @@ export const iec104Config = pgTable('IEC104Config', {
 
 export const device = pgTable('Device', {
     id: uuid('id').primaryKey().defaultRandom(),
-    protocolConfigId: uuid('protocol_config_id').notNull().references(() => protocolConfig.id),
+    protocolConfigId: uuid('protocolConfigId').notNull().references(() => protocolConfig.id),
     deviceName: text('deviceName').notNull(),
     deviceType: deviceTypeEnum('deviceType').notNull(),
     isActive: boolean('isActive').default(true).notNull(),
     isRecording: boolean('isRecording').default(true).notNull(),
     createdAt: timestamp('createdAt').defaultNow().notNull(),
-    datasheetProfileId: uuid('datasheet_profile_id').references(() => datasheetProfile.id),
+    datasheetProfileId: uuid('datasheetProfileId').references(() => datasheetProfile.id),
 }, (table) => ({
     protocolConfigIdIdx: index('Device_protocol_config_id_idx').on(table.protocolConfigId),
     deviceNameIdx: index('Device_deviceName_idx').on(table.deviceName),
@@ -171,12 +171,12 @@ export const datasheetProfile = pgTable('DatasheetProfile', {
 
 export const datasheetPoint = pgTable('DatasheetPoint', {
     id: uuid('id').primaryKey().defaultRandom(),
-    profileId: uuid('profile_id').notNull().references(() => datasheetProfile.id, { onDelete: 'cascade' }),
-    data: text('data').notNull(),              // Unified: dataName, dataValue, signalDescription
-    dataExplanation: text('dataExplanation'),  // Unified: componentText, explanation
-    address: integer('address'),               // Merged field for Modbus Register or IEC104 IOA
+    profileId: uuid('profileId').notNull().references(() => datasheetProfile.id, { onDelete: 'cascade' }),
+    data: text('dataName').notNull(),              // DB has dataName
+    dataExplanation: text('dataExplanation'),  
+    address: integer('address'),               
     isActive: boolean('isActive').default(true).notNull(),
-    functionCode: integer('functionCode'),     // Modbus specific
+    functionCode: integer('functionCode'),     
     multiplier: real('multiplier'),
     wordSwap: boolean('wordSwap').default(false),
     feederName: text('feederName'),
@@ -184,8 +184,9 @@ export const datasheetPoint = pgTable('DatasheetPoint', {
     dataType: dataTypeEnum('dataType'),
     signalSource: text('signalSource'),
     componentId: text('componentId'),
-    ioa2CellNo: integer('ioa2CellNo'),         // 104 Specific
-    ioa3VoltageLevel: integer('ioa3Voltage_level'), // 104 Specific
+    unit: text('unit'),                        // Added missing column
+    ioa2CellNo: integer('ioa2CellNo'),         
+    ioa3VoltageLevel: integer('ioa3Voltage_level'), 
     recordingInterval: integer('recordingInterval').default(1),
     measurementType: measurementTypeEnum('measurementType'),
 }, (table) => ({
@@ -196,14 +197,14 @@ export const datasheetPoint = pgTable('DatasheetPoint', {
 
 
 
-export const telemetryValue = pgTable('telemetry_value', {
+export const telemetryValue = pgTable('TelemetryValue', {
     id: bigint('id', { mode: 'bigint' }).primaryKey().generatedAlwaysAsIdentity(),
-    deviceId: uuid('device_id').notNull().references(() => device.id),
-    pointId: uuid('point_id').notNull().references(() => datasheetPoint.id),
-    measurementTime: timestamp('measurement_time', { withTimezone: true }).notNull(),
-    valueNumeric: doublePrecision('value_numeric'),
+    deviceId: uuid('deviceId').notNull().references(() => device.id),
+    pointId: uuid('pointId').notNull().references(() => datasheetPoint.id),
+    measurementTime: timestamp('measurementTime', { withTimezone: true }).notNull(),
+    valueNumeric: doublePrecision('valueNumeric'),
     quality: smallint('quality'),
-    rawPayload: text('raw_payload'),
+    rawPayload: text('rawPayload'),
 }, (table) => ({
     pointIdTimeIdx: index('tv_point_time_idx').on(table.pointId, table.measurementTime),
     deviceIdTimeIdx: index('tv_device_time_idx').on(table.deviceId, table.measurementTime),
@@ -212,7 +213,7 @@ export const telemetryValue = pgTable('telemetry_value', {
 
 export const communicationAlarm = pgTable('CommunicationAlarm', {
     id: uuid('id').primaryKey().defaultRandom(),
-    deviceId: uuid('device_id').notNull().references(() => device.id),
+    deviceId: uuid('deviceId').notNull().references(() => device.id),
     status: communicationAlarmStatusEnum('status').default('ACTIVE').notNull(),
     startTime: timestamp('startTime', { withTimezone: true }).defaultNow().notNull(),
     endTime: timestamp('endTime', { withTimezone: true }),
@@ -292,8 +293,8 @@ export const communicationAlarmRelations = relations(communicationAlarm, ({ one 
 
 export const ytbsPlant = pgTable('YtbsPlant', {
     id: uuid('id').primaryKey().defaultRandom(),
-    plantId: uuid('plant_id').notNull().references(() => plant.id, { onDelete: 'cascade' }),
-    ytbsId: integer('ytbs_id').notNull(),
+    plantId: uuid('plantId').notNull().references(() => plant.id, { onDelete: 'cascade' }),
+    ytbsId: integer('ytbsId').notNull(),
     licenseNo: text('license_no').notNull(),
     plantName: text('plant_name').notNull(),
     capacityAc: doublePrecision('capacity_ac').notNull(),
@@ -305,13 +306,13 @@ export const ytbsPlant = pgTable('YtbsPlant', {
 
 export const ytbsHourlyProduction = pgTable('YtbsHourlyProduction', {
     id: uuid('id').primaryKey().defaultRandom(),
-    ytbsPlantId: uuid('ytbs_plant_id').notNull().references(() => ytbsPlant.id, { onDelete: 'cascade' }),
-    readingDate: text('reading_date').notNull(),
-    readingHour: text('reading_hour').notNull(),
-    valueMwh: doublePrecision('value_mwh').notNull(),
-    isSent: boolean('is_sent').default(false).notNull(),
-    lastAttemptAt: timestamp('last_attempt_at', { withTimezone: true }),
-    retryCount: integer('retry_count').default(0).notNull(),
+    ytbsPlantId: uuid('ytbsPlantId').notNull().references(() => ytbsPlant.id, { onDelete: 'cascade' }),
+    readingDate: text('readingDate').notNull(),
+    readingHour: text('readingHour').notNull(),
+    valueMwh: doublePrecision('valueMwh').notNull(),
+    isSent: boolean('isSent').default(false).notNull(),
+    lastAttemptAt: timestamp('lastAttemptAt', { withTimezone: true }),
+    retryCount: integer('retryCount').default(0).notNull(),
     createdAt: timestamp('createdAt').defaultNow().notNull(),
 }, (table) => ({
     ytbsPlantIdIdx: index('YtbsHourlyProduction_ytbs_plant_id_idx').on(table.ytbsPlantId),
@@ -321,13 +322,13 @@ export const ytbsHourlyProduction = pgTable('YtbsHourlyProduction', {
 
 export const ytbsInstantProduction = pgTable('YtbsInstantProduction', {
     id: uuid('id').primaryKey().defaultRandom(),
-    ytbsPlantId: uuid('ytbs_plant_id').notNull().references(() => ytbsPlant.id, { onDelete: 'cascade' }),
-    readingDate: text('reading_date').notNull(),
-    readingTime: text('reading_time').notNull(),
-    valueMw: doublePrecision('value_mw').notNull(),
-    isSent: boolean('is_sent').default(false).notNull(),
-    lastAttemptAt: timestamp('last_attempt_at', { withTimezone: true }),
-    retryCount: integer('retry_count').default(0).notNull(),
+    ytbsPlantId: uuid('ytbsPlantId').notNull().references(() => ytbsPlant.id, { onDelete: 'cascade' }),
+    readingDate: text('readingDate').notNull(),
+    readingTime: text('readingTime').notNull(),
+    valueMw: doublePrecision('valueMw').notNull(),
+    isSent: boolean('isSent').default(false).notNull(),
+    lastAttemptAt: timestamp('lastAttemptAt', { withTimezone: true }),
+    retryCount: integer('retryCount').default(0).notNull(),
     createdAt: timestamp('createdAt').defaultNow().notNull(),
 }, (table) => ({
     ytbsPlantIdIdx: index('YtbsInstantProduction_ytbs_plant_id_idx').on(table.ytbsPlantId),

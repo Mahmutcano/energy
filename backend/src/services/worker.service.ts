@@ -25,6 +25,7 @@ class WorkerService {
     private lastSeenAtMap: Map<string, number> = new Map();
     private readonly COMM_WATCHDOG_INTERVAL = 30000; // 30s check
     private readonly COMM_TIMEOUT_THRESHOLD = 120000; // 2 minutes
+    private pointIntervals: Map<string, number> = new Map();
 
     private constructor() { }
 
@@ -56,6 +57,9 @@ class WorkerService {
         } catch (err) {
             console.error('[WORKER] Watchdog init error:', err);
         }
+
+        // Load point intervals
+        await this.reloadPointIntervals();
 
         // Start persistence timer
         this.startFlushTimer();
@@ -159,11 +163,22 @@ class WorkerService {
         }
     }
 
-    // Track last saved state to reduce DB pressure
     private lastSaveMap: Map<string, number> = new Map();
     private lastValueMap: Map<string, number> = new Map();
-    private readonly DB_SAVE_INTERVAL = 0; // Immediate save
-    private readonly CHANGE_THRESHOLD = 0; // No deadbanding, save everything
+
+    public async reloadPointIntervals() {
+        try {
+            const points = await db.query.datasheetPoint.findMany();
+            this.pointIntervals.clear();
+            points.forEach(p => {
+                // Store in seconds, default to 60 if null
+                this.pointIntervals.set(p.id, p.recordingInterval ?? 60);
+            });
+            console.log(`[WORKER] Loaded recording intervals for ${points.length} points.`);
+        } catch (err) {
+            console.error('[WORKER] Error loading point intervals:', err);
+        }
+    }
 
     /**
      * Process a single item: buffer for DB + broadcast to UI.
@@ -186,10 +201,21 @@ class WorkerService {
             const lastSave = this.lastSaveMap.get(cacheKey) || 0;
             const lastValue = this.lastValueMap.get(cacheKey);
 
-            // DEAD BANDING: Only save if value changed significantly or enough time passed (heartbeat)
-            const timePassed = now - lastSave >= this.DB_SAVE_INTERVAL;
-            const valueChanged = lastValue === undefined || Math.abs(value - lastValue) > Math.abs(lastValue * this.CHANGE_THRESHOLD);
-            const heartbeat = now - lastSave > 60000; // Force save every 60s even if no change
+            // Get per-point interval (default to 60s if not found)
+            const intervalSeconds = this.pointIntervals.get(pointId) ?? 60;
+            
+            // 0 means SAVE EVERYTHING (No throttling)
+            const isAlwaysSave = intervalSeconds === 0;
+
+            // Throttling: Only save if interval elapsed OR it's a special point (isAlwaysSave)
+            const timePassed = isAlwaysSave || (now - lastSave >= intervalSeconds * 1000);
+            
+            // Deadbanding (Optional: could be per-point too, but keeping it simple for now)
+            // If it's always save, we don't care about value change either (save every packet)
+            const valueChanged = isAlwaysSave || lastValue === undefined || Math.abs(value - lastValue) > 0;
+            
+            // Heartbeat: Force save every 60s even if no change (only if not always saving)
+            const heartbeat = !isAlwaysSave && (now - lastSave > 60000); 
 
             if (timePassed && (valueChanged || heartbeat)) {
                 this.buffer.push({

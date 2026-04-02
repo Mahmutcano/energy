@@ -67,7 +67,7 @@ const defaultFormData = {
     ioa2CellNo: '',
     ioa3VoltageLevel: '',
     scadaAddress: '',
-    recordingInterval: '1',
+    recordingInterval: '60',
     measurementType: '',
 };
 
@@ -494,7 +494,7 @@ function DataSheetsContent() {
                             functionCode: findValue(['FUNCTION CODE', 'FC', 'Function', 'Fonksiyon']) || 3,
                             multiplier: findValue(['Multiplier', 'Scaling', 'Çarpan', 'Scale']),
                             wordSwap: row['WORD SWAP'] === 'YES' || row['WORD SWAP'] === 'EVET' || row['WORD SWAP'] === true || findValue(['Word Swap', 'Swap']) === 'YES',
-                            recordingInterval: findValue(['REC (MIN)', 'Saklama Süresi', 'Interval', 'Aralık', 'Kayıt Süresi', 'Kayıt Aralığı']) || 1,
+                            recordingInterval: findValue(['REC (SEC)', 'REC (MIN)', 'Saklama Süresi', 'Interval', 'Aralık', 'Kayıt Süresi', 'Kayıt Aralığı']) || 60,
                             measurementType: findValue(['MEASUREMENT TYPE', 'ÖLÇÜM TİPİ', 'Measurement Type', 'Ölçüm Tipi', 'CATEGORY', 'KATEGORİ', 'Kategori', 'Category']),
                             isActive: findValue(['STATUS', 'DURUM']) === 'INACTIVE' || findValue(['STATUS', 'DURUM']) === 'HAYIR' ? false : true
                         };
@@ -515,7 +515,7 @@ function DataSheetsContent() {
                             ioa2CellNo: findValue(['IOA2', 'IOA Cell No', 'Hücre No', 'IOA2 ( Hücre No)', 'IOA2 (Hücre No)', 'IOA2']),
                             ioa3VoltageLevel: findValue(['IOA3', 'IOA Voltage Level', 'Gerilim Seviyesi', 'IOA3 ( Gerilim Seviyesi)', 'IOA3 (Gerilim Seviyesi)']),
                             scadaAddress: findValue(['SCADA Address', 'SCADA Adresi', 'SCADA ADRESİ', 'ADRES', 'ADDRESS']),
-                            recordingInterval: findValue(['Interval', 'Aralık', 'Kayıt Süresi', 'Kayıt Aralığı', 'KAYIT ARALIĞI']) || 1,
+                            recordingInterval: findValue(['REC (SEC)', 'REC (MIN)', 'Interval', 'Aralık', 'Kayıt Süresi', 'Kayıt Aralığı', 'KAYIT ARALIĞI']) || 60,
                             measurementType: findValue(['MEASUREMENT TYPE', 'ÖLÇÜM TİPİ', 'Measurement Type', 'Ölçüm Tipi', 'CATEGORY', 'KATEGORİ', 'Kategori', 'Category']),
                             isActive: true
                         };
@@ -603,8 +603,8 @@ function DataSheetsContent() {
 
     const downloadTemplate = () => {
         const headers = isModbus
-            ? [['DATA NAME', 'DATA EXPLANATION', 'DATA VALUE (UNIT)', 'DATA TYPE', 'REGISTER ADDRESS', 'FUNCTION CODE', 'MULTIPLIER', 'WORD SWAP', 'MEASUREMENT TYPE', 'CREATED AT/BY', 'UPDATED AT/BY', 'REC (MIN)', 'STATUS']]
-            : [['FEEDER/CELL NAME', 'SIGNAL TYPE', 'SIGNAL DESCRIPTION', 'DATA VALUE (UNIT)', 'DATA TYPE', 'SIGNAL SOURCE', 'COMPONENT ID', 'COMPONENT TEXT', 'IOA (OBJECT ADDR)', 'IOA (CELL NO)', 'IOA (VOLTAGE LVL)', 'SCADA ADDRESS', 'MEASUREMENT TYPE', 'CREATED AT/BY', 'UPDATED AT/BY', 'REC (MIN)', 'STATUS']];
+            ? [['DATA NAME', 'DATA EXPLANATION', 'DATA VALUE (UNIT)', 'DATA TYPE', 'REGISTER ADDRESS', 'FUNCTION CODE', 'MULTIPLIER', 'WORD SWAP', 'MEASUREMENT TYPE', 'CREATED AT/BY', 'UPDATED AT/BY', 'REC (SEC)', 'STATUS']]
+            : [['FEEDER/CELL NAME', 'SIGNAL TYPE', 'SIGNAL DESCRIPTION', 'DATA VALUE (UNIT)', 'DATA TYPE', 'SIGNAL SOURCE', 'COMPONENT ID', 'COMPONENT TEXT', 'IOA (OBJECT ADDR)', 'IOA (CELL NO)', 'IOA (VOLTAGE LVL)', 'SCADA ADDRESS', 'MEASUREMENT TYPE', 'CREATED AT/BY', 'UPDATED AT/BY', 'REC (SEC)', 'STATUS']];
 
         const ws = XLSX.utils.aoa_to_sheet(headers);
         const wb = XLSX.utils.book_new();
@@ -1013,10 +1013,10 @@ function DataSheetsContent() {
                             {/* Common Field: Recording Interval */}
                             <div className="pt-4 border-t border-slate-800/40">
                                  <InputField
-                                    label="KAYIT SÜRESİ (DAKİKA)" name="recordingInterval" type="number" required
+                                    label="KAYIT SÜRESİ (SANİYE - 0 Hepsi)" name="recordingInterval" type="number" required
                                     value={formData.recordingInterval}
                                     onChange={(val) => setFormData({ ...formData, recordingInterval: val })}
-                                    placeholder="e.g. 1"
+                                    placeholder="e.g. 60 (0 = Hepsi)"
                                 />
                                 <div className="space-y-1.5 flex-1">
                                     <label className={labelClass}>ÖLÇÜM TİPİ (MEASUREMENT TYPE)</label>
@@ -1176,10 +1176,10 @@ function DataSheetsContent() {
                                     placeholder="e.g. kV, A, Hz"
                                 />
                                 <InputField
-                                    label="KAYIT SÜRESİ (DAKİKA)" name="recordingInterval" type="number" required
+                                    label="KAYIT SÜRESİ (SANİYE - 0 Hepsi)" name="recordingInterval" type="number" required
                                     value={formData.recordingInterval}
                                     onChange={(val) => setFormData({ ...formData, recordingInterval: val })}
-                                    placeholder="e.g. 1"
+                                    placeholder="e.g. 60 (0 = Hepsi)"
                                 />
                                 <div className="space-y-1.5 flex-1">
                                     <label className={labelClass}>ÖLÇÜM TİPİ (MEASUREMENT TYPE)</label>

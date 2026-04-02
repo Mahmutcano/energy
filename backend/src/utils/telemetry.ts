@@ -10,28 +10,28 @@ export const initTimescaleDb = async () => {
     try {
         // 1. Create table (lowercase names for PG consistency)
         await timescaleDb.execute(sql`
-            CREATE TABLE IF NOT EXISTS telemetry_value (
-                id bigint GENERATED ALWAYS AS IDENTITY,
-                device_id uuid NOT NULL,
-                point_id uuid NOT NULL,
-                measurement_time timestamp with time zone NOT NULL,
-                value_numeric double precision,
-                quality smallint,
-                raw_payload text
+            CREATE TABLE IF NOT EXISTS "TelemetryValue" (
+                "id" bigint GENERATED ALWAYS AS IDENTITY,
+                "deviceId" uuid NOT NULL,
+                "pointId" uuid NOT NULL,
+                "measurementTime" timestamp with time zone NOT NULL,
+                "valueNumeric" double precision,
+                "quality" smallint,
+                "rawPayload" text
             )
         `);
 
         // 2. Convert to hypertable
         await timescaleDb.execute(sql`
-            SELECT create_hypertable('telemetry_value', 'measurement_time', if_not_exists => TRUE);
+            SELECT create_hypertable('"TelemetryValue"', 'measurementTime', if_not_exists => TRUE);
         `).catch(err => {
             if (err.message.includes('already a hypertable')) return;
             console.warn('[TIMESCALE] Hypertable creation warning:', err.message);
         });
 
         // 3. Add indices
-        await timescaleDb.execute(sql`CREATE INDEX IF NOT EXISTS tv_point_time_idx ON telemetry_value (point_id, measurement_time DESC)`);
-        await timescaleDb.execute(sql`CREATE INDEX IF NOT EXISTS tv_device_time_idx ON telemetry_value (device_id, measurement_time DESC)`);
+        await timescaleDb.execute(sql`CREATE INDEX IF NOT EXISTS tv_point_time_idx ON "TelemetryValue" ("pointId", "measurementTime" DESC)`);
+        await timescaleDb.execute(sql`CREATE INDEX IF NOT EXISTS tv_device_time_idx ON "TelemetryValue" ("deviceId", "measurementTime" DESC)`);
 
         console.log('[TIMESCALE] Initialization complete.');
     } catch (err) {
@@ -158,7 +158,7 @@ export const queryTelemetry = async (
  */
 export const getApproximateTelemetryCount = async (): Promise<number> => {
     try {
-        const result = await timescaleDb.execute(sql`SELECT reltuples::bigint AS count FROM pg_class WHERE relname = 'telemetry_value'`);
+        const result = await timescaleDb.execute(sql`SELECT reltuples::bigint AS count FROM pg_class WHERE relname = 'TelemetryValue'`);
         return Number(result.rows[0]?.count || 0);
     } catch {
         const countResult = await timescaleDb.select({ count: sql<number>`count(*)` }).from(telemetryValue);

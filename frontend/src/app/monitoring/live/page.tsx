@@ -58,7 +58,6 @@ interface DataPoint {
     registerAddress: number | null;
     scadaAddress: number | null;
     ioa1ObjectAddress: number | null;
-    scadaAddress: number | null;
     address: number | null;
     signalDescription: string | null;
     dataType: string | null;
@@ -285,7 +284,7 @@ const IECDiagnosticPanel = ({ protocolId, asduAddr, deviceName, deviceId, device
                                 </motion.div>
                             );
                         })}
-                        {points.length === 0 && (
+                        {points.size === 0 && (
                             <div className="col-span-full h-full flex flex-col items-center justify-center opacity-10 py-32 border-2 border-dashed border-slate-900 rounded-3xl">
                                 <Network size={80} className="mb-6" />
                                 <p className="text-xl font-black uppercase tracking-[0.8em]">Awaiting Data Stream</p>

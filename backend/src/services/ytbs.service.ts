@@ -1,12 +1,10 @@
-import { eq, and, lt } from 'drizzle-orm';
+import { eq, and, lt, sql } from 'drizzle-orm';
 import { db } from '../db';
 import * as schema from '../db/schema';
 import * as dotenv from 'dotenv';
 dotenv.config();
 
-const YTBS_BASE_URL = 'https://ytbsws.teias.gov.tr/ytbs-webservis/rest';
-const YTBS_USERNAME = process.env.YTBS_USERNAME || '';
-const YTBS_PASSWORD = process.env.YTBS_PASSWORD || '';
+const YTBS_BASE_URL = 'https://ytbs.teias.gov.tr/api';
 const YTBS_SERVICE_KEY = process.env.YTBS_SERVICE_KEY || '';
 
 interface YtbsTokenResponse {
@@ -29,34 +27,26 @@ export class YtbsService {
         return YtbsService.instance;
     }
 
-    /**
-     * Get a valid auth token. If expired or near expiry, requests a new one.
-     */
     private async getAuthToken(): Promise<string> {
-        // If token is valid for the next 5 minutes, use it
         if (this.currentToken && Date.now() < this.tokenExpiry - 5 * 60 * 1000) {
             return this.currentToken;
         }
 
-        console.log('[YTBS] Token expired or not found. Logging in...');
+        console.log('[YTBS] Token expired. Authenticating via Service Key...');
         const response = await this.login();
         if (response.success && response.token) {
             this.currentToken = response.token;
-            // Token is valid for 1 hour. We set expiry to 60 minutes from now.
             this.tokenExpiry = Date.now() + 60 * 60 * 1000;
             return this.currentToken;
         }
 
-        throw new Error(`[YTBS] Failed to authenticate: ${response.message}`);
+        throw new Error(`[YTBS] Authentication failed: ${response.message}`);
     }
 
-    /**
-     * Generic wrapper for YTBS POST requests.
-     */
     private async postRequest(endpoint: string, body: any, requiresAuth: boolean = true) {
         const headers: Record<string, string> = {
             'Content-Type': 'application/json',
-            'Service-Key': YTBS_SERVICE_KEY
+            'SERVICE_KEY': YTBS_SERVICE_KEY
         };
 
         if (requiresAuth) {
@@ -70,36 +60,28 @@ export class YtbsService {
             body: JSON.stringify(body)
         });
 
-        // 401 signifies token expiry, theoretically handled by our cache, but just in case
         if (response.status === 401) {
-            console.warn(`[YTBS] Received 401 Unauthorized for ${endpoint}. Clearing token cache.`);
             this.currentToken = null;
             this.tokenExpiry = 0;
-            throw new Error('401_UNAUTHORIZED'); // Caller can retry once
+            throw new Error('401_UNAUTHORIZED');
         }
 
         if (!response.ok) {
-            throw new Error(`HTTP Error ${response.status}: ${await response.text()}`);
+            throw new Error(`HTTP ${response.status}: ${await response.text()}`);
         }
 
         return await response.json();
     }
 
     /**
-     * Auth: Login
-     * Endpoint: /yetkilendirme/login
+     * Auth: Login via Service Key
      */
     public async login(): Promise<YtbsTokenResponse> {
         try {
-            const data = await this.postRequest('/yetkilendirme/login', {
-                kullaniciAdi: YTBS_USERNAME,
-                sifre: YTBS_PASSWORD
-            }, false);
-            
-            // Note: Update parsing logic according to actual TEİAŞ response schema if different
+            const data = await this.postRequest('/yetkilendirme/login', {}, false);
             return {
                 success: true,
-                token: data.token || data.jwt || data.accessToken
+                token: data.jeton || data.token
             };
         } catch (error: any) {
             console.error('[YTBS] Login error:', error);
@@ -108,130 +90,137 @@ export class YtbsService {
     }
 
     /**
-     * Auth: Logout
-     * Endpoint: /yetkilendirme/logout
+     * Modelling: Trafo Merkezi Listele
      */
-    public async logout(): Promise<boolean> {
-        try {
-            await this.postRequest('/yetkilendirme/logout', {});
-            this.currentToken = null;
-            this.tokenExpiry = 0;
-            return true;
-        } catch (error) {
-            console.error('[YTBS] Logout error:', error);
-            return false;
-        }
+    public async listTrafoMerkezleri(date: string = new Date().toISOString().split('T')[0]) {
+        return await this.postRequest('/modelleme/salt/trafomerkezi/listele', { tarih: date });
     }
 
     /**
-     * Send 15-Min Instant Production Data (Anlık Arz)
-     * Endpoint: /veritoplama/anliklisanssizsantralarz/ekle
+     * Data Collection: Send Instant Production (Anlık Arz) - BATCH FORMAT 
      */
-    public async sendInstantProduction(payload: any) {
+    public async sendInstantProductionBatch(licenseNo: string, records: any[]) {
+        const payload = {
+            baglantiAnlasmasiSirketLisansNo: licenseNo,
+            veri: records.map(r => ({
+                tarih: r.date,
+                saat: r.hour,
+                lisanssizSantralId: r.ytbsId,
+                veriDeger: r.value
+            }))
+        };
         return await this.postRequest('/veritoplama/anliklisanssizsantralarz/ekle', payload);
     }
 
     /**
-     * Send Hourly Production Data (Saatlik Üretim)
-     * Endpoint: /veritoplama/saatliklisanssizsantraluretim/ekle
+     * Data Collection: Send Hourly Production (Saatlik Üretim) - BATCH FORMAT
      */
-    public async sendHourlyProduction(payload: any) {
+    public async sendHourlyProductionBatch(licenseNo: string, records: any[]) {
+        const payload = {
+            baglantiAnlasmasiSirketLisansNo: licenseNo,
+            veri: records.map(r => ({
+                tarih: r.date,
+                saat: r.hour,
+                lisanssizSantralId: r.ytbsId,
+                veriDeger: r.value
+            }))
+        };
         return await this.postRequest('/veritoplama/saatliklisanssizsantraluretim/ekle', payload);
     }
 
-    /**
-     * Start Cron Job manually (Should be executed on app startup)
-     */
     public startCronJob() {
-        // Run every minute to check if there are pending un-sent records
         setInterval(async () => {
             await this.processPendingRecords();
-        }, 60 * 1000);
-        console.log('[YTBS] Sync Cron Job Started.');
+        }, 15 * 60 * 1000); 
+        console.log('[YTBS] Sync Cron Job Started (15-min interval).');
     }
 
-    /**
-     * Expose a manual sync trigger
-     */
-    public triggerSync() {
-        console.log('[YTBS] Manual sync triggered.');
-        this.processPendingRecords().catch(err => console.error(err));
-    }
-
-    /**
-     * Finds unsent records in YtbsHourlyProduction and YtbsInstantProduction
-     * and attempts to send them to TEİAŞ. 
-     */
     private async processPendingRecords() {
         try {
-            // Process Hourly Productions
+            // 1. Process Hourly Productions
             const pendingHourly = await db.query.ytbsHourlyProduction.findMany({
-                where: and(eq(schema.ytbsHourlyProduction.isSent, false), lt(schema.ytbsHourlyProduction.retryCount, 10)),
+                where: and(eq(schema.ytbsHourlyProduction.isSent, false), lt(schema.ytbsHourlyProduction.retryCount, 5)),
                 with: { ytbsPlant: true },
-                limit: 50
+                limit: 200
             });
 
-            for (const record of pendingHourly) {
-                try {
-                    await this.sendHourlyProduction({
-                        lisanssizSantralId: record.ytbsPlant.ytbsId,
-                        tarih: record.readingDate, // Expected format by TEİAŞ
-                        saat: record.readingHour,
-                        veriDeger: record.valueMwh
-                    });
-                    
-                    // Mark as sent
-                    await db.update(schema.ytbsHourlyProduction)
-                        .set({ isSent: true, lastAttemptAt: new Date() })
-                        .where(eq(schema.ytbsHourlyProduction.id, record.id));
-                } catch (error: any) {
-                    // If error is 401, clear token and retry on next cron tick
-                    if (error.message.includes('401_UNAUTHORIZED')) return;
+            if (pendingHourly.length > 0) {
+                // Group by License Number
+                const grouped = pendingHourly.reduce((acc: any, curr) => {
+                    const ln = curr.ytbsPlant.licenseNo;
+                    if (!acc[ln]) acc[ln] = [];
+                    acc[ln].push(curr);
+                    return acc;
+                }, {});
 
-                    await db.update(schema.ytbsHourlyProduction)
-                        .set({ 
-                            retryCount: record.retryCount + 1, 
-                            lastAttemptAt: new Date() 
-                        })
-                        .where(eq(schema.ytbsHourlyProduction.id, record.id));
-                    console.error(`[YTBS] Failed to send Hourly Record ${record.id}:`, error.message);
+                for (const licenseNo of Object.keys(grouped)) {
+                    const records = grouped[licenseNo];
+                    try {
+                        console.log(`[YTBS] Sending batch of ${records.length} hourly production records for license: ${licenseNo}`);
+                        await this.sendHourlyProductionBatch(licenseNo, records.map((r:any) => ({
+                            date: r.readingDate,
+                            hour: r.readingHour,
+                            ytbsId: r.ytbsPlant.ytbsId,
+                            value: r.valueMwh
+                        })));
+                        
+                        const ids = records.map((r:any) => r.id);
+                        await db.update(schema.ytbsHourlyProduction)
+                            .set({ isSent: true, lastAttemptAt: new Date() })
+                            .where(sql`${schema.ytbsHourlyProduction.id} IN ${ids}`);
+                    } catch (err: any) {
+                        console.error(`[YTBS] Failed to send Hourly Batch for ${licenseNo}:`, err.message);
+                        // Increment retry count for all in this batch
+                        const ids = records.map((r:any) => r.id);
+                        await db.update(schema.ytbsHourlyProduction)
+                            .set({ retryCount: sql`${schema.ytbsHourlyProduction.retryCount} + 1`, lastAttemptAt: new Date() })
+                            .where(sql`${schema.ytbsHourlyProduction.id} IN ${ids}`);
+                    }
                 }
             }
 
-            // Process Instant (15-min) Productions
+            // 2. Process Instant (15-min) Productions
             const pendingInstant = await db.query.ytbsInstantProduction.findMany({
-                where: and(eq(schema.ytbsInstantProduction.isSent, false), lt(schema.ytbsInstantProduction.retryCount, 10)),
+                where: and(eq(schema.ytbsInstantProduction.isSent, false), lt(schema.ytbsInstantProduction.retryCount, 5)),
                 with: { ytbsPlant: true },
-                limit: 50
+                limit: 200
             });
 
-            for (const record of pendingInstant) {
-                try {
-                    await this.sendInstantProduction({
-                        lisanssizSantralId: record.ytbsPlant.ytbsId,
-                        tarih: record.readingDate, 
-                        saat: record.readingTime,
-                        veriDeger: record.valueMw
-                    });
-                    
-                    // Mark as sent
-                    await db.update(schema.ytbsInstantProduction)
-                        .set({ isSent: true, lastAttemptAt: new Date() })
-                        .where(eq(schema.ytbsInstantProduction.id, record.id));
-                } catch (error: any) {
-                    if (error.message.includes('401_UNAUTHORIZED')) return;
+            if (pendingInstant.length > 0) {
+                // Group by License Number
+                const grouped = pendingInstant.reduce((acc: any, curr) => {
+                    const ln = curr.ytbsPlant.licenseNo;
+                    if (!acc[ln]) acc[ln] = [];
+                    acc[ln].push(curr);
+                    return acc;
+                }, {});
 
-                    await db.update(schema.ytbsInstantProduction)
-                        .set({ 
-                            retryCount: record.retryCount + 1, 
-                            lastAttemptAt: new Date() 
-                        })
-                        .where(eq(schema.ytbsInstantProduction.id, record.id));
-                    console.error(`[YTBS] Failed to send Instant Record ${record.id}:`, error.message);
+                for (const licenseNo of Object.keys(grouped)) {
+                    const records = grouped[licenseNo];
+                    try {
+                        console.log(`[YTBS] Sending batch of ${records.length} instant production records for license: ${licenseNo}`);
+                        await this.sendInstantProductionBatch(licenseNo, records.map((r:any) => ({
+                            date: r.readingDate,
+                            hour: r.readingTime,
+                            ytbsId: r.ytbsPlant.ytbsId,
+                            value: r.valueMw
+                        })));
+
+                        const ids = records.map((r:any) => r.id);
+                        await db.update(schema.ytbsInstantProduction)
+                            .set({ isSent: true, lastAttemptAt: new Date() })
+                            .where(sql`${schema.ytbsInstantProduction.id} IN ${ids}`);
+                    } catch (err: any) {
+                        console.error(`[YTBS] Failed to send Instant Batch for ${licenseNo}:`, err.message);
+                        const ids = records.map((r:any) => r.id);
+                        await db.update(schema.ytbsInstantProduction)
+                            .set({ retryCount: sql`${schema.ytbsInstantProduction.retryCount} + 1`, lastAttemptAt: new Date() })
+                            .where(sql`${schema.ytbsInstantProduction.id} IN ${ids}`);
+                    }
                 }
             }
         } catch (error) {
-            console.error('[YTBS] Error processing pending records:', error);
+            console.error('[YTBS] Critical error in background sync process:', error);
         }
     }
 }

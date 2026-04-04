@@ -49,14 +49,14 @@ func GetDatasheetPoints(c *gin.Context) {
 	}
 	rows, err := db.Pool.Query(context.Background(), `
 		SELECT 
-			id, "profileId", "dataName", unit as "dataValue", "dataExplanation", address as "registerAddress", 
+			id, "profile_id" as "profileId", "data" as "dataName", unit as "dataValue", "dataExplanation", address as "registerAddress", 
 			"isActive", "functionCode", multiplier, "wordSwap", "feederName", 
 			"signalType", "dataExplanation" as "signalDescription", "dataType", "signalSource", 
 			"componentId", "dataExplanation" as "componentText", address as "ioa1ObjectAddress", "ioa2CellNo", 
-			"ioa3VoltageLevel", address as "scadaAddress", "recordingInterval",
+			"ioa3Voltage_level", address as "scadaAddress", "recordingInterval",
 			"createdAt", "updatedAt", "createdBy", "updatedBy"
 		FROM "DatasheetPoint"
-		WHERE "profileId" = $1
+		WHERE "profile_id" = $1
 		ORDER BY address ASC NULLS LAST
 	`, profileID)
 	if err != nil {
@@ -123,10 +123,10 @@ func CreateDatasheetPoint(c *gin.Context) {
 
 	_, err := db.Pool.Exec(context.Background(), `
 		INSERT INTO "DatasheetPoint" (
-			id, "profileId", "dataName", address, "dataExplanation", 
+			id, "profile_id", "data", address, "dataExplanation", 
 			"isActive", "functionCode", multiplier, "wordSwap", "feederName", 
 			"signalType", "dataType", "signalSource", 
-			"componentId", "ioa2CellNo", "ioa3VoltageLevel", unit, "recordingInterval",
+			"componentId", "ioa2CellNo", "ioa3Voltage_level", unit, "recordingInterval",
 			"createdAt", "updatedAt", "createdBy", "updatedBy"
 		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, NOW(), NULL, $19, NULL)
 	`, p.ID, p.ProfileID, p.DataName, address, dataExt,
@@ -205,10 +205,10 @@ func BulkCreateDatasheetPoints(c *gin.Context) {
 
 		_, err := db.Pool.Exec(ctx, `
 			INSERT INTO "DatasheetPoint" (
-				id, "profileId", "dataName", address, "dataExplanation", 
+				id, "profile_id", "data", address, "dataExplanation", 
 				"isActive", "functionCode", multiplier, "wordSwap", "feederName", 
 				"signalType", "dataType", "signalSource", "componentId", 
-				"ioa2CellNo", "ioa3VoltageLevel", unit, "recordingInterval", 
+				"ioa2CellNo", "ioa3Voltage_level", unit, "recordingInterval", 
 				"createdAt", "updatedAt", "createdBy", "updatedBy"
 			) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, NOW(), NULL, $19, NULL)
 		`, id, req.ProfileID, p.DataName, address, dataExt,
@@ -264,10 +264,10 @@ func UpdateDatasheetPoint(c *gin.Context) {
 
 	_, err = db.Pool.Exec(context.Background(), `
 		UPDATE "DatasheetPoint" SET
-			"dataName" = $1, address = $2, "dataExplanation" = $3, 
+			"data" = $1, address = $2, "dataExplanation" = $3, 
 			"isActive" = $4, "functionCode" = $5, multiplier = $6, "wordSwap" = $7, "feederName" = $8, 
 			"signalType" = $9, "dataType" = $10, "signalSource" = $11, 
-			"componentId" = $12, "ioa2CellNo" = $13, "ioa3VoltageLevel" = $14,
+			"componentId" = $12, "ioa2CellNo" = $13, "ioa3Voltage_level" = $14,
 			unit = $15, "recordingInterval" = $16, "updatedAt" = NOW(), "updatedBy" = $17
 		WHERE id = $18
 	`, p.DataName, address, dataExt,

@@ -486,17 +486,17 @@ function DataSheetsContent() {
                         }
 
                         return {
-                            dataName: findValue(['DATA NAME', 'Data Name', 'Veri Adı', 'Name', 'Adı', 'Sinyal Açıklaması']),
-                            dataValue: findValue(['DATA VALUE (UNIT)', 'Unit', 'Birim', 'Value', 'Değer']),
-                            dataExplanation: findValue(['DATA EXPLANATION', 'Description', 'Açıklama', 'Explanation']),
-                            dataType: findValue(['DATA TYPE', 'Data Type', 'Veri Tipi', 'Type']),
-                            registerAddress: findValue(['REGISTER ADDRESS', 'Address', 'Adres', 'Register', 'SCADA ADRESİ']),
-                            functionCode: findValue(['FUNCTION CODE', 'FC', 'Function', 'Fonksiyon']) || 3,
-                            multiplier: findValue(['Multiplier', 'Scaling', 'Çarpan', 'Scale']),
-                            wordSwap: row['WORD SWAP'] === 'YES' || row['WORD SWAP'] === 'EVET' || row['WORD SWAP'] === true || findValue(['Word Swap', 'Swap']) === 'YES',
-                            recordingInterval: findValue(['REC (SEC)', 'REC (MIN)', 'Saklama Süresi', 'Interval', 'Aralık', 'Kayıt Süresi', 'Kayıt Aralığı']) || 60,
-                            measurementType: findValue(['MEASUREMENT TYPE', 'ÖLÇÜM TİPİ', 'Measurement Type', 'Ölçüm Tipi', 'CATEGORY', 'KATEGORİ', 'Kategori', 'Category']),
-                            isActive: findValue(['STATUS', 'DURUM']) === 'INACTIVE' || findValue(['STATUS', 'DURUM']) === 'HAYIR' ? false : true
+                            dataName: findValue(['dataName', 'DATA NAME', 'Data Name', 'Veri Adı', 'Name', 'Adı', 'Sinyal Açıklaması']),
+                            dataValue: findValue(['dataValue', 'DATA VALUE (UNIT)', 'Unit', 'Birim', 'Value', 'Değer']),
+                            dataExplanation: findValue(['dataExplanation', 'DATA EXPLANATION', 'Description', 'Açıklama', 'Explanation']),
+                            dataType: findValue(['dataType', 'DATA TYPE', 'Data Type', 'Veri Tipi', 'Type']),
+                            registerAddress: findValue(['registerAddress', 'REGISTER ADDRESS', 'Address', 'Adres', 'Register', 'SCADA ADRESİ']),
+                            functionCode: findValue(['functionCode', 'FUNCTION CODE', 'FC', 'Function', 'Fonksiyon']) || 3,
+                            multiplier: findValue(['multiplier', 'Multiplier', 'Scaling', 'Çarpan', 'Scale']),
+                            wordSwap: row['wordSwap'] === true || row['wordSwap'] === 'YES' || row['WORD SWAP'] === 'YES' || row['WORD SWAP'] === 'EVET' || findValue(['Word Swap', 'Swap']) === 'YES',
+                            recordingInterval: findValue(['recordingInterval', 'REC (SEC)', 'REC (MIN)', 'Saklama Süresi', 'Interval', 'Aralık', 'Kayıt Süresi', 'Kayıt Aralığı']) || 60,
+                            measurementType: findValue(['measurementType', 'MEASUREMENT TYPE', 'ÖLÇÜM TİPİ', 'Measurement Type', 'Ölçüm Tipi', 'Category', 'Kategori']),
+                            isActive: findValue(['isActive', 'STATUS', 'DURUM']) === 'INACTIVE' || findValue(['isActive', 'STATUS', 'DURUM']) === 'HAYIR' ? false : true
                         };
                     } else {
                         const description = findValue(['Signal Description', 'Sinyal Açıklaması', 'Açıklama', 'SİNYAL AÇIKLAMASI']);
@@ -514,10 +514,10 @@ function DataSheetsContent() {
                             ioa1ObjectAddress: findValue(['IOA1', 'IOA Object Address', 'Obje Adresi', 'IOA', 'IOA3 ( Obje Adresi)', 'IOA3 (Obje Adresi)', 'IOA3']),
                             ioa2CellNo: findValue(['IOA2', 'IOA Cell No', 'Hücre No', 'IOA2 ( Hücre No)', 'IOA2 (Hücre No)', 'IOA2']),
                             ioa3VoltageLevel: findValue(['IOA3', 'IOA Voltage Level', 'Gerilim Seviyesi', 'IOA3 ( Gerilim Seviyesi)', 'IOA3 (Gerilim Seviyesi)']),
-                            scadaAddress: findValue(['SCADA Address', 'SCADA Adresi', 'SCADA ADRESİ', 'ADRES', 'ADDRESS']),
-                            recordingInterval: findValue(['REC (SEC)', 'REC (MIN)', 'Interval', 'Aralık', 'Kayıt Süresi', 'Kayıt Aralığı', 'KAYIT ARALIĞI']) || 60,
-                            measurementType: findValue(['MEASUREMENT TYPE', 'ÖLÇÜM TİPİ', 'Measurement Type', 'Ölçüm Tipi', 'CATEGORY', 'KATEGORİ', 'Kategori', 'Category']),
-                            isActive: true
+                            scadaAddress: findValue(['registerAddress', 'SCADA Address', 'SCADA Adresi', 'SCADA ADRESİ', 'ADRES', 'ADDRESS']),
+                            recordingInterval: findValue(['recordingInterval', 'REC (SEC)', 'REC (MIN)', 'Interval', 'Aralık', 'Kayıt Süresi', 'Kayıt Aralığı', 'KAYIT ARALIĞI']) || 60,
+                            measurementType: findValue(['measurementType', 'MEASUREMENT TYPE', 'ÖLÇÜM TİPİ', 'Measurement Type', 'Ölçüm Tipi', 'Category', 'Kategori']),
+                            isActive: findValue(['isActive', 'STATUS', 'DURUM']) === 'INACTIVE' ? false : true
                         };
                     }
                 });
@@ -603,8 +603,8 @@ function DataSheetsContent() {
 
     const downloadTemplate = () => {
         const headers = isModbus
-            ? [['DATA NAME', 'DATA EXPLANATION', 'DATA VALUE (UNIT)', 'DATA TYPE', 'REGISTER ADDRESS', 'FUNCTION CODE', 'MULTIPLIER', 'WORD SWAP', 'MEASUREMENT TYPE', 'CREATED AT/BY', 'UPDATED AT/BY', 'REC (SEC)', 'STATUS']]
-            : [['FEEDER/CELL NAME', 'SIGNAL TYPE', 'SIGNAL DESCRIPTION', 'DATA VALUE (UNIT)', 'DATA TYPE', 'SIGNAL SOURCE', 'COMPONENT ID', 'COMPONENT TEXT', 'IOA (OBJECT ADDR)', 'IOA (CELL NO)', 'IOA (VOLTAGE LVL)', 'SCADA ADDRESS', 'MEASUREMENT TYPE', 'CREATED AT/BY', 'UPDATED AT/BY', 'REC (SEC)', 'STATUS']];
+            ? [['dataName', 'dataExplanation', 'dataValue', 'dataType', 'registerAddress', 'functionCode', 'multiplier', 'wordSwap', 'measurementType', 'recordingInterval', 'isActive']]
+            : [['feederName', 'signalType', 'dataName', 'dataExplanation', 'dataValue', 'dataType', 'signalSource', 'componentId', 'componentText', 'ioa1ObjectAddress', 'ioa2CellNo', 'ioa3VoltageLevel', 'registerAddress', 'measurementType', 'recordingInterval', 'isActive']];
 
         const ws = XLSX.utils.aoa_to_sheet(headers);
         const wb = XLSX.utils.book_new();

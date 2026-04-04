@@ -222,59 +222,96 @@ func (s *ModbusService) setStatus(id uuid.UUID, status string) {
 }
 
 func (s *ModbusService) runPollLoop(ctx context.Context, protocolID uuid.UUID, ip string, port, slaveID, timeout int, points []models.PointToPoll) {
-	handler := modbus.NewTCPClientHandler(fmt.Sprintf("%s:%d", ip, port))
-	handler.Timeout = time.Duration(timeout) * time.Millisecond
-	handler.SlaveId = byte(slaveID)
-	client := modbus.NewClient(handler)
-	defer handler.Close()
+	// PANIC RECOVERY: Eğer worker çökerse (kripto borsası stratejisi), sistemi ayağa kaldır
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("[MODBUS] 🚨 CRITICAL WORKER PANIC for %s: %v. Restarting in 1s...", protocolID, r)
+			time.Sleep(time.Second)
+			go s.runPollLoop(ctx, protocolID, ip, port, slaveID, timeout, points)
+		}
+	}()
 
-	ticker := time.NewTicker(250 * time.Millisecond)
-	defer ticker.Stop()
 	redisSvc := redis.GetInstance()
-
+	
 	for {
 		select {
 		case <-ctx.Done():
 			return
-		case <-ticker.C:
-			for _, point := range points {
-				count := s.getRegisterCount(point.DataType)
-				var results []byte
-				var err error
+		default:
+			log.Printf("[MODBUS] Connecting to Device %s (%s:%d)...", protocolID, ip, port)
+			handler := modbus.NewTCPClientHandler(fmt.Sprintf("%s:%d", ip, port))
+			handler.Timeout = time.Duration(timeout) * time.Millisecond
+			handler.SlaveId = byte(slaveID)
+			
+			if err := handler.Connect(); err != nil {
+				s.setStatus(protocolID, "DISCONNECTED")
+				log.Printf("[MODBUS] Connection Failed for %s: %v. Retrying in 5s...", protocolID, err)
+				time.Sleep(5 * time.Second)
+				continue
+			}
 
-				if point.FunctionCode == 4 {
-					results, err = client.ReadInputRegisters(uint16(point.Address), count)
-				} else {
-					results, err = client.ReadHoldingRegisters(uint16(point.Address), count)
+			client := modbus.NewClient(handler)
+			s.setStatus(protocolID, "CONNECTED")
+
+			// İç Polling Döngüsü (Bağlantı varken)
+			for {
+				select {
+				case <-ctx.Done():
+					handler.Close()
+					return
+				default:
+					hasError := false
+					for _, point := range points {
+						count := s.getRegisterCount(point.DataType)
+						var results []byte
+						var err error
+
+						if point.FunctionCode == 4 {
+							results, err = client.ReadInputRegisters(uint16(point.Address), count)
+						} else {
+							results, err = client.ReadHoldingRegisters(uint16(point.Address), count)
+						}
+
+						if err != nil {
+							log.Printf("[MODBUS] Read Error for %s Point %d: %v", protocolID, point.Address, err)
+							hasError = true
+							break 
+						}
+
+						if len(results) >= int(count*2) {
+							val := s.parseValue(results, point)
+							telemetry := models.TelemetryData{
+								ProtocolID: protocolID, DeviceID: point.DeviceID, PointID: point.PointID,
+								IOA: point.Address, Value: val, Unit: point.Unit,
+								Name: point.Name, Timestamp: time.Now(),
+							}
+
+							// KRİPTO BORSASI STRATEJİSİ: Doğrudan Socket.io yerine Redis Pub/Sub kullanıyoruz
+							// Bu sayede 10.000 kullanıcıyı Socket sunucularında yatayda ölçekleyebiliriz.
+							if redisSvc.IsActive() {
+								redisSvc.PublishTelemetry(fmt.Sprintf("telemetry:%s", protocolID), telemetry)
+							}
+							
+							// İzleme (Heartbeat) için Alarm servisine haber ver
+							services.GetAlarmService(s.socket).MarkDeviceSeen(point.DeviceID)
+							
+							if point.IsRecording {
+								redisSvc.PushTelemetry(telemetry)
+							}
+						}
+						// Cihazı yormamak için çok kısa bekleme (noktalar arası)
+						time.Sleep(10 * time.Millisecond)
+					}
+
+					if hasError {
+						s.setStatus(protocolID, "DISCONNECTED")
+						handler.Close()
+						break // Dış döngüye çıkar ve reconnect olur
+					}
+
+					// Cycle bittikten sonra bekleme (Stabilite anahtarı)
+					time.Sleep(500 * time.Millisecond)
 				}
-
-				if err != nil {
-					s.setStatus(protocolID, "DISCONNECTED")
-					continue
-				}
-
-				s.setStatus(protocolID, "CONNECTED")
-				if len(results) < int(count*2) {
-					continue
-				}
-
-				val := s.parseValue(results, point)
-
-				telemetry := models.TelemetryData{
-					ProtocolID: protocolID, DeviceID: point.DeviceID, PointID: point.PointID,
-					IOA: point.Address, Value: val, Unit: point.Unit,
-					Name: point.Name, Timestamp: time.Now(),
-				}
-
-				if s.socket != nil {
-					s.socket.Sockets().Emit(fmt.Sprintf("telemetry:raw:%s", protocolID), telemetry)
-				}
-				services.GetAlarmService(s.socket).MarkDeviceSeen(point.DeviceID)
-				if point.IsRecording {
-					redisSvc.PushTelemetry(telemetry)
-				}
-
-				time.Sleep(30 * time.Millisecond)
 			}
 		}
 	}

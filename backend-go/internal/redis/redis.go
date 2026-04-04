@@ -100,6 +100,25 @@ func (s *RedisService) GetQueueLength() (int64, error) {
 	return s.client.LLen(ctx, "telemetry_queue").Result()
 }
 
+func (s *RedisService) IsActive() bool {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return !s.useFallback
+}
+
+func (s *RedisService) PublishTelemetry(channel string, data interface{}) error {
+	if s.useFallback {
+		return nil
+	}
+
+	jsonData, err := json.Marshal(data)
+	if err != nil {
+		return err
+	}
+
+	return s.client.Publish(ctx, channel, jsonData).Err()
+}
+
 func (s *RedisService) FlushTelemetryQueue() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()

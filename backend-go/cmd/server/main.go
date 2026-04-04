@@ -50,12 +50,16 @@ func main() {
 	alarmSvc.Init()
 	go alarmSvc.StartMonitor(ctx)
 
-	// Start SCADA Protocols
+	// Start SCADA Protocols (The Fetchers)
 	modbusSvc := protocols.GetModbusService(socketServer)
 	modbusSvc.Start()
 
 	iec104Svc := protocols.GetIEC104Service(socketServer)
 	iec104Svc.Start()
+
+	// Start Telemetry Broadcaster (The Bridge/Broadcaster)
+	broadcasterSvc := services.GetTelemetryBroadcaster(socketServer)
+	go broadcasterSvc.Start(ctx)
 
 	// Initialize API
 	r := gin.New()

@@ -15,12 +15,13 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
     const router = useRouter();
 
     const isAuthPage = pathname === '/login' || pathname === '/register';
+    const isCustomerPage = pathname?.startsWith('/customer');
 
     useEffect(() => {
-        if (!loading && !isAuthenticated && !isAuthPage) {
+        if (!loading && !isAuthenticated && !isAuthPage && !isCustomerPage) {
             router.push('/login');
         }
-    }, [isAuthenticated, loading, isAuthPage, router]);
+    }, [isAuthenticated, loading, isAuthPage, isCustomerPage, router]);
 
     if (loading) {
         return (
@@ -33,7 +34,7 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
         );
     }
 
-    if (isAuthPage) return <>{children}</>;
+    if (isAuthPage || isCustomerPage) return <>{children}</>;
     if (!isAuthenticated) return null;
 
     return (

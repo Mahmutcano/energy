@@ -18,17 +18,22 @@ export default function CustomerLayout({ children }: { children: React.ReactNode
     const pathname = usePathname();
     const router = useRouter();
 
-    useEffect(() => {
-        if (!loading && (!isAuthenticated || user?.role !== 'COMPANY_ADMIN')) {
-            router.push('/login');
-        }
-    }, [isAuthenticated, loading, user, router]);
+    const isLoginPage = pathname === '/customer/login';
 
-    if (loading || !isAuthenticated) {
+    useEffect(() => {
+        if (!loading && !isAuthenticated && !isLoginPage) {
+            router.push('/customer/login');
+        }
+    }, [isAuthenticated, loading, isLoginPage, router]);
+
+    if (loading) {
         return <div className="h-screen w-full bg-[#05080F] flex items-center justify-center">
             <div className="w-8 h-8 border-2 border-neon-blue border-t-transparent rounded-full animate-spin" />
         </div>;
     }
+
+    if (isLoginPage) return <>{children}</>;
+    if (!isAuthenticated) return null;
 
     return (
         <div className="customer-theme bg-[#05080F] text-[#F1F5F9] font-sans h-screen flex overflow-hidden">

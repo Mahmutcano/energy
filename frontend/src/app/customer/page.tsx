@@ -20,10 +20,14 @@ export default function KineticDashboard() {
     useEffect(() => {
         const init = async () => {
             try {
-                const plants = await apiRequest('/plants');
-                if (plants && plants.length > 0) {
-                    const protocolId = plants[0].protocolConfigId;
-                    setupSocket(protocolId);
+                const res = await apiRequest('/api/comm-protocols');
+                if (res.ok) {
+                    const result = await res.json();
+                    const protocols = (result && result.success) ? result.data : result;
+                    if (Array.isArray(protocols) && protocols.length > 0) {
+                        const protocolId = protocols[0].id;
+                        setupSocket(protocolId);
+                    }
                 }
             } catch (err) {
                 console.error("Dashboard Init Error:", err);

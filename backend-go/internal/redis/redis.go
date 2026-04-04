@@ -18,11 +18,17 @@ var (
 	once     sync.Once
 )
 
+type InternalMessage struct {
+	Channel string
+	Payload string
+}
+
 type RedisService struct {
-	client      *redis.Client
-	useFallback bool
-	mu          sync.RWMutex
-	memoryQueue []interface{}
+	client          *redis.Client
+	useFallback     bool
+	mu              sync.RWMutex
+	memoryQueue     []interface{}
+	InternalChannel chan InternalMessage
 }
 
 func GetInstance() *RedisService {
@@ -51,14 +57,16 @@ func GetInstance() *RedisService {
 		if err := client.Ping(ctx).Err(); err != nil {
 			log.Printf("[REDIS] Connection failed, starting in fallback mode: %v", err)
 			instance = &RedisService{
-				client:      client,
-				useFallback: true,
+				client:          client,
+				useFallback:     true,
+				InternalChannel: make(chan InternalMessage, 1000), // Buffer for safety
 			}
 		} else {
 			log.Println("[REDIS] Connected to Redis successfully")
 			instance = &RedisService{
-				client:      client,
-				useFallback: false,
+				client:          client,
+				useFallback:     false,
+				InternalChannel: make(chan InternalMessage, 1000),
 			}
 		}
 		Client = client
@@ -107,16 +115,27 @@ func (s *RedisService) IsActive() bool {
 }
 
 func (s *RedisService) PublishTelemetry(channel string, data interface{}) error {
-	if s.useFallback {
-		return nil
-	}
-
 	jsonData, err := json.Marshal(data)
 	if err != nil {
 		return err
 	}
 
+	// Always publish to internal channel for local fallback support
+	select {
+	case s.InternalChannel <- InternalMessage{Channel: channel, Payload: string(jsonData)}:
+	default:
+		// Channel full, drop message
+	}
+
+	if s.useFallback || s.client == nil {
+		return nil
+	}
+
 	return s.client.Publish(ctx, channel, jsonData).Err()
+}
+
+func (s *RedisService) GetInternalChannel() chan InternalMessage {
+	return s.InternalChannel
 }
 
 func (s *RedisService) FlushTelemetryQueue() error {

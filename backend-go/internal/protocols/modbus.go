@@ -288,9 +288,8 @@ func (s *ModbusService) runPollLoop(ctx context.Context, protocolID uuid.UUID, i
 
 							// KRİPTO BORSASI STRATEJİSİ: Doğrudan Socket.io yerine Redis Pub/Sub kullanıyoruz
 							// Bu sayede 10.000 kullanıcıyı Socket sunucularında yatayda ölçekleyebiliriz.
-							if redisSvc.IsActive() {
-								redisSvc.PublishTelemetry(fmt.Sprintf("telemetry:%s", protocolID), telemetry)
-							}
+							// Not: redisSvc.PublishTelemetry artık hem Redis'e hem de yerel kanala basıyor.
+							redisSvc.PublishTelemetry(fmt.Sprintf("telemetry:%s", protocolID), telemetry)
 							
 							// İzleme (Heartbeat) için Alarm servisine haber ver
 							services.GetAlarmService(s.socket).MarkDeviceSeen(point.DeviceID)

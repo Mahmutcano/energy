@@ -2,6 +2,7 @@ package protocols
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"strings"
 	"sync"
@@ -175,9 +176,9 @@ func (s *IEC104Service) simulateTelemetry(protocolID uuid.UUID) {
 				Timestamp:  time.Now(),
 			}
 
-			if s.socket != nil {
-				s.socket.Sockets().Emit("telemetry:raw:"+protocolID.String(), telemetry)
-			}
+			// KRİPTO BORSASI STRATEJİSİ: Doğrudan Socket.io yerine Redis Pub/Sub kullanıyoruz
+			// Not: redisSvc.PublishTelemetry artık hem Redis'e hem de yerel kanala basıyor.
+			redisSvc.PublishTelemetry(fmt.Sprintf("telemetry:%s", protocolID), telemetry)
 
 			// Push to redis so the worker persists it to TimescaleDB
 			if p.IsRecording {

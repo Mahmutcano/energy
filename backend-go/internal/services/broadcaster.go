@@ -9,6 +9,7 @@ import (
 
 	"energy-scada-platform/internal/models"
 	"energy-scada-platform/internal/redis"
+	redis_v9 "github.com/redis/go-redis/v9"
 	"github.com/zishang520/socket.io/v2/socket"
 )
 
@@ -33,35 +34,50 @@ func GetTelemetryBroadcaster(socketServer *socket.Server) *TelemetryBroadcaster 
 }
 
 func (b *TelemetryBroadcaster) Start(ctx context.Context) {
-	log.Println("[BROADCASTER] Real-time Telemetry Service Starting (Redis Bridge Mode)...")
+	log.Println("[BROADCASTER] Real-time Telemetry Service Starting (Hybrid Mode: Redis + Local Channel)...")
 
-	// Redis client üzerinden abonelik (subscription) başlat
-	// '*' wildcard kullanımı ile tüm telemetry kanallarını dinle
-	pubsub := redis.Client.PSubscribe(ctx, "telemetry:*")
-	defer pubsub.Close()
+	// 1. Subscribe to Redis
+	var redisCh <-chan *redis_v9.Message
+	if b.redisSvc.IsActive() {
+		pubsub := redis.Client.PSubscribe(ctx, "telemetry:*")
+		defer pubsub.Close()
+		redisCh = pubsub.Channel()
+	}
 
-	ch := pubsub.Channel()
+	// 2. Get Internal Local Channel
+	internalCh := b.redisSvc.GetInternalChannel()
 
 	for {
 		select {
 		case <-ctx.Done():
 			return
-		case msg := <-ch:
-			var telemetry models.TelemetryData
-			if err := json.Unmarshal([]byte(msg.Payload), &telemetry); err != nil {
+		case msg, ok := <-redisCh: // From Redis
+			if !ok {
+				redisCh = nil // Redis channel closed
 				continue
 			}
-
-			// KRİPTO BORSASI STRATEJİSİ: Veriyi sarsıntısız dağıt
-			// Sadece bu cihazın verisini bekleyen kullanıcılara (Room basis) gönder
-			if b.socketServer != nil {
-				// Room: protocol:PROTOCOL_ID
-				roomName := fmt.Sprintf("protocol:%s", telemetry.ProtocolID.String())
-				b.socketServer.Sockets().To(socket.Room(roomName)).Emit("telemetry:update", telemetry)
-				
-				// Genel kanal (Sistem adminleri için)
-				b.socketServer.Sockets().To(socket.Room("admin:telemetry")).Emit("telemetry:raw", telemetry)
+			b.handlePayload(msg.Payload)
+		case msg, ok := <-internalCh: // From Local Go Channel
+			if !ok {
+				continue
 			}
+			b.handlePayload(msg.Payload)
 		}
+	}
+}
+
+func (b *TelemetryBroadcaster) handlePayload(payload string) {
+	var telemetry models.TelemetryData
+	if err := json.Unmarshal([]byte(payload), &telemetry); err != nil {
+		return
+	}
+
+	if b.socketServer != nil {
+		// Room: protocol:PROTOCOL_ID
+		roomName := fmt.Sprintf("protocol:%s", telemetry.ProtocolID.String())
+		b.socketServer.Sockets().To(socket.Room(roomName)).Emit("telemetry:update", telemetry)
+
+		// Generic channel for admins
+		b.socketServer.Sockets().To(socket.Room("admin:telemetry")).Emit("telemetry:raw", telemetry)
 	}
 }

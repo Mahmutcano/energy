@@ -49,14 +49,14 @@ func GetDatasheetPoints(c *gin.Context) {
 	}
 	rows, err := db.Pool.Query(context.Background(), `
 		SELECT 
-			id, "profile_id" as "profileId", "data" as "dataName", unit as "dataValue", "dataExplanation", address as "registerAddress", 
+			id, "profileId", "dataName", unit as "dataValue", "dataExplanation", address as "registerAddress", 
 			"isActive", "functionCode", multiplier, "wordSwap", "feederName", 
 			"signalType", "dataExplanation" as "signalDescription", "dataType", "signalSource", 
 			"componentId", "dataExplanation" as "componentText", address as "ioa1ObjectAddress", "ioa2CellNo", 
 			"ioa3Voltage_level", address as "scadaAddress", "recordingInterval",
 			"createdAt", "updatedAt", "createdBy", "updatedBy"
 		FROM "DatasheetPoint"
-		WHERE "profile_id" = $1
+		WHERE "profileId" = $1
 		ORDER BY address ASC NULLS LAST
 	`, profileID)
 	if err != nil {
@@ -123,7 +123,7 @@ func CreateDatasheetPoint(c *gin.Context) {
 
 	_, err := db.Pool.Exec(context.Background(), `
 		INSERT INTO "DatasheetPoint" (
-			id, "profile_id", "data", address, "dataExplanation", 
+			id, "profileId", "dataName", address, "dataExplanation", 
 			"isActive", "functionCode", multiplier, "wordSwap", "feederName", 
 			"signalType", "dataType", "signalSource", 
 			"componentId", "ioa2CellNo", "ioa3Voltage_level", unit, "recordingInterval",
@@ -205,7 +205,7 @@ func BulkCreateDatasheetPoints(c *gin.Context) {
 
 		_, err := db.Pool.Exec(ctx, `
 			INSERT INTO "DatasheetPoint" (
-				id, "profile_id", "data", address, "dataExplanation", 
+				id, "profileId", "dataName", address, "dataExplanation", 
 				"isActive", "functionCode", multiplier, "wordSwap", "feederName", 
 				"signalType", "dataType", "signalSource", "componentId", 
 				"ioa2CellNo", "ioa3Voltage_level", unit, "recordingInterval", 
@@ -264,7 +264,7 @@ func UpdateDatasheetPoint(c *gin.Context) {
 
 	_, err = db.Pool.Exec(context.Background(), `
 		UPDATE "DatasheetPoint" SET
-			"data" = $1, address = $2, "dataExplanation" = $3, 
+			"dataName" = $1, address = $2, "dataExplanation" = $3, 
 			"isActive" = $4, "functionCode" = $5, multiplier = $6, "wordSwap" = $7, "feederName" = $8, 
 			"signalType" = $9, "dataType" = $10, "signalSource" = $11, 
 			"componentId" = $12, "ioa2CellNo" = $13, "ioa3Voltage_level" = $14,

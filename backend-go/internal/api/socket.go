@@ -20,6 +20,14 @@ func InitSocket() *socket.Server {
 		client := clients[0].(*socket.Socket)
 		log.Printf("[SOCKET] Client connected: %s | Transport: %v", client.Id(), client.Conn().Transport().Name())
 
+		client.On("join:protocol", func(args ...any) {
+			data := args[0].(map[string]interface{})
+			if pID, ok := data["protocolId"].(string); ok {
+				client.Join(socket.Room("protocol:" + pID))
+				log.Printf("[SOCKET] Client %s joined protocol room: %s", client.Id(), pID)
+			}
+		})
+
 		client.On("disconnect", func(reasons ...any) {
 			log.Printf("[SOCKET] Client disconnected: %s Reason: %v", client.Id(), reasons[0])
 		})

@@ -1,23 +1,54 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { useAuth } from '@/context/AuthContext';
+import React, { useState, useEffect, useMemo } from 'react';
+import { 
+    Activity, 
+    Zap, 
+    ArrowUpRight, 
+    ArrowDownRight, 
+    Signal, 
+    Layers, 
+    BarChart3, 
+    ChevronRight,
+    ShieldAlert,
+    Cpu,
+    Terminal,
+    TrendingUp,
+    ZapOff
+} from 'lucide-react';
 import { apiRequest } from '@/lib/api';
-import { Activity, Zap, Cpu, AlertTriangle, BarChart3, Clock, Database, ArrowUpRight, ArrowDownRight, Droplets, Waves, Gauge } from 'lucide-react';
+import { socket } from '@/lib/socket';
+import { useAuth } from '@/context/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area, BarChart, Bar } from 'recharts';
-import { io, Socket } from "socket.io-client";
+import { 
+    AreaChart, 
+    Area, 
+    XAxis, 
+    YAxis, 
+    CartesianGrid, 
+    Tooltip, 
+    ResponsiveContainer, 
+    BarChart, 
+    Bar,
+    Cell
+} from 'recharts';
+
+// --- MEASUREMENT CATEGORIES ---
+const CATEGORIES = [
+    { id: 'voltage', label: 'VOLTAGE', icon: Zap, color: '#00E5FF' },
+    { id: 'current', label: 'CURRENT', icon: Activity, color: '#CCFF00' },
+    { id: 'power', label: 'POWER', icon: BarChart3, color: '#FF3300' },
+    { id: 'energy', label: 'ENERGY', icon: Layers, color: '#8B5CF6' },
+    { id: 'quality', label: 'QUALITY', icon: ShieldAlert, color: '#10B981' },
+    { id: 'system', label: 'SYSTEM', icon: Cpu, color: '#6366F1' },
+];
 
 export default function KineticDashboard() {
-    const { companyProfile, user } = useAuth();
-    const [loading, setLoading] = useState(true);
-    const [points, setPoints] = useState<any[]>([]);
+    const { user } = useAuth();
+    const [status, setStatus] = useState<string>("DISCONNECTED");
     const [liveData, setLiveData] = useState<Record<string, any>>({});
-    const [stats, setStats] = useState({ L1: 230.1, L2: 231.5, L3: 229.8, TotalA: 0 });
-    const [status, setStatus] = useState<'CONNECTED' | 'DISCONNECTED' | 'CONNECTING'>('CONNECTING');
-    const socketRef = useRef<Socket | null>(null);
+    const [activeTab, setActiveTab] = useState('voltage');
 
-    // Initial load: Fetch plants and their points
     useEffect(() => {
         const init = async () => {
             try {
@@ -26,218 +57,285 @@ export default function KineticDashboard() {
                     const result = await res.json();
                     const protocols = (result && result.success) ? result.data : result;
                     if (Array.isArray(protocols) && protocols.length > 0) {
-                        const protocolId = protocols[0].id;
-                        setupSocket(protocolId);
+                        const pId = protocols[0].id;
+                        setupSocket(pId);
                     }
                 }
             } catch (err) {
                 console.error("Dashboard Init Error:", err);
-            } finally {
-                setLoading(false);
             }
         };
         init();
-        return () => { socketRef.current?.disconnect(); };
+        return () => {
+            socket.off('protocol:status');
+            socket.off('telemetry:update');
+        };
     }, []);
 
-    const setupSocket = (protocolId: string) => {
-        const socket = io(process.env.NEXT_PUBLIC_API_URL || '', {
-            path: '/socket.io',
-            transports: ['websocket']
-        });
-        socketRef.current = socket;
-
-        socket.on('connect', () => {
-            console.log("[SOCKET] Connected, Joining Room:", protocolId);
-            socket.emit('join:protocol', { protocolId });
-        });
+    const setupSocket = (pId: string) => {
+        socket.emit('join:protocol', { protocolId: pId });
 
         socket.on('protocol:status', (data: any) => {
-            console.log("[SOCKET] Status Update:", data);
             if (data.status) setStatus(data.status);
         });
 
         socket.on('telemetry:update', (data: any) => {
-            console.log("[SOCKET] Live Telemetry Received:", data.name, "=", data.value);
             setLiveData(prev => {
                 const updated = { ...prev };
                 const pointId = data.pointId;
-                const history = prev[pointId] ? [...prev[pointId].history, data] : [data];
-                updated[pointId] = { ...data, history: history.slice(-50) };
+                const history = prev[pointId]?.history || [];
+                updated[pointId] = { 
+                    ...data, 
+                    history: [...history, { ...data, t: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) }].slice(-30) 
+                };
                 return updated;
             });
-
-            // Update stats based on measurement type
-            if (data.name.includes('Phase A') || data.name.includes('L1')) setStats(prev => ({ ...prev, L1: data.value }));
-            if (data.name.includes('Phase B') || data.name.includes('L2')) setStats(prev => ({ ...prev, L2: data.value }));
-            if (data.name.includes('Phase C') || data.name.includes('L3')) setStats(prev => ({ ...prev, L3: data.value }));
         });
     };
 
-    // Helper to get history for a specific measurement category
-    const getCategoryData = (types: string[]) => {
-        // Simplified for visual review - in real app we filter by measurementType
-        const merged: any[] = [];
-        // Map last 20 points from history
-        return Array.from({ length: 20 }, (_, i) => ({
-            time: `${i}:00`,
-            p1: (stats.L1 || 230) + Math.random() * 2,
-            p2: (stats.L2 || 231) + Math.random() * 2,
-            p3: (stats.L3 || 229) + Math.random() * 2,
-            power: 800 + Math.random() * 50,
-            energy: 1200 + i * 2,
-        }));
-    };
+    // Data Categorization Logic
+    const categorizedData = useMemo(() => {
+        const groups: Record<string, any[]> = { voltage: [], current: [], power: [], energy: [], quality: [], system: [] };
 
-    if (loading) {
-        return <div className="min-h-screen bg-[#05080F] flex items-center justify-center">
-            <div className="flex flex-col items-center gap-4">
-                <div className="w-12 h-12 border-2 border-neon-blue border-t-transparent rounded-full animate-spin shadow-[0_0_20px_#00E5FF]" />
-                <span className="text-[10px] font-black text-neon-blue tracking-[0.5em] animate-pulse uppercase">Syncing Live Stream</span>
+        Object.values(liveData).forEach(item => {
+            const name = (item.name || '').toLowerCase();
+            if (name.includes('voltage') || name.includes('gerilim') || name.includes('volt')) groups.voltage.push(item);
+            else if (name.includes('current') || name.includes('akım') || name.includes('amper')) groups.current.push(item);
+            else if (name.includes('power') || name.includes('güç') || name.includes('watt') || name.includes('kw')) groups.power.push(item);
+            else if (name.includes('energy') || name.includes('enerji') || name.includes('kwh')) groups.energy.push(item);
+            else if (name.includes('harmon') || name.includes('thd') || name.includes('flicker')) groups.quality.push(item);
+            else groups.system.push(item);
+        });
+
+        return groups;
+    }, [liveData]);
+
+    const activeInfo = CATEGORIES.find(c => c.id === activeTab);
+
+    return (
+        <div className="space-y-8 animate-in-up">
+            {/* Top Navigation / Tab Bar */}
+            <div className="flex flex-wrap gap-4 p-2 bg-[#0A0E17]/60 backdrop-blur-xl border border-white/5 rounded-2xl">
+                {CATEGORIES.map((cat) => (
+                    <button
+                        key={cat.id}
+                        onClick={() => setActiveTab(cat.id)}
+                        className={`flex items-center gap-3 px-6 py-3 rounded-xl transition-all relative overflow-hidden group ${
+                            activeTab === cat.id 
+                            ? 'text-white' 
+                            : 'text-white/40 hover:text-white/70'
+                        }`}
+                    >
+                        <cat.icon size={16} className={activeTab === cat.id ? 'text-neon-blue' : 'opacity-40'} />
+                        <span className="text-[10px] font-black tracking-[0.2em]">{cat.label}</span>
+                        {activeTab === cat.id && (
+                            <motion.div 
+                                layoutId="active-tab-bg" 
+                                className="absolute inset-0 bg-white/[0.03] -z-10" 
+                            />
+                        )}
+                        {activeTab === cat.id && (
+                            <motion.div 
+                                layoutId="active-tab-glow" 
+                                className="absolute bottom-0 left-4 right-4 h-0.5 bg-neon-blue shadow-[0_0_15px_#00E5FF]" 
+                            />
+                        )}
+                    </button>
+                ))}
             </div>
-        </div>;
+
+            {/* Dashboard Content */}
+            <AnimatePresence mode="wait">
+                <motion.div
+                    key={activeTab}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -20 }}
+                    transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+                    className="space-y-8"
+                >
+                    {/* Hero Section per Category */}
+                    <div className="flex justify-between items-end">
+                        <div className="space-y-1">
+                            <div className="flex items-center gap-2 text-neon-blue/60 text-[10px] font-black tracking-[0.4em] uppercase">
+                                <TrendingUp size={14} /> Vector Analysis
+                            </div>
+                            <h3 className="text-2xl font-black text-white tracking-tight uppercase">
+                                {activeInfo?.label} OBSERVATORY
+                            </h3>
+                        </div>
+                        <div className="flex items-center gap-4 bg-black/20 border border-white/5 px-4 py-2 rounded-xl">
+                            <div className={`w-1.5 h-1.5 rounded-full ${status === 'CONNECTED' ? 'bg-neon-lime shadow-[0_0_10px_#CCFF00]' : 'bg-red-500'} animate-pulse`} />
+                            <span className="text-[9px] font-black tracking-widest text-white/50 uppercase">REAL-TIME LINK: {status}</span>
+                        </div>
+                    </div>
+
+                    <MeasurementGrid 
+                        id={activeTab} 
+                        data={categorizedData[activeTab]} 
+                        color={activeInfo?.color} 
+                    />
+                </motion.div>
+            </AnimatePresence>
+        </div>
+    );
+}
+
+function MeasurementGrid({ id, data, color }: { id: string, data: any[], color?: string }) {
+    if (!data || data.length === 0) {
+        return (
+            <div className="h-[50vh] flex flex-col items-center justify-center volt-card border-dashed">
+                <div className="flex flex-col items-center opacity-20">
+                    <ZapOff size={60} className="mb-6" />
+                    <p className="text-xl font-black tracking-[0.5em] uppercase">No Active Stream</p>
+                    <p className="text-[9px] uppercase tracking-widest mt-2">Awaiting hardware uplink for {id}</p>
+                </div>
+            </div>
+        );
     }
 
     return (
-        <div className="space-y-10 pb-24 customer-theme">
-            {/* VOLTAGE MONITORING SECTION */}
-            <section className="space-y-6">
-                <div className="flex items-center gap-3">
-                    <Waves size={18} className="text-neon-blue" />
-                    <h2 className="text-sm font-black tracking-[0.2em] uppercase">Voltage Monitoring</h2>
+        <div className="space-y-8">
+            {/* Value Tiles */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                {data.slice(0, 4).map((p, i) => (
+                    <motion.div 
+                        initial={{ opacity: 0, scale: 0.9 }} 
+                        animate={{ opacity: 1, scale: 1 }} 
+                        transition={{ delay: i * 0.1 }}
+                        key={p.pointId}
+                    >
+                        <PointTile point={p} color={color} />
+                    </motion.div>
+                ))}
+            </div>
+
+            {/* Analysis Center */}
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+                <div className="xl:col-span-2 volt-card p-10 h-[450px] relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 w-96 h-96 bg-neon-blue/5 blur-[120px] -z-10 transition-all group-hover:bg-neon-blue/10" />
                     
-                    {/* Connection Status Indicator */}
-                    <div className="flex items-center gap-2 px-3 py-1 bg-black/40 border border-white/5 rounded-full ml-4">
-                        <div className={`w-1.5 h-1.5 rounded-full ${status === 'CONNECTED' ? 'bg-[#CCFF00] shadow-[0_0_8px_#CCFF00] animate-pulse' : 'bg-red-500 shadow-[0_0_8px_#EF4444]'}`} />
-                        <span className={`text-[9px] font-black tracking-widest uppercase ${status === 'CONNECTED' ? 'text-neon-lime' : 'text-red-500/80'}`}>
-                            {status}
-                        </span>
-                    </div>
-
-                    <div className="h-px flex-1 bg-white/5" />
-                    <div className="flex gap-4">
-                         <span className="flex items-center gap-2 text-[9px] font-bold text-neon-cyan"><span className="w-1.5 h-1.5 rounded-full bg-neon-cyan shadow-[0_0_8px_#00E5FF]" /> PHASE A</span>
-                         <span className="flex items-center gap-2 text-[9px] font-bold text-neon-lime"><span className="w-1.5 h-1.5 rounded-full bg-neon-lime shadow-[0_0_8px_#CCFF00]" /> PHASE B</span>
-                         <span className="flex items-center gap-2 text-[9px] font-bold text-neon-orange"><span className="w-1.5 h-1.5 rounded-full bg-neon-orange shadow-[0_0_8px_#FF3300]" /> PHASE C</span>
-                    </div>
-                </div>
-
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    <div className="volt-card p-6 h-[320px] relative overflow-hidden">
-                        <div className="absolute top-4 left-6 z-10">
-                            <span className="text-[9px] font-black text-white/30 uppercase tracking-[0.3em]">Phase-to-Neutral (L-N)</span>
+                    <div className="flex justify-between items-start mb-10">
+                        <div className="space-y-1">
+                            <span className="text-[9px] font-black text-white/20 tracking-[0.4em] uppercase">Time-Series Data</span>
+                            <h4 className="text-lg font-black text-white tracking-widest uppercase">System Evolution</h4>
                         </div>
+                        <div className="px-4 py-1.5 rounded-full bg-white/5 border border-white/5 text-[9px] font-black tracking-[0.2em] text-slate-500 flex items-center gap-2">
+                             <Terminal size={12} className="text-neon-blue" /> LIVE_UPLINK_1Hz
+                        </div>
+                    </div>
+
+                    <div className="h-full w-full pb-16">
                         <ResponsiveContainer width="100%" height="100%">
-                            <AreaChart data={getCategoryData(['PHASE_VOLTAGE'])}>
+                            <AreaChart data={data[0]?.history || []}>
                                 <defs>
-                                    <linearGradient id="colorA" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#00E5FF" stopOpacity={0.1}/><stop offset="95%" stopColor="#00E5FF" stopOpacity={0}/></linearGradient>
+                                    <linearGradient id={`grad-${id}`} x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="5%" stopColor={color} stopOpacity={0.2}/>
+                                        <stop offset="95%" stopColor={color} stopOpacity={0}/>
+                                    </linearGradient>
                                 </defs>
-                                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.02)" vertical={false} />
-                                <XAxis dataKey="time" hide />
-                                <YAxis domain={[210, 250]} hide />
-                                <Tooltip contentStyle={{ background: '#0A0E17', border: '1px solid rgba(255,255,255,0.1)', fontSize: '10px' }} />
-                                <Area type="monotone" dataKey="p1" stroke="#00E5FF" strokeWidth={2} fillOpacity={1} fill="url(#colorA)" />
-                                <Area type="monotone" dataKey="p2" stroke="#CCFF00" strokeWidth={2} fill="transparent" />
-                                <Area type="monotone" dataKey="p3" stroke="#FF3300" strokeWidth={2} fill="transparent" />
+                                <CartesianGrid strokeDasharray="5 5" stroke="rgba(255,255,255,0.01)" vertical={false} />
+                                <XAxis dataKey="t" hide />
+                                <YAxis domain={['auto', 'auto']} hide />
+                                <Tooltip 
+                                    contentStyle={{ background: '#0A0E17', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', fontSize: '10px' }}
+                                    cursor={{ stroke: color, strokeWidth: 1 }}
+                                />
+                                <Area 
+                                    type="monotone" 
+                                    dataKey="value" 
+                                    stroke={color} 
+                                    strokeWidth={3} 
+                                    fillOpacity={1} 
+                                    fill={`url(#grad-${id})`}
+                                    animationDuration={1500}
+                                />
                             </AreaChart>
                         </ResponsiveContainer>
-                        <div className="flex justify-between mt-4 px-2">
-                             {[
-                                { l: 'L1:N', v: `${stats.L1.toFixed(1)}v`, c: 'text-neon-cyan' },
-                                { l: 'L2:N', v: `${stats.L2.toFixed(1)}v`, c: 'text-neon-lime' },
-                                { l: 'L3:N', v: `${stats.L3.toFixed(1)}v`, c: 'text-white' },
-                                { l: 'AVG', v: `${((stats.L1+stats.L2+stats.L3)/3).toFixed(1)}v`, c: 'text-white/40' },
-                             ].map((v, i) => (
-                                <div key={i} className="text-center">
-                                    <div className="text-[8px] font-bold text-white/20 uppercase mb-1">{v.l}</div>
-                                    <div className={`text-sm font-black italic tracking-tighter ${v.c}`}>{v.v}</div>
-                                </div>
-                             ))}
-                        </div>
-                    </div>
-
-                    <div className="volt-card p-6 h-[320px] relative overflow-hidden">
-                        <div className="absolute top-4 left-6 z-10">
-                            <span className="text-[9px] font-black text-white/30 uppercase tracking-[0.3em]">Load Distribution</span>
-                        </div>
-                        <ResponsiveContainer width="100%" height="100%">
-                            <LineChart data={getCategoryData(['PHASE_CURRENT'])}>
-                                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.02)" vertical={false} />
-                                <XAxis dataKey="time" hide />
-                                <YAxis hide />
-                                <Tooltip contentStyle={{ background: '#0A0E17', border: '1px solid rgba(255,255,255,0.1)', fontSize: '10px' }} />
-                                <Line type="stepAfter" dataKey="power" stroke="#00E5FF" strokeWidth={2} dot={false} strokeDasharray="5 5" />
-                                <Line type="monotone" dataKey="p1" stroke="#FF3300" strokeWidth={2} dot={false} />
-                            </LineChart>
-                        </ResponsiveContainer>
                     </div>
                 </div>
-            </section>
 
-            {/* LOWER STATS GRID */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                 {/* Power Factor */}
-                 <div className="volt-card p-6 bg-gradient-to-t from-neon-blue/5 to-transparent flex flex-col justify-between items-center text-center h-64">
-                    <span className="text-[10px] font-black text-white/20 tracking-[0.4em] uppercase italic">Power Factor</span>
-                    <div className="relative w-24 h-24 flex items-center justify-center">
-                        <div className="absolute inset-0 border-2 border-white/5 rounded-full border-t-neon-blue shadow-[0_0_20px_#00E5FF] animate-spin-slow rotate-[230deg]" />
-                        <div className="text-3xl font-black italic text-white">0.98</div>
+                <div className="volt-card p-10 flex flex-col justify-between overflow-hidden relative">
+                    <div className="space-y-1 mb-8">
+                        <span className="text-[9px] font-black text-white/20 tracking-[0.4em] uppercase">Delta Variance</span>
+                        <h4 className="text-lg font-black text-white tracking-widest uppercase">Point Spread</h4>
                     </div>
-                    <span className="text-[8px] font-black text-neon-blue tracking-[0.5em] uppercase italic bg-neon-blue/10 px-4 py-1 rounded-full">Lagging</span>
-                 </div>
-
-                 {/* Active Power */}
-                 <div className="volt-card p-6 h-64 flex flex-col justify-between border-l-2 border-neon-orange">
-                    <span className="text-[10px] font-black text-white/30 uppercase tracking-[0.3em]">Live Active Power</span>
-                    <div className="space-y-1">
-                        <div className="text-3xl font-black text-white italic tracking-tighter">842.5 <span className="text-xs text-neon-orange">kW</span></div>
-                        <div className="text-[8px] font-bold text-neon-lime tracking-widest uppercase">Stable Load</div>
-                    </div>
-                    <div className="h-16">
+                    
+                    <div className="flex-1 min-h-[250px]">
                         <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={getCategoryData(['ACTIVE_POWER'])}>
-                                <Bar dataKey="p1" fill="#FF3300" radius={[2, 2, 0, 0]} />
+                            <BarChart data={data.slice(0, 5)}>
+                                <XAxis dataKey="name" hide />
+                                <Bar dataKey="value" radius={[12, 12, 0, 0]}>
+                                    {data.slice(0, 5).map((entry, index) => (
+                                        <Cell key={`cell-${index}`} fill={index % 2 === 0 ? color : 'rgba(255,255,255,0.05)'} />
+                                    ))}
+                                </Bar>
                             </BarChart>
                         </ResponsiveContainer>
                     </div>
-                 </div>
 
-                 {/* Energy */}
-                 <div className="volt-card p-6 h-64 flex flex-col justify-between">
-                    <span className="text-[10px] font-black text-white/30 uppercase tracking-[0.3em]">Energy Accumulation</span>
-                    <div className="text-3xl font-black text-white italic">1,240 <span className="text-xs text-neon-lime">kWh</span></div>
-                    <div className="h-24">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <AreaChart data={getCategoryData(['ENERGY'])}>
-                                <Area type="step" dataKey="energy" stroke="#CCFF00" fill="#CCFF00" fillOpacity={0.1} />
-                            </AreaChart>
-                        </ResponsiveContainer>
+                    <div className="mt-8 space-y-4">
+                        {data.slice(0, 3).map(p => (
+                            <div key={p.pointId} className="flex justify-between items-center py-3 border-b border-white/5 last:border-0 group cursor-default">
+                                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest group-hover:text-neon-blue transition-colors truncate max-w-[140px]">{p.name}</span>
+                                <div className="flex items-center gap-2">
+                                    <span className="text-sm font-black text-white tabular-nums">{p.value?.toFixed(2)}</span>
+                                    <span className="text-[9px] font-black text-slate-700">{p.unit}</span>
+                                </div>
+                            </div>
+                        ))}
+                        <button className="w-full py-3 bg-white/5 hover:bg-white/10 rounded-xl transition-all text-[9px] font-black tracking-[0.4em] text-white/40 hover:text-white uppercase mt-4">
+                            Full Analysis <ChevronRight size={10} className="inline ml-1" />
+                        </button>
                     </div>
-                 </div>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function PointTile({ point, color }: { point: any, color?: string }) {
+    const history = point.history || [];
+    const val = typeof point.value === 'number' ? point.value : 0;
+    const prev = history.length > 2 ? history[history.length - 2].value : val;
+    const isUp = val >= prev;
+    const delta = prev !== 0 ? ((val - prev) / Math.abs(prev)) * 100 : 0;
+
+    return (
+        <div className="volt-card p-8 h-64 flex flex-col justify-between group relative overflow-hidden backdrop-blur-3xl">
+            <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:opacity-10 transition-opacity">
+                <Activity size={50} className="text-white" />
             </div>
 
-            <style jsx global>{`
-                .customer-theme {
-                    --neon-blue: #00E5FF;
-                    --neon-orange: #FF3300;
-                    --neon-lime: #CCFF00;
-                }
-                .volt-card {
-                    background: rgba(10, 14, 23, 0.6);
-                    backdrop-filter: blur(20px);
-                    border: 1px solid rgba(255, 255, 255, 0.05);
-                    border-radius: 20px;
-                    transition: all 0.4s cubic-bezier(0.22, 1, 0.36, 1);
-                }
-                .volt-card:hover {
-                    border-color: rgba(0, 229, 255, 0.2);
-                    box-shadow: 0 0 30px rgba(0, 229, 255, 0.08);
-                }
-                .text-neon-cyan { color: #00E5FF; }
-                .text-neon-lime { color: #CCFF00; }
-                .animate-spin-slow { animation: spin 8s linear infinite; }
-                @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-            `}</style>
+            <div className="flex justify-between items-start relative z-10">
+                <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-[9px] font-black tracking-widest border ${isUp ? 'text-neon-lime border-neon-lime/20 bg-neon-lime/10' : 'text-danger border-danger/20 bg-danger/10'}`}>
+                    {isUp ? <ArrowUpRight size={12} /> : <ArrowDownRight size={12} />}
+                    {Math.abs(delta).toFixed(1)}%
+                </div>
+                <div className="w-1.5 h-1.5 rounded-full bg-neon-blue shadow-[0_0_10px_#00E5FF] animate-pulse" />
+            </div>
+
+            <div className="space-y-1 relative z-10">
+                <span className="text-[10px] font-black text-slate-500 tracking-[0.3em] uppercase block leading-none truncate opacity-60" title={point.name}>
+                    {point.name}
+                </span>
+                <div className="flex items-baseline gap-2">
+                    <h3 className="text-4xl font-black text-white tracking-tighter italic">
+                        {typeof val === 'number' ? val.toFixed(2) : val}
+                    </h3>
+                    <span className="text-xs font-black text-neon-blue lowercase tracking-tighter">{point.unit || ''}</span>
+                </div>
+            </div>
+
+            <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden mt-4 relative z-10">
+                <motion.div 
+                    initial={{ width: 0 }}
+                    animate={{ width: `${Math.min(val / 5, 100)}%` }}
+                    style={{ backgroundColor: color }}
+                    className="h-full rounded-full shadow-[0_0_15px_rgba(255,255,255,0.2)]"
+                    transition={{ duration: 1.5, ease: "circOut" }}
+                />
+            </div>
         </div>
     );
 }

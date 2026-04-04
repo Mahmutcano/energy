@@ -199,7 +199,7 @@ export const datasheetPoint = pgTable('DatasheetPoint', {
     address: integer('address'),               
     isActive: boolean('isActive').default(true).notNull(),
     functionCode: integer('functionCode'),     
-    multiplier: real('multiplier'),
+    multiplier: doublePrecision('multiplier'),
     wordSwap: boolean('wordSwap').default(false),
     feederName: text('feederName'),
     signalType: text('signalType'),

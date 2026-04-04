@@ -52,7 +52,7 @@ func GetDatasheetPoints(c *gin.Context) {
 			"isActive", "functionCode", multiplier, "wordSwap", "feederName", 
 			"signalType", "dataExplanation" as "signalDescription", "dataType", "signalSource", 
 			"componentId", "dataExplanation" as "componentText", address as "ioa1ObjectAddress", "ioa2CellNo", 
-			"ioa3Voltage_level", address as "scadaAddress", "recordingInterval",
+			"ioa3VoltageLevel", address as "scadaAddress", "recordingInterval",
 			"createdAt", "updatedAt", "createdBy", "updatedBy"
 		FROM "DatasheetPoint"
 		WHERE "profileId" = $1
@@ -126,7 +126,7 @@ func CreateDatasheetPoint(c *gin.Context) {
 			id, "profileId", "dataName", address, "dataExplanation", 
 			"isActive", "functionCode", multiplier, "wordSwap", "feederName", 
 			"signalType", "dataType", "signalSource", 
-			"componentId", "ioa2CellNo", "ioa3Voltage_level", unit, "recordingInterval",
+			"componentId", "ioa2CellNo", "ioa3VoltageLevel", unit, "recordingInterval",
 			"createdAt", "updatedAt", "createdBy", "updatedBy"
 		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, NOW(), NOW(), $19, $20)
 	`, p.ID, p.ProfileID, p.DataName, address, dataExt,

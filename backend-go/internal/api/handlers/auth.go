@@ -59,6 +59,17 @@ func Login(c *gin.Context) {
 		return
 	}
 
+	// Fetch company profile if exists
+	var companyID *uuid.UUID
+	var companyName *string
+	err = db.Pool.QueryRow(context.Background(), `
+		SELECT cp.id, cp.name 
+		FROM "AppUserProfile" up 
+		JOIN "CompanyProfile" cp ON up."companyId" = cp.id 
+		WHERE up."userId" = $1
+	`, id).Scan(&companyID, &companyName)
+	// Ignore err as user might not have a profile yet (initial admin)
+
 	c.JSON(http.StatusOK, gin.H{
 		"token": tokenString,
 		"user": gin.H{
@@ -66,6 +77,10 @@ func Login(c *gin.Context) {
 			"email": email,
 			"name":  firstName + " " + lastName,
 			"role":  adminType,
+		},
+		"companyProfile": gin.H{
+			"id":   companyID,
+			"name": companyName,
 		},
 	})
 }

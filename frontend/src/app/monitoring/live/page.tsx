@@ -69,6 +69,8 @@ const GlobalStream = () => {
     const [logs, setLogs] = useState<any[]>([]);
 
     useEffect(() => {
+        socket.emit('join:protocol', { protocolId: 'admin:telemetry' }); // Joint global admin room
+        
         const handleData = (data: any) => {
             setLogs(prev => [{
                 id: `${Date.now()}-${Math.random()}`,
@@ -78,9 +80,9 @@ const GlobalStream = () => {
             }, ...prev].slice(0, 20));
         };
 
-        socket.on('telemetry:all', handleData);
+        socket.on('telemetry:raw', handleData);
         return () => {
-            socket.off('telemetry:all', handleData);
+            socket.off('telemetry:raw', handleData);
         };
     }, []);
 
@@ -157,9 +159,9 @@ const IECDiagnosticPanel = ({ protocolId, asduAddr, deviceName, deviceId, device
             ].slice(0, 50));
         };
 
-        socket.on(`telemetry:raw:${protocolId}`, handleRawData);
+        socket.on('telemetry:update', handleRawData);
         return () => {
-            socket.off(`telemetry:raw:${protocolId}`, handleRawData);
+            socket.off('telemetry:update', handleRawData);
         };
     }, [protocolId]);
 
@@ -654,20 +656,9 @@ export default function LiveMonitoringPage() {
 
         const handlePacket = (data: any) => {
             if (!data || !selectedDevice) return;
-
             const incoming = Array.isArray(data) ? data : [data];
 
-            const packets = incoming.filter(pkt => {
-                const belongsToDevice = pkt.deviceId && String(pkt.deviceId) === String(selectedDevice.id);
-                const belongsToProtocol = pkt.protocolId && String(pkt.protocolId) === String(selectedDevice.protocolConfigId);
-                
-                // If it's a fallback from telemetry:all, check if it matches our device
-                if (!pkt.deviceId && !pkt.protocolId) return true;
-
-                return belongsToDevice || belongsToProtocol || true; // Be greedy in diagnostic view
-            });
-
-            packets.forEach(pkt => {
+            incoming.forEach(pkt => {
                 const dataIoa = pkt.ioa !== undefined && pkt.ioa !== null ? Number(pkt.ioa) : null;
                 
                 // Find all matching points in our datasheet
@@ -675,9 +666,8 @@ export default function LiveMonitoringPage() {
                     // 1. Direct Point ID Match
                     if (pkt.pointId && p.id && String(pkt.pointId) === String(p.id)) return true;
 
-                    // 2. IOA / Address Match (with legacy fallbacks)
+                    // 2. IOA / Address Match
                     if (dataIoa === null || isNaN(dataIoa)) return false;
-                    
                     const pointAddrs = [p.address, p.scadaAddress, p.registerAddress, p.ioa1ObjectAddress];
                     return pointAddrs.some(addr => addr !== null && Number(addr) === dataIoa);
                 });
@@ -706,16 +696,13 @@ export default function LiveMonitoringPage() {
             });
         };
 
-        const topics = [
-            `telemetry:${selectedDevice.id}`,
-            `telemetry:${selectedDevice.protocolConfigId}`,
-            `telemetry:raw:${selectedDevice.protocolConfigId}`,
-            `telemetry:all` // Use as global fallback
-        ];
-
-        topics.forEach(t => socket.on(t, handlePacket));
-        return () => topics.forEach(t => socket.off(t, handlePacket));
-    }, [selectedDevice, points, protocolType]);
+        socket.emit('join:protocol', { protocolId: selectedDevice.protocolConfigId });
+        socket.on('telemetry:update', handlePacket);
+        
+        return () => {
+            socket.off('telemetry:update', handlePacket);
+        };
+    }, [selectedDevice, points]);
 
     const filteredPoints = points
         .filter(p =>

@@ -7,26 +7,34 @@ import (
 )
 
 type AppUser struct {
-	ID        uuid.UUID `json:"id"`
-	UserCode  string    `json:"userCode"`
-	FirstName string    `json:"firstName"`
-	LastName  string    `json:"lastName"`
-	Email     string    `json:"email"`
-	AdminType string    `json:"adminType"`
-	IsActive  bool      `json:"isActive"`
+	ID        uuid.UUID  `json:"id"`
+	UserCode  string     `json:"userCode"`
+	FirstName string     `json:"firstName"`
+	LastName  string     `json:"lastName"`
+	Email     string     `json:"email"`
+	AdminType string     `json:"adminType"`
+	IsActive  bool       `json:"isActive"`
+	CreatedAt time.Time  `json:"createdAt"`
+	UpdatedAt time.Time  `json:"updatedAt"`
+	CreatedBy *uuid.UUID `json:"createdBy"`
+	UpdatedBy *uuid.UUID `json:"updatedBy"`
 }
 
 type Plant struct {
-	ID          uuid.UUID `json:"id"`
-	CompanyID   uuid.UUID `json:"companyId"`
-	PlantName   string    `json:"plantName"`
-	PlantType   string    `json:"plantType"`
-	Latitude    *float64  `json:"latitude"`
-	Longitude   *float64  `json:"longitude"`
-	IsActive    bool      `json:"isActive"`
-	CompanyName string    `json:"companyName,omitempty"`
-	YTBSCode    string    `json:"ytbsCode"`
-	CanSendYTBS bool      `json:"canSendYtbs"`
+	ID          uuid.UUID  `json:"id"`
+	CompanyID   uuid.UUID  `json:"companyId"`
+	PlantName   string     `json:"plantName"`
+	PlantType   string     `json:"plantType"`
+	Latitude    *float64   `json:"latitude"`
+	Longitude   *float64   `json:"longitude"`
+	IsActive    bool       `json:"isActive"`
+	CompanyName string     `json:"companyName,omitempty"`
+	YTBSCode    string     `json:"ytbsCode"`
+	CanSendYTBS bool       `json:"canSendYtbs"`
+	CreatedAt   time.Time  `json:"createdAt"`
+	UpdatedAt   time.Time  `json:"updatedAt"`
+	CreatedBy   *uuid.UUID `json:"createdBy"`
+	UpdatedBy   *uuid.UUID `json:"updatedBy"`
 }
 
 
@@ -37,6 +45,10 @@ type Device struct {
 	DeviceType         string     `json:"deviceType"`
 	IsActive           bool       `json:"isActive"`
 	DatasheetProfileID *uuid.UUID `json:"datasheetProfileId"`
+	CreatedAt          time.Time  `json:"createdAt"`
+	UpdatedAt          time.Time  `json:"updatedAt"`
+	CreatedBy          *uuid.UUID `json:"createdBy"`
+	UpdatedBy          *uuid.UUID `json:"updatedBy"`
 }
 
 type ModbusConfig struct {

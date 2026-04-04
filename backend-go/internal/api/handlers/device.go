@@ -41,7 +41,7 @@ type DeviceInfo struct {
 	ProtocolConfigID   uuid.UUID      `json:"protocolConfigId"`
 	DatasheetProfileID *uuid.UUID     `json:"datasheetProfileId"`
 	CreatedAt          time.Time      `json:"createdAt"`
-	UpdatedAt          *time.Time     `json:"updatedAt"`
+	UpdatedAt          time.Time      `json:"updatedAt"`
 	CreatedBy          *uuid.UUID     `json:"createdBy"`
 	UpdatedBy          *uuid.UUID     `json:"updatedBy"`
 	Protocol           *ProtocolBrief `json:"protocol,omitempty"`
@@ -164,6 +164,14 @@ func UpdateDevice(c *gin.Context) {
 		"datasheetProfileId": "\"datasheetProfileId\"",
 	}
 
+	// Get updater context
+	var updaterID *uuid.UUID
+	uidStr, _ := c.Get("user_id")
+	if uidStr != nil {
+		uid, _ := uuid.Parse(uidStr.(string))
+		updaterID = &uid
+	}
+
 	for jsonField, dbColumn := range fieldMapping {
 		if val, ok := body[jsonField]; ok {
 			queryParts = append(queryParts, fmt.Sprintf("%s = $%d", dbColumn, idx))
@@ -172,17 +180,19 @@ func UpdateDevice(c *gin.Context) {
 		}
 	}
 
-	query := "UPDATE \"Device\" SET " + strings.Join(queryParts, ", ")
-	query += ", \"updatedAt\" = NOW(), \"updatedBy\" = $" + fmt.Sprintf("%d", idx) + " WHERE id = $" + fmt.Sprintf("%d", idx+1)
-	
-	// Get updater ID from context (JWT)
-	updaterIDStr, _ := c.Get("user_id")
-	var updaterID *uuid.UUID
-	if updaterIDStr != nil {
-		uid, _ := uuid.Parse(updaterIDStr.(string))
-		updaterID = &uid
-	}
+	// Always update audit fields
+	queryParts = append(queryParts, fmt.Sprintf("\"updatedAt\" = NOW(), \"updatedBy\" = $%d", idx))
 	args = append(args, updaterID)
+	idx++
+
+	if len(queryParts) == 0 {
+		response.Error(c, http.StatusBadRequest, response.ErrInvalidInput, "Güncellenecek alan yok")
+		return
+	}
+
+	query := "UPDATE \"Device\" SET " + strings.Join(queryParts, ", ")
+	query += " WHERE id = $" + fmt.Sprintf("%d", idx)
+	
 	args = append(args, id)
 
 	_, err = db.Pool.Exec(context.Background(), query, args...)
@@ -208,7 +218,9 @@ func CreateDevice(c *gin.Context) {
 		return
 	}
 
-	// Get creator
+	id := uuid.New()
+	
+	// Get creator context
 	var creatorID *uuid.UUID
 	uidStr, _ := c.Get("user_id")
 	if uidStr != nil {
@@ -216,11 +228,10 @@ func CreateDevice(c *gin.Context) {
 		creatorID = &uid
 	}
 
-	id := uuid.New()
 	_, err := db.Pool.Exec(context.Background(), `
 		INSERT INTO "Device" (id, "deviceName", "deviceType", "isActive", "isRecording", "protocolConfigId", "datasheetProfileId", "createdAt", "updatedAt", "createdBy", "updatedBy")
-		VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NULL, $8, NULL)
-	`, id, body.DeviceName, body.DeviceType, body.IsActive, true, body.ProtocolConfigID, body.DatasheetProfileID, creatorID)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW(), $8, $9)
+	`, id, body.DeviceName, body.DeviceType, body.IsActive, true, body.ProtocolConfigID, body.DatasheetProfileID, creatorID, creatorID)
 
 	if err != nil {
 		response.Error(c, http.StatusInternalServerError, response.ErrDatabase, err.Error())

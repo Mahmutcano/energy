@@ -5,8 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"time"
-
+	"strings"
 	"energy-scada-platform/internal/api/response"
 	"energy-scada-platform/internal/db"
 	"energy-scada-platform/internal/models"
@@ -25,19 +24,19 @@ func GetPlants(c *gin.Context) {
 	if role == "SUPER_ADMIN" {
 		rows, err = db.Pool.Query(context.Background(), `
 			SELECT p.id, p."companyId", p."plantName", p."plantType", p.latitude, p.longitude, p."isActive", c.name as company_name, 
-			       p."createdAt", p."updatedAt", p."createdBy", p."updatedBy", p."ytbsCode", p."canSendYtbs"
+			       p."ytbsCode", p."canSendYtbs", p."createdAt", p."updatedAt", p."createdBy", p."updatedBy"
 			FROM "Plant" p
 			JOIN "CompanyProfile" c ON p."companyId" = c.id
-			ORDER BY p."createdAt" DESC
+			ORDER BY p."plantName" ASC
 		`)
 	} else if companyID != nil {
 		rows, err = db.Pool.Query(context.Background(), `
 			SELECT p.id, p."companyId", p."plantName", p."plantType", p.latitude, p.longitude, p."isActive", c.name as company_name, 
-			       p."createdAt", p."updatedAt", p."createdBy", p."updatedBy", p."ytbsCode", p."canSendYtbs"
+			       p."ytbsCode", p."canSendYtbs", p."createdAt", p."updatedAt", p."createdBy", p."updatedBy"
 			FROM "Plant" p
 			JOIN "CompanyProfile" c ON p."companyId" = c.id
 			WHERE p."companyId" = $1
-			ORDER BY p."createdAt" DESC
+			ORDER BY p."plantName" ASC
 		`, *companyID)
 	} else {
 		response.Success(c, http.StatusOK, []any{})
@@ -52,10 +51,7 @@ func GetPlants(c *gin.Context) {
 	var plants []any
 	for rows.Next() {
 		var p models.Plant
-		var createdAt time.Time
-		var updatedAt *time.Time
-		var createdBy, updatedBy *uuid.UUID
-		if err := rows.Scan(&p.ID, &p.CompanyID, &p.PlantName, &p.PlantType, &p.Latitude, &p.Longitude, &p.IsActive, &p.CompanyName, &createdAt, &updatedAt, &createdBy, &updatedBy, &p.YTBSCode, &p.CanSendYTBS); err != nil {
+		if err := rows.Scan(&p.ID, &p.CompanyID, &p.PlantName, &p.PlantType, &p.Latitude, &p.Longitude, &p.IsActive, &p.CompanyName, &p.YTBSCode, &p.CanSendYTBS, &p.CreatedAt, &p.UpdatedAt, &p.CreatedBy, &p.UpdatedBy); err != nil {
 			log.Printf("[DB] Error scanning plant: %v", err)
 			continue
 		}
@@ -77,13 +73,13 @@ func GetPlants(c *gin.Context) {
 			"isActive":    p.IsActive,
 			"companyName": p.CompanyName,
 			"company":     gin.H{"id": p.CompanyID, "name": p.CompanyName},
-			"createdAt":   createdAt,
-			"updatedAt":   updatedAt,
-			"createdBy":   createdBy,
-			"updatedBy":   updatedBy,
 			"protocols":   protocols,
 			"ytbsCode":    p.YTBSCode,
 			"canSendYtbs": p.CanSendYTBS,
+			"createdAt":   p.CreatedAt,
+			"updatedAt":   p.UpdatedAt,
+			"createdBy":   p.CreatedBy,
+			"updatedBy":   p.UpdatedBy,
 		})
 	}
 
@@ -101,7 +97,10 @@ func CreatePlant(c *gin.Context) {
 		return
 	}
 
-	// Get creator
+	p.ID = uuid.New()
+	p.IsActive = true
+
+	// Get creator context
 	var creatorID *uuid.UUID
 	uidStr, _ := c.Get("user_id")
 	if uidStr != nil {
@@ -109,13 +108,10 @@ func CreatePlant(c *gin.Context) {
 		creatorID = &uid
 	}
 
-	p.ID = uuid.New()
-	p.IsActive = true
-
 	_, err := db.Pool.Exec(context.Background(), `
-		INSERT INTO "Plant" (id, "companyId", "plantName", "plantType", latitude, longitude, "isActive", "createdAt", "updatedAt", "createdBy", "updatedBy", "ytbsCode", "canSendYtbs")
-		VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NULL, $8, NULL, $9, $10)
-	`, p.ID, p.CompanyID, p.PlantName, p.PlantType, p.Latitude, p.Longitude, p.IsActive, creatorID, p.YTBSCode, p.CanSendYTBS)
+		INSERT INTO "Plant" (id, "companyId", "plantName", "plantType", latitude, longitude, "isActive", "ytbsCode", "canSendYtbs", "createdAt", "updatedAt", "createdBy", "updatedBy")
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW(), $10, $11)
+	`, p.ID, p.CompanyID, p.PlantName, p.PlantType, p.Latitude, p.Longitude, p.IsActive, p.YTBSCode, p.CanSendYTBS, creatorID, creatorID)
 
 	if err != nil {
 		log.Printf("[DB] Insert Error (Plant): %v", err)
@@ -184,21 +180,19 @@ func UpdatePlant(c *gin.Context) {
 		idx++
 	}
 
-	if query == "" {
-		response.Error(c, http.StatusBadRequest, response.ErrInvalidInput, "Güncellenecek alan yok")
-		return
-	}
-
-	query = "UPDATE \"Plant\" SET " + query + "\"updatedAt\" = NOW(), \"updatedBy\" = $" + fmt.Sprintf("%d", idx) + " WHERE id = $" + fmt.Sprintf("%d", idx+1)
-	
-	// Get updater ID from context (JWT)
-	updaterIDStr, _ := c.Get("user_id")
+	// Add audit fields
 	var updaterID *uuid.UUID
-	if updaterIDStr != nil {
-		uid, _ := uuid.Parse(updaterIDStr.(string))
+	uidStr, _ := c.Get("user_id")
+	if uidStr != nil {
+		uid, _ := uuid.Parse(uidStr.(string))
 		updaterID = &uid
 	}
+	query += fmt.Sprintf("\"updatedAt\" = NOW(), \"updatedBy\" = $%d, ", idx)
 	args = append(args, updaterID)
+	idx++
+
+	query = "UPDATE \"Plant\" SET " + strings.TrimSuffix(query, ", ") + " WHERE id = $" + fmt.Sprintf("%d", idx)
+	
 	args = append(args, id)
 
 	_, err = db.Pool.Exec(context.Background(), query, args...)

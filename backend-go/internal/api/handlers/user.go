@@ -5,10 +5,9 @@ import (
 	"log"
 	"net/http"
 	"strings"
-	"time"
-
 	"energy-scada-platform/internal/api/response"
 	"energy-scada-platform/internal/db"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -23,7 +22,7 @@ type User struct {
 	CompanyProfileId *uuid.UUID `json:"companyProfileId"`
 	CompanyProfile   *gin.H     `json:"companyProfile"`
 	CreatedAt        time.Time  `json:"createdAt"`
-	UpdatedAt        *time.Time `json:"updatedAt"`
+	UpdatedAt        time.Time  `json:"updatedAt"`
 	CreatedBy        *uuid.UUID `json:"createdBy"`
 	UpdatedBy        *uuid.UUID `json:"updatedBy"`
 }
@@ -40,7 +39,6 @@ func GetUsers(c *gin.Context) {
 			FROM "AppUser" u
 			LEFT JOIN "AppUserProfile" up ON u.id = up."userId"
 			LEFT JOIN "CompanyProfile" cp ON up."companyId" = cp.id
-			ORDER BY u."createdAt" DESC
 		`)
 	} else if companyID != nil {
 		rows, err = db.Pool.Query(context.Background(), `
@@ -50,7 +48,6 @@ func GetUsers(c *gin.Context) {
 			JOIN "AppUserProfile" up ON u.id = up."userId"
 			JOIN "CompanyProfile" cp ON up."companyId" = cp.id
 			WHERE up."companyId" = $1
-			ORDER BY u."createdAt" DESC
 		`, *companyID)
 	} else {
 		response.Success(c, http.StatusOK, []any{})
@@ -109,14 +106,7 @@ func CreateUser(c *gin.Context) {
 	id := uuid.New()
 	userCode := uuid.New().String()[:8]
 
-	tx, err := db.Pool.Begin(context.Background())
-	if err != nil {
-		response.Error(c, http.StatusInternalServerError, response.ErrDatabase, err.Error())
-		return
-	}
-	defer tx.Rollback(context.Background())
-
-	// Get creator from context
+	// Get creator context
 	var creatorID *uuid.UUID
 	uidStr, _ := c.Get("user_id")
 	if uidStr != nil {
@@ -124,10 +114,17 @@ func CreateUser(c *gin.Context) {
 		creatorID = &uid
 	}
 
+	tx, err := db.Pool.Begin(context.Background())
+	if err != nil {
+		response.Error(c, http.StatusInternalServerError, response.ErrDatabase, err.Error())
+		return
+	}
+	defer tx.Rollback(context.Background())
+
 	_, err = tx.Exec(context.Background(), `
 		INSERT INTO "AppUser" (id, email, "firstName", "lastName", "adminType", "userCode", "createdAt", "updatedAt", "createdBy", "updatedBy")
-		VALUES ($1, $2, $3, $4, $5, $6, NOW(), NULL, $7, NULL)
-	`, id, body.Email, firstName, lastName, body.Role, userCode, creatorID)
+		VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW(), $7, $8)
+	`, id, body.Email, firstName, lastName, body.Role, userCode, creatorID, creatorID)
 
 	if err != nil {
 		response.Error(c, http.StatusInternalServerError, response.ErrDatabase, err.Error())
@@ -172,14 +169,6 @@ func UpdateUser(c *gin.Context) {
 		return
 	}
 
-	// Get updater from context
-	var updaterID *uuid.UUID
-	uidStr, _ := c.Get("user_id")
-	if uidStr != nil {
-		uid, _ := uuid.Parse(uidStr.(string))
-		updaterID = &uid
-	}
-
 	tx, err := db.Pool.Begin(context.Background())
 	if err != nil {
 		response.Error(c, http.StatusInternalServerError, response.ErrDatabase, err.Error())
@@ -195,9 +184,16 @@ func UpdateUser(c *gin.Context) {
 		lastName = strings.Join(nameParts[1:], " ")
 	}
 
+	// Get updater context
+	var updaterID *uuid.UUID
+	uidStr, _ := c.Get("user_id")
+	if uidStr != nil {
+		uid, _ := uuid.Parse(uidStr.(string))
+		updaterID = &uid
+	}
+
 	_, err = tx.Exec(context.Background(), `
-		UPDATE "AppUser" SET "firstName" = $1, "lastName" = $2, email = $3, "adminType" = $4, 
-		       "updatedAt" = NOW(), "updatedBy" = $5
+		UPDATE "AppUser" SET "firstName" = $1, "lastName" = $2, email = $3, "adminType" = $4, "updatedAt" = NOW(), "updatedBy" = $5
 		WHERE id = $6
 	`, firstName, lastName, body.Email, body.Role, updaterID, id)
 	if err != nil {

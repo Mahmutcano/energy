@@ -4,40 +4,39 @@ import (
 	"context"
 	"log"
 	"net/http"
-	"time"
-
 	"energy-scada-platform/internal/api/response"
 	"energy-scada-platform/internal/db"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
 
 type DatasheetPoint struct {
-	ID                uuid.UUID `json:"id"`
-	ProfileID         uuid.UUID `json:"profileId"`
-	DataName          string    `json:"dataName"`
-	DataValue         *string   `json:"dataValue"` // Kept for compatibility, mapped to dataExplanation or NULL
-	DataExplanation   *string   `json:"dataExplanation"`
-	RegisterAddress   *int      `json:"registerAddress"`
-	IsActive          bool      `json:"isActive"`
-	FunctionCode      *int      `json:"functionCode"`
-	Multiplier        *float64  `json:"multiplier"`
-	WordSwap          bool      `json:"wordSwap"`
-	FeederName        *string   `json:"feederName"`
-	SignalType        *string   `json:"signalType"`
-	SignalDescription *string   `json:"signalDescription"`
-	DataType          *string   `json:"dataType"`
-	SignalSource      *string   `json:"signalSource"`
-	ComponentID       *string   `json:"componentId"`
-	ComponentText     *string   `json:"componentText"`
-	Ioa1ObjectAddress *int      `json:"ioa1ObjectAddress"`
-	Ioa2CellNo        *int      `json:"ioa2CellNo"`
-	Ioa3VoltageLevel  *int      `json:"ioa3VoltageLevel"`
-	ScadaAddress      *int      `json:"scadaAddress"`
-	RecordingInterval *int      `json:"recordingInterval"`
-	CreatedAt         time.Time `json:"createdAt"`
-	UpdatedAt         *time.Time `json:"updatedAt"`
+	ID                uuid.UUID  `json:"id"`
+	ProfileID         uuid.UUID  `json:"profileId"`
+	DataName          string     `json:"dataName"`
+	DataValue         *string    `json:"dataValue"`
+	DataExplanation   *string    `json:"dataExplanation"`
+	RegisterAddress   *int       `json:"registerAddress"`
+	IsActive          bool       `json:"isActive"`
+	FunctionCode      *int       `json:"functionCode"`
+	Multiplier        *float64   `json:"multiplier"`
+	WordSwap          bool       `json:"wordSwap"`
+	FeederName        *string    `json:"feederName"`
+	SignalType        *string    `json:"signalType"`
+	SignalDescription *string    `json:"signalDescription"`
+	DataType          *string    `json:"dataType"`
+	SignalSource      *string    `json:"signalSource"`
+	ComponentID       *string    `json:"componentId"`
+	ComponentText     *string    `json:"componentText"`
+	Ioa1ObjectAddress *int       `json:"ioa1ObjectAddress"`
+	Ioa2CellNo        *int       `json:"ioa2CellNo"`
+	Ioa3VoltageLevel  *int       `json:"ioa3VoltageLevel"`
+	ScadaAddress      *int       `json:"scadaAddress"`
+	RecordingInterval *int       `json:"recordingInterval"`
+	CreatedAt         time.Time  `json:"createdAt"`
+	UpdatedAt         time.Time  `json:"updatedAt"`
 	CreatedBy         *uuid.UUID `json:"createdBy"`
 	UpdatedBy         *uuid.UUID `json:"updatedBy"`
 }
@@ -97,6 +96,15 @@ func CreateDatasheetPoint(c *gin.Context) {
 	}
 
 	p.ID = uuid.New()
+	
+	// Get creator context
+	var creatorID *uuid.UUID
+	uidStr, _ := c.Get("user_id")
+	if uidStr != nil {
+		uid, _ := uuid.Parse(uidStr.(string))
+		creatorID = &uid
+	}
+
 	address := p.RegisterAddress
 	if address == nil {
 		address = p.ScadaAddress
@@ -113,14 +121,6 @@ func CreateDatasheetPoint(c *gin.Context) {
 		dataExt = p.ComponentText
 	}
 
-	// Get user ID from context
-	var userID *uuid.UUID
-	uidStr, _ := c.Get("user_id")
-	if uidStr != nil {
-		uid, _ := uuid.Parse(uidStr.(string))
-		userID = &uid
-	}
-
 	_, err := db.Pool.Exec(context.Background(), `
 		INSERT INTO "DatasheetPoint" (
 			id, "profileId", "dataName", address, "dataExplanation", 
@@ -128,11 +128,11 @@ func CreateDatasheetPoint(c *gin.Context) {
 			"signalType", "dataType", "signalSource", 
 			"componentId", "ioa2CellNo", "ioa3Voltage_level", unit, "recordingInterval",
 			"createdAt", "updatedAt", "createdBy", "updatedBy"
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, NOW(), NULL, $19, NULL)
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, NOW(), NOW(), $19, $20)
 	`, p.ID, p.ProfileID, p.DataName, address, dataExt,
 	p.IsActive, p.FunctionCode, p.Multiplier, p.WordSwap, p.FeederName,
 	p.SignalType, p.DataType, p.SignalSource,
-	p.ComponentID, p.Ioa2CellNo, p.Ioa3VoltageLevel, p.DataValue, p.RecordingInterval, userID)
+	p.ComponentID, p.Ioa2CellNo, p.Ioa3VoltageLevel, p.DataValue, p.RecordingInterval, creatorID, creatorID)
 
 	if err != nil {
 		response.Error(c, http.StatusInternalServerError, response.ErrDatabase, err.Error())
@@ -175,7 +175,10 @@ func BulkCreateDatasheetPoints(c *gin.Context) {
 		return
 	}
 
-	// Get creator
+	ctx := context.Background()
+	inserted := 0
+
+	// Get creator context
 	var creatorID *uuid.UUID
 	uidStr, _ := c.Get("user_id")
 	if uidStr != nil {
@@ -183,8 +186,6 @@ func BulkCreateDatasheetPoints(c *gin.Context) {
 		creatorID = &uid
 	}
 
-	ctx := context.Background()
-	inserted := 0
 	for _, p := range req.Points {
 		id := uuid.New()
 		address := p.RegisterAddress
@@ -208,13 +209,13 @@ func BulkCreateDatasheetPoints(c *gin.Context) {
 				id, "profileId", "dataName", address, "dataExplanation", 
 				"isActive", "functionCode", multiplier, "wordSwap", "feederName", 
 				"signalType", "dataType", "signalSource", "componentId", 
-				"ioa2CellNo", "ioa3Voltage_level", unit, "recordingInterval", 
+				"ioa2CellNo", "ioa3VoltageLevel", unit, "recordingInterval",
 				"createdAt", "updatedAt", "createdBy", "updatedBy"
-			) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, NOW(), NULL, $19, NULL)
+			) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, NOW(), NOW(), $19, $20)
 		`, id, req.ProfileID, p.DataName, address, dataExt,
 			p.IsActive, p.FunctionCode, p.Multiplier, p.WordSwap, p.FeederName,
 			p.SignalType, p.DataType, p.SignalSource, p.ComponentID,
-			p.Ioa2CellNo, p.Ioa3VoltageLevel, p.DataValue, p.RecordingInterval, creatorID)
+			p.Ioa2CellNo, p.Ioa3VoltageLevel, p.DataValue, p.RecordingInterval, creatorID, creatorID)
 
 		if err == nil {
 			inserted++
@@ -238,6 +239,14 @@ func UpdateDatasheetPoint(c *gin.Context) {
 		return
 	}
 
+	// Get updater context
+	var updaterID *uuid.UUID
+	uidStr, _ := c.Get("user_id")
+	if uidStr != nil {
+		uid, _ := uuid.Parse(uidStr.(string))
+		updaterID = &uid
+	}
+
 	address := p.RegisterAddress
 	if address == nil {
 		address = p.ScadaAddress
@@ -254,26 +263,19 @@ func UpdateDatasheetPoint(c *gin.Context) {
 		dataExt = p.ComponentText
 	}
 
-	// Get updater ID
-	var updaterID *uuid.UUID
-	uidStr, _ := c.Get("user_id")
-	if uidStr != nil {
-		uid, _ := uuid.Parse(uidStr.(string))
-		updaterID = &uid
-	}
-
 	_, err = db.Pool.Exec(context.Background(), `
 		UPDATE "DatasheetPoint" SET
 			"dataName" = $1, address = $2, "dataExplanation" = $3, 
 			"isActive" = $4, "functionCode" = $5, multiplier = $6, "wordSwap" = $7, "feederName" = $8, 
 			"signalType" = $9, "dataType" = $10, "signalSource" = $11, 
-			"componentId" = $12, "ioa2CellNo" = $13, "ioa3Voltage_level" = $14,
+			"componentId" = $12, "ioa2CellNo" = $13, "ioa3VoltageLevel" = $14,
 			unit = $15, "recordingInterval" = $16, "updatedAt" = NOW(), "updatedBy" = $17
 		WHERE id = $18
 	`, p.DataName, address, dataExt,
 		p.IsActive, p.FunctionCode, p.Multiplier, p.WordSwap, p.FeederName,
 		p.SignalType, p.DataType, p.SignalSource,
-		p.ComponentID, p.Ioa2CellNo, p.Ioa3VoltageLevel, p.DataValue, p.RecordingInterval, updaterID, pointID)
+		p.ComponentID, p.Ioa2CellNo, p.Ioa3VoltageLevel, p.DataValue, p.RecordingInterval,
+		updaterID, pointID)
 
 	if err != nil {
 		response.Error(c, http.StatusInternalServerError, response.ErrDatabase, err.Error())

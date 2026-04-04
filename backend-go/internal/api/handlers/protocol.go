@@ -4,10 +4,9 @@ import (
 	"context"
 	"log"
 	"net/http"
-	"time"
-
 	"energy-scada-platform/internal/api/response"
 	"energy-scada-platform/internal/db"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -15,10 +14,14 @@ import (
 )
 
 type CommProtocol struct {
-	ID           uuid.UUID `json:"id"`
-	ConfigName   string    `json:"configName"`
-	ProtocolType string    `json:"protocolType"`
-	PlantID      uuid.UUID `json:"plantId"`
+	ID           uuid.UUID  `json:"id"`
+	ConfigName   string     `json:"configName"`
+	ProtocolType string     `json:"protocolType"`
+	PlantID      uuid.UUID  `json:"plantId"`
+	CreatedAt    time.Time  `json:"createdAt"`
+	UpdatedAt    time.Time  `json:"updatedAt"`
+	CreatedBy    *uuid.UUID `json:"createdBy"`
+	UpdatedBy    *uuid.UUID `json:"updatedBy"`
 	Plant        *struct {
 		PlantName string `json:"plantName"`
 	} `json:"plant,omitempty"`
@@ -41,7 +44,6 @@ func GetCommProtocols(c *gin.Context) {
 			LEFT JOIN "Plant" p ON pc."plantId" = p.id
 			LEFT JOIN "ModbusConfig" mc ON pc.id = mc."protocolId"
 			LEFT JOIN "IEC104Config" ic ON pc.id = ic."protocolId"
-			ORDER BY pc."createdAt" DESC
 		`)
 	} else if companyID != nil {
 		rows, err = db.Pool.Query(context.Background(), `
@@ -56,7 +58,6 @@ func GetCommProtocols(c *gin.Context) {
 			LEFT JOIN "ModbusConfig" mc ON pc.id = mc."protocolId"
 			LEFT JOIN "IEC104Config" ic ON pc.id = ic."protocolId"
 			WHERE p."companyId" = $1
-			ORDER BY pc."createdAt" DESC
 		`, *companyID)
 	} else {
 		response.Success(c, http.StatusOK, []any{})
@@ -76,14 +77,11 @@ func GetCommProtocols(c *gin.Context) {
 		var mPort, mSlaveId, mTimeout, mRetryCount *int
 		var iPort, iAsdu, iT0, iT1, iT2, iT3, iK, iW *int
 		var deviceCount int
-		var createdAt, updatedAt *time.Time
-		var createdBy, updatedBy *uuid.UUID
-
 		err := rows.Scan(
 			&p.ID, &p.ConfigName, &p.ProtocolType, &p.PlantID, &plantName,
 			&mIP, &mPort, &mSlaveId, &mTimeout, &mRetryCount,
 			&iIP, &iPort, &iAsdu, &iT0, &iT1, &iT2, &iT3, &iK, &iW,
-			&deviceCount, &createdAt, &updatedAt, &createdBy, &updatedBy,
+			&deviceCount, &p.CreatedAt, &p.UpdatedAt, &p.CreatedBy, &p.UpdatedBy,
 		)
 		if err != nil {
 			log.Printf("[DB] Error scanning comm protocol: %v", err)
@@ -95,12 +93,12 @@ func GetCommProtocols(c *gin.Context) {
 			"configName":   p.ConfigName,
 			"protocolType": p.ProtocolType,
 			"plantId":      p.PlantID,
+			"createdAt":    p.CreatedAt,
+			"updatedAt":    p.UpdatedAt,
+			"createdBy":    p.CreatedBy,
+			"updatedBy":    p.UpdatedBy,
 			"plant":        gin.H{"plantName": plantName},
 			"_count":       gin.H{"devices": deviceCount},
-			"createdAt":    createdAt,
-			"updatedAt":    updatedAt,
-			"createdBy":    createdBy,
-			"updatedBy":    updatedBy,
 		}
 
 		if p.ProtocolType == "MODBUS" && mIP != nil {
@@ -169,7 +167,7 @@ func CreateCommProtocol(c *gin.Context) {
 	}
 	defer tx.Rollback(ctx)
 
-	// Get creator
+	// Get creator context
 	var creatorID *uuid.UUID
 	uidStr, _ := c.Get("user_id")
 	if uidStr != nil {
@@ -180,8 +178,8 @@ func CreateCommProtocol(c *gin.Context) {
 	protocolID := uuid.New()
 	_, err = tx.Exec(ctx, `
 		INSERT INTO "ProtocolConfig" (id, "plantId", "protocolType", "configName", "isActive", "createdAt", "updatedAt", "createdBy", "updatedBy")
-		VALUES ($1, $2, $3, $4, $5, NOW(), NULL, $6, NULL)
-	`, protocolID, req.PlantID, req.ProtocolType, req.ConfigName, true, creatorID)
+		VALUES ($1, $2, $3, $4, $5, NOW(), NOW(), $6, $7)
+	`, protocolID, req.PlantID, req.ProtocolType, req.ConfigName, true, creatorID, creatorID)
 	if err != nil {
 		response.Error(c, http.StatusInternalServerError, response.ErrDatabase, "Ana konfigürasyon kaydedilemedi")
 		return
@@ -259,7 +257,7 @@ func UpdateCommProtocol(c *gin.Context) {
 	}
 	defer tx.Rollback(ctx)
 
-	// Get updater ID
+	// Get updater context
 	var updaterID *uuid.UUID
 	uidStr, _ := c.Get("user_id")
 	if uidStr != nil {
@@ -289,13 +287,13 @@ func UpdateCommProtocol(c *gin.Context) {
 	if req.ProtocolType == "MODBUS" && req.ModbusConfig != nil {
 		mc := req.ModbusConfig
 		_, err = tx.Exec(ctx, `
-			INSERT INTO "ModbusConfig" (id, protocol_id, "ipAddress", port, "slaveId", timeout, "retryCount")
+			INSERT INTO "ModbusConfig" (id, "protocolId", "ipAddress", port, "slaveId", timeout, "retryCount")
 			VALUES ($1, $2, $3, $4, $5, $6, $7)
 		`, uuid.New(), protocolID, mc.IPAddress, mc.Port, mc.SlaveID, mc.Timeout, mc.RetryCount)
 	} else if req.ProtocolType == "IEC104" && req.IEC104Config != nil {
 		ic := req.IEC104Config
 		_, err = tx.Exec(ctx, `
-			INSERT INTO "IEC104Config" (id, protocol_id, "ipAddress", port, "asduAddr", t0, t1, t2, t3, k, w)
+			INSERT INTO "IEC104Config" (id, "protocolId", "ipAddress", port, "asduAddr", t0, t1, t2, t3, k, w)
 			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 		`, uuid.New(), protocolID, ic.IPAddress, ic.Port, ic.AsduAddr, ic.T0, ic.T1, ic.T2, ic.T3, ic.K, ic.W)
 	}

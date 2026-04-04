@@ -19,7 +19,7 @@ type DatasheetProfile struct {
 	Name         string        `json:"name"`
 	ProtocolType string        `json:"protocolType"`
 	CreatedAt    time.Time     `json:"createdAt"`
-	UpdatedAt    *time.Time    `json:"updatedAt"`
+	UpdatedAt    time.Time     `json:"updatedAt"`
 	CreatedBy    *uuid.UUID    `json:"createdBy"`
 	UpdatedBy    *uuid.UUID    `json:"updatedBy"`
 	Count        *ProfileCount `json:"_count,omitempty"`
@@ -41,7 +41,7 @@ func GetDatasheetProfiles(c *gin.Context) {
 			(SELECT COUNT(*) FROM "Device" d WHERE d."datasheetProfileId" = dp.id) as device_count,
 			dp."createdAt", dp."updatedAt", dp."createdBy", dp."updatedBy"
 		FROM "DatasheetProfile" dp
-		ORDER BY dp."createdAt" DESC
+		ORDER BY dp.name ASC
 	`)
 	if err != nil {
 		response.Error(c, http.StatusInternalServerError, response.ErrDatabase, err.Error())
@@ -87,7 +87,7 @@ func CreateDatasheetProfile(c *gin.Context) {
 		return
 	}
 
-	// Get creator
+	// Get creator context
 	var creatorID *uuid.UUID
 	uidStr, _ := c.Get("user_id")
 	if uidStr != nil {
@@ -98,8 +98,8 @@ func CreateDatasheetProfile(c *gin.Context) {
 	profileID := uuid.New()
 	_, err := db.Pool.Exec(context.Background(), `
 		INSERT INTO "DatasheetProfile" (id, name, "protocolType", "createdAt", "updatedAt", "createdBy", "updatedBy")
-		VALUES ($1, $2, $3, NOW(), NULL, $4, NULL)
-	`, profileID, req.Name, req.ProtocolType, creatorID)
+		VALUES ($1, $2, $3, NOW(), NOW(), $4, $5)
+	`, profileID, req.Name, req.ProtocolType, creatorID, creatorID)
 
 	if err != nil {
 		log.Printf("[DB] INSERT Error (DatasheetProfile): %v", err)
@@ -132,7 +132,7 @@ func UpdateDatasheetProfile(c *gin.Context) {
 		return
 	}
 
-	// Get updater ID
+	// Get updater context
 	var updaterID *uuid.UUID
 	uidStr, _ := c.Get("user_id")
 	if uidStr != nil {

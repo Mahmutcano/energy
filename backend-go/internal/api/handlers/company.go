@@ -5,9 +5,9 @@ import (
 	"log"
 	"net/http"
 
-	"time"
 	"energy-scada-platform/internal/api/response"
 	"energy-scada-platform/internal/db"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -25,7 +25,7 @@ type Company struct {
 	TaxNumber      *int       `json:"taxNumber"`
 	IsActive       bool       `json:"isActive"`
 	CreatedAt      time.Time  `json:"createdAt"`
-	UpdatedAt      *time.Time `json:"updatedAt"`
+	UpdatedAt      time.Time  `json:"updatedAt"`
 	CreatedBy      *uuid.UUID `json:"createdBy"`
 	UpdatedBy      *uuid.UUID `json:"updatedBy"`
 }
@@ -39,21 +39,20 @@ func GetCompanies(c *gin.Context) {
 	if role == "SUPER_ADMIN" {
 		rows, err = db.Pool.Query(context.Background(), `
 			SELECT id, name, address, phone, email, representative, "taxOffice", "taxNumber", "isActive", 
-			       "createdAt", "updatedAt", "createdBy", "updatedBy",
 			       (SELECT COUNT(*) FROM "Plant" p WHERE p."companyId" = cp.id) as plant_count,
-			       (SELECT COUNT(*) FROM "AppUserProfile" up WHERE up."companyId" = cp.id) as user_count
+			       (SELECT COUNT(*) FROM "AppUserProfile" up WHERE up."companyId" = cp.id) as user_count,
+				   "createdAt", "updatedAt", "createdBy", "updatedBy"
 			FROM "CompanyProfile" cp
-			ORDER BY "createdAt" DESC
+			ORDER BY name ASC
 		`)
 	} else if companyID != nil {
 		rows, err = db.Pool.Query(context.Background(), `
 			SELECT id, name, address, phone, email, representative, "taxOffice", "taxNumber", "isActive", 
-			       "createdAt", "updatedAt", "createdBy", "updatedBy",
 			       (SELECT COUNT(*) FROM "Plant" p WHERE p."companyId" = cp.id) as plant_count,
-			       (SELECT COUNT(*) FROM "AppUserProfile" up WHERE up."companyId" = cp.id) as user_count
+			       (SELECT COUNT(*) FROM "AppUserProfile" up WHERE up."companyId" = cp.id) as user_count,
+				   "createdAt", "updatedAt", "createdBy", "updatedBy"
 			FROM "CompanyProfile" cp
 			WHERE id = $1
-			ORDER BY "createdAt" DESC
 		`, *companyID)
 	} else {
 		response.Success(c, http.StatusOK, []any{})
@@ -72,8 +71,7 @@ func GetCompanies(c *gin.Context) {
 		if err := rows.Scan(
 			&comp.ID, &comp.Name, &comp.Address, &comp.Phone, &comp.Email,
 			&comp.Representative, &comp.TaxOffice, &comp.TaxNumber, &comp.IsActive,
-			&comp.CreatedAt, &comp.UpdatedAt, &comp.CreatedBy, &comp.UpdatedBy,
-			&plantCount, &userCount,
+			&plantCount, &userCount, &comp.CreatedAt, &comp.UpdatedAt, &comp.CreatedBy, &comp.UpdatedBy,
 		); err != nil {
 			log.Printf("[DB] Error scanning company: %v", err)
 			continue
@@ -89,12 +87,12 @@ func GetCompanies(c *gin.Context) {
 			"taxOffice":      comp.TaxOffice,
 			"taxNumber":      comp.TaxNumber,
 			"isActive":       comp.IsActive,
+			"plantCount":     plantCount,
+			"userCount":      userCount,
 			"createdAt":      comp.CreatedAt,
 			"updatedAt":      comp.UpdatedAt,
 			"createdBy":      comp.CreatedBy,
 			"updatedBy":      comp.UpdatedBy,
-			"plantCount":     plantCount,
-			"userCount":      userCount,
 		})
 	}
 
@@ -112,7 +110,7 @@ func CreateCompany(c *gin.Context) {
 		return
 	}
 
-	// Get creator
+	// Get creator context
 	var creatorID *uuid.UUID
 	uidStr, _ := c.Get("user_id")
 	if uidStr != nil {
@@ -123,8 +121,8 @@ func CreateCompany(c *gin.Context) {
 	id := uuid.New()
 	_, err := db.Pool.Exec(context.Background(), `
 		INSERT INTO "CompanyProfile" (id, name, address, phone, email, representative, "taxOffice", "taxNumber", "isActive", "createdAt", "updatedAt", "createdBy", "updatedBy")
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NULL, $10, NULL)
-	`, id, req.Name, req.Address, req.Phone, req.Email, req.Representative, req.TaxOffice, req.TaxNumber, req.IsActive, creatorID)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW(), $10, $11)
+	`, id, req.Name, req.Address, req.Phone, req.Email, req.Representative, req.TaxOffice, req.TaxNumber, req.IsActive, creatorID, creatorID)
 
 	if err != nil {
 		response.Error(c, http.StatusInternalServerError, response.ErrDatabase, err.Error())
@@ -149,7 +147,7 @@ func UpdateCompany(c *gin.Context) {
 		return
 	}
 
-	// Get updater
+	// Get updater context
 	var updaterID *uuid.UUID
 	uidStr, _ := c.Get("user_id")
 	if uidStr != nil {

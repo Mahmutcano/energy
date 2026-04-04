@@ -62,6 +62,10 @@ export const appUser = pgTable('AppUser', {
     email: text('email').notNull().unique(),
     adminType: adminTypeEnum('adminType').notNull(),
     isActive: boolean('isActive').default(true).notNull(),
+    createdAt: timestamp('createdAt').defaultNow().notNull(),
+    updatedAt: timestamp('updatedAt').defaultNow().notNull(),
+    createdBy: uuid('createdBy'),
+    updatedBy: uuid('updatedBy'),
 }, (table) => ({
     userCodeIdx: index('AppUser_userCode_idx').on(table.userCode),
     emailIdx: index('AppUser_email_idx').on(table.email),
@@ -77,6 +81,10 @@ export const companyProfile = pgTable('CompanyProfile', {
     taxOffice: text('taxOffice'),
     taxNumber: integer('taxNumber'),
     isActive: boolean('isActive').default(true).notNull(),
+    createdAt: timestamp('createdAt').defaultNow().notNull(),
+    updatedAt: timestamp('updatedAt').defaultNow().notNull(),
+    createdBy: uuid('createdBy'),
+    updatedBy: uuid('updatedBy'),
 }, (table) => ({
     nameIdx: index('CompanyProfile_name_idx').on(table.name),
 }));
@@ -106,6 +114,10 @@ export const plant = pgTable('Plant', {
     isActive: boolean('isActive').default(true).notNull(),
     ytbsCode: text('ytbsCode').default('').notNull(),
     canSendYtbs: boolean('canSendYtbs').default(false).notNull(),
+    createdAt: timestamp('createdAt').defaultNow().notNull(),
+    updatedAt: timestamp('updatedAt').defaultNow().notNull(),
+    createdBy: uuid('createdBy'),
+    updatedBy: uuid('updatedBy'),
 }, (table) => ({
     companyIdIdx: index('Plant_company_id_idx').on(table.companyId),
 }));
@@ -117,6 +129,10 @@ export const protocolConfig = pgTable('ProtocolConfig', {
     protocolType: protocolTypeEnum('protocolType').notNull(),
     configName: text('configName').notNull(),
     isActive: boolean('isActive').default(true).notNull(),
+    createdAt: timestamp('createdAt').defaultNow().notNull(),
+    updatedAt: timestamp('updatedAt').defaultNow().notNull(),
+    createdBy: uuid('createdBy'),
+    updatedBy: uuid('updatedBy'),
 }, (table) => ({
     plantIdIdx: index('ProtocolConfig_plant_id_idx').on(table.plantId),
 }));
@@ -157,22 +173,28 @@ export const device = pgTable('Device', {
     isActive: boolean('isActive').default(true).notNull(),
     isRecording: boolean('isRecording').default(true).notNull(),
     createdAt: timestamp('createdAt').defaultNow().notNull(),
+    updatedAt: timestamp('updatedAt').defaultNow().notNull(),
+    createdBy: uuid('createdBy'),
+    updatedBy: uuid('updatedBy'),
     datasheetProfileId: uuid('datasheetProfileId').references(() => datasheetProfile.id),
 }, (table) => ({
     protocolConfigIdIdx: index('Device_protocol_config_id_idx').on(table.protocolConfigId),
     deviceNameIdx: index('Device_deviceName_idx').on(table.deviceName),
 }));
-
 export const datasheetProfile = pgTable('DatasheetProfile', {
     id: uuid('id').primaryKey().defaultRandom(),
     name: text('name').notNull(),
     protocolType: protocolTypeEnum('protocolType').notNull(),
+    createdAt: timestamp('createdAt').defaultNow().notNull(),
+    updatedAt: timestamp('updatedAt').defaultNow().notNull(),
+    createdBy: uuid('createdBy'),
+    updatedBy: uuid('updatedBy'),
 });
 
 export const datasheetPoint = pgTable('DatasheetPoint', {
     id: uuid('id').primaryKey().defaultRandom(),
     profileId: uuid('profileId').notNull().references(() => datasheetProfile.id, { onDelete: 'cascade' }),
-    data: text('dataName').notNull(),              // DB has dataName
+    dataName: text('dataName').notNull(),
     dataExplanation: text('dataExplanation'),  
     address: integer('address'),               
     isActive: boolean('isActive').default(true).notNull(),
@@ -184,14 +206,18 @@ export const datasheetPoint = pgTable('DatasheetPoint', {
     dataType: dataTypeEnum('dataType'),
     signalSource: text('signalSource'),
     componentId: text('componentId'),
-    unit: text('unit'),                        // Added missing column
+    unit: text('unit'),                        
     ioa2CellNo: integer('ioa2CellNo'),         
-    ioa3VoltageLevel: integer('ioa3Voltage_level'), 
+    ioa3VoltageLevel: integer('ioa3VoltageLevel'), 
     recordingInterval: integer('recordingInterval').default(1),
     measurementType: measurementTypeEnum('measurementType'),
+    createdAt: timestamp('createdAt').defaultNow().notNull(),
+    updatedAt: timestamp('updatedAt').defaultNow().notNull(),
+    createdBy: uuid('createdBy'),
+    updatedBy: uuid('updatedBy'),
 }, (table) => ({
     profileIdIdx: index('DatasheetPoint_profile_id_idx').on(table.profileId),
-    dataIdx: index('DatasheetPoint_data_idx').on(table.data),
+    dataIdx: index('DatasheetPoint_data_idx').on(table.dataName),
     addressIdx: index('DatasheetPoint_address_idx').on(table.address),
 }));
 

@@ -14,6 +14,7 @@ export default function KineticDashboard() {
     const [points, setPoints] = useState<any[]>([]);
     const [liveData, setLiveData] = useState<Record<string, any>>({});
     const [stats, setStats] = useState({ L1: 230.1, L2: 231.5, L3: 229.8, TotalA: 0 });
+    const [status, setStatus] = useState<'CONNECTED' | 'DISCONNECTED' | 'CONNECTING'>('CONNECTING');
     const socketRef = useRef<Socket | null>(null);
 
     // Initial load: Fetch plants and their points
@@ -49,6 +50,10 @@ export default function KineticDashboard() {
         socket.on('connect', () => {
             console.log("[SOCKET] Connected, Joining Room:", protocolId);
             socket.emit('join:protocol', { protocolId });
+        });
+
+        socket.on('protocol:status', (data: any) => {
+            if (data.status) setStatus(data.status);
         });
 
         socket.on('telemetry:update', (data: any) => {
@@ -98,6 +103,15 @@ export default function KineticDashboard() {
                 <div className="flex items-center gap-3">
                     <Waves size={18} className="text-neon-blue" />
                     <h2 className="text-sm font-black tracking-[0.2em] uppercase">Voltage Monitoring</h2>
+                    
+                    {/* Connection Status Indicator */}
+                    <div className="flex items-center gap-2 px-3 py-1 bg-black/40 border border-white/5 rounded-full ml-4">
+                        <div className={`w-1.5 h-1.5 rounded-full ${status === 'CONNECTED' ? 'bg-[#CCFF00] shadow-[0_0_8px_#CCFF00] animate-pulse' : 'bg-red-500 shadow-[0_0_8px_#EF4444]'}`} />
+                        <span className={`text-[9px] font-black tracking-widest uppercase ${status === 'CONNECTED' ? 'text-neon-lime' : 'text-red-500/80'}`}>
+                            {status}
+                        </span>
+                    </div>
+
                     <div className="h-px flex-1 bg-white/5" />
                     <div className="flex gap-4">
                          <span className="flex items-center gap-2 text-[9px] font-bold text-neon-cyan"><span className="w-1.5 h-1.5 rounded-full bg-neon-cyan shadow-[0_0_8px_#00E5FF]" /> PHASE A</span>

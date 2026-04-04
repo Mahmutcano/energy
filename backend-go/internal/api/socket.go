@@ -2,6 +2,7 @@ package api
 
 import (
 	"log"
+	"strings"
 
 	"github.com/zishang520/socket.io/v2/socket"
 )
@@ -23,8 +24,9 @@ func InitSocket() *socket.Server {
 		client.On("join:protocol", func(args ...any) {
 			data := args[0].(map[string]interface{})
 			if pID, ok := data["protocolId"].(string); ok {
-				client.Join(socket.Room("protocol:" + pID))
-				log.Printf("[SOCKET] Client %s joined protocol room: %s", client.Id(), pID)
+				room := "protocol:" + strings.ToLower(pID)
+				client.Join(socket.Room(room))
+				log.Printf("[SOCKET] Client %s joined room: %s", client.Id(), room)
 			}
 		})
 

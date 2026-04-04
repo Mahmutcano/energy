@@ -53,10 +53,12 @@ export default function KineticDashboard() {
         });
 
         socket.on('protocol:status', (data: any) => {
+            console.log("[SOCKET] Status Update:", data);
             if (data.status) setStatus(data.status);
         });
 
         socket.on('telemetry:update', (data: any) => {
+            console.log("[SOCKET] Live Telemetry Received:", data.Name, "=", data.Value);
             setLiveData(prev => {
                 const updated = { ...prev };
                 const history = prev[data.PointID] ? [...prev[data.PointID].history, data] : [data];

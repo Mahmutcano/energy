@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"strings"
 	"sync"
 
 	"energy-scada-platform/internal/models"
@@ -69,15 +70,22 @@ func (b *TelemetryBroadcaster) Start(ctx context.Context) {
 func (b *TelemetryBroadcaster) handlePayload(payload string) {
 	var telemetry models.TelemetryData
 	if err := json.Unmarshal([]byte(payload), &telemetry); err != nil {
+		log.Printf("[BROADCASTER] ❌ Unmarshal error: %v | Payload: %s", err, payload)
 		return
 	}
 
 	if b.socketServer != nil {
-		// Room: protocol:PROTOCOL_ID
-		roomName := fmt.Sprintf("protocol:%s", telemetry.ProtocolID.String())
+		// Room: protocol:PROTOCOL_ID (Normalize to lowercase just in case)
+		pID := strings.ToLower(telemetry.ProtocolID.String())
+		roomName := fmt.Sprintf("protocol:%s", pID)
+		
+		// Debug Log
+		log.Printf("[BROADCASTER] 📡 Emitting to room %s | Point: %s | Val: %v", roomName, telemetry.Name, telemetry.Value)
+
+		// Emit to protocol-specific room
 		b.socketServer.Sockets().To(socket.Room(roomName)).Emit("telemetry:update", telemetry)
 
-		// Generic channel for admins
+		// Admin Raw feed
 		b.socketServer.Sockets().To(socket.Room("admin:telemetry")).Emit("telemetry:raw", telemetry)
 	}
 }

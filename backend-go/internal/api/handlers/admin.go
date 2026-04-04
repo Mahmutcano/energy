@@ -71,6 +71,8 @@ func ModbusTest(c *gin.Context) {
 		value = int(uint16(results[0])<<8 | uint16(results[1]))
 	}
 
+	log.Printf("[ADMIN] Modbus Test Success | IP: %s | Address: %d | Raw Bytes: %v | Calculated Value: %d", req.IP, addressInt, results, value)
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "Gerçek Modbus Verisi",

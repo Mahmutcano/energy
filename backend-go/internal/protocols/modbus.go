@@ -216,7 +216,8 @@ func (s *ModbusService) setStatus(id uuid.UUID, status string) {
 		s.statuses[id] = status
 		if s.socket != nil {
 			msg := map[string]string{"protocolId": id.String(), "status": status}
-			s.socket.Sockets().Emit("protocol:status", msg)
+			room := "protocol:" + strings.ToLower(id.String())
+			s.socket.Sockets().To(socket.Room(room)).Emit("protocol:status", msg)
 		}
 	}
 }

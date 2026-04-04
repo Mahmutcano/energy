@@ -58,19 +58,19 @@ export default function KineticDashboard() {
         });
 
         socket.on('telemetry:update', (data: any) => {
-            console.log("[SOCKET] Live Telemetry Received:", data.Name, "=", data.Value);
+            console.log("[SOCKET] Live Telemetry Received:", data.name, "=", data.value);
             setLiveData(prev => {
                 const updated = { ...prev };
-                const history = prev[data.PointID] ? [...prev[data.PointID].history, data] : [data];
-                updated[data.PointID] = { ...data, history: history.slice(-50) };
+                const pointId = data.pointId;
+                const history = prev[pointId] ? [...prev[pointId].history, data] : [data];
+                updated[pointId] = { ...data, history: history.slice(-50) };
                 return updated;
             });
 
             // Update stats based on measurement type
-            // Note: This mapping should match your actual MEASUREMENT_TYPES
-            if (data.Name.includes('Phase A') || data.Name.includes('L1')) setStats(prev => ({ ...prev, L1: data.Value }));
-            if (data.Name.includes('Phase B') || data.Name.includes('L2')) setStats(prev => ({ ...prev, L2: data.Value }));
-            if (data.Name.includes('Phase C') || data.Name.includes('L3')) setStats(prev => ({ ...prev, L3: data.Value }));
+            if (data.name.includes('Phase A') || data.name.includes('L1')) setStats(prev => ({ ...prev, L1: data.value }));
+            if (data.name.includes('Phase B') || data.name.includes('L2')) setStats(prev => ({ ...prev, L2: data.value }));
+            if (data.name.includes('Phase C') || data.name.includes('L3')) setStats(prev => ({ ...prev, L3: data.value }));
         });
     };
 

@@ -291,9 +291,9 @@ func (s *ModbusService) bytesToUint32(b []byte, swap bool) uint32 {
 }
 
 func (s *ModbusService) parseValue(b []byte, p models.PointToPoll) float64 {
-	// GÜNCELLEME: FLOAT32 veya DOUBLE64 verilerinde multiplier 0.001 seçilse bile 1.0 gibi davranmalı
-	// Çünkü bu tipler genellikle zaten ondalıklı veri barındırır.
-	if (p.DataType == "FLOAT32" || p.DataType == "DOUBLE64" || p.DataType == "FLOAT" || p.DataType == "DOUBLE") && p.Multiplier == 0.001 {
+	// GÜNCELLEME: Multiplier 0.001 ise (veya bu değere çok yakınsa), 1.0 gibi davranmalı.
+	// Hassasiyet hatalarından kaçınmak için tam eşitlik yerine küçük bir aralık (epsilon) kullanıyoruz.
+	if p.Multiplier > 0.0009 && p.Multiplier < 0.0011 {
 		p.Multiplier = 1.0
 	}
 

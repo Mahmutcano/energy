@@ -35,6 +35,7 @@ type DatasheetPoint struct {
 	Ioa3VoltageLevel  *int       `json:"ioa3VoltageLevel"`
 	ScadaAddress      *int       `json:"scadaAddress"`
 	RecordingInterval *int       `json:"recordingInterval"`
+	MeasurementType   *string    `json:"measurementType"`
 	CreatedAt         time.Time  `json:"createdAt"`
 	UpdatedAt         time.Time  `json:"updatedAt"`
 	CreatedBy         *uuid.UUID `json:"createdBy"`
@@ -52,7 +53,7 @@ func GetDatasheetPoints(c *gin.Context) {
 			"isActive", "functionCode", multiplier, "wordSwap", "feederName", 
 			"signalType", "dataExplanation" as "signalDescription", "dataType", "signalSource", 
 			"componentId", "dataExplanation" as "componentText", address as "ioa1ObjectAddress", "ioa2CellNo", 
-			"ioa3VoltageLevel", address as "scadaAddress", "recordingInterval",
+			"ioa3VoltageLevel", address as "scadaAddress", "recordingInterval", "measurementType",
 			"createdAt", "updatedAt", "createdBy", "updatedBy"
 		FROM "DatasheetPoint"
 		WHERE "profileId" = $1
@@ -72,7 +73,7 @@ func GetDatasheetPoints(c *gin.Context) {
 			&p.IsActive, &p.FunctionCode, &p.Multiplier, &p.WordSwap, &p.FeederName,
 			&p.SignalType, &p.SignalDescription, &p.DataType, &p.SignalSource,
 			&p.ComponentID, &p.ComponentText, &p.Ioa1ObjectAddress, &p.Ioa2CellNo,
-			&p.Ioa3VoltageLevel, &p.ScadaAddress, &p.RecordingInterval,
+			&p.Ioa3VoltageLevel, &p.ScadaAddress, &p.RecordingInterval, &p.MeasurementType,
 			&p.CreatedAt, &p.UpdatedAt, &p.CreatedBy, &p.UpdatedBy,
 		); err != nil {
 			log.Printf("[DB] Error scanning datasheet point: %v", err)
@@ -126,13 +127,13 @@ func CreateDatasheetPoint(c *gin.Context) {
 			id, "profileId", "dataName", address, "dataExplanation", 
 			"isActive", "functionCode", multiplier, "wordSwap", "feederName", 
 			"signalType", "dataType", "signalSource", 
-			"componentId", "ioa2CellNo", "ioa3VoltageLevel", unit, "recordingInterval",
+			"componentId", "ioa2CellNo", "ioa3VoltageLevel", unit, "recordingInterval", "measurementType",
 			"createdAt", "updatedAt", "createdBy", "updatedBy"
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, NOW(), NOW(), $19, $20)
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, NOW(), NOW(), $20, $21)
 	`, p.ID, p.ProfileID, p.DataName, address, dataExt,
 	p.IsActive, p.FunctionCode, p.Multiplier, p.WordSwap, p.FeederName,
 	p.SignalType, p.DataType, p.SignalSource,
-	p.ComponentID, p.Ioa2CellNo, p.Ioa3VoltageLevel, p.DataValue, p.RecordingInterval, creatorID, creatorID)
+	p.ComponentID, p.Ioa2CellNo, p.Ioa3VoltageLevel, p.DataValue, p.RecordingInterval, p.MeasurementType, creatorID, creatorID)
 
 	if err != nil {
 		response.Error(c, http.StatusInternalServerError, response.ErrDatabase, err.Error())
@@ -167,6 +168,7 @@ func BulkCreateDatasheetPoints(c *gin.Context) {
 			ScadaAddress      *int     `json:"scadaAddress"`
 			IsActive          bool     `json:"isActive"`
 			RecordingInterval *int     `json:"recordingInterval"`
+			MeasurementType   *string  `json:"measurementType"`
 		} `json:"points"`
 	}
 
@@ -209,13 +211,13 @@ func BulkCreateDatasheetPoints(c *gin.Context) {
 				id, "profileId", "dataName", address, "dataExplanation", 
 				"isActive", "functionCode", multiplier, "wordSwap", "feederName", 
 				"signalType", "dataType", "signalSource", "componentId", 
-				"ioa2CellNo", "ioa3VoltageLevel", unit, "recordingInterval",
+				"ioa2CellNo", "ioa3VoltageLevel", unit, "recordingInterval", "measurementType",
 				"createdAt", "updatedAt", "createdBy", "updatedBy"
-			) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, NOW(), NOW(), $19, $20)
+			) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, NOW(), NOW(), $20, $21)
 		`, id, req.ProfileID, p.DataName, address, dataExt,
 			p.IsActive, p.FunctionCode, p.Multiplier, p.WordSwap, p.FeederName,
 			p.SignalType, p.DataType, p.SignalSource, p.ComponentID,
-			p.Ioa2CellNo, p.Ioa3VoltageLevel, p.DataValue, p.RecordingInterval, creatorID, creatorID)
+			p.Ioa2CellNo, p.Ioa3VoltageLevel, p.DataValue, p.RecordingInterval, p.MeasurementType, creatorID, creatorID)
 
 		if err == nil {
 			inserted++
@@ -269,12 +271,12 @@ func UpdateDatasheetPoint(c *gin.Context) {
 			"isActive" = $4, "functionCode" = $5, multiplier = $6, "wordSwap" = $7, "feederName" = $8, 
 			"signalType" = $9, "dataType" = $10, "signalSource" = $11, 
 			"componentId" = $12, "ioa2CellNo" = $13, "ioa3VoltageLevel" = $14,
-			unit = $15, "recordingInterval" = $16, "updatedAt" = NOW(), "updatedBy" = $17
-		WHERE id = $18
+			unit = $15, "recordingInterval" = $16, "measurementType" = $17, "updatedAt" = NOW(), "updatedBy" = $18
+		WHERE id = $19
 	`, p.DataName, address, dataExt,
 		p.IsActive, p.FunctionCode, p.Multiplier, p.WordSwap, p.FeederName,
 		p.SignalType, p.DataType, p.SignalSource,
-		p.ComponentID, p.Ioa2CellNo, p.Ioa3VoltageLevel, p.DataValue, p.RecordingInterval,
+		p.ComponentID, p.Ioa2CellNo, p.Ioa3VoltageLevel, p.DataValue, p.RecordingInterval, p.MeasurementType,
 		updaterID, pointID)
 
 	if err != nil {

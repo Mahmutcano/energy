@@ -236,9 +236,14 @@ class WorkerService {
         }
 
         // 2. Real-time Broadcast (Immediate for UI)
+        // Emit to specific rooms/events for targeted listeners
         io.emit(`telemetry:${deviceId}`, data);
         if (protocolId) io.emit(`telemetry:${protocolId}`, data);
+        
+        // Legacy/Generic event names for broader listeners (like the main live page)
+        io.emit('telemetry:update', data);
         io.emit('telemetry:all', data);
+        io.emit('telemetry:raw', data);
     }
 
     // Expose metrics for health check

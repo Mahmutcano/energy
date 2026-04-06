@@ -1,6 +1,6 @@
 import { db, timescaleDb } from '../db';
 import { telemetryValue } from '../db/schema';
-import { eq, and, gte, lte, asc, sql } from 'drizzle-orm';
+import { eq, and, gte, lte, asc, sql, inArray } from 'drizzle-orm';
 
 /**
  * Initialize TimescaleDB: Create table and hypertable if not exists
@@ -95,25 +95,31 @@ export const saveTelemetryBatch = async (items: Array<{ deviceId: string, pointI
     throw lastError;
 };
 
+
+
 /**
  * Query historical telemetry data with Drizzle (TimescaleDB)
  */
 export const queryTelemetry = async (
     deviceId: string,
-    pointId: string,
+    pointId: string | string[],
     hours?: number,
     startDate?: Date,
     endDate?: Date,
-    limit: number = 50000
+    limit: number = 100000
 ) => {
     try {
-        console.log(`[TELEMETRY] Querying: deviceId=${deviceId}, pointId=${pointId}, hours=${hours}`);
+        console.log(`[TELEMETRY] Querying: deviceId=${deviceId}, pointIds=${Array.isArray(pointId) ? pointId.join(',') : pointId}, hours=${hours}`);
         let whereClause;
+
+        const pointCondition = Array.isArray(pointId) 
+            ? inArray(telemetryValue.pointId, pointId)
+            : eq(telemetryValue.pointId, pointId);
 
         if (startDate || endDate) {
             const conditions = [
                 eq(telemetryValue.deviceId, deviceId),
-                eq(telemetryValue.pointId, pointId)
+                pointCondition
             ];
             if (startDate) conditions.push(gte(telemetryValue.measurementTime, startDate));
             if (endDate) conditions.push(lte(telemetryValue.measurementTime, endDate));
@@ -123,7 +129,7 @@ export const queryTelemetry = async (
             const startTime = new Date(Date.now() - h * 60 * 60 * 1000);
             whereClause = and(
                 eq(telemetryValue.deviceId, deviceId),
-                eq(telemetryValue.pointId, pointId),
+                pointCondition,
                 gte(telemetryValue.measurementTime, startTime)
             );
         }

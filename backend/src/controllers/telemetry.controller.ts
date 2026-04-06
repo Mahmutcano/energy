@@ -10,15 +10,19 @@ export const getTelemetryHistory = async (req: Request, res: Response) => {
             return res.status(400).json({ message: 'deviceId and pointId are required' });
         }
 
+        const pointIds = typeof pointId === 'string' && pointId.includes(',') 
+            ? pointId.split(',').map(id => id.trim())
+            : pointId;
+
         const data = await queryTelemetry(
             String(deviceId),
-            String(pointId),
+            pointIds as string | string[],
             hours ? Number(hours) : undefined,
             startDate ? new Date(String(startDate)) : undefined,
             endDate ? new Date(String(endDate)) : undefined
         );
 
-        res.json(data);
+        res.json({ success: true, data });
     } catch (error) {
         return handleErrorResponse(res, error);
     }

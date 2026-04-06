@@ -90,7 +90,7 @@ class SimulationService {
                                         ioa: address,
                                         value,
                                         unit: point.dataType || 'UNIT',
-                                        name: point.data,
+                                        name: point.dataName,
                                         timestamp: new Date()
                                     }));
 

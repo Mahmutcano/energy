@@ -131,8 +131,8 @@ export class IEC104Service {
                             const entry: IOAMapEntry = {
                                 pointId: point.id,
                                 deviceId: device.id,
-                                dataName: point.data,
-                                description: point.dataExplanation || point.data || 'Unknown',
+                                dataName: point.dataName,
+                                description: point.dataExplanation || point.dataName || 'Unknown',
                                 unit: point.dataType || 'UNIT',
                                 multiplier: point.multiplier || 1
                             };
@@ -246,9 +246,11 @@ export class IEC104Service {
                         };
                     });
 
-                // Emit only to targeted topic. UI MUST check deviceId.
+                // Emit to targeted topics and generic events for UI matching.
                 if (rawPoints.length > 0) {
                     io.emit(`telemetry:raw:${protocolId}`, rawPoints);
+                    io.emit('telemetry:update', rawPoints);
+                    io.emit('telemetry:raw', rawPoints);
                 }
 
                 data.forEach(item => {

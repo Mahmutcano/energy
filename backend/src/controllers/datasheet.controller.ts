@@ -153,14 +153,14 @@ export const getDatasheetPoints = async (req: Request, res: Response) => {
             where: whereClause,
             orderBy: [
                 asc(schema.datasheetPoint.address),
-                asc(schema.datasheetPoint.data)
+                asc(schema.datasheetPoint.dataName)
             ]
         });
 
         // Map fields for frontend compatibility (Address unification)
         const mappedPoints = points.map(p => ({
             ...p,
-            dataName: p.data,
+            data: p.dataName,
             scadaAddress: p.address,
             registerAddress: p.address,
             ioa1ObjectAddress: p.address
@@ -187,7 +187,7 @@ export const createDatasheetPoint = async (req: Request, res: Response) => {
         const existingPoint = await db.query.datasheetPoint.findFirst({
             where: and(
                 eq(schema.datasheetPoint.profileId, data.profileId),
-                eq(schema.datasheetPoint.data, data.data || data.dataName || 'Unnamed')
+                eq(schema.datasheetPoint.dataName, data.data || data.dataName || 'Unnamed')
             )
         });
         if (existingPoint) {
@@ -204,7 +204,7 @@ export const createDatasheetPoint = async (req: Request, res: Response) => {
 
         const [point] = await db.insert(schema.datasheetPoint).values({
             profileId: data.profileId,
-            data: unifiedData || 'Unnamed',
+            dataName: unifiedData || 'Unnamed',
             dataExplanation: unifiedExplanation,
             address: unifiedAddress,
             isActive: data.isActive,
@@ -257,7 +257,7 @@ export const bulkCreateDatasheetPoints = async (req: Request, res: Response) => 
                 const existing = await tx.query.datasheetPoint.findFirst({
                     where: and(
                         eq(schema.datasheetPoint.profileId, profileId),
-                        eq(schema.datasheetPoint.data, validated.data || validated.dataName || 'Unnamed')
+                        eq(schema.datasheetPoint.dataName, validated.data || validated.dataName || 'Unnamed')
                     )
                 });
 
@@ -267,7 +267,7 @@ export const bulkCreateDatasheetPoints = async (req: Request, res: Response) => 
 
                 const values = {
                     profileId: profileId,
-                    data: unifiedData || 'Unnamed',
+                    dataName: unifiedData || 'Unnamed',
                     dataExplanation: unifiedExplanation,
                     address: unifiedAddress,
                     isActive: validated.isActive,
@@ -323,7 +323,7 @@ export const updateDatasheetPoint = async (req: Request<{ id: string }>, res: Re
         const updateValues: any = { ...data };
         
         if (data.data || data.dataName || data.signalDescription) {
-            updateValues.data = data.data ?? data.dataName ?? data.signalDescription;
+            updateValues.dataName = data.data ?? data.dataName ?? data.signalDescription;
         }
 
         if (data.registerAddress !== undefined || data.ioa1ObjectAddress !== undefined || data.scadaAddress !== undefined) {
@@ -346,8 +346,8 @@ export const updateDatasheetPoint = async (req: Request<{ id: string }>, res: Re
             updateValues.recordingInterval = data.recordingInterval;
         }
 
-        // Remove legacy fields from update object
-        delete updateValues.dataName;
+        // Remove legacy fields that aren't in the database schema from update object
+        delete updateValues.data;
         delete updateValues.dataValue;
         delete updateValues.type;
         delete updateValues.format;

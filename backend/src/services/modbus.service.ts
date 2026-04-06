@@ -95,7 +95,7 @@ export class ModbusService {
                                     address: point.address,
                                     deviceId: device.id,
                                     pointId: point.id,
-                                    name: point.data,
+                                    name: point.dataName,
                                     unit: point.dataType || 'UNIT',
                                     functionCode: point.functionCode || 3,
                                     multiplier: point.multiplier || 1,

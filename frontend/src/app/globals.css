@@ -21,14 +21,14 @@
 }
 
 :root {
-  --background: #020617;
-  --foreground: #f1f5f9;
-  --card: #0B0F1A;
-  --border: #1E293B;
-  --muted: #1e293b;
-  --brand-color: #10b981;
-  --brand-glow: rgba(16, 185, 129, 0.4);
-  font-family: 'Inter', system-ui, sans-serif;
+  --background: #0b0e14;
+  --foreground: #d1d4dc;
+  --card: #131722;
+  --border: #2a2e39;
+  --muted: #1e222d;
+  --brand-color: #2962ff;
+  --brand-glow: rgba(41, 98, 255, 0.2);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 
 [data-theme="light-pure"] {
@@ -208,12 +208,11 @@
 
 /* Base UI Components - Compact */
 .card-base {
-  @apply bg-slate-900/60 dark:bg-slate-950/40 border border-slate-800/80 rounded-lg transition-all duration-200 relative overflow-hidden backdrop-blur-md;
-  background-image: linear-gradient(135deg, rgba(255, 255, 255, 0.02) 0%, transparent 100%);
+  @apply bg-[#131722] border border-[#2a2e39] rounded transition-colors duration-200 relative overflow-hidden;
 }
 
 .card-base:hover {
-  @apply border-brand-green/20 shadow-lg shadow-brand-green/5;
+  @apply border-[#363a45];
 }
 
 /* Compact Technical Typography */
@@ -385,23 +384,10 @@
 }
 
 /* Entry Animations */
-@keyframes animateInUp {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
 @keyframes animateInFade {
   from {
     opacity: 0;
   }
-
   to {
     opacity: 1;
   }

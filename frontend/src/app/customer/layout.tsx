@@ -86,12 +86,11 @@ export default function CustomerLayout({ children }: { children: React.ReactNode
     };
 
     return (
-        <div className="relative min-h-screen text-[#dfe4fe] font-sans flex overflow-hidden bg-[#070d1f] selection:bg-[#69f6b8]/20 selection:text-[#69f6b8]">
+        <div className="relative min-h-screen text-[#e2e8f0] font-sans flex overflow-hidden bg-[#0a0c10] selection:bg-blue-500/30 selection:text-white">
             {/* Atmospheric background */}
             <div className="pointer-events-none fixed inset-0 overflow-hidden" aria-hidden>
-                <div className="absolute -top-32 -right-32 h-[420px] w-[420px] rounded-full bg-[#69f6b8]/5 blur-[120px]" />
-                <div className="absolute top-1/3 -left-24 h-[360px] w-[360px] rounded-full bg-[#77e6ff]/5 blur-[100px]" />
-                <div className="absolute bottom-0 right-1/4 h-[280px] w-[480px] rounded-full bg-indigo-600/5 blur-[120px]" />
+                <div className="absolute top-0 left-0 h-[500px] w-[500px] rounded-full bg-blue-600/5 blur-[120px]" />
+                <div className="absolute bottom-0 right-0 h-[400px] w-[600px] rounded-full bg-slate-800/10 blur-[100px]" />
             </div>
 
             <motion.aside 
@@ -100,22 +99,21 @@ export default function CustomerLayout({ children }: { children: React.ReactNode
                 className="relative z-[100] h-screen flex flex-col border-r border-white/5 bg-[#070d1f]/95 backdrop-blur-2xl shadow-[10px_0_40px_rgba(0,0,0,0.6)]"
             >
                 <div className={cn(
-                    "h-16 flex items-center gap-3 px-6 border-b border-white/5",
+                    "h-16 flex items-center gap-3 px-6 border-b border-white/[0.04]",
                     !isSidebarOpen && "justify-center px-2"
                 )}>
                     <div className="relative shrink-0">
-                        <div className="absolute -inset-1 rounded-sm bg-[#69f6b8]/20 blur-[2px]" />
-                        <div className="relative flex h-9 w-9 items-center justify-center rounded-sm bg-[#0a0f1d] border border-[#69f6b8]/30">
-                            <Zap size={18} className="text-[#69f6b8]" strokeWidth={2.5} />
+                        <div className="relative flex h-8 w-8 items-center justify-center rounded bg-slate-800 border border-white/10">
+                            <Activity size={16} className="text-blue-400" />
                         </div>
                     </div>
                     {isSidebarOpen && (
                         <div className="flex min-w-0 flex-col">
-                            <span className="text-[10px] font-black uppercase tracking-[0.3em] text-[#69f6b8]/60">
-                                KINETIC COMMAND
+                            <span className="text-[10px] font-bold uppercase tracking-tight text-white">
+                                ENERGY SCADA
                             </span>
-                            <h1 className="truncate text-[11px] font-bold tracking-tight text-neutral-400">
-                                {companyProfile?.name || "PLANT_A_ALPHA"}
+                            <h1 className="truncate text-[10px] font-medium text-slate-500">
+                                {companyProfile?.name || "INDUSTRIAL_HUB"}
                             </h1>
                         </div>
                     )}
@@ -137,23 +135,25 @@ export default function CustomerLayout({ children }: { children: React.ReactNode
                                             key={item.name + item.href}
                                             href={item.href}
                                             className={cn(
-                                                "group relative flex items-center gap-4 rounded-md px-3 py-2.5 transition-all duration-300",
+                                                "group relative flex items-center gap-4 rounded px-3 py-2 transition-all duration-200",
                                                 active
-                                                    ? "bg-[#69f6b8]/10 text-white border-r-2 border-[#69f6b8] shadow-[0_0_20px_rgba(105,246,184,0.05)]"
-                                                    : "text-neutral-500 hover:text-neutral-200 hover:bg-white/[0.03]"
+                                                    ? "bg-slate-800/80 text-white shadow-sm ring-1 ring-white/10"
+                                                    : "text-slate-400 hover:text-slate-200 hover:bg-white/[0.02]"
                                             )}
                                         >
                                             <item.icon
-                                                size={18}
-                                                className="shrink-0 transition-transform duration-300 group-hover:scale-110"
-                                                strokeWidth={active ? 2.25 : 1.75}
-                                                style={{ color: active ? '#69f6b8' : undefined }}
+                                                size={16}
+                                                className={cn(
+                                                    "shrink-0 transition-colors",
+                                                    active ? "text-blue-400" : "text-slate-500 group-hover:text-slate-300"
+                                                )}
+                                                strokeWidth={2}
                                             />
                                             {isSidebarOpen && (
-                                                <span className="text-xs font-bold tracking-wide">{item.name}</span>
+                                                <span className="text-xs font-medium tracking-tight">{item.name}</span>
                                             )}
                                             {active && isSidebarOpen && (
-                                                <div className="ml-auto w-1 h-1 rounded-full bg-[#69f6b8] shadow-[0_0_8px_#69f6b8]" />
+                                                <div className="ml-auto w-1 h-3 rounded-full bg-blue-500" />
                                             )}
                                         </Link>
                                     );
@@ -179,39 +179,38 @@ export default function CustomerLayout({ children }: { children: React.ReactNode
             </motion.aside>
 
             <main className="relative z-10 flex min-w-0 flex-1 flex-col bg-[#070d1f]">
-                <header className="flex h-16 shrink-0 items-center justify-between border-b border-white/5 bg-[#070d1f]/80 px-6 backdrop-blur-xl">
+                <header className="flex h-16 shrink-0 items-center justify-between border-b border-white/[0.04] bg-[#0a0c10]/80 px-6 backdrop-blur-xl">
                     <div className="flex min-w-0 items-center gap-4">
                         <button 
                             type="button"
                             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                            className="flex h-9 w-9 shrink-0 items-center justify-center rounded border border-white/10 bg-white/5 text-neutral-400 transition hover:bg-white/10 hover:text-white"
+                            className="flex h-8 w-8 shrink-0 items-center justify-center rounded border border-white/10 bg-white/5 text-slate-400 transition hover:bg-white/10 hover:text-white"
                         >
-                            <Menu size={18} />
+                            <Menu size={16} />
                         </button>
-                        <div className="hidden h-5 w-px bg-white/5 sm:block" />
+                        <div className="hidden h-4 w-px bg-white/10 sm:block" />
                         <div className="min-w-0">
-                            <p className="text-[9px] font-black uppercase tracking-[0.2em] text-[#69f6b8]/80">System Intelligence</p>
-                            <h2 className="truncate text-xs font-bold text-neutral-500 uppercase tracking-widest">
-                                {companyProfile?.name} • v4.2.0-STABLE
+                            <h2 className="truncate text-xs font-bold text-white uppercase tracking-tight">
+                                {companyProfile?.name} <span className="mx-2 text-slate-600 font-normal">|</span> <span className="text-slate-500 font-medium tracking-normal text-[10px]">SCADA v4.2</span>
                             </h2>
                         </div>
                     </div>
 
                     <div className="flex items-center gap-6">
-                        <div className="hidden items-center gap-3 rounded bg-white/5 px-4 py-2 border border-white/5 transition-all focus-within:border-[#69f6b8]/30 md:flex md:w-64 lg:w-80">
-                            <Search size={14} className="shrink-0 text-neutral-600" />
+                        <div className="hidden items-center gap-3 rounded bg-white/[0.03] px-3 py-1.5 border border-white/[0.05] transition-all focus-within:ring-1 focus-within:ring-blue-500/30 md:flex md:w-64 lg:w-80">
+                            <Search size={14} className="shrink-0 text-slate-500" />
                             <input
                                 type="search"
-                                placeholder="Search SCADA IOA / Node..."
-                                className="w-full border-none bg-transparent text-[11px] font-bold text-white outline-none placeholder:text-neutral-600"
+                                placeholder="Search system nodes..."
+                                className="w-full border-none bg-transparent text-[11px] font-medium text-white outline-none placeholder:text-slate-600"
                             />
                         </div>
                         <div className="flex items-center gap-4">
                             <div className="text-right hidden sm:block">
-                                <p className="text-xs font-bold text-white leading-none">{user?.name}</p>
-                                <p className="text-[10px] text-[#69f6b8] uppercase font-bold tracking-widest mt-1">Administrator</p>
+                                <p className="text-xs font-semibold text-white leading-none">{user?.name}</p>
+                                <p className="text-[10px] text-slate-500 font-medium mt-1">Admin Account</p>
                             </div>
-                            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#69f6b8]/10 border border-[#69f6b8]/20 text-[#69f6b8] shadow-[0_0_15px_rgba(105,246,184,0.1)]">
+                            <div className="flex h-8 w-8 items-center justify-center rounded bg-slate-800 border border-white/10 text-white text-[10px] font-bold">
                                 {user?.name?.charAt(0)?.toUpperCase() || 'U'}
                             </div>
                         </div>

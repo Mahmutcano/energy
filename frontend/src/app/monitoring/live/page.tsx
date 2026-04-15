@@ -698,9 +698,11 @@ export default function LiveMonitoringPage() {
 
         socket.emit('join:protocol', { protocolId: selectedDevice.protocolConfigId });
         socket.on('telemetry:update', handlePacket);
+        socket.on(`telemetry:raw:${selectedDevice.protocolConfigId}`, handlePacket);
         
         return () => {
             socket.off('telemetry:update', handlePacket);
+            socket.off(`telemetry:raw:${selectedDevice.protocolConfigId}`, handlePacket);
         };
     }, [selectedDevice, points]);
 

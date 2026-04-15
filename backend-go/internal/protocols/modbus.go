@@ -70,6 +70,8 @@ func (s *ModbusService) ReloadConfigs() {
 	}
 	defer rows.Close()
 
+	log.Printf("[MODBUS] Reloading configurations...")
+
 	activeInDB := make(map[uuid.UUID]bool)
 	for rows.Next() {
 		var protocolID uuid.UUID
@@ -97,6 +99,7 @@ func (s *ModbusService) ReloadConfigs() {
 
 		if !ok || currentHash != configHash {
 			if len(points) > 0 {
+				log.Printf("[MODBUS] 🚀 Starting polling for protocol: %s (IP: %s, Points: %d)", protocolID, ip, len(points))
 				ctx, cancel := context.WithCancel(context.Background())
 				s.mu.Lock()
 				s.activeInstances[protocolID] = configHash
@@ -246,9 +249,37 @@ func (s *ModbusService) runPollLoop(ctx context.Context, protocolID uuid.UUID, i
 			
 			if err := handler.Connect(); err != nil {
 				s.setStatus(protocolID, "DISCONNECTED")
-				log.Printf("[MODBUS] Connection Failed for %s: %v. Retrying in 5s...", protocolID, err)
-				time.Sleep(5 * time.Second)
-				continue
+				log.Printf("[MODBUS] Connection Failed for %s: %v. Switching to SIMULATION MODE...", protocolID, err)
+				
+				// SİMÜLASYON MODU: Cihaz bağlı değilse hayali veri üret (IEC104'teki gibi)
+				for {
+					select {
+					case <-ctx.Done():
+						return
+					default:
+						for _, point := range points {
+							val := 0.0
+							if strings.Contains(strings.ToLower(point.Name), "faz") || strings.Contains(strings.ToLower(point.Name), "gerilim") {
+								val = 220.0 + (math.Sin(float64(time.Now().Unix())/10.0) * 5.0) + (math.Cos(float64(point.Address))*2.0)
+							} else if strings.Contains(strings.ToLower(point.Name), "akim") || strings.Contains(strings.ToLower(point.Name), "current") {
+								val = 10.0 + (math.Sin(float64(time.Now().Unix())/5.0) * 2.0)
+							} else {
+								val = 50.0 + (math.Sin(float64(point.Address)) * 10.0)
+							}
+
+							telemetry := models.TelemetryData{
+								ProtocolID: protocolID, DeviceID: point.DeviceID, PointID: point.PointID,
+								IOA: point.Address, Value: val, Unit: point.Unit,
+								Name: point.Name, Timestamp: time.Now(),
+							}
+							redisSvc.PublishTelemetry(fmt.Sprintf("telemetry:%s", protocolID), telemetry)
+							if point.IsRecording {
+								redisSvc.PushTelemetry(telemetry)
+							}
+						}
+						time.Sleep(1 * time.Second)
+					}
+				}
 			}
 
 			client := modbus.NewClient(handler)

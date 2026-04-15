@@ -1,13 +1,11 @@
 "use client";
 
 import { useAuth } from "@/context/AuthContext";
-import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
 import { 
     Activity, 
-    LayoutDashboard, 
     Cpu, 
-    AlertTriangle, 
     LogOut, 
     BarChart3, 
     Database, 
@@ -15,13 +13,9 @@ import {
     Layers, 
     ShieldAlert,
     Menu,
-    ChevronRight,
-    User,
-    Settings,
-    Bell,
+    Search,
     FileText,
-    Monitor,
-    Search
+    Sparkles
 } from "lucide-react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
@@ -36,7 +30,10 @@ export default function CustomerLayout({ children }: { children: React.ReactNode
     const { user, companyProfile, loading, isAuthenticated, logout } = useAuth();
     const pathname = usePathname();
     const router = useRouter();
+    const searchParams = useSearchParams();
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+
+    const currentCat = searchParams.get('cat') || 'voltage';
 
     const isLoginPage = pathname === '/customer/login';
 
@@ -46,95 +43,117 @@ export default function CustomerLayout({ children }: { children: React.ReactNode
         }
     }, [isAuthenticated, loading, isLoginPage, router]);
 
+    const navItems = useMemo(() => [
+        { group: 'TESİS İZLEME', items: [
+            { name: 'Gerilim', href: '/customer?cat=voltage', icon: Zap, color: '#22d3ee' },
+            { name: 'Akım', href: '/customer?cat=current', icon: Activity, color: '#34d399' },
+            { name: 'Güç', href: '/customer?cat=power', icon: BarChart3, color: '#fb7185' },
+            { name: 'Enerji', href: '/customer?cat=energy', icon: Layers, color: '#a78bfa' },
+            { name: 'Kalite', href: '/customer?cat=quality', icon: ShieldAlert, color: '#fbbf24' },
+            { name: 'Sistem', href: '/customer?cat=system', icon: Cpu, color: '#818cf8' },
+        ]},
+        { group: 'ANALİZ & VERİ', items: [
+            { name: 'Raporlar', href: '/customer/reports', icon: BarChart3, color: '#94a3b8' },
+            { name: 'Kayıtlar', href: '/customer/logs', icon: Database, color: '#94a3b8' },
+            { name: 'Veri yapıları', href: '/customer/datasheets', icon: FileText, color: '#94a3b8' },
+        ]}
+    ], []);
+
     if (loading) {
-        return <div className="h-screen w-full bg-slate-50 flex items-center justify-center">
-            <div className="w-8 h-8 border-2 border-[#10B981] border-t-transparent rounded-full animate-spin" />
-        </div>;
+        return (
+            <div className="h-screen w-full bg-[#0c1222] flex flex-col items-center justify-center gap-4">
+                <div className="relative">
+                    <div className="w-12 h-12 rounded-2xl border-2 border-emerald-500/30 border-t-emerald-400 animate-spin" />
+                    <div className="absolute inset-0 flex items-center justify-center">
+                        <Activity className="w-5 h-5 text-emerald-400/80" />
+                    </div>
+                </div>
+                <p className="text-[11px] font-semibold text-slate-500 tracking-wide">Oturum yükleniyor</p>
+            </div>
+        );
     }
 
     if (isLoginPage) return <>{children}</>;
     if (!isAuthenticated) return null;
 
-    const navItems = [
-        { group: 'TESİS İZLEME', items: [
-            { name: 'GERİLİM', href: '/customer?cat=voltage', icon: Zap, color: '#0EA5E9' },
-            { name: 'AKIM', href: '/customer?cat=current', icon: Activity, color: '#10B981' },
-            { name: 'GÜÇ', href: '/customer?cat=power', icon: BarChart3, color: '#F43F5E' },
-            { name: 'ENERJİ', href: '/customer?cat=energy', icon: Layers, color: '#8B5CF6' },
-            { name: 'KALİTE', href: '/customer?cat=quality', icon: ShieldAlert, color: '#F59E0B' },
-            { name: 'SİSTEM', href: '/customer?cat=system', icon: Cpu, color: '#6366F1' },
-        ]},
-        { group: 'ANALİZ & VERİ', items: [
-            { name: 'Raporlar', href: '/customer/reports', icon: BarChart3, color: '#64748b' },
-            { name: 'Kayıtlar', href: '/customer/logs', icon: Database, color: '#64748b' },
-            { name: 'Veri Yapıları', href: '/customer/datasheets', icon: FileText, color: '#64748b' },
-        ]}
-    ];
+    const linkIsActive = (href: string) => {
+        if (href.startsWith('/customer?')) {
+            const q = href.split('?')[1] || '';
+            const cat = new URLSearchParams(q).get('cat') || 'voltage';
+            return pathname === '/customer' && currentCat === cat;
+        }
+        return pathname === href || pathname.startsWith(`${href}/`);
+    };
 
     return (
-        <div className="bg-[#F8FAFC] text-[#0F172A] font-sans h-screen flex overflow-hidden selection:bg-[#10B981]/20">
-            
-            {/* --- PREMIUM WHITE SIDEBAR --- */}
+        <div className="relative min-h-screen text-[#dfe4fe] font-sans flex overflow-hidden bg-[#070d1f] selection:bg-[#69f6b8]/20 selection:text-[#69f6b8]">
+            {/* Atmospheric background */}
+            <div className="pointer-events-none fixed inset-0 overflow-hidden" aria-hidden>
+                <div className="absolute -top-32 -right-32 h-[420px] w-[420px] rounded-full bg-[#69f6b8]/5 blur-[120px]" />
+                <div className="absolute top-1/3 -left-24 h-[360px] w-[360px] rounded-full bg-[#77e6ff]/5 blur-[100px]" />
+                <div className="absolute bottom-0 right-1/4 h-[280px] w-[480px] rounded-full bg-indigo-600/5 blur-[120px]" />
+            </div>
+
             <motion.aside 
                 initial={false}
-                animate={{ width: isSidebarOpen ? 260 : 88 }}
-                className="h-full bg-white border-r border-slate-200 flex flex-col z-[100] relative transition-all duration-300"
+                animate={{ width: isSidebarOpen ? 260 : 80 }}
+                className="relative z-[100] h-screen flex flex-col border-r border-white/5 bg-[#070d1f]/95 backdrop-blur-2xl shadow-[10px_0_40px_rgba(0,0,0,0.6)]"
             >
-                {/* Brand Identity */}
                 <div className={cn(
-                    "h-20 flex items-center gap-3.5 px-7 border-b border-slate-100",
-                    !isSidebarOpen && "justify-center"
+                    "h-16 flex items-center gap-3 px-6 border-b border-white/5",
+                    !isSidebarOpen && "justify-center px-2"
                 )}>
-                    <div className="w-9 h-9 rounded-xl bg-[#0F172A] flex items-center justify-center shadow-lg shadow-slate-200 ring-4 ring-slate-50">
-                         <Activity size={20} className="text-[#10B981] stroke-[2.5]" />
+                    <div className="relative shrink-0">
+                        <div className="absolute -inset-1 rounded-sm bg-[#69f6b8]/20 blur-[2px]" />
+                        <div className="relative flex h-9 w-9 items-center justify-center rounded-sm bg-[#0a0f1d] border border-[#69f6b8]/30">
+                            <Zap size={18} className="text-[#69f6b8]" strokeWidth={2.5} />
+                        </div>
                     </div>
                     {isSidebarOpen && (
-                        <div className="flex flex-col min-w-0">
-                            <h1 className="text-sm font-bold tracking-tight text-[#0F172A]">
-                                {companyProfile?.name || "KINETIC"}
+                        <div className="flex min-w-0 flex-col">
+                            <span className="text-[10px] font-black uppercase tracking-[0.3em] text-[#69f6b8]/60">
+                                KINETIC COMMAND
+                            </span>
+                            <h1 className="truncate text-[11px] font-bold tracking-tight text-neutral-400">
+                                {companyProfile?.name || "PLANT_A_ALPHA"}
                             </h1>
-                            <span className="text-[10px] font-bold text-[#10B981]/80 tracking-wider">OBSERVATORY</span>
                         </div>
                     )}
                 </div>
 
-                {/* Navigation */}
-                <div className="flex-1 overflow-y-auto py-8 scrollbar-hide px-4">
-                    {navItems.map((group, idx) => (
-                        <div key={group.group} className={cn("mb-9", idx > 0 && "mt-4")}>
+                <nav className="flex-1 overflow-y-auto px-4 py-8 space-y-8 scrollbar-hide">
+                    {navItems.map((group) => (
+                        <div key={group.group}>
                             {isSidebarOpen && (
-                                <h3 className="px-4 mb-3 text-[10px] font-bold text-slate-400 uppercase tracking-[0.15em] leading-none">
+                                <p className="mb-4 px-2 text-[9px] font-black uppercase tracking-[0.25em] text-neutral-600">
                                     {group.group}
-                                </h3>
+                                </p>
                             )}
-                            <div className="space-y-0.5">
+                            <div className="space-y-1.5">
                                 {group.items.map((item) => {
-                                    const isActive = pathname === item.href.split('?')[0] && (item.href.includes('?cat=') ? pathname.includes(item.href) : true);
+                                    const active = linkIsActive(item.href);
                                     return (
                                         <Link
-                                            key={item.name}
+                                            key={item.name + item.href}
                                             href={item.href}
                                             className={cn(
-                                                "flex items-center gap-3.5 px-4 py-3 rounded-xl transition-all duration-200 group relative",
-                                                isActive 
-                                                    ? "bg-slate-50 text-[#0F172A] shadow-sm ring-1 ring-slate-100" 
-                                                    : "text-slate-500 hover:text-[#0F172A] hover:bg-slate-50"
+                                                "group relative flex items-center gap-4 rounded-md px-3 py-2.5 transition-all duration-300",
+                                                active
+                                                    ? "bg-[#69f6b8]/10 text-white border-r-2 border-[#69f6b8] shadow-[0_0_20px_rgba(105,246,184,0.05)]"
+                                                    : "text-neutral-500 hover:text-neutral-200 hover:bg-white/[0.03]"
                                             )}
                                         >
-                                            <item.icon size={18} className={cn(
-                                                "transition-colors",
-                                                isActive ? "text-[#10B981]" : "opacity-70 group-hover:opacity-100"
-                                            )} style={{ color: isActive ? item.color : '' }} />
-                                            
+                                            <item.icon
+                                                size={18}
+                                                className="shrink-0 transition-transform duration-300 group-hover:scale-110"
+                                                strokeWidth={active ? 2.25 : 1.75}
+                                                style={{ color: active ? '#69f6b8' : undefined }}
+                                            />
                                             {isSidebarOpen && (
-                                                <span className="text-[13px] font-semibold tracking-tight">{item.name}</span>
+                                                <span className="text-xs font-bold tracking-wide">{item.name}</span>
                                             )}
-                                            
-                                            {isActive && (
-                                                <motion.div 
-                                                    layoutId="nav-dot" 
-                                                    className="absolute left-[-16px] w-2 h-2 bg-[#10B981] rounded-full" 
-                                                />
+                                            {active && isSidebarOpen && (
+                                                <div className="ml-auto w-1 h-1 rounded-full bg-[#69f6b8] shadow-[0_0_8px_#69f6b8]" />
                                             )}
                                         </Link>
                                     );
@@ -142,73 +161,72 @@ export default function CustomerLayout({ children }: { children: React.ReactNode
                             </div>
                         </div>
                     ))}
-                </div>
+                </nav>
 
-                {/* Account Actions */}
-                <div className="p-6 border-t border-slate-100 bg-slate-50/50">
+                <div className="border-t border-white/5 bg-black/40 p-4">
                     <button 
+                        type="button"
                         onClick={logout}
                         className={cn(
-                            "w-full h-11 flex items-center justify-center gap-2.5 rounded-xl text-slate-500 hover:bg-white hover:text-red-600 hover:shadow-sm border border-transparent hover:border-slate-200 transition-all text-xs font-bold",
+                            "flex h-11 w-full items-center justify-center gap-3 rounded-md text-[11px] font-bold uppercase tracking-widest text-neutral-500 transition-all hover:bg-red-500/10 hover:text-red-400",
                             !isSidebarOpen && "px-0"
                         )}
                     >
                         <LogOut size={16} />
-                        {isSidebarOpen && "Oturumu Kapat"}
+                        {isSidebarOpen && "Emergency Exit"}
                     </button>
                 </div>
             </motion.aside>
 
-            {/* --- CONTENT ARCHITECTURE --- */}
-            <main className="flex-1 flex flex-col relative overflow-hidden bg-[#F8FAFC]">
-                
-                {/* Header (Apple Style) */}
-                <header className="h-20 flex items-center justify-between px-10 border-b border-slate-200 bg-white/80 backdrop-blur-xl sticky top-0 z-[60]">
-                    <div className="flex items-center gap-8">
+            <main className="relative z-10 flex min-w-0 flex-1 flex-col bg-[#070d1f]">
+                <header className="flex h-16 shrink-0 items-center justify-between border-b border-white/5 bg-[#070d1f]/80 px-6 backdrop-blur-xl">
+                    <div className="flex min-w-0 items-center gap-4">
                         <button 
+                            type="button"
                             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                            className="p-2 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-[#0F172A] transition-all"
+                            className="flex h-9 w-9 shrink-0 items-center justify-center rounded border border-white/10 bg-white/5 text-neutral-400 transition hover:bg-white/10 hover:text-white"
                         >
-                            <Menu size={20} />
+                            <Menu size={18} />
                         </button>
-                        <div className="flex items-center gap-4">
-                            <span className="text-sm font-bold text-[#0F172A]">VoltMetric Pro</span>
-                            <div className="w-1.5 h-1.5 rounded-full bg-slate-200" />
-                            <h2 className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none">
-                                {pathname.includes('datasheets') ? 'VERİ YAPILARI' : (pathname.split('/').pop()?.toUpperCase().replace('-', ' ') || 'KONTROL PANELİ')}
+                        <div className="hidden h-5 w-px bg-white/5 sm:block" />
+                        <div className="min-w-0">
+                            <p className="text-[9px] font-black uppercase tracking-[0.2em] text-[#69f6b8]/80">System Intelligence</p>
+                            <h2 className="truncate text-xs font-bold text-neutral-500 uppercase tracking-widest">
+                                {companyProfile?.name} • v4.2.0-STABLE
                             </h2>
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-7">
-                         {/* Search Minimalist */}
-                         <div className="hidden lg:flex items-center gap-3 px-4 py-2 bg-slate-50 border border-slate-200 rounded-full w-64 group focus-within:ring-2 ring-[#10B981]/10 transition-all">
-                             <Search size={14} className="text-slate-400" />
-                             <input type="text" placeholder="Sistemde ara..." className="bg-transparent border-none outline-none text-[13px] text-slate-600 placeholder:text-slate-400 w-full" />
-                         </div>
-
-                         <div className="flex items-center gap-4">
-                             <div className="flex flex-col items-end leading-none">
-                                <span className="text-xs font-bold text-[#0F172A]">{user?.name}</span>
-                                <span className="text-[10px] font-bold text-[#10B981] opacity-80 uppercase tracking-tighter">Yönetici</span>
-                             </div>
-                             <div className="w-9 h-9 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center shadow-inner">
-                                <User size={16} className="text-slate-500" />
-                             </div>
-                         </div>
+                    <div className="flex items-center gap-6">
+                        <div className="hidden items-center gap-3 rounded bg-white/5 px-4 py-2 border border-white/5 transition-all focus-within:border-[#69f6b8]/30 md:flex md:w-64 lg:w-80">
+                            <Search size={14} className="shrink-0 text-neutral-600" />
+                            <input
+                                type="search"
+                                placeholder="Search SCADA IOA / Node..."
+                                className="w-full border-none bg-transparent text-[11px] font-bold text-white outline-none placeholder:text-neutral-600"
+                            />
+                        </div>
+                        <div className="flex items-center gap-4">
+                            <div className="text-right hidden sm:block">
+                                <p className="text-xs font-bold text-white leading-none">{user?.name}</p>
+                                <p className="text-[10px] text-[#69f6b8] uppercase font-bold tracking-widest mt-1">Administrator</p>
+                            </div>
+                            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#69f6b8]/10 border border-[#69f6b8]/20 text-[#69f6b8] shadow-[0_0_15px_rgba(105,246,184,0.1)]">
+                                {user?.name?.charAt(0)?.toUpperCase() || 'U'}
+                            </div>
+                        </div>
                     </div>
                 </header>
 
-                {/* Dashboard Scroll Area */}
                 <div className="flex-1 overflow-y-auto scrollbar-hide">
                     <AnimatePresence mode="wait">
                         <motion.div
-                            key={pathname}
-                            initial={{ opacity: 0, x: 5 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            exit={{ opacity: 0, x: -5 }}
+                            key={pathname + (searchParams.toString() || '')}
+                            initial={{ opacity: 0, scale: 0.99 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 1.01 }}
                             transition={{ duration: 0.3 }}
-                            className="p-10 max-w-[1600px] mx-auto w-full"
+                            className="mx-auto w-full max-w-[1920px] p-6 md:p-8"
                         >
                             {children}
                         </motion.div>
@@ -217,25 +235,9 @@ export default function CustomerLayout({ children }: { children: React.ReactNode
             </main>
 
             <style jsx global>{`
-                .volt-card {
-                    background: white;
-                    border: 1px border-slate-200;
-                    border-radius: 28px;
-                    box-shadow: 0 4px 20px -10px rgba(0, 0, 0, 0.05);
-                    transition: all 0.3s cubic-bezier(0.2, 0, 0, 1);
-                }
-                .volt-card:hover {
-                    box-shadow: 0 10px 40px -15px rgba(0, 0, 0, 0.1);
-                    transform: translateY(-2px);
-                }
                 .scrollbar-hide::-webkit-scrollbar { display: none; }
                 .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
-                
-                body { 
-                    font-family: 'Inter', -apple-system, sans-serif;
-                    -webkit-font-smoothing: antialiased;
-                    background-color: #F8FAFC;
-                }
+                body { background-color: #070d1f; }
             `}</style>
         </div>
     );

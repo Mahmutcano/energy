@@ -14,7 +14,7 @@ interface RealtimeCardProps {
 export default function RealtimeCard({ commProtocolId, label, unit }: RealtimeCardProps) {
     const [value, setValue] = useState<number | null>(null);
     const [prevValue, setPrevValue] = useState<number | null>(null);
-    const [isLive, setIsLive] = useState(false);
+    const [isLive, setIsLive] = useState(socket.connected);
 
     useEffect(() => {
         const topic = `telemetry:${commProtocolId}`;
@@ -30,7 +30,7 @@ export default function RealtimeCard({ commProtocolId, label, unit }: RealtimeCa
         socket.on(topic, handleData);
         socket.on('connect', () => setIsLive(true));
         socket.on('disconnect', () => setIsLive(false));
-        setIsLive(socket.connected);
+
 
         return () => {
             socket.off(topic, handleData);

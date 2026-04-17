@@ -43,7 +43,8 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
 
             <div className="flex-1 flex flex-col min-w-0">
                 {/* Compact Header */}
-                <header className="h-10 bg-card border-b border-border flex items-center justify-between px-4 z-50 shrink-0">
+                {!isCustomerPage && (
+                    <header className="h-10 bg-card border-b border-border flex items-center justify-between px-4 z-50 shrink-0">
                     <h2 className="text-[11px] font-bold text-foreground tracking-tight capitalize">
                         {pathname === '/'
                             ? 'System Metrics'
@@ -74,6 +75,7 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
                         </div>
                     </div>
                 </header>
+                )}
 
                 {/* Main Content - Tighter padding */}
                 <main className="flex-1 overflow-y-auto bg-background p-3 lg:p-5 scroll-smooth">

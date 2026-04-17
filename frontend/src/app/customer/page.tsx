@@ -58,6 +58,7 @@ interface DashboardState {
     quality: { thd_v: TelemetryPoint[]; thd_i: TelemetryPoint[] };
     system: { metrics: TelemetryPoint[] };
     allRaw: TelemetryPoint[];
+    activeAlarms: any[];
 }
 
 export default function TradingViewCustomerDashboard() {
@@ -301,7 +302,16 @@ export default function TradingViewCustomerDashboard() {
 
     const dashboardState = useMemo((): DashboardState => {
         const dataArr = Object.values(isHistoricalMode ? historyData : liveData);
-        if (dataArr.length === 0) return { voltage: { ln: [], ll: [] }, current: { l: [] }, power: { active: [], apparent: [], reactive: [], totals: [] }, energy: { active: [], reactive: [] }, quality: { thd_v: [], thd_i: [] }, system: { metrics: [] }, allRaw: [] };
+        if (dataArr.length === 0) return { 
+            voltage: { ln: [], ll: [] }, 
+            current: { l: [] }, 
+            power: { active: [], apparent: [], reactive: [], totals: [] }, 
+            energy: { active: [], reactive: [] }, 
+            quality: { thd_v: [], thd_i: [] }, 
+            system: { metrics: [] }, 
+            allRaw: [],
+            activeAlarms: []
+        };
 
         const testMatch = (point: TelemetryPoint, searchTerms: string[], typeMatch: string[]) => {
             const n = (point.name || "").toLowerCase();
@@ -348,12 +358,41 @@ export default function TradingViewCustomerDashboard() {
             energy: { active: dataArr.filter(p => testMatch(p, ['aktif enerji', 'kwh'], ['IMPORT_ACTIVE_ENERGY', 'EXPORT_ACTIVE_ENERGY'])), reactive: dataArr.filter(p => testMatch(p, ['reaktif enerji', 'kvarh'], ['INDUCTIVE_REACTIVE_ENERGY', 'CAPACITIVE_REACTIVE_ENERGY'])) },
             quality: { thd_v: dataArr.filter(p => testMatch(p, ['harmonik gerilim', 'thdv'], ['HARMONIC_VOLTAGE'])), thd_i: dataArr.filter(p => testMatch(p, ['harmonik akım', 'thdi'], ['HARMONIC_CURRENT'])) },
             system: { metrics: dataArr.filter(p => testMatch(p, ['güç faktörü', 'frekans', 'hz', 'pf'], ['FREQUENCY', 'POWER_FACTOR'])) },
-            allRaw: dataArr
+            allRaw: dataArr,
+            activeAlarms: [
+                ...(status !== 'CONNECTED' ? [{
+                    id: 'conn-lost',
+                    severity: 'critical',
+                    type: 'BAĞLANTI',
+                    message: 'Cihaz haberleşmesi koptu. Veriler güncellenemiyor.',
+                    time: new Date().toLocaleTimeString(),
+                    area: 'HABERLEŞME'
+                }] : []),
+                ...dataArr.filter(p => {
+                    const val = p.value || 0;
+                    const name = (p.name || "").toLowerCase();
+                    if (name.includes('gerilim') || name.includes('voltage')) {
+                        return val > 250 || val < 185;
+                    }
+                    if (name.includes('akım') || name.includes('current')) {
+                        return val > 100;
+                    }
+                    return false;
+                }).map(p => ({
+                    id: `limit-${p.pointId}`,
+                    severity: (p.value || 0) > 260 || (p.value || 0) < 170 ? 'critical' : 'warning',
+                    type: 'EŞİK AŞIMI',
+                    message: `${p.name} sınırı aşıldı! Güncel: ${p.value?.toFixed(2)} ${p.unit}`,
+                    time: new Date().toLocaleTimeString(),
+                    area: p.name?.split(' ')[0] || 'GENEL'
+                }))
+            ]
         };
-    }, [liveData, historyData, isHistoricalMode]);
+    }, [liveData, historyData, isHistoricalMode, status]);
 
     const titleMap: Record<string, string> = { 
         dashboard: 'GENEL BAKIŞ',
+        alarms: 'ALARMLAR',
         voltage: 'GERİLİM', 
         current: 'AKIM', 
         power: 'GÜÇ', 
@@ -427,6 +466,62 @@ function TradingViewContentGrid({ tab, data, range, setRange }: { tab: string, d
     const gridStyle = "grid grid-cols-1 gap-4 xl:grid-cols-2 h-auto pr-2 custom-scroll";
     return (
         <div className="h-auto space-y-8 pb-10">
+            {tab === 'alarms' && (
+                <div className="flex flex-col gap-4">
+                    <div className="bg-white border border-[#dfe2e7] rounded-xl overflow-hidden">
+                        <div className="px-4 py-3 border-b border-[#f0f3fa] flex items-center justify-between bg-[#fcfcfd]">
+                            <h3 className="text-[11px] font-black uppercase tracking-widest text-[#131722]">Aktif Alarmlar ({data.activeAlarms.length})</h3>
+                            <div className="flex gap-2">
+                                <span className="flex items-center gap-1.5 text-[9px] font-black py-1 px-2 bg-red-50 text-[#f23645] rounded-full uppercase">Kritik</span>
+                                <span className="flex items-center gap-1.5 text-[9px] font-black py-1 px-2 bg-amber-50 text-[#f0a500] rounded-full uppercase">Uyarı</span>
+                            </div>
+                        </div>
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left border-collapse">
+                                <thead className="bg-[#f8f9fb] text-[#787b86] text-[9px] font-black uppercase tracking-widest border-b border-[#dfe2e7]">
+                                    <tr>
+                                        <th className="px-4 py-2.5">DURUM</th>
+                                        <th className="px-4 py-2.5">ZAMAN</th>
+                                        <th className="px-4 py-2.5">ALAN</th>
+                                        <th className="px-4 py-2.5">MESAJ</th>
+                                        <th className="px-4 py-2.5 text-right">TİP</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-[#f0f3fa]">
+                                    {data.activeAlarms.length === 0 ? (
+                                        <tr>
+                                            <td colSpan={5} className="px-4 py-20 text-center">
+                                                <div className="flex flex-col items-center gap-2 opacity-30">
+                                                     <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600">
+                                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                                                     </div>
+                                                     <span className="text-[10px] font-black uppercase tracking-tighter">Sistem Normal - Aktif Alarm Yok</span>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ) : (
+                                        data.activeAlarms.map((alarm, idx) => (
+                                            <tr key={alarm.id} className="hover:bg-gray-50/50 transition-colors group">
+                                                <td className="px-4 py-3">
+                                                    <div className={`w-2 h-2 rounded-full animate-pulse ${alarm.severity === 'critical' ? 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]' : 'bg-amber-500'}`} />
+                                                </td>
+                                                <td className="px-4 py-3 text-[10px] font-bold text-[#787b86] tabular-nums whitespace-nowrap">{alarm.time}</td>
+                                                <td className="px-4 py-3">
+                                                    <span className="text-[9px] font-black text-white px-1.5 py-0.5 rounded bg-[#131722] uppercase">{alarm.area}</span>
+                                                </td>
+                                                <td className="px-4 py-3 text-[11px] font-black text-[#131722]">{alarm.message}</td>
+                                                <td className="px-4 py-3 text-right">
+                                                    <span className={`text-[9px] font-bold uppercase tracking-tighter ${alarm.severity === 'critical' ? 'text-red-600' : 'text-amber-600'}`}>{alarm.type}</span>
+                                                </td>
+                                            </tr>
+                                        ))
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            )}
             {tab === 'dashboard' && (
                 <div className="space-y-6">
                     {/* Voltage Group */}

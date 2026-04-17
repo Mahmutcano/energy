@@ -13,29 +13,31 @@ interface SparkCardProps {
 }
 
 export default function AppleSparkCard({ title, value, unit, history, color = '#2962ff' }: SparkCardProps) {
+    const displayHistory = useMemo(() => history.slice(-15), [history]);
+
     const isUp = useMemo(() => {
-        if (history.length < 2) return true;
-        const last = history[history.length - 1]?.value || 0;
-        const prev = history[history.length - 2]?.value || 0;
+        if (displayHistory.length < 2) return true;
+        const last = displayHistory[displayHistory.length - 1]?.value || 0;
+        const prev = displayHistory[displayHistory.length - 2]?.value || 0;
         return last >= prev;
-    }, [history]);
+    }, [displayHistory]);
 
     const delta = useMemo(() => {
-        if (history.length < 2) return "0.00%";
-        const last = history[history.length - 1]?.value || 0;
-        const prev = history[history.length - 2]?.value || 0;
+        if (displayHistory.length < 2) return "0.00%";
+        const last = displayHistory[displayHistory.length - 1]?.value || 0;
+        const prev = displayHistory[displayHistory.length - 2]?.value || 0;
         if (prev === 0) return "0.00%";
         const diff = ((last - prev) / prev) * 100;
         return (diff >= 0 ? "+" : "") + diff.toFixed(2) + "%";
-    }, [history]);
+    }, [displayHistory]);
 
     const chartOption = {
         grid: { left: 0, right: 0, top: 0, bottom: 0 },
-        xAxis: { type: 'category', show: false, data: history.map(h => h.t) },
+        xAxis: { type: 'category', show: false, data: displayHistory.map(h => h.t) },
         yAxis: { type: 'value', show: false, scale: true },
         series: [{
             type: 'line',
-            data: history.map(h => h.value),
+            data: displayHistory.map(h => h.value),
             symbol: 'none',
             smooth: true,
             lineStyle: { width: 2, color: color },

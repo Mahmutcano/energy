@@ -1,7 +1,7 @@
 "use client";
 
 import React from 'react';
-import { LayoutGrid, MousePointer2, Crosshair, LineChart, BarChart2, PieChart, Layers, HelpCircle } from 'lucide-react';
+import { LayoutGrid, Bell, MousePointer2, Crosshair, LineChart, BarChart2, PieChart, Layers, HelpCircle } from 'lucide-react';
 
 interface ToolbeltProps {
     activeTab: string;
@@ -11,6 +11,7 @@ interface ToolbeltProps {
 export default function TerminalToolbelt({ activeTab, setActiveTab }: ToolbeltProps) {
     const tools = [
         { id: 'dashboard', icon: LayoutGrid, label: 'Genel Bakış' },
+        { id: 'alarms', icon: Bell, label: 'Alarmlar' },
         { id: 'current', icon: MousePointer2, label: 'Akım' },
         { id: 'voltage', icon: LineChart, label: 'Gerilim' },
         { id: 'power', icon: BarChart2, label: 'Güç' },

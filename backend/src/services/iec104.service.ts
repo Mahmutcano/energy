@@ -133,7 +133,7 @@ export class IEC104Service {
                                 deviceId: device.id,
                                 dataName: point.dataName,
                                 description: point.dataExplanation || point.dataName || 'Unknown',
-                                unit: point.dataType || 'UNIT',
+                                unit: point.unit || '',
                                 multiplier: point.multiplier || 1
                             };
 

@@ -89,7 +89,7 @@ class SimulationService {
                                         pointId: point.id,
                                         ioa: address,
                                         value,
-                                        unit: point.dataType || 'UNIT',
+                                        unit: point.unit || '',
                                         name: point.dataName,
                                         timestamp: new Date()
                                     }));

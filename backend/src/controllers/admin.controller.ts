@@ -77,8 +77,8 @@ export const testIEC104 = async (req: Request, res: Response) => {
                             ioaMap.set(addr, []);
                         }
                         ioaMap.get(addr)!.push({
-                            name: point.dataExplanation || point.data,
-                            unit: point.dataType || '',
+                            name: point.dataExplanation || point.dataName,
+                            unit: point.unit || '',
                             multiplier: point.multiplier || 1
                         });
                     }

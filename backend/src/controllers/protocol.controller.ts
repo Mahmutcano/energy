@@ -75,8 +75,8 @@ export const createProtocol = async (req: Request, res: Response) => {
                 isActive: true
             }).returning();
 
-            let modbusConfigResult = null;
-            let iec104ConfigResult = null;
+            let modbusConfigResult: any = null;
+            let iec104ConfigResult: any = null;
 
             if (data.protocolType === 'MODBUS') {
                 if (!data.modbusConfig) throw new AppError(ErrorCode.VALIDATION_FAILED, 'Modbus config required for MODBUS type', 400);
@@ -125,8 +125,8 @@ export const updateProtocol = async (req: Request<{ id: string }>, res: Response
 
             if (!protocol) throw new AppError(ErrorCode.PROTOCOL_NOT_FOUND, 'Protocol not found', 404);
 
-            let modbusConfigResult = null;
-            let iec104ConfigResult = null;
+            let modbusConfigResult: any = null;
+            let iec104ConfigResult: any = null;
 
             if (data.protocolType === 'MODBUS' && data.modbusConfig) {
                 const [modbus] = await tx.insert(schema.modbusConfig)

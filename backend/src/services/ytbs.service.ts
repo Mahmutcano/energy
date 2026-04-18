@@ -135,6 +135,10 @@ export class YtbsService {
         console.log('[YTBS] Sync Cron Job Started (15-min interval).');
     }
 
+    public async triggerSync() {
+        return await this.processPendingRecords();
+    }
+
     private async processPendingRecords() {
         try {
             // 1. Process Hourly Productions

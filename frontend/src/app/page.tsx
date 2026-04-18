@@ -206,43 +206,8 @@ export default function Dashboard() {
       </section>
 
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 items-start">
-        {/* Analysis Panel */}
+        {/* Analysis Panel Removed */}
         <div className="xl:col-span-8 space-y-8">
-          <div className="card-base p-8 bg-slate-900/20 dot-bg">
-            <div className="flex items-center justify-between mb-10">
-              <div className="flex items-center gap-4">
-                <div className="p-3 rounded-xl bg-slate-950 border border-slate-800">
-                  <BarChart3 size={20} className="text-brand-green" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-bold text-white  tracking-tight">System Analysis</h3>
-                  <p className="text-[10px] text-slate-600 mt-0.5">Performance metrics overview</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-8">
-              {[
-                { label: 'System Integrity', val: 99.4, color: 'bg-brand-green' },
-                { label: 'Protocol Health', val: stats.protocols > 0 ? 95.0 : 0, color: 'bg-brand-green' },
-                { label: 'Data Throughput', val: 88.2, color: 'bg-brand-green' },
-              ].map((metric, i) => (
-                <div key={i} className="space-y-3">
-                  <div className="flex justify-between items-end">
-                    <span className="text-[10px] font-bold text-slate-600  tracking-widest">{metric.label}</span>
-                    <span className="text-sm font-black text-white font-mono">{metric.val}%</span>
-                  </div>
-                  <div className="h-1.5 bg-slate-950 rounded-full border border-slate-800/50 overflow-hidden p-0.5">
-                    <motion.div
-                      initial={{ width: 0 }}
-                      animate={{ width: `${metric.val}%` }}
-                      className={`h-full ${metric.color} rounded-full shadow-[0_0_15px_rgba(16,185,129,0.3)]`}
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <div className="card-base p-6 bg-slate-900/20">

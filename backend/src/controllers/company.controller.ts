@@ -25,25 +25,31 @@ const createCompanySchema = z.object({
 
 export const getCompanies = async (req: Request, res: Response) => {
     try {
-        const companies = await db.query.companyProfile.findMany({
-            with: {
-                plants: {
-                    columns: { id: true, plantName: true, plantType: true }
-                }
-            },
-            extras: {
-                usersCount: sql<number>`(SELECT count(*) FROM "AppUserProfile" WHERE "companyId" = ${schema.companyProfile.id})`.mapWith(Number).as('usersCount')
-            }
-        });
+        const companies = await db.select({
+            id: schema.companyProfile.id,
+            name: schema.companyProfile.name,
+            address: schema.companyProfile.address,
+            phone: schema.companyProfile.phone,
+            email: schema.companyProfile.email,
+            representative: schema.companyProfile.representative,
+            taxOffice: schema.companyProfile.taxOffice,
+            taxNumber: schema.companyProfile.taxNumber,
+            ytbsUsername: schema.companyProfile.ytbsUsername,
+            ytbsPassword: schema.companyProfile.ytbsPassword,
+            ytbsApiUsername: schema.companyProfile.ytbsApiUsername,
+            ytbsApiPassword: schema.companyProfile.ytbsApiPassword,
+            ytbsApiKey: schema.companyProfile.ytbsApiKey,
+            baglantiAnlasmasiSirketiLisansNo: schema.companyProfile.baglantiAnlasmasiSirketiLisansNo,
+            isActive: schema.companyProfile.isActive,
+            createdAt: schema.companyProfile.createdAt,
+            updatedAt: schema.companyProfile.updatedAt,
+            createdBy: schema.companyProfile.createdBy,
+            updatedBy: schema.companyProfile.updatedBy,
+            userCount: sql<number>`(SELECT count(*) FROM "AppUserProfile" WHERE "companyId" = "CompanyProfile"."id")`.mapWith(Number),
+            plantCount: sql<number>`(SELECT count(*) FROM "Plant" WHERE "companyId" = "CompanyProfile"."id")`.mapWith(Number)
+        }).from(schema.companyProfile);
 
-        const result = companies.map(c => ({
-            ...c,
-            _count: {
-                userProfiles: (c as any).usersCount
-            }
-        }));
-
-        res.json(result);
+        res.json(companies);
     } catch (error) {
         return handleErrorResponse(res, error);
     }

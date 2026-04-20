@@ -25,6 +25,8 @@ interface Company {
     name: string;
     ytbsUsername?: string;
     ytbsApiKey?: string;
+    ytbsPassword?: string;
+    baglantiAnlasmasiSirketiLisansNo?: string;
 }
 
 export default function YtbsQueryPage() {
@@ -63,7 +65,7 @@ export default function YtbsQueryPage() {
         }
 
         const company = companies.find(c => c.id === selectedCompanyId);
-        if (!company?.ytbsUsername || !company?.ytbsApiKey) {
+        if (!company?.ytbsUsername || !company?.ytbsPassword || !company?.ytbsApiKey) {
             toast.error('Seçilen firmanın YTBS bilgileri (API Key/Kullanıcı adı) eksik!');
             return;
         }

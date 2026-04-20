@@ -18,6 +18,10 @@ interface CompanyProfile {
     representative: string | null;
     taxOffice: string | null;
     taxNumber: number | null;
+    ytbsUsername?: string | null;
+    ytbsPassword?: string | null;
+    ytbsApiKey?: string | null;
+    baglantiAnlasmasiSirketiLisansNo?: string | null;
     isActive: boolean;
     createdAt: string;
     updatedAt: string;
@@ -253,6 +257,10 @@ export default function CompaniesPage() {
                         representative: editingCompany.representative,
                         taxOffice: editingCompany.taxOffice,
                         taxNumber: editingCompany.taxNumber ? editingCompany.taxNumber.toString() : '',
+                        ytbsUsername: editingCompany.ytbsUsername,
+                        ytbsPassword: editingCompany.ytbsPassword,
+                        ytbsApiKey: editingCompany.ytbsApiKey,
+                        baglantiAnlasmasiSirketiLisansNo: editingCompany.baglantiAnlasmasiSirketiLisansNo,
                         isActive: editingCompany.isActive
                     } : undefined}
                     onSubmit={handleFormSubmit}

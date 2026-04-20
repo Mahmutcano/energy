@@ -284,6 +284,11 @@ export class YtbsService {
         console.log('[YTBS] Sync Cron Job Started (15-min interval).');
     }
 
+    public async triggerSync() {
+        console.log('[YTBS] Manual sync triggered.');
+        await this.processPendingRecords();
+    }
+
     private async processPendingRecords() {
         // ... (Background processing logic - grouped by company and license as before)
         // Note: The logic in processPendingRecords will now use the updated field names

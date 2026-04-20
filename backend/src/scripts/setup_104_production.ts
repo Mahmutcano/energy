@@ -127,12 +127,12 @@ async function main() {
         const measurementType = analyzerMeasurementMap[ioa] || 'PHASE_VOLTAGE';
 
         const existing = await db.query.datasheetPoint.findFirst({
-            where: (p, { and, eq }) => and(eq(p.profileId, profile.id), eq(p.data, name))
+            where: (p, { and, eq }) => and(eq(p.profileId, profile.id), eq(p.dataName, name))
         });
 
         const values = {
             profileId: profile.id,
-            data: name,
+            dataName: name,
             dataExplanation: `${name} - Hardware Telemetry`,
             address: ioa,
             isActive: true,

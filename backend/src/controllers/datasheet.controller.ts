@@ -250,7 +250,7 @@ export const bulkCreateDatasheetPoints = async (req: Request, res: Response) => 
         }
 
         const result = await db.transaction(async (tx) => {
-            const createdPoints = [];
+            const createdPoints: any[] = [];
             for (const pointData of points) {
                 const validated = createDataPointSchema.parse({ ...pointData, profileId: profileId });
 

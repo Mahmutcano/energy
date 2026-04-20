@@ -32,10 +32,18 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-    const [user, setUser] = useState<User | null>(null);
-    const [companyProfile, setCompanyProfile] = useState<CompanyProfile | null>(null);
-    const [token, setToken] = useState<string | null>(null);
-    const [loading, setLoading] = useState(true);
+    const [authState, setAuthState] = useState<{
+        user: User | null;
+        companyProfile: CompanyProfile | null;
+        token: string | null;
+        loading: boolean;
+    }>({
+        user: null,
+        companyProfile: null,
+        token: null,
+        loading: true
+    });
+
     const router = useRouter();
 
     useEffect(() => {
@@ -43,14 +51,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const storedUser = localStorage.getItem('auth_user');
         const storedCompany = localStorage.getItem('auth_company');
 
-        if (storedToken && storedUser) {
-            setToken(storedToken);
-            setUser(JSON.parse(storedUser));
-            if (storedCompany) {
-                setCompanyProfile(JSON.parse(storedCompany));
+        // Wrapping in setTimeout moves the update out of the synchronous effect body
+        // and into the next task, avoiding the "cascading renders" warning.
+        const timeoutId = setTimeout(() => {
+            if (storedToken && storedUser) {
+                try {
+                    setAuthState({
+                        token: storedToken,
+                        user: JSON.parse(storedUser),
+                        companyProfile: storedCompany ? JSON.parse(storedCompany) : null,
+                        loading: false
+                    });
+                } catch (error) {
+                    console.error('Error parsing stored auth data:', error);
+                    setAuthState(prev => ({ ...prev, loading: false }));
+                }
+            } else {
+                setAuthState(prev => ({ ...prev, loading: false }));
             }
-        }
-        setLoading(false);
+        }, 0);
+
+        return () => clearTimeout(timeoutId);
     }, []);
 
     const login = async (email: string, password: string) => {
@@ -65,9 +86,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             throw new Error(data.error || data.message || 'Giriş yapılamadı');
         }
 
-        setToken(data.token);
-        setUser(data.user);
-        setCompanyProfile(data.companyProfile);
+        setAuthState({
+            token: data.token,
+            user: data.user,
+            companyProfile: data.companyProfile || null,
+            loading: false
+        });
+
         localStorage.setItem('auth_token', data.token);
         localStorage.setItem('auth_user', JSON.stringify(data.user));
         if (data.companyProfile) {
@@ -87,9 +112,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             throw new Error(data.error || data.message || 'Kayıt yapılamadı');
         }
 
-        setToken(data.token);
-        setUser(data.user);
-        setCompanyProfile(data.companyProfile);
+        setAuthState({
+            token: data.token,
+            user: data.user,
+            companyProfile: data.companyProfile || null,
+            loading: false
+        });
+
         localStorage.setItem('auth_token', data.token);
         localStorage.setItem('auth_user', JSON.stringify(data.user));
         if (data.companyProfile) {
@@ -98,9 +127,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     const logout = () => {
-        setToken(null);
-        setUser(null);
-        setCompanyProfile(null);
+        setAuthState({
+            token: null,
+            user: null,
+            companyProfile: null,
+            loading: false
+        });
         localStorage.removeItem('auth_token');
         localStorage.removeItem('auth_user');
         localStorage.removeItem('auth_company');
@@ -109,14 +141,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     return (
         <AuthContext.Provider value={{
-            user,
-            companyProfile,
-            token,
+            user: authState.user,
+            companyProfile: authState.companyProfile,
+            token: authState.token,
+            loading: authState.loading,
             login,
             register,
             logout,
-            isAuthenticated: !!token,
-            loading
+            isAuthenticated: !!authState.token,
         }}>
             {children}
         </AuthContext.Provider>

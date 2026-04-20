@@ -10,7 +10,8 @@ import {
     removeExternalPlant,
     getImportedIds,
     getProductionLogs,
-    deleteProductionLog
+    deleteProductionLog,
+    createTestLog
 } from '../controllers/ytbs.controller';
 import { authenticate, authorize } from '../middleware/auth';
 
@@ -32,5 +33,6 @@ router.get('/imported-ids', getImportedIds);
 
 router.get('/logs', getProductionLogs);
 router.delete('/logs/:type/:id', deleteProductionLog);
+router.post('/test-log', createTestLog);
 
 export default router;

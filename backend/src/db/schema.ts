@@ -339,6 +339,8 @@ export const ytbsPlant = pgTable('YtbsPlant', {
 
 export const ytbsHourlyProduction = pgTable('YtbsHourlyProduction', {
     id: uuid('id').primaryKey().defaultRandom(),
+    plantId: uuid('plantId').notNull().references(() => plant.id, { onDelete: 'cascade' }),
+    externalPlantId: integer('externalPlantId').notNull(),
     ytbsPlantId: uuid('ytbsPlantId').notNull().references(() => ytbsPlant.id, { onDelete: 'cascade' }),
     readingDate: text('readingDate').notNull(),
     readingHour: text('readingHour').notNull(),
@@ -356,6 +358,8 @@ export const ytbsHourlyProduction = pgTable('YtbsHourlyProduction', {
 
 export const ytbsInstantProduction = pgTable('YtbsInstantProduction', {
     id: uuid('id').primaryKey().defaultRandom(),
+    plantId: uuid('plantId').notNull().references(() => plant.id, { onDelete: 'cascade' }),
+    externalPlantId: integer('externalPlantId').notNull(),
     ytbsPlantId: uuid('ytbsPlantId').notNull().references(() => ytbsPlant.id, { onDelete: 'cascade' }),
     readingDate: text('readingDate').notNull(),
     readingTime: text('readingTime').notNull(),

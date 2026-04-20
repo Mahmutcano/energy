@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import crypto from 'crypto';
 import { db } from '../db';
 import * as schema from '../db/schema';
 import { eq, desc, and, count } from 'drizzle-orm';
@@ -214,22 +215,19 @@ export const removeExternalPlant = async (req: Request, res: Response) => {
 
 export const getProductionLogs = async (req: Request, res: Response) => {
     try {
-        const { type } = req.query;
+        const { type, plantId, date } = req.query;
+        
+        let query;
         if (type === 'hourly') {
-            const logs = await db.query.ytbsHourlyProduction.findMany({
-                with: { ytbsPlant: true },
-                orderBy: [desc(schema.ytbsHourlyProduction.createdAt)],
-                limit: 100
-            });
-            return res.json(logs);
+            query = db.select().from(schema.ytbsHourlyProduction).orderBy(desc(schema.ytbsHourlyProduction.createdAt));
+            if (plantId) query = query.where(eq(schema.ytbsHourlyProduction.ytbsPlantId, plantId as string)) as any;
         } else {
-            const logs = await db.query.ytbsInstantProduction.findMany({
-                with: { ytbsPlant: true },
-                orderBy: [desc(schema.ytbsInstantProduction.createdAt)],
-                limit: 100
-            });
-            return res.json(logs);
+            query = db.select().from(schema.ytbsInstantProduction).orderBy(desc(schema.ytbsInstantProduction.createdAt));
+            if (plantId) query = query.where(eq(schema.ytbsInstantProduction.ytbsPlantId, plantId as string)) as any;
         }
+
+        const logs = await query.limit(200);
+        res.json({ success: true, data: logs });
     } catch (error: any) {
         res.status(500).json({ success: false, message: error.message });
     }
@@ -238,12 +236,12 @@ export const getProductionLogs = async (req: Request, res: Response) => {
 export const deleteProductionLog = async (req: Request, res: Response) => {
     try {
         const { id, type } = req.params;
-        if (type === 'hourly') {
+        if (type === 'hourly' || type === 'HourlyData') {
             await db.delete(schema.ytbsHourlyProduction).where(eq(schema.ytbsHourlyProduction.id, id as string));
         } else {
             await db.delete(schema.ytbsInstantProduction).where(eq(schema.ytbsInstantProduction.id, id as string));
         }
-        res.status(204).send();
+        res.json({ success: true, message: 'Log kaydı silindi.' });
     } catch (error: any) {
         res.status(500).json({ success: false, message: error.message });
     }
@@ -256,5 +254,59 @@ export const getImportedIds = async (req: Request, res: Response) => {
         return res.json({ success: true, data: ids });
     } catch (error: any) {
         return res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+export const createTestLog = async (req: Request, res: Response) => {
+    try {
+        const { companyId, type } = req.body;
+        if (!companyId || !type) return res.status(400).json({ success: false, message: 'companyId ve type gerekli' });
+
+        // Şirkete ait bir YTBS santrali bul (Tüm ID'leri çek)
+        const [targetPlant] = await db.select({ 
+            id: schema.ytbsPlant.id,
+            ytbsId: schema.ytbsPlant.ytbsId,
+            localPlantId: schema.plant.id
+        })
+            .from(schema.ytbsPlant)
+            .innerJoin(schema.plant, eq(schema.ytbsPlant.plantId, schema.plant.id))
+            .where(eq(schema.plant.companyId, companyId))
+            .limit(1);
+
+        if (!targetPlant) {
+            return res.status(404).json({ success: false, message: 'Bu şirkete kayıtlı YTBS santrali bulunamadı.' });
+        }
+
+        const now = new Date();
+        const dateStr = now.toISOString().split('T')[0];
+        const timeStr = now.toTimeString().split(' ')[0].substring(0, 5);
+
+        if (type === 'instant') {
+            await db.insert(schema.ytbsInstantProduction).values({
+                id: crypto.randomUUID(),
+                plantId: targetPlant.localPlantId as string,
+                externalPlantId: targetPlant.ytbsId,
+                ytbsPlantId: targetPlant.id,
+                readingDate: dateStr,
+                readingTime: timeStr,
+                valueMw: parseFloat((Math.random() * 10).toFixed(2)),
+                isSent: false
+            });
+        } else {
+            await db.insert(schema.ytbsHourlyProduction).values({
+                id: crypto.randomUUID(),
+                plantId: targetPlant.localPlantId as string,
+                externalPlantId: targetPlant.ytbsId,
+                ytbsPlantId: targetPlant.id,
+                readingDate: dateStr,
+                readingHour: now.getHours().toString().padStart(2, '0'),
+                valueMwh: parseFloat((Math.random() * 50).toFixed(2)),
+                isSent: false
+            });
+        }
+
+        res.json({ success: true, message: 'Test kaydı oluşturuldu. Gönderim sırasında işlenecek.' });
+    } catch (err: any) {
+        res.status(500).json({ success: false, message: err.message });
     }
 };

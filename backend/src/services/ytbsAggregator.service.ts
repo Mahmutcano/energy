@@ -60,6 +60,8 @@ export class YtbsAggregatorService {
                     // 3. Insert into queue
                     await db.insert(schema.ytbsHourlyProduction).values({
                         ytbsPlantId: yp.id,
+                        plantId: yp.plantId,
+                        externalPlantId: yp.ytbsId,
                         readingDate: dateStr,
                         readingHour: hourStr,
                         valueMwh: Number(mwhValue.toFixed(4)),
@@ -102,6 +104,8 @@ export class YtbsAggregatorService {
 
                     await db.insert(schema.ytbsInstantProduction).values({
                         ytbsPlantId: yp.id,
+                        plantId: yp.plantId,
+                        externalPlantId: yp.ytbsId,
                         readingDate: dateStr,
                         readingTime: timeStr,
                         valueMw: Number(mwValue.toFixed(4)),

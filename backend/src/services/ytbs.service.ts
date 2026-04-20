@@ -130,8 +130,15 @@ export class YtbsService {
                 where: eq(schema.companyProfile.id, companyId)
             });
 
-            if (!company || !company.ytbsUsername || !company.ytbsPassword || !company.ytbsApiKey) {
-                throw new Error('Firma YTBS bilgileri eksik.');
+            if (!company) {
+                throw new Error('Firma bulunamadı.');
+            }
+
+            const kullaniciAdi = company.ytbsApiUsername || company.ytbsUsername;
+            const sifre = company.ytbsApiPassword || company.ytbsPassword;
+
+            if (!kullaniciAdi || !sifre || !company.ytbsApiKey) {
+                throw new Error('Firma YTBS bilgileri (API kullanıcı adı, şifre veya anahtar) eksik.');
             }
 
             const response = await fetch(`${YTBS_BASE_URL}/yetkilendirme/login`, {
@@ -141,8 +148,8 @@ export class YtbsService {
                     'SERVICE_KEY': company.ytbsApiKey
                 },
                 body: JSON.stringify({
-                    kullaniciAdi: company.ytbsUsername,
-                    sifre: company.ytbsPassword
+                    kullaniciAdi,
+                    sifre
                 })
             });
 

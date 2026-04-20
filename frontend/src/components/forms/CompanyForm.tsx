@@ -11,6 +11,8 @@ export interface CompanyFormData {
     taxNumber: string | null;
     ytbsUsername?: string | null;
     ytbsPassword?: string | null;
+    ytbsApiUsername?: string | null;
+    ytbsApiPassword?: string | null;
     ytbsApiKey?: string | null;
     baglantiAnlasmasiSirketiLisansNo?: string | null;
     isActive: boolean;
@@ -39,6 +41,8 @@ export default function CompanyForm({
         taxNumber: initialData?.taxNumber || '',
         ytbsUsername: initialData?.ytbsUsername || '',
         ytbsPassword: initialData?.ytbsPassword || '',
+        ytbsApiUsername: initialData?.ytbsApiUsername || '',
+        ytbsApiPassword: initialData?.ytbsApiPassword || '',
         ytbsApiKey: initialData?.ytbsApiKey || '',
         baglantiAnlasmasiSirketiLisansNo: initialData?.baglantiAnlasmasiSirketiLisansNo || '',
         isActive: initialData?.isActive ?? true,
@@ -57,6 +61,8 @@ export default function CompanyForm({
                 taxNumber: initialData.taxNumber || '',
                 ytbsUsername: initialData.ytbsUsername || '',
                 ytbsPassword: initialData.ytbsPassword || '',
+                ytbsApiUsername: initialData.ytbsApiUsername || '',
+                ytbsApiPassword: initialData.ytbsApiPassword || '',
                 ytbsApiKey: initialData.ytbsApiKey || '',
                 baglantiAnlasmasiSirketiLisansNo: initialData.baglantiAnlasmasiSirketiLisansNo || '',
                 isActive: initialData.isActive ?? true,
@@ -152,21 +158,41 @@ export default function CompanyForm({
                 </div>
 
                 <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-400 tracking-widest uppercase">YTBS Username</label>
+                    <label className="text-xs font-bold text-slate-400 tracking-widest uppercase">YTBS Portal Username</label>
                     <input
                         type="text"
                         value={formData.ytbsUsername || ''}
                         onChange={(e) => setFormData({ ...formData, ytbsUsername: e.target.value })}
                         className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none transition-all font-mono"
-                        placeholder="YTBS API Username"
+                        placeholder="YTBS Portal Username"
                     />
                 </div>
                 <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-400 tracking-widest uppercase">YTBS Password</label>
+                    <label className="text-xs font-bold text-slate-400 tracking-widest uppercase">YTBS Portal Password</label>
                     <input
                         type="password"
                         value={formData.ytbsPassword || ''}
                         onChange={(e) => setFormData({ ...formData, ytbsPassword: e.target.value })}
+                        className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none transition-all font-mono"
+                        placeholder="YTBS Portal Password"
+                    />
+                </div>
+                <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-400 tracking-widest uppercase">YTBS API Username</label>
+                    <input
+                        type="text"
+                        value={formData.ytbsApiUsername || ''}
+                        onChange={(e) => setFormData({ ...formData, ytbsApiUsername: e.target.value })}
+                        className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none transition-all font-mono"
+                        placeholder="YTBS API Username"
+                    />
+                </div>
+                <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-400 tracking-widest uppercase">YTBS API Password</label>
+                    <input
+                        type="password"
+                        value={formData.ytbsApiPassword || ''}
+                        onChange={(e) => setFormData({ ...formData, ytbsApiPassword: e.target.value })}
                         className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none transition-all font-mono"
                         placeholder="YTBS API Password"
                     />

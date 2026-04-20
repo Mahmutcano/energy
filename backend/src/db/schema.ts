@@ -83,6 +83,8 @@ export const companyProfile = pgTable('CompanyProfile', {
     taxNumber: integer('taxNumber'),
     ytbsUsername: text('ytbsUsername'),
     ytbsPassword: text('ytbsPassword'),
+    ytbsApiUsername: text('ytbsApiUsername'),
+    ytbsApiPassword: text('ytbsApiPassword'),
     ytbsApiKey: text('ytbsApiKey'),
     baglantiAnlasmasiSirketiLisansNo: text('baglantiAnlasmasiSirketiLisansNo'),
     isActive: boolean('isActive').default(true).notNull(),

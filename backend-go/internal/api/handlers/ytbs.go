@@ -173,7 +173,7 @@ func QueryExternalPlants(c *gin.Context) {
 	}
 
 	svc := services.GetYtbsService()
-	plants, err := svc.QueryExternalPlants(cid)
+	plants, err := svc.QueryExternalPlants(c.Request.Context(), cid)
 	if err != nil {
 		response.Error(c, http.StatusInternalServerError, response.ErrDatabase, err.Error())
 		return
@@ -253,45 +253,51 @@ func ImportExternalPlants(c *gin.Context) {
 			}
 		}
 
-		// Handle plantId logic
+		// Handle plant mapping and creation
 		var plantId uuid.UUID
 		foundPlant := false
 
-		// 1. Check if plantId is directly provided
-		if pid, ok := p["plantId"]; ok && pid != nil {
-			if pidStr, ok := pid.(string); ok && pidStr != "" {
-				parsedPid, err := uuid.Parse(pidStr)
-				if err == nil {
-					plantId = parsedPid
-					foundPlant = true
-				}
-			}
+		// 1. Try to find an existing plant linked to this YTBS ID
+		err = db.Pool.QueryRow(ctx, `SELECT "plantId" FROM "YtbsPlant" WHERE "ytbsId" = $1`, ytbsId).Scan(&plantId)
+		if err == nil {
+			foundPlant = true
 		}
 
-		// 2. If not provided or invalid, find first plant of the company
+		// 2. If not found by YtbsPlant link, try to find in main Plant table by ytbsCode
 		if !foundPlant {
-			err := db.Pool.QueryRow(ctx, `SELECT id FROM "Plant" WHERE "companyId" = $1 LIMIT 1`, compUUID).Scan(&plantId)
+			err = db.Pool.QueryRow(ctx, `SELECT "id" FROM "Plant" WHERE "ytbsCode" = $1 AND "companyId" = $2`, strconv.Itoa(ytbsId), compUUID).Scan(&plantId)
 			if err == nil {
 				foundPlant = true
 			}
 		}
 
-		// 3. Fallback: if STILL no plant found, we might need to skip or use a null UUID if DB allows
-		// Most likely we should have at least one plant for the company to link.
-		// If not, we skip this record to avoid FK violation.
+		// 3. If still NOT found, CREATE a new record in the main Plant table
 		if !foundPlant {
-			log.Printf("[YTBS] Skipping plant import %s: no local plant found for company %s", ad, req.CompanyID)
-			continue
+			plantId = uuid.New()
+			_, err = db.Pool.Exec(ctx, `
+				INSERT INTO "Plant" ("id", "companyId", "plantName", "plantType", "isActive", "ytbsCode", "canSendYtbs", "createdAt", "updatedAt")
+				VALUES ($1, $2, $3, $4, true, $5, true, NOW(), NOW())
+			`, plantId, compUUID, ad, "GES", strconv.Itoa(ytbsId))
+			
+			if err != nil {
+				log.Printf("[YTBS] Error creating main Plant for %s: %v", ad, err)
+				continue // Skip the rest if we can't create the main record
+			}
+			foundPlant = true
 		}
 
+		// 4. Create or update the YtbsPlant integration record
 		_, err = db.Pool.Exec(ctx, `
 			INSERT INTO "YtbsPlant" ("id", "plantId", "ytbsId", "licenseNo", "plantName", "capacityAc", "isActive")
 			VALUES ($1, $2, $3, $4, $5, $6, true)
-			ON CONFLICT ("ytbsId") DO UPDATE SET "plantName" = EXCLUDED."plantName", "capacityAc" = EXCLUDED."capacityAc"
+			ON CONFLICT ("ytbsId") DO UPDATE SET 
+				"plantId" = EXCLUDED."plantId",
+				"plantName" = EXCLUDED."plantName", 
+				"capacityAc" = EXCLUDED."capacityAc"
 		`, uuid.New(), plantId, ytbsId, licenseNo, ad, guc)
 		
 		if err != nil {
-			log.Printf("[YTBS] Database error during import for %d: %v", ytbsId, err)
+			log.Printf("[YTBS] Database error during YtbsPlant insert for %d: %v", ytbsId, err)
 			continue
 		}
 		importedCount++
@@ -324,7 +330,7 @@ func QueryExternalLogs(c *gin.Context) {
 	}
 
 	svc := services.GetYtbsService()
-	logs, err := svc.QueryExternalLogs(cid, req.Type)
+	logs, err := svc.QueryExternalLogs(c.Request.Context(), cid, req.Type)
 	if err != nil {
 		response.Error(c, http.StatusInternalServerError, response.ErrDatabase, err.Error())
 		return

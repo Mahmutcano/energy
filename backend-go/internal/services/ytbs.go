@@ -23,7 +23,7 @@ var ytbsInstance *YtbsService
 func GetYtbsService() *YtbsService {
 	if ytbsInstance == nil {
 		ytbsInstance = &YtbsService{
-			client: &http.Client{Timeout: 30 * time.Second},
+			client: &http.Client{Timeout: 60 * time.Second},
 		}
 	}
 	return ytbsInstance
@@ -38,14 +38,17 @@ type TokenResponse struct {
 	Message string `json:"message"`
 }
 
-func (s *YtbsService) Login(apiKey, username, password string) (string, error) {
+func (s *YtbsService) Login(ctx context.Context, apiKey, username, password string) (string, error) {
 	payload := map[string]string{
 		"kullaniciAdi": username,
 		"sifre":        password,
 	}
 	body, _ := json.Marshal(payload)
 
-	req, _ := http.NewRequest("POST", YtbsBaseURL+"/yetkilendirme/login", bytes.NewBuffer(body))
+	req, err := http.NewRequestWithContext(ctx, "POST", YtbsBaseURL+"/yetkilendirme/login", bytes.NewBuffer(body))
+	if err != nil {
+		return "", err
+	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("SERVICE_KEY", apiKey)
 
@@ -72,10 +75,10 @@ func (s *YtbsService) Login(apiKey, username, password string) (string, error) {
 	return token, nil
 }
 
-func (s *YtbsService) QueryExternalPlants(cid uuid.UUID) (any, error) {
+func (s *YtbsService) QueryExternalPlants(ctx context.Context, cid uuid.UUID) (any, error) {
 	// 1. Get company credentials
 	var apiKey, username, password *string
-	err := db.Pool.QueryRow(context.Background(), `
+	err := db.Pool.QueryRow(ctx, `
 		SELECT "ytbsApiKey", "ytbsUsername", "ytbsPassword" 
 		FROM "CompanyProfile" WHERE id = $1
 	`, cid).Scan(&apiKey, &username, &password)
@@ -86,7 +89,7 @@ func (s *YtbsService) QueryExternalPlants(cid uuid.UUID) (any, error) {
 	}
 
 	// 2. Login
-	token, err := s.Login(*apiKey, *username, *password)
+	token, err := s.Login(ctx, *apiKey, *username, *password)
 	if err != nil { return nil, err }
 
 	// 3. Query
@@ -96,7 +99,9 @@ func (s *YtbsService) QueryExternalPlants(cid uuid.UUID) (any, error) {
 	}
 	queryBody, _ := json.Marshal(payload)
 
-	req, _ := http.NewRequest("POST", YtbsBaseURL+"/modelleme/uretim/lisanssizsantral/listele", bytes.NewBuffer(queryBody))
+	req, err := http.NewRequestWithContext(ctx, "POST", YtbsBaseURL+"/modelleme/uretim/lisanssizsantral/listele", bytes.NewBuffer(queryBody))
+	if err != nil { return nil, err }
+	
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("SERVICE_KEY", *apiKey)
 	req.Header.Set("AUTH_TOKEN", token)
@@ -110,10 +115,10 @@ func (s *YtbsService) QueryExternalPlants(cid uuid.UUID) (any, error) {
 		return nil, err
 	}
 
-    // Ensure 'veri' is a slice and not null for the frontend
-    if v, ok := result["veri"]; !ok || v == nil {
-        result["veri"] = []any{}
-    }
+	// Ensure 'veri' is a slice and not null for the frontend
+	if v, ok := result["veri"]; !ok || v == nil {
+		result["veri"] = []any{}
+	}
 
 	return result, nil
 }
@@ -143,7 +148,7 @@ func (s *YtbsService) ProcessPendingInstant() {
 		var val float64
 		
 		if err := rows.Scan(&id, &ypID, &license, &cpID, &apiKey, &username, &password, &date, &timeStr, &val, &prodID); err == nil {
-			token, err := s.Login(apiKey, username, password)
+			token, err := s.Login(ctx, apiKey, username, password)
 			if err != nil { continue }
 			
 			payload := map[string]interface{}{
@@ -173,9 +178,9 @@ func (s *YtbsService) ProcessPendingInstant() {
 	}
 }
 
-func (s *YtbsService) QueryExternalLogs(companyID uuid.UUID, logType string) ([]any, error) {
+func (s *YtbsService) QueryExternalLogs(ctx context.Context, companyID uuid.UUID, logType string) ([]any, error) {
 	var apiKey, username, password *string
-	err := db.Pool.QueryRow(context.Background(), `
+	err := db.Pool.QueryRow(ctx, `
 		SELECT "ytbsApiKey", "ytbsUsername", "ytbsPassword" 
 		FROM "CompanyProfile" WHERE id = $1
 	`, companyID).Scan(&apiKey, &username, &password)
@@ -184,7 +189,7 @@ func (s *YtbsService) QueryExternalLogs(companyID uuid.UUID, logType string) ([]
 		return nil, fmt.Errorf("YTBS credentials missing for company") 
 	}
 
-	token, err := s.Login(*apiKey, *username, *password)
+	token, err := s.Login(ctx, *apiKey, *username, *password)
 	if err != nil { return nil, err }
 
 	date := time.Now().Format("2006-01-02")
@@ -193,8 +198,11 @@ func (s *YtbsService) QueryExternalLogs(companyID uuid.UUID, logType string) ([]
 		endpoint = "/veritoplama/saatliklisanssizsantraluretim/sorgula"
 	}
 
-	rows, err := db.Pool.Query(context.Background(), `
-		SELECT "ytbsId", "license_no" FROM "YtbsPlant" WHERE "companyId" = $1
+	rows, err := db.Pool.Query(ctx, `
+		SELECT yp."ytbsId", yp."licenseNo" 
+		FROM "YtbsPlant" yp
+		JOIN "Plant" p ON yp."plantId" = p.id
+		WHERE p."companyId" = $1
 	`, companyID)
 	if err != nil { return nil, err }
 	defer rows.Close()
@@ -203,7 +211,9 @@ func (s *YtbsService) QueryExternalLogs(companyID uuid.UUID, logType string) ([]
 	for rows.Next() {
 		var ytbsID int
 		var licenseNo string
-		rows.Scan(&ytbsID, &licenseNo)
+		if err := rows.Scan(&ytbsID, &licenseNo); err != nil {
+			continue
+		}
 
 		payload := map[string]any{
 			"lisanssizSantralId": ytbsID,
@@ -212,7 +222,9 @@ func (s *YtbsService) QueryExternalLogs(companyID uuid.UUID, logType string) ([]
 		}
 		
 		b, _ := json.Marshal(payload)
-		req, _ := http.NewRequest("POST", YtbsBaseURL+endpoint, bytes.NewBuffer(b))
+		req, err := http.NewRequestWithContext(ctx, "POST", YtbsBaseURL+endpoint, bytes.NewBuffer(b))
+		if err != nil { continue }
+		
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("SERVICE_KEY", *apiKey)
 		req.Header.Set("AUTH_TOKEN", token)
@@ -227,12 +239,12 @@ func (s *YtbsService) QueryExternalLogs(companyID uuid.UUID, logType string) ([]
 		resp.Body.Close()
 
 		if res.Veri != nil {
-            // If it's an array, append all. If it's a single item, append one.
-            if list, ok := res.Veri.([]any); ok {
-                allLogs = append(allLogs, list...)
-            } else {
-                allLogs = append(allLogs, res.Veri)
-            }
+			// If it's an array, append all. If it's a single item, append one.
+			if list, ok := res.Veri.([]any); ok {
+				allLogs = append(allLogs, list...)
+			} else {
+				allLogs = append(allLogs, res.Veri)
+			}
 		}
 	}
 

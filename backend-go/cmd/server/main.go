@@ -39,11 +39,15 @@ func main() {
 	// Initialize Socket.io
 	socketServer := api.InitSocket()
 
-	// Start Background Worker (Telemetry Persistence)
+	// Start Background Workers
 	telemetryWorker := worker.NewTelemetryWorker()
+	ytbsAggregator := worker.NewYtbsAggregator()
+	
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+	
 	go telemetryWorker.Start(ctx)
+	go ytbsAggregator.Start(ctx)
 
 	// Start Alarm Monitor
 	alarmSvc := services.GetAlarmService(socketServer)
@@ -141,6 +145,19 @@ func main() {
 				system.PATCH("/recording-settings", handlers.UpdateRecordingSettings)
 				system.POST("/run-retention", handlers.RunRetention)
 				system.GET("/schema-stats", handlers.GetSchemaStats)
+			}
+
+			// YTBS routes
+			ytbs := protected.Group("/ytbs")
+			{
+				ytbs.GET("/imported-ids", handlers.GetImportedIds)
+				ytbs.GET("/logs", handlers.GetProductionLogs)
+				ytbs.DELETE("/logs/:type/:id", handlers.DeleteProductionLog)
+				ytbs.POST("/test-log", handlers.CreateTestLog)
+				ytbs.POST("/query-external", handlers.QueryExternalPlants)
+				ytbs.POST("/query-external-logs", handlers.QueryExternalLogs)
+				ytbs.POST("/import-external", handlers.ImportExternalPlants)
+				ytbs.POST("/remove-external", handlers.RemoveExternalPlant)
 			}
 		}
 	}

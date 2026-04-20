@@ -98,3 +98,41 @@ type TelemetryData struct {
 	Name       string      `json:"name"`
 	Timestamp  time.Time   `json:"timestamp"`
 }
+
+type YtbsPlant struct {
+	ID         uuid.UUID `json:"id"`
+	PlantID    uuid.UUID `json:"plantId"`
+	YtbsID     int       `json:"ytbsId"`
+	LicenseNo  string    `json:"license_no"`
+	PlantName  string    `json:"plant_name"`
+	CapacityAc float64   `json:"capacity_ac"`
+	IsActive   bool      `json:"isActive"`
+}
+
+type YtbsHourlyProduction struct {
+	ID              uuid.UUID  `json:"id"`
+	PlantID         uuid.UUID  `json:"plantId"`
+	ExternalPlantID int        `json:"externalPlantId"`
+	YtbsPlantID     uuid.UUID  `json:"ytbsPlantId"`
+	ReadingDate     string     `json:"readingDate"`
+	ReadingHour     string     `json:"readingHour"`
+	ValueMwh        float64    `json:"valueMwh"`
+	IsSent          bool       `json:"isSent"`
+	LastAttemptAt   *time.Time `json:"lastAttemptAt"`
+	RetryCount      int        `json:"retryCount"`
+	CreatedAt       time.Time  `json:"createdAt"`
+}
+
+type YtbsInstantProduction struct {
+	ID              uuid.UUID  `json:"id"`
+	PlantID         uuid.UUID  `json:"plantId"`
+	ExternalPlantID int        `json:"externalPlantId"`
+	YtbsPlantID     uuid.UUID  `json:"ytbsPlantId"`
+	ReadingDate     string     `json:"readingDate"`
+	ReadingTime     string     `json:"readingTime"`
+	ValueMw         float64    `json:"valueMw"`
+	IsSent          bool       `json:"isSent"`
+	LastAttemptAt   *time.Time `json:"lastAttemptAt"`
+	RetryCount      int        `json:"retryCount"`
+	CreatedAt       time.Time  `json:"createdAt"`
+}

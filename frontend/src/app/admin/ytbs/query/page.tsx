@@ -13,22 +13,24 @@ import toast from 'react-hot-toast';
 import { useRouter } from 'next/navigation';
 
 interface ExternalPlant {
-    lisanssizSantral: {
+    id: number;
+    ad: string;
+    durum?: {
         id: number;
         ad: string;
-        durum?: {
-            id: number;
-            ad: string;
-        };
-        il?: {
-            id: number;
-            ad: string;
-        };
     };
-    isletmedekiGuc?: number;
-    kuruluGuc?: number;
-    status?: string;
-    city?: string;
+    il?: {
+        id: number;
+        ad: string;
+    };
+    tarihce?: {
+        acGucu?: number;
+        dcGucu?: number;
+    };
+    baglantiAnlasmasiSirketi?: {
+        id: string; // Lisans No
+        ad: string;
+    };
 }
 
 interface Company {
@@ -103,18 +105,29 @@ export default function YtbsQueryPage() {
             return;
         }
 
-        if (activeTab === 'logs') {
-            await fetchLogs();
-            return;
-        }
-
-        const company = companies.find(c => c.id === selectedCompanyId);
-        if (!company?.ytbsUsername || !company?.ytbsPassword || !company?.ytbsApiKey) {
-            toast.error('Firma YTBS bilgileri (API Key/Kullanıcı adı/Şifre) eksik!');
-            return;
-        }
-
         setQuerying(true);
+        if (activeTab === 'logs') {
+            setLogs([]);
+            try {
+                const res = await apiRequest('/api/ytbs/query-external-logs', {
+                    method: 'POST',
+                    body: JSON.stringify({ companyId: selectedCompanyId, type: logType })
+                });
+                if (res.ok) {
+                    const result = await res.json();
+                    setLogs(result.data || []);
+                    toast.success('Dış veriler çekildi.');
+                } else {
+                    toast.error('Sorgulama başarısız.');
+                }
+            } catch (err) {
+                toast.error('Hata oluştu.');
+            } finally {
+                setQuerying(false);
+            }
+            return;
+        }
+
         setExternalPlants([]);
         try {
             const res = await apiRequest('/api/ytbs/query-external', {
@@ -124,9 +137,10 @@ export default function YtbsQueryPage() {
 
             if (res.ok) {
                 const result = await res.json();
-                const list = result.data || [];
+                // Handle both direct array or object with .veri property
+                const list = result.data?.veri || (Array.isArray(result.data) ? result.data : []);
                 setExternalPlants(list);
-                if (list.length > 0) {
+                if (list && list.length > 0) {
                     toast.success(`${list.length} santral bulundu.`);
                 } else {
                     toast.error('Kayıtlı santral bulunamadı.');
@@ -154,7 +168,7 @@ export default function YtbsQueryPage() {
             if (res.ok) {
                 const result = await res.json();
                 toast.success(`${result.importedCount} santral başarıyla eklendi/güncellendi.`, { id: t });
-                setImportedIds(prev => [...prev, ...plantsToImport.map(p => p.lisanssizSantral.id)]);
+                setImportedIds(prev => [...prev, ...plantsToImport.map(p => p.id)]);
             } else {
                 toast.error('Aktarım başarısız.', { id: t });
             }
@@ -311,19 +325,19 @@ export default function YtbsQueryPage() {
                                 {externalPlants.length === 0 ? (
                                     <tr><td colSpan={6} className="py-32 text-center opacity-20 text-[10px] font-black uppercase italic">Sorgulama Bekleniyor</td></tr>
                                 ) : (
-                                    externalPlants.map((plant) => (
-                                        <tr key={plant.lisanssizSantral.id} className="hover:bg-white/[0.01] group">
-                                            <td className="px-3 py-3 font-mono text-[9px] text-slate-500">#{plant.lisanssizSantral.id}</td>
-                                            <td className="px-3 py-3 truncate text-[13px] font-bold text-slate-200 group-hover:text-brand-green transition-colors">{plant.lisanssizSantral.ad}</td>
-                                            <td className="px-3 py-3 text-center font-black text-slate-300">{(plant.isletmedekiGuc || 0).toLocaleString()} <small className="opacity-40">AC</small></td>
+                                    externalPlants.map((plant: ExternalPlant) => (
+                                        <tr key={plant.id} className="hover:bg-white/[0.01] group">
+                                            <td className="px-3 py-3 font-mono text-[9px] text-slate-500">#{plant.id}</td>
+                                            <td className="px-3 py-3 truncate text-[13px] font-bold text-slate-200 group-hover:text-brand-green transition-colors">{plant.ad}</td>
+                                            <td className="px-3 py-3 text-center font-black text-slate-300">{(plant.tarihce?.acGucu || 0).toLocaleString()} <small className="opacity-40">AC</small></td>
                                             <td className="px-3 py-3 text-center">
-                                                <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase border ${plant.lisanssizSantral.durum?.id === 4 ? 'bg-emerald-500/5 text-emerald-500 border-emerald-500/10' : 'bg-amber-500/5 text-amber-500 border-amber-500/10'}`}>{plant.lisanssizSantral.durum?.ad || '-'}</span>
+                                                <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase border ${plant.durum?.id === 4 ? 'bg-emerald-500/5 text-emerald-500 border-emerald-500/10' : 'bg-amber-500/5 text-amber-500 border-amber-500/10'}`}>{plant.durum?.ad || '-'}</span>
                                             </td>
-                                            <td className="px-3 py-3 text-center text-[10px] font-bold text-slate-500">{plant.lisanssizSantral.il?.ad || '-'}</td>
+                                            <td className="px-3 py-3 text-center text-[10px] font-bold text-slate-500">{plant.il?.ad || '-'}</td>
                                             <td className="px-3 py-3 text-right">
                                                 <div className="flex justify-end gap-1.5">
-                                                    {importedIds.includes(plant.lisanssizSantral.id) ? (
-                                                        <><div className="px-2 py-1 bg-emerald-500/5 text-emerald-500 border border-emerald-500/10 rounded text-[8px] font-black uppercase flex items-center gap-1"><CheckCircle2 size={10}/> Sistemde</div><button onClick={() => handleRemove(plant.lisanssizSantral.id)} className="p-1.5 text-slate-700 hover:text-rose-500 transition-all"><Trash2 size={12}/></button></>
+                                                    {importedIds.includes(plant.id) ? (
+                                                        <><div className="px-2 py-1 bg-emerald-500/5 text-emerald-500 border border-emerald-500/10 rounded text-[8px] font-black uppercase flex items-center gap-1"><CheckCircle2 size={10}/> Sistemde</div><button onClick={() => handleRemove(plant.id)} className="p-1.5 text-slate-700 hover:text-rose-500 transition-all"><Trash2 size={12}/></button></>
                                                     ) : (
                                                         <button onClick={() => handleImport([plant])} disabled={importing} className="px-3 py-1.5 bg-brand-green text-white rounded text-[9px] font-black uppercase tracking-widest hover:brightness-110 active:scale-95 transition-all">Aktar</button>
                                                     )}

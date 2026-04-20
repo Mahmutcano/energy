@@ -14,6 +14,10 @@ const createCompanySchema = z.object({
     representative: z.string().optional().nullable(),
     taxOffice: z.string().optional().nullable(),
     taxNumber: z.number().optional().nullable(),
+    ytbsUsername: z.string().optional().nullable(),
+    ytbsPassword: z.string().optional().nullable(),
+    ytbsApiKey: z.string().optional().nullable(),
+    baglantiAnlasmasiSirketiLisansNo: z.string().optional().nullable(),
     isActive: z.boolean().optional(),
 });
 
@@ -55,6 +59,10 @@ export const createCompany = async (req: Request, res: Response) => {
             representative: data.representative,
             taxOffice: data.taxOffice,
             taxNumber: data.taxNumber,
+            ytbsUsername: data.ytbsUsername,
+            ytbsPassword: data.ytbsPassword,
+            ytbsApiKey: data.ytbsApiKey,
+            baglantiAnlasmasiSirketiLisansNo: data.baglantiAnlasmasiSirketiLisansNo,
             isActive: data.isActive ?? true,
         }).returning();
 

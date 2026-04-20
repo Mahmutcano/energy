@@ -89,3 +89,87 @@ export const triggerYtbsSync = async (req: Request, res: Response) => {
         res.status(500).json({ success: false, message: error.message });
     }
 };
+
+export const queryExternalPlants = async (req: Request, res: Response) => {
+    try {
+        const { companyId } = req.body;
+        if (!companyId) return res.status(400).json({ success: false, message: 'Firma seçilmelidir.' });
+
+        const data = await ytbsService.listLisanssizSantral(companyId);
+        res.json({ success: true, data });
+    } catch (error: any) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+export const importExternalPlants = async (req: Request, res: Response) => {
+    try {
+        const { companyId, plants } = req.body;
+        if (!companyId) return res.status(400).json({ success: false, message: 'Firma seçilmelidir.' });
+        if (!Array.isArray(plants)) return res.status(400).json({ success: false, message: 'Santral listesi gereklidir.' });
+
+        const imported: any[] = [];
+        for (const p of plants) {
+            // Check if already exists
+            const existing = await db.query.plant.findFirst({
+                where: and(
+                    eq(schema.plant.companyId, companyId),
+                    eq(schema.plant.ytbsExternalId, p.lisanssizSantral.id)
+                )
+            });
+
+            if (existing) continue;
+
+            const [newPlant] = await db.insert(schema.plant).values({
+                companyId,
+                plantName: p.lisanssizSantral.ad,
+                plantType: 'SOLAR', // Default or guess from data
+                ytbsExternalId: p.lisanssizSantral.id,
+                ytbsPlantName: p.lisanssizSantral.ad,
+                isActive: true
+            }).returning();
+            imported.push(newPlant);
+        }
+
+        res.json({ success: true, importedCount: imported.length, data: imported });
+    } catch (error: any) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+export const getProductionLogs = async (req: Request, res: Response) => {
+    try {
+        const { type } = req.query;
+        if (type === 'hourly') {
+            const logs = await db.query.ytbsHourlyProduction.findMany({
+                with: { ytbsPlant: true },
+                orderBy: [desc(schema.ytbsHourlyProduction.createdAt)],
+                limit: 100
+            });
+            return res.json(logs);
+        } else {
+            const logs = await db.query.ytbsInstantProduction.findMany({
+                with: { ytbsPlant: true },
+                orderBy: [desc(schema.ytbsInstantProduction.createdAt)],
+                limit: 100
+            });
+            return res.json(logs);
+        }
+    } catch (error: any) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+export const deleteProductionLog = async (req: Request, res: Response) => {
+    try {
+        const { id, type } = req.params;
+        if (type === 'hourly') {
+            await db.delete(schema.ytbsHourlyProduction).where(eq(schema.ytbsHourlyProduction.id, id as string));
+        } else {
+            await db.delete(schema.ytbsInstantProduction).where(eq(schema.ytbsInstantProduction.id, id as string));
+        }
+        res.status(204).send();
+    } catch (error: any) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};

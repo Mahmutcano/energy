@@ -18,7 +18,13 @@ export async function apiRequest(endpoint: string, options: RequestInit = {}) {
          window.location.hostname.startsWith('10.') || 
          window.location.hostname.endsWith('.local'));
 
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || (isLocal ? 'http://localhost:3001' : PRODUCTION_URL);
+    // Enforce absolute URL to prevent Next.js from incorrectly resolving relative API requests to its own router (which returns HTML fallbacks).
+    const envApiUrl = process.env.NEXT_PUBLIC_API_URL;
+    const apiUrl = (envApiUrl && envApiUrl.trim() !== '' && envApiUrl.trim() !== '/') 
+        ? envApiUrl 
+        : (isLocal ? 'http://localhost:3001' : PRODUCTION_URL);
+
+    // console.log(`[API] Endpoint: ${endpoint} | Base: ${apiUrl}`); // Uncomment if you want to inspect URLs
 
     const headers = {
         'Content-Type': 'application/json',

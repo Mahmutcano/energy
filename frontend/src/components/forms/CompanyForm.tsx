@@ -9,6 +9,10 @@ export interface CompanyFormData {
     representative: string | null;
     taxOffice: string | null;
     taxNumber: string | null;
+    ytbsUsername?: string | null;
+    ytbsPassword?: string | null;
+    ytbsApiKey?: string | null;
+    baglantiAnlasmasiSirketiLisansNo?: string | null;
     isActive: boolean;
 }
 
@@ -33,6 +37,10 @@ export default function CompanyForm({
         representative: initialData?.representative || '',
         taxOffice: initialData?.taxOffice || '',
         taxNumber: initialData?.taxNumber || '',
+        ytbsUsername: initialData?.ytbsUsername || '',
+        ytbsPassword: initialData?.ytbsPassword || '',
+        ytbsApiKey: initialData?.ytbsApiKey || '',
+        baglantiAnlasmasiSirketiLisansNo: initialData?.baglantiAnlasmasiSirketiLisansNo || '',
         isActive: initialData?.isActive ?? true,
     });
 
@@ -47,6 +55,10 @@ export default function CompanyForm({
                 representative: initialData.representative || '',
                 taxOffice: initialData.taxOffice || '',
                 taxNumber: initialData.taxNumber || '',
+                ytbsUsername: initialData.ytbsUsername || '',
+                ytbsPassword: initialData.ytbsPassword || '',
+                ytbsApiKey: initialData.ytbsApiKey || '',
+                baglantiAnlasmasiSirketiLisansNo: initialData.baglantiAnlasmasiSirketiLisansNo || '',
                 isActive: initialData.isActive ?? true,
             });
         }
@@ -128,6 +140,55 @@ export default function CompanyForm({
                         onChange={(e) => setFormData({ ...formData, address: e.target.value })}
                         className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none resize-none h-16 transition-all"
                         placeholder="Company address"
+                    />
+                </div>
+
+                {/* YTBS Section */}
+                <div className="md:col-span-2 pt-4 border-t border-slate-800/40">
+                    <h4 className="text-[10px] font-black text-brand-green uppercase tracking-widest mb-4 flex items-center gap-2">
+                        <span className="w-1.5 h-1.5 rounded-full bg-brand-green"></span>
+                        YTBS Integration Details
+                    </h4>
+                </div>
+
+                <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-400 tracking-widest uppercase">YTBS Username</label>
+                    <input
+                        type="text"
+                        value={formData.ytbsUsername || ''}
+                        onChange={(e) => setFormData({ ...formData, ytbsUsername: e.target.value })}
+                        className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none transition-all font-mono"
+                        placeholder="YTBS API Username"
+                    />
+                </div>
+                <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-400 tracking-widest uppercase">YTBS Password</label>
+                    <input
+                        type="password"
+                        value={formData.ytbsPassword || ''}
+                        onChange={(e) => setFormData({ ...formData, ytbsPassword: e.target.value })}
+                        className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none transition-all font-mono"
+                        placeholder="YTBS API Password"
+                    />
+                </div>
+                <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-400 tracking-widest uppercase">YTBS API Key</label>
+                    <input
+                        type="text"
+                        value={formData.ytbsApiKey || ''}
+                        onChange={(e) => setFormData({ ...formData, ytbsApiKey: e.target.value })}
+                        className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none transition-all font-mono"
+                        placeholder="YTBS API Key"
+                    />
+                </div>
+                <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-400 tracking-widest uppercase">YTBS Lisans No</label>
+                    <input
+                        type="text"
+                        value={formData.baglantiAnlasmasiSirketiLisansNo || ''}
+                        onChange={(e) => setFormData({ ...formData, baglantiAnlasmasiSirketiLisansNo: e.target.value })}
+                        className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none transition-all"
+                        placeholder="License Number"
                     />
                 </div>
             </div>

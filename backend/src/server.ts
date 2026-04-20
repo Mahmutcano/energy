@@ -8,6 +8,7 @@ import { IEC104Service } from './services/iec104.service';
 import modbusService from './services/modbus.service';
 import workerService from './services/worker.service';
 import ytbsService from './services/ytbs.service';
+import ytbsAggregatorService from './services/ytbsAggregator.service';
 
 const PORT = process.env.PORT || 3001;
 
@@ -66,8 +67,9 @@ const startServer = () => {
             modbusService.start();
             
             // 3. TEİAŞ YTBS Sync Service
-            console.log('[INIT] Starting YTBS Sync Cron Job...');
+            console.log('[INIT] Starting YTBS Sync & Aggregator Jobs...');
             ytbsService.startCronJob();
+            ytbsAggregatorService.start();
             
             console.log('[INIT] All services are running.');
 

@@ -1,13 +1,17 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { Database, Plus, RefreshCw, Trash2, ShieldCheck, Activity, Link as LinkIcon, Building2, ExternalLink } from 'lucide-react';
+import { Database, Plus, RefreshCw, Trash2, ShieldCheck, Activity, Link as LinkIcon, Building2, ExternalLink, Search } from 'lucide-react';
 import { apiRequest } from '@/lib/api';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
+import { useRouter } from 'next/navigation';
 import Modal from '@/components/Modal';
+import YtbsLogViewer from '@/components/ytbs/YtbsLogViewer';
 
 export default function YtbsIntegrationPage() {
+    const router = useRouter();
+    const [activeTab, setActiveTab] = useState<'plants' | 'logs'>('plants');
     const [ytbsPlants, setYtbsPlants] = useState<any[]>([]);
     const [scadaPlants, setScadaPlants] = useState<any[]>([]);
     const [stats, setStats] = useState<any>(null);
@@ -125,6 +129,12 @@ export default function YtbsIntegrationPage() {
 
                 <div className="flex gap-4">
                     <button
+                        onClick={() => router.push('/admin/ytbs/query')}
+                        className="flex items-center gap-3 px-6 py-3 bg-slate-900 border border-brand-green/30 text-brand-green rounded-xl text-xs font-bold transition-all hover:bg-slate-800 tracking-widest uppercase"
+                    >
+                        <Search size={16} strokeWidth={3} /> Lisanssız Santral Sorgula
+                    </button>
+                    <button
                         onClick={triggerSync}
                         disabled={isSyncing}
                         className="flex items-center gap-2 px-6 py-3 bg-slate-900 border border-slate-800 text-white rounded-xl text-xs font-bold transition-all hover:bg-slate-800 disabled:opacity-50"
@@ -184,69 +194,90 @@ export default function YtbsIntegrationPage() {
                 </div>
             )}
 
-            {/* Plants Table */}
-            <div className="card-base bg-slate-950/50 border border-slate-800/60 overflow-hidden">
-                <div className="px-6 py-4 border-b border-slate-800/80 bg-slate-900/50 flex justify-between items-center">
-                    <h2 className="text-sm font-bold text-white tracking-widest uppercase">Eşleşmiş Santraller</h2>
-                </div>
-                {loading ? (
-                    <div className="p-12 pl-6 text-slate-500 animate-pulse text-xs tracking-widest font-black uppercase">Yükleniyor...</div>
-                ) : ytbsPlants.length === 0 ? (
-                    <div className="p-12 flex flex-col items-center justify-center space-y-4">
-                        <div className="w-16 h-16 rounded-2xl bg-slate-900/50 border border-slate-800 flex items-center justify-center text-slate-700">
-                            <LinkIcon size={24} />
-                        </div>
-                        <p className="text-sm text-slate-500 font-medium">Henüz hiçbir santral YTBS sistemine bağlanmamış.</p>
-                    </div>
-                ) : (
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left text-sm whitespace-nowrap">
-                            <thead className="text-[10px] text-slate-500 uppercase bg-slate-900/50 font-black tracking-widest">
-                                <tr>
-                                    <th className="px-6 py-4">Sistem Santrali</th>
-                                    <th className="px-6 py-4">YTBS ID</th>
-                                    <th className="px-6 py-4">Lisans No</th>
-                                    <th className="px-6 py-4">YTBS Santral Adı</th>
-                                    <th className="px-6 py-4">AC Güç (KW)</th>
-                                    <th className="px-6 py-4">Durum</th>
-                                    <th className="px-6 py-4 text-right">İşlem</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-800/50 text-slate-300 font-medium">
-                                {ytbsPlants.map((plant) => (
-                                    <tr key={plant.id} className="hover:bg-slate-900/30 transition-colors">
-                                        <td className="px-6 py-4 flex items-center gap-3">
-                                            <div className="p-2 bg-slate-900 rounded-lg">
-                                                <Building2 size={14} className="text-brand-green" />
-                                            </div>
-                                            <span className="font-bold text-white">{plant.plant?.plantName || 'Bilinmiyor'}</span>
-                                        </td>
-                                        <td className="px-6 py-4 font-mono font-bold text-slate-400">{plant.ytbsId}</td>
-                                        <td className="px-6 py-4 font-mono text-slate-400">{plant.licenseNo}</td>
-                                        <td className="px-6 py-4">{plant.plantName}</td>
-                                        <td className="px-6 py-4 font-mono">{plant.capacityAc} kW</td>
-                                        <td className="px-6 py-4">
-                                            {plant.isActive ? (
-                                                <span className="px-2.5 py-1 bg-brand-green/10 text-brand-green border border-brand-green/20 rounded-md text-[10px] font-black uppercase tracking-wider">Aktif</span>
-                                            ) : (
-                                                <span className="px-2.5 py-1 bg-slate-800 text-slate-400 border border-slate-700 rounded-md text-[10px] font-black uppercase tracking-wider">Pasif</span>
-                                            )}
-                                        </td>
-                                        <td className="px-6 py-4 text-right">
-                                            <button
-                                                onClick={() => handleDelete(plant.id)}
-                                                className="p-2 text-slate-500 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors border border-transparent hover:border-red-500/20"
-                                            >
-                                                <Trash2 size={16} />
-                                            </button>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                )}
+            {/* Tabs */}
+            <div className="flex border-b border-slate-800/60 pb-px">
+                <button
+                    onClick={() => setActiveTab('plants')}
+                    className={`px-8 py-4 text-xs font-black tracking-widest uppercase border-b-2 transition-all ${activeTab === 'plants' ? 'border-brand-green text-white bg-brand-green/5' : 'border-transparent text-slate-500 hover:text-white'}`}
+                >
+                    Santraller
+                </button>
+                <button
+                    onClick={() => setActiveTab('logs')}
+                    className={`px-8 py-4 text-xs font-black tracking-widest uppercase border-b-2 transition-all ${activeTab === 'logs' ? 'border-brand-green text-white bg-brand-green/5' : 'border-transparent text-slate-500 hover:text-white'}`}
+                >
+                    Log Kayıtları (Gönderimler)
+                </button>
             </div>
+
+            {activeTab === 'plants' ? (
+                /* Plants Table */
+                <div className="card-base bg-slate-950/50 border border-slate-800/60 overflow-hidden">
+                    <div className="px-6 py-4 border-b border-slate-800/80 bg-slate-900/50 flex justify-between items-center">
+                        <h2 className="text-sm font-bold text-white tracking-widest uppercase">Eşleşmiş Santraller</h2>
+                    </div>
+                    {loading ? (
+                        <div className="p-12 pl-6 text-slate-500 animate-pulse text-xs tracking-widest font-black uppercase">Yükleniyor...</div>
+                    ) : ytbsPlants.length === 0 ? (
+                        <div className="p-12 flex flex-col items-center justify-center space-y-4">
+                            <div className="w-16 h-16 rounded-2xl bg-slate-900/50 border border-slate-800 flex items-center justify-center text-slate-700">
+                                <LinkIcon size={24} />
+                            </div>
+                            <p className="text-sm text-slate-500 font-medium">Henüz hiçbir santral YTBS sistemine bağlanmamış.</p>
+                        </div>
+                    ) : (
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left text-sm whitespace-nowrap">
+                                <thead className="text-[10px] text-slate-500 uppercase bg-slate-900/50 font-black tracking-widest">
+                                    <tr>
+                                        <th className="px-6 py-4">Sistem Santrali</th>
+                                        <th className="px-6 py-4">YTBS ID</th>
+                                        <th className="px-6 py-4">Lisans No</th>
+                                        <th className="px-6 py-4">YTBS Santral Adı</th>
+                                        <th className="px-6 py-4">AC Güç (KW)</th>
+                                        <th className="px-6 py-4">Durum</th>
+                                        <th className="px-6 py-4 text-right">İşlem</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-800/50 text-slate-300 font-medium">
+                                    {ytbsPlants.map((plant) => (
+                                        <tr key={plant.id} className="hover:bg-slate-900/30 transition-colors">
+                                            <td className="px-6 py-4 flex items-center gap-3">
+                                                <div className="p-2 bg-slate-900 rounded-lg">
+                                                    <Building2 size={14} className="text-brand-green" />
+                                                </div>
+                                                <span className="font-bold text-white">{plant.plant?.plantName || 'Bilinmiyor'}</span>
+                                            </td>
+                                            <td className="px-6 py-4 font-mono font-bold text-slate-400">{plant.ytbsId}</td>
+                                            <td className="px-6 py-4 font-mono text-slate-400">{plant.licenseNo}</td>
+                                            <td className="px-6 py-4">{plant.plantName}</td>
+                                            <td className="px-6 py-4 font-mono">{plant.capacityAc} kW</td>
+                                            <td className="px-6 py-4">
+                                                {plant.isActive ? (
+                                                    <span className="px-2.5 py-1 bg-brand-green/10 text-brand-green border border-brand-green/20 rounded-md text-[10px] font-black uppercase tracking-wider">Aktif</span>
+                                                ) : (
+                                                    <span className="px-2.5 py-1 bg-slate-800 text-slate-400 border border-slate-700 rounded-md text-[10px] font-black uppercase tracking-wider">Pasif</span>
+                                                )}
+                                            </td>
+                                            <td className="px-6 py-4 text-right">
+                                                <button
+                                                    onClick={() => handleDelete(plant.id)}
+                                                    className="p-2 text-slate-500 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors border border-transparent hover:border-red-500/20"
+                                                >
+                                                    <Trash2 size={16} />
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+                </div>
+            ) : (
+                /* Logs View */
+                <YtbsLogViewer />
+            )}
 
             <Modal
                 isOpen={isModalOpen}

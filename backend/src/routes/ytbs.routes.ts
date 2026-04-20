@@ -4,7 +4,11 @@ import {
     createYtbsPlant,
     deleteYtbsPlant,
     getYtbsStats,
-    triggerYtbsSync
+    triggerYtbsSync,
+    queryExternalPlants,
+    importExternalPlants,
+    getProductionLogs,
+    deleteProductionLog
 } from '../controllers/ytbs.controller';
 import { authenticate, authorize } from '../middleware/auth';
 
@@ -19,5 +23,10 @@ router.delete('/plants/:id', deleteYtbsPlant);
 
 router.get('/stats', getYtbsStats);
 router.post('/sync', triggerYtbsSync);
+router.post('/query-external', queryExternalPlants);
+router.post('/import-external', importExternalPlants);
+
+router.get('/logs', getProductionLogs);
+router.delete('/logs/:type/:id', deleteProductionLog);
 
 export default router;

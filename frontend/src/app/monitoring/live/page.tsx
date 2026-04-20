@@ -204,7 +204,10 @@ export default function LiveMonitoringPage() {
         const d = () => setSocketConnected(false);
         socket.on('connect', c);
         socket.on('disconnect', d);
-        apiRequest('/api/companies').then(r => r.json()).then(res => setCompanies(res.data || res)).catch(() => {});
+        apiRequest('/api/companies').then(r => r.json()).then(res => {
+            const data = res?.data || res;
+            setCompanies(Array.isArray(data) ? data : []);
+        }).catch(() => {});
         return () => { socket.off('connect', c); socket.off('disconnect', d); };
     }, []);
 
@@ -352,7 +355,7 @@ export default function LiveMonitoringPage() {
                             className="w-full bg-slate-950 border border-slate-800 rounded-2xl p-4 text-xs font-bold text-white outline-none focus:border-brand-green/40 transition-all disabled:opacity-20 cursor-pointer appearance-none shadow-sm"
                         >
                             <option value="">Select {sel.label}...</option>
-                            {sel.data.map((item: any) => <option key={item.id} value={item.id}>{item[sel.nameKey]}</option>)}
+                            {Array.isArray(sel.data) ? sel.data.map((item: any) => <option key={item.id} value={item.id}>{item[sel.nameKey]}</option>) : null}
                         </select>
                     </div>
                 ))}

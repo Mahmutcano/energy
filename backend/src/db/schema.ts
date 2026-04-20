@@ -12,7 +12,8 @@ import {
     smallint,
     index,
     pgEnum,
-    doublePrecision
+    doublePrecision,
+    uniqueIndex
 } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 
@@ -80,6 +81,10 @@ export const companyProfile = pgTable('CompanyProfile', {
     representative: text('representative'),
     taxOffice: text('taxOffice'),
     taxNumber: integer('taxNumber'),
+    ytbsUsername: text('ytbsUsername'),
+    ytbsPassword: text('ytbsPassword'),
+    ytbsApiKey: text('ytbsApiKey'),
+    baglantiAnlasmasiSirketiLisansNo: text('baglantiAnlasmasiSirketiLisansNo'),
     isActive: boolean('isActive').default(true).notNull(),
     createdAt: timestamp('createdAt').defaultNow().notNull(),
     updatedAt: timestamp('updatedAt').defaultNow().notNull(),
@@ -113,6 +118,8 @@ export const plant = pgTable('Plant', {
     longitude: decimal('longitude', { precision: 11, scale: 8 }),
     isActive: boolean('isActive').default(true).notNull(),
     ytbsCode: text('ytbsCode').default('').notNull(),
+    ytbsExternalId: integer('ytbsExternalId'),
+    ytbsPlantName: text('ytbsPlantName'),
     canSendYtbs: boolean('canSendYtbs').default(false).notNull(),
     createdAt: timestamp('createdAt').defaultNow().notNull(),
     updatedAt: timestamp('updatedAt').defaultNow().notNull(),
@@ -344,6 +351,7 @@ export const ytbsHourlyProduction = pgTable('YtbsHourlyProduction', {
     ytbsPlantIdIdx: index('YtbsHourlyProduction_ytbs_plant_id_idx').on(table.ytbsPlantId),
     readingDateIdx: index('YtbsHourlyProduction_reading_date_idx').on(table.readingDate),
     isSentIdx: index('YtbsHourlyProduction_is_sent_idx').on(table.isSent),
+    uniqueIdx: uniqueIndex('YtbsHourlyProduction_unique_idx').on(table.ytbsPlantId, table.readingDate, table.readingHour),
 }));
 
 export const ytbsInstantProduction = pgTable('YtbsInstantProduction', {
@@ -360,6 +368,7 @@ export const ytbsInstantProduction = pgTable('YtbsInstantProduction', {
     ytbsPlantIdIdx: index('YtbsInstantProduction_ytbs_plant_id_idx').on(table.ytbsPlantId),
     readingDateIdx: index('YtbsInstantProduction_reading_date_idx').on(table.readingDate),
     isSentIdx: index('YtbsInstantProduction_is_sent_idx').on(table.isSent),
+    uniqueIdx: uniqueIndex('YtbsInstantProduction_unique_idx').on(table.ytbsPlantId, table.readingDate, table.readingTime),
 }));
 
 export const ytbsPlantRelations = relations(ytbsPlant, ({ one, many }) => ({

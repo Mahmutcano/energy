@@ -134,11 +134,11 @@ export class YtbsService {
                 throw new Error('Firma bulunamadı.');
             }
 
-            const kullaniciAdi = company.ytbsApiUsername || company.ytbsUsername;
-            const sifre = company.ytbsApiPassword || company.ytbsPassword;
+            const kullaniciAdi = company.ytbsUsername;
+            const sifre = company.ytbsPassword;
 
             if (!kullaniciAdi || !sifre || !company.ytbsApiKey) {
-                throw new Error('Firma YTBS bilgileri (API kullanıcı adı, şifre veya anahtar) eksik.');
+                throw new Error('Firma YTBS bilgileri (Kullanıcı adı, şifre veya anahtar) eksik.');
             }
 
             const response = await fetch(`${YTBS_BASE_URL}/yetkilendirme/login`, {

@@ -20,8 +20,6 @@ interface CompanyProfile {
     taxNumber: number | null;
     ytbsUsername?: string | null;
     ytbsPassword?: string | null;
-    ytbsApiUsername?: string | null;
-    ytbsApiPassword?: string | null;
     ytbsApiKey?: string | null;
     baglantiAnlasmasiSirketiLisansNo?: string | null;
     isActive: boolean;
@@ -261,8 +259,6 @@ export default function CompaniesPage() {
                         taxNumber: editingCompany.taxNumber ? editingCompany.taxNumber.toString() : '',
                         ytbsUsername: editingCompany.ytbsUsername,
                         ytbsPassword: editingCompany.ytbsPassword,
-                        ytbsApiUsername: editingCompany.ytbsApiUsername,
-                        ytbsApiPassword: editingCompany.ytbsApiPassword,
                         ytbsApiKey: editingCompany.ytbsApiKey,
                         baglantiAnlasmasiSirketiLisansNo: editingCompany.baglantiAnlasmasiSirketiLisansNo,
                         isActive: editingCompany.isActive

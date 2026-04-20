@@ -27,7 +27,13 @@ type Company struct {
 	CreatedAt      time.Time  `json:"createdAt"`
 	UpdatedAt      time.Time  `json:"updatedAt"`
 	CreatedBy      *uuid.UUID `json:"createdBy"`
-	UpdatedBy      *uuid.UUID `json:"updatedBy"`
+	UpdatedBy                        *uuid.UUID `json:"updatedBy"`
+	YtbsUsername                     *string    `json:"ytbsUsername"`
+	YtbsPassword                     *string    `json:"ytbsPassword"`
+	YtbsApiUsername                  *string    `json:"ytbsApiUsername"`
+	YtbsApiPassword                  *string    `json:"ytbsApiPassword"`
+	YtbsApiKey                       *string    `json:"ytbsApiKey"`
+	BaglantiAnlasmasiSirketiLisansNo *string    `json:"baglantiAnlasmasiSirketiLisansNo"`
 }
 
 func GetCompanies(c *gin.Context) {
@@ -39,6 +45,7 @@ func GetCompanies(c *gin.Context) {
 	if role == "SUPER_ADMIN" {
 		rows, err = db.Pool.Query(context.Background(), `
 			SELECT id, name, address, phone, email, representative, "taxOffice", "taxNumber", "isActive", 
+			       "ytbsUsername", "ytbsPassword", "ytbsApiUsername", "ytbsApiPassword", "ytbsApiKey", "baglantiAnlasmasiSirketiLisansNo",
 			       (SELECT COUNT(*) FROM "Plant" p WHERE p."companyId" = cp.id) as plant_count,
 			       (SELECT COUNT(*) FROM "AppUserProfile" up WHERE up."companyId" = cp.id) as user_count,
 				   "createdAt", "updatedAt", "createdBy", "updatedBy"
@@ -48,6 +55,7 @@ func GetCompanies(c *gin.Context) {
 	} else if companyID != nil {
 		rows, err = db.Pool.Query(context.Background(), `
 			SELECT id, name, address, phone, email, representative, "taxOffice", "taxNumber", "isActive", 
+			       "ytbsUsername", "ytbsPassword", "ytbsApiUsername", "ytbsApiPassword", "ytbsApiKey", "baglantiAnlasmasiSirketiLisansNo",
 			       (SELECT COUNT(*) FROM "Plant" p WHERE p."companyId" = cp.id) as plant_count,
 			       (SELECT COUNT(*) FROM "AppUserProfile" up WHERE up."companyId" = cp.id) as user_count,
 				   "createdAt", "updatedAt", "createdBy", "updatedBy"
@@ -71,6 +79,7 @@ func GetCompanies(c *gin.Context) {
 		if err := rows.Scan(
 			&comp.ID, &comp.Name, &comp.Address, &comp.Phone, &comp.Email,
 			&comp.Representative, &comp.TaxOffice, &comp.TaxNumber, &comp.IsActive,
+			&comp.YtbsUsername, &comp.YtbsPassword, &comp.YtbsApiUsername, &comp.YtbsApiPassword, &comp.YtbsApiKey, &comp.BaglantiAnlasmasiSirketiLisansNo,
 			&plantCount, &userCount, &comp.CreatedAt, &comp.UpdatedAt, &comp.CreatedBy, &comp.UpdatedBy,
 		); err != nil {
 			log.Printf("[DB] Error scanning company: %v", err)
@@ -93,6 +102,12 @@ func GetCompanies(c *gin.Context) {
 			"updatedAt":      comp.UpdatedAt,
 			"createdBy":      comp.CreatedBy,
 			"updatedBy":      comp.UpdatedBy,
+			"ytbsUsername":   comp.YtbsUsername,
+			"ytbsPassword":   comp.YtbsPassword,
+			"ytbsApiUsername": comp.YtbsApiUsername,
+			"ytbsApiPassword": comp.YtbsApiPassword,
+			"ytbsApiKey":     comp.YtbsApiKey,
+			"baglantiAnlasmasiSirketiLisansNo": comp.BaglantiAnlasmasiSirketiLisansNo,
 		})
 	}
 
@@ -120,9 +135,15 @@ func CreateCompany(c *gin.Context) {
 
 	id := uuid.New()
 	_, err := db.Pool.Exec(context.Background(), `
-		INSERT INTO "CompanyProfile" (id, name, address, phone, email, representative, "taxOffice", "taxNumber", "isActive", "createdAt", "updatedAt", "createdBy", "updatedBy")
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW(), $10, $11)
-	`, id, req.Name, req.Address, req.Phone, req.Email, req.Representative, req.TaxOffice, req.TaxNumber, req.IsActive, creatorID, creatorID)
+		INSERT INTO "CompanyProfile" (
+			id, name, address, phone, email, representative, "taxOffice", "taxNumber", "isActive", 
+			"ytbsUsername", "ytbsPassword", "ytbsApiUsername", "ytbsApiPassword", "ytbsApiKey", "baglantiAnlasmasiSirketiLisansNo",
+			"createdAt", "updatedAt", "createdBy", "updatedBy"
+		)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, NOW(), NOW(), $16, $17)
+	`, id, req.Name, req.Address, req.Phone, req.Email, req.Representative, req.TaxOffice, req.TaxNumber, req.IsActive, 
+	   req.YtbsUsername, req.YtbsPassword, req.YtbsApiUsername, req.YtbsApiPassword, req.YtbsApiKey, req.BaglantiAnlasmasiSirketiLisansNo,
+	   creatorID, creatorID)
 
 	if err != nil {
 		response.Error(c, http.StatusInternalServerError, response.ErrDatabase, err.Error())
@@ -159,9 +180,17 @@ func UpdateCompany(c *gin.Context) {
 		UPDATE "CompanyProfile" SET 
 			name = $1, address = $2, phone = $3, email = $4, 
 			representative = $5, "taxOffice" = $6, "taxNumber" = $7, "isActive" = $8,
-			"updatedAt" = NOW(), "updatedBy" = $9
-		WHERE id = $10
-	`, req.Name, req.Address, req.Phone, req.Email, req.Representative, req.TaxOffice, req.TaxNumber, req.IsActive, updaterID, id)
+			"ytbsUsername" = $9, "ytbsPassword" = $10, 
+			"ytbsApiUsername" = $11, "ytbsApiPassword" = $12,
+			"ytbsApiKey" = $13, "baglantiAnlasmasiSirketiLisansNo" = $14,
+			"updatedAt" = NOW(), "updatedBy" = $15
+		WHERE id = $16
+	`, req.Name, req.Address, req.Phone, req.Email, 
+	   req.Representative, req.TaxOffice, req.TaxNumber, req.IsActive,
+	   req.YtbsUsername, req.YtbsPassword, 
+	   req.YtbsApiUsername, req.YtbsApiPassword,
+	   req.YtbsApiKey, req.BaglantiAnlasmasiSirketiLisansNo,
+	   updaterID, id)
 
 	if err != nil {
 		response.Error(c, http.StatusInternalServerError, response.ErrDatabase, err.Error())

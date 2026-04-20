@@ -95,8 +95,31 @@ export const queryExternalPlants = async (req: Request, res: Response) => {
         const { companyId } = req.body;
         if (!companyId) return res.status(400).json({ success: false, message: 'Firma seçilmelidir.' });
 
-        const data = await ytbsService.listLisanssizSantral(companyId);
-        res.json({ success: true, data });
+        const rawResponse = await ytbsService.listLisanssizSantral(companyId);
+        
+        // Normalize the data for frontend table
+        // TEİAŞ returns { success: true, data: { veri: [...] } }
+        let rawList = [];
+        if (rawResponse && rawResponse.data && Array.isArray(rawResponse.data.veri)) {
+            rawList = rawResponse.data.veri;
+        } else if (rawResponse && Array.isArray(rawResponse.veri)) {
+            rawList = rawResponse.veri;
+        }
+
+        const normalizedPlants = rawList.map((p: any) => ({
+            lisanssizSantral: {
+                id: p.id,
+                ad: p.ad,
+                durum: p.durum,
+                il: p.il
+            },
+            isletmedekiGuc: p.tarihce ? p.tarihce.acGucu : (p.isletmedekiGuc || 0),
+            kuruluGuc: p.tarihce ? p.tarihce.dcGucu : (p.kuruluGuc || 0),
+            status: p.durum ? p.durum.ad : 'Bilinmiyor',
+            city: p.il ? p.il.ad : ''
+        }));
+
+        res.json({ success: true, data: normalizedPlants });
     } catch (error: any) {
         res.status(500).json({ success: false, message: error.message });
     }
@@ -108,30 +131,82 @@ export const importExternalPlants = async (req: Request, res: Response) => {
         if (!companyId) return res.status(400).json({ success: false, message: 'Firma seçilmelidir.' });
         if (!Array.isArray(plants)) return res.status(400).json({ success: false, message: 'Santral listesi gereklidir.' });
 
+        const company = await db.query.companyProfile.findFirst({
+            where: eq(schema.companyProfile.id, companyId)
+        });
+
         const imported: any[] = [];
         for (const p of plants) {
-            // Check if already exists
-            const existing = await db.query.plant.findFirst({
+            // Check if already exists in Plant table
+            let plantId: string;
+            const existingPlant = await db.query.plant.findFirst({
                 where: and(
                     eq(schema.plant.companyId, companyId),
                     eq(schema.plant.ytbsExternalId, p.lisanssizSantral.id)
                 )
             });
 
-            if (existing) continue;
+            if (existingPlant) {
+                plantId = existingPlant.id;
+            } else {
+                const [newPlant] = await db.insert(schema.plant).values({
+                    companyId,
+                    plantName: p.lisanssizSantral.ad,
+                    plantType: 'SOLAR',
+                    ytbsExternalId: p.lisanssizSantral.id,
+                    ytbsPlantName: p.lisanssizSantral.ad,
+                    canSendYtbs: true,
+                    isActive: true
+                }).returning();
+                plantId = newPlant.id;
+            }
 
-            const [newPlant] = await db.insert(schema.plant).values({
-                companyId,
-                plantName: p.lisanssizSantral.ad,
-                plantType: 'SOLAR', // Default or guess from data
-                ytbsExternalId: p.lisanssizSantral.id,
-                ytbsPlantName: p.lisanssizSantral.ad,
-                isActive: true
-            }).returning();
-            imported.push(newPlant);
+            // Check/Create entry in YtbsPlant table for sync mapping
+            const existingYtbsMapping = await db.query.ytbsPlant.findFirst({
+                where: eq(schema.ytbsPlant.ytbsId, p.lisanssizSantral.id)
+            });
+
+            if (!existingYtbsMapping) {
+                await db.insert(schema.ytbsPlant).values({
+                    plantId,
+                    ytbsId: p.lisanssizSantral.id,
+                    plantName: p.lisanssizSantral.ad,
+                    licenseNo: company?.baglantiAnlasmasiSirketiLisansNo || 'DUMMY-LICENSE',
+                    capacityAc: p.isletmedekiGuc || 0,
+                    isActive: true
+                });
+            }
+
+            imported.push({ id: plantId, name: p.lisanssizSantral.ad });
+        }
+        res.json({ success: true, importedCount: imported.length, data: imported });
+    } catch (error: any) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+export const removeExternalPlant = async (req: Request, res: Response) => {
+    try {
+        const { companyId, ytbsId } = req.body;
+        if (!companyId || !ytbsId) return res.status(400).json({ success: false, message: 'Firma ID ve YTBS ID gereklidir.' });
+
+        // Find the plant first
+        const existingPlant = await db.query.plant.findFirst({
+            where: and(
+                eq(schema.plant.companyId, companyId),
+                eq(schema.plant.ytbsExternalId, Number(ytbsId))
+            )
+        });
+
+        if (!existingPlant) {
+            return res.status(404).json({ success: false, message: 'Santral bulunamadı.' });
         }
 
-        res.json({ success: true, importedCount: imported.length, data: imported });
+        // Delete plant (cascade will handle YtbsPlant if defined, but we'll be safe)
+        await db.delete(schema.ytbsPlant).where(eq(schema.ytbsPlant.plantId, existingPlant.id));
+        await db.delete(schema.plant).where(eq(schema.plant.id, existingPlant.id));
+
+        res.json({ success: true, message: 'Santral başarıyla sistemden kaldırıldı.' });
     } catch (error: any) {
         res.status(500).json({ success: false, message: error.message });
     }
@@ -171,5 +246,15 @@ export const deleteProductionLog = async (req: Request, res: Response) => {
         res.status(204).send();
     } catch (error: any) {
         res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+export const getImportedIds = async (req: Request, res: Response) => {
+    try {
+        const plants = await db.select({ ytbsId: schema.ytbsPlant.ytbsId }).from(schema.ytbsPlant);
+        const ids = plants.map(p => p.ytbsId);
+        return res.json({ success: true, data: ids });
+    } catch (error: any) {
+        return res.status(500).json({ success: false, message: error.message });
     }
 };

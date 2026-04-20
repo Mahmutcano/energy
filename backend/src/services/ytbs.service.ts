@@ -17,6 +17,7 @@ export class YtbsService {
     private static instance: YtbsService;
     private currentToken: string | null = null;
     private tokenExpiry: number = 0; // Epoch ms
+    private companyTokens: Map<string, { token: string, expiry: number }> = new Map();
 
     private constructor() { }
 
@@ -113,7 +114,7 @@ export class YtbsService {
             
             return {
                 success: true,
-                token: data?.veri?.jeton || data?.jeton || data?.veri?.authToken || data?.token
+                token: data?.veri?.jeton || data?.jeton
             };
         } catch (error: any) {
             console.error('[YTBS] Login error:', error);
@@ -126,6 +127,12 @@ export class YtbsService {
      */
     public async loginWithCompany(companyId: string): Promise<YtbsTokenResponse> {
         try {
+            // Check cache first
+            const cached = this.companyTokens.get(companyId);
+            if (cached && Date.now() < cached.expiry - 5 * 60 * 1000) {
+                return { success: true, token: cached.token };
+            }
+
             const company = await db.query.companyProfile.findFirst({
                 where: eq(schema.companyProfile.id, companyId)
             });
@@ -138,7 +145,7 @@ export class YtbsService {
             const sifre = company.ytbsPassword;
 
             if (!kullaniciAdi || !sifre || !company.ytbsApiKey) {
-                throw new Error('Firma YTBS bilgileri (Kullanıcı adı, şifre veya anahtar) eksik.');
+                throw new Error(`Firma (${company.name}) YTBS bilgileri eksik.`);
             }
 
             const response = await fetch(`${YTBS_BASE_URL}/yetkilendirme/login`, {
@@ -153,12 +160,27 @@ export class YtbsService {
                 })
             });
 
-            if (!response.ok) throw new Error(`Login failed: ${response.status}`);
+            if (!response.ok) {
+                if (response.status === 401) {
+                    throw new Error(`401 Yetkisiz Erişim: Firmanın YTBS kullanıcı adı, şifre veya SERVICE_KEY bilgisi hatalı. (Firma: ${company.name})`);
+                }
+                throw new Error(`Login failed: ${response.status}`);
+            }
+            
             const data = await response.json();
+            const token = data?.veri?.jeton || data?.jeton;
+
+            if (token) {
+                // Cache for 1 hour
+                this.companyTokens.set(companyId, {
+                    token,
+                    expiry: Date.now() + 60 * 60 * 1000
+                });
+            }
 
             return {
                 success: true,
-                token: data?.veri?.jeton || data?.jeton || data?.veri?.authToken || data?.token
+                token
             };
         } catch (error: any) {
             console.error('[YTBS] Company Login error:', error);
@@ -171,40 +193,40 @@ export class YtbsService {
      */
 
     // Lisanssız Santral
-    public async listLisanssizSantral(date: string = new Date().toISOString().split('T')[0]) {
-        return await this.postRequest('/modelleme/uretim/lisanssizsantral/listele', { tarih: date });
+    public async listLisanssizSantral(companyId?: string, date: string = new Date().toISOString().split('T')[0]) {
+        return await this.postRequest('/modelleme/uretim/lisanssizsantral/listele', { tarih: date }, companyId);
     }
 
-    public async addLisanssizSantral(data: any) {
-        return await this.postRequest('/modelleme/uretim/lisanssizsantral/ekle', data);
+    public async addLisanssizSantral(companyId: string, data: any) {
+        return await this.postRequest('/modelleme/uretim/lisanssizsantral/ekle', data, companyId);
     }
 
-    public async updateLisanssizSantral(data: any) {
-        return await this.postRequest('/modelleme/uretim/lisanssizsantral/guncelle', data);
+    public async updateLisanssizSantral(companyId: string, data: any) {
+        return await this.postRequest('/modelleme/uretim/lisanssizsantral/guncelle', data, companyId);
     }
 
-    public async deleteLisanssizSantral(id: number) {
-        return await this.postRequest('/modelleme/uretim/lisanssizsantral/sil', { id });
+    public async deleteLisanssizSantral(companyId: string, id: number) {
+        return await this.postRequest('/modelleme/uretim/lisanssizsantral/sil', { id }, companyId);
     }
 
     // Trafo Merkezi
-    public async listTrafoMerkezleri(date: string = new Date().toISOString().split('T')[0]) {
-        return await this.postRequest('/modelleme/salt/trafomerkezi/listele', { tarih: date });
+    public async listTrafoMerkezleri(companyId?: string, date: string = new Date().toISOString().split('T')[0]) {
+        return await this.postRequest('/modelleme/salt/trafomerkezi/listele', { tarih: date }, companyId);
     }
 
     // Dağıtım Hattı
-    public async listDagitimHatti(date: string = new Date().toISOString().split('T')[0], fider: boolean = true) {
-        return await this.postRequest('/modelleme/iletim/dagitimhatti/listele', { tarih: date, fider });
+    public async listDagitimHatti(companyId?: string, date: string = new Date().toISOString().split('T')[0], fider: boolean = true) {
+        return await this.postRequest('/modelleme/iletim/dagitimhatti/listele', { tarih: date, fider }, companyId);
     }
 
     // Lisanssız Santral Tarihçe
-    public async listSantralTarihce(date: string = new Date().toISOString().split('T')[0]) {
-        return await this.postRequest('/modelleme/uretim/lisanssizsantraltarihce/listele', { tarih: date });
+    public async listSantralTarihce(companyId?: string, date: string = new Date().toISOString().split('T')[0]) {
+        return await this.postRequest('/modelleme/uretim/lisanssizsantraltarihce/listele', { tarih: date }, companyId);
     }
 
     // Çağrı Mektubu
-    public async listCagriMektubu(date: string = new Date().toISOString().split('T')[0]) {
-        return await this.postRequest('/modelleme/uretim/lisanssizsantralcagrimektubu/listele', { tarih: date });
+    public async listCagriMektubu(companyId?: string, date: string = new Date().toISOString().split('T')[0]) {
+        return await this.postRequest('/modelleme/uretim/lisanssizsantralcagrimektubu/listele', { tarih: date }, companyId);
     }
 
     /** 
@@ -212,9 +234,9 @@ export class YtbsService {
      */
 
     // Anlık Arz (Instant Production) - 100% Postman Uyumu
-    public async sendInstantProductionBatch(licenseNo: string, records: any[]) {
+    public async sendInstantProductionBatch(companyId: string, licenseNo: string, records: any[]) {
         const payload = {
-            baglantiAnlasmasiSirketiLisansNo: licenseNo, // FIXED: Correct naming from Postman
+            baglantiAnlasmasiSirketiLisansNo: licenseNo,
             veri: records.map(r => ({
                 tarih: r.date,
                 saat: r.hour,
@@ -222,22 +244,22 @@ export class YtbsService {
                 veriDeger: r.value
             }))
         };
-        return await this.postRequest('/veritoplama/anliklisanssizsantralarz/ekle', payload);
+        return await this.postRequest('/veritoplama/anliklisanssizsantralarz/ekle', payload, companyId);
     }
 
-    public async queryInstantProduction(licenseNo: string, date: string, hour: string, plantId: number) {
+    public async queryInstantProduction(companyId: string, licenseNo: string, date: string, hour: string, plantId: number) {
         return await this.postRequest('/veritoplama/anliklisanssizsantralarz/sorgula', {
             baglantiAnlasmasiSirketiLisansNo: licenseNo,
             tarih: date,
             saat: hour,
             lisanssizSantralId: plantId
-        });
+        }, companyId);
     }
 
     // Saatlik Üretim (Hourly Production) - 100% Postman Uyumu
-    public async sendHourlyProductionBatch(licenseNo: string, records: any[]) {
+    public async sendHourlyProductionBatch(companyId: string, licenseNo: string, records: any[]) {
         const payload = {
-            baglantiAnlasmasiSirketiLisansNo: licenseNo, // FIXED: Correct naming from Postman
+            baglantiAnlasmasiSirketiLisansNo: licenseNo,
             veri: records.map(r => ({
                 tarih: r.date,
                 saat: r.hour,
@@ -245,23 +267,23 @@ export class YtbsService {
                 veriDeger: r.value
             }))
         };
-        return await this.postRequest('/veritoplama/saatliklisanssizsantraluretim/ekle', payload);
+        return await this.postRequest('/veritoplama/saatliklisanssizsantraluretim/ekle', payload, companyId);
     }
 
-    public async queryHourlyProduction(licenseNo: string, date: string, hour: string, plantId: number) {
+    public async queryHourlyProduction(companyId: string, licenseNo: string, date: string, hour: string, plantId: number) {
         return await this.postRequest('/veritoplama/saatliklisanssizsantraluretim/sorgula', {
             baglantiAnlasmasiSirketiLisansNo: licenseNo,
             tarih: date,
             saat: hour,
             lisanssizSantralId: plantId
-        });
+        }, companyId);
     }
 
     /** 
      * --- DOSYA SERVİSLERİ (FILE SERVICES) ---
      */
 
-    public async uploadFile(tur: number, fileName: string, objectId: number, base64Content: string, mimeType: string = 'application/pdf') {
+    public async uploadFile(companyId: string, tur: number, fileName: string, objectId: number, base64Content: string, mimeType: string = 'application/pdf') {
         const payload = {
             tur,
             icerikTuru: mimeType,
@@ -269,15 +291,15 @@ export class YtbsService {
             nesneId: objectId,
             icerik: base64Content
         };
-        return await this.postRequest('/yardim/dokumantasyon/dosya/ekle', payload);
+        return await this.postRequest('/yardim/dokumantasyon/dosya/ekle', payload, companyId);
     }
 
-    public async deleteFile(fileId: number) {
-        return await this.postRequest('/yardim/dokumantasyon/dosya/sil', { id: fileId });
+    public async deleteFile(companyId: string, fileId: number) {
+        return await this.postRequest('/yardim/dokumantasyon/dosya/sil', { id: fileId }, companyId);
     }
 
-    public async queryFile(fileId: number) {
-        return await this.postRequest('/yardim/dokumantasyon/dosya/sorgula', { id: fileId });
+    public async queryFile(companyId: string, fileId: number) {
+        return await this.postRequest('/yardim/dokumantasyon/dosya/sorgula', { id: fileId }, companyId);
     }
 
     /**
@@ -285,63 +307,156 @@ export class YtbsService {
      */
 
     public startCronJob() {
+        // Hourly Sync every 4 hours
         setInterval(async () => {
-            await this.processPendingRecords();
-        }, 15 * 60 * 1000); 
-        console.log('[YTBS] Sync Cron Job Started (15-min interval).');
+            console.log('[YTBS] Starting 4-hour Hourly Sync Job...');
+            await this.processPendingHourlyRecords();
+        }, 4 * 60 * 60 * 1000);
+
+        // Instant Sync every 15 minutes
+        setInterval(async () => {
+            console.log('[YTBS] Starting 15-min Instant Sync Job...');
+            await this.processPendingInstantRecords();
+        }, 15 * 60 * 1000);
+
+        console.log('[YTBS] Advanced Sync Jobs Initialized (Hourly: 4h, Instant: 15m).');
     }
 
     public async triggerSync() {
         console.log('[YTBS] Manual sync triggered.');
-        await this.processPendingRecords();
+        await this.processPendingHourlyRecords();
+        await this.processPendingInstantRecords();
     }
 
-    private async processPendingRecords() {
-        // ... (Background processing logic - grouped by company and license as before)
-        // Note: The logic in processPendingRecords will now use the updated field names
-        // because we updated the batch methods above.
-        // Let's ensure the explicit fetch calls inside processPendingRecords are also fixed.
+    /**
+     * Adım 4.1: Saatlik Lisanssız Santral Üretim (Toplu Gönderim)
+     */
+    private async processPendingHourlyRecords() {
         try {
-            // 1. Process Hourly Productions
-            const pendingHourly = await db.query.ytbsHourlyProduction.findMany({
-                where: and(eq(schema.ytbsHourlyProduction.isSent, false), lt(schema.ytbsHourlyProduction.retryCount, 5)),
+            const pending = await db.query.ytbsHourlyProduction.findMany({
+                where: and(eq(schema.ytbsHourlyProduction.isSent, false), lt(schema.ytbsHourlyProduction.retryCount, 10)),
                 with: { 
                     ytbsPlant: { with: { plant: { with: { company: true } } } } 
                 },
-                limit: 500
+                limit: 1000
             });
 
-            for (const record of pendingHourly) {
-                const company = record.ytbsPlant.plant.company;
-                const auth = await this.loginWithCompany(company.id);
-                if (!auth.token) continue;
+            if (pending.length === 0) return;
 
-                const payload = {
-                    baglantiAnlasmasiSirketiLisansNo: record.ytbsPlant.licenseNo,
-                    veri: [{
-                        tarih: record.readingDate,
-                        saat: record.readingHour,
-                        lisanssizSantralId: record.ytbsPlant.ytbsId,
-                        veriDeger: record.valueMwh
-                    }]
-                };
+            // Group by Company and License
+            const groups = new Map<string, { company: any, licenseNo: string, records: any[] }>();
+            
+            for (const r of pending) {
+                const company = r.ytbsPlant.plant.company;
+                const license = r.ytbsPlant.licenseNo;
+                const groupKey = `${company.id}:${license}`;
+                
+                if (!groups.has(groupKey)) {
+                    groups.set(groupKey, { company, licenseNo: license, records: [] });
+                }
+                groups.get(groupKey)!.records.push(r);
+            }
 
-                const res = await fetch(`${YTBS_BASE_URL}/veritoplama/saatliklisanssizsantraluretim/ekle`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'SERVICE_KEY': company.ytbsApiKey || '', 'AUTH_TOKEN': auth.token },
-                    body: JSON.stringify(payload)
-                });
+            for (const group of groups.values()) {
+                console.log(`[YTBS] Sending batch of ${group.records.length} hourly records for license ${group.licenseNo}`);
+                
+                try {
+                    const res = await this.sendHourlyProductionBatch(
+                        group.company.id, 
+                        group.licenseNo, 
+                        group.records.map(r => ({
+                            date: r.readingDate,
+                            hour: r.readingHour,
+                            ytbsId: r.ytbsPlant.ytbsId,
+                            value: r.valueMwh
+                        }))
+                    );
 
-                if (res.ok) {
-                    await db.update(schema.ytbsHourlyProduction).set({ isSent: true, lastAttemptAt: new Date() }).where(eq(schema.ytbsHourlyProduction.id, record.id));
-                } else {
-                    await db.update(schema.ytbsHourlyProduction).set({ retryCount: sql`${schema.ytbsHourlyProduction.retryCount} + 1`, lastAttemptAt: new Date() }).where(eq(schema.ytbsHourlyProduction.id, record.id));
+                    if (res && res.success) {
+                        const ids = group.records.map(r => r.id);
+                        await db.update(schema.ytbsHourlyProduction)
+                            .set({ isSent: true, lastAttemptAt: new Date() })
+                            .where(inArray(schema.ytbsHourlyProduction.id, ids));
+                        console.log(`[YTBS] Successfully sent ${ids.length} hourly records.`);
+                    } else {
+                        throw new Error(res?.message || 'YTBS response not successful');
+                    }
+                } catch (err: any) {
+                    console.error(`[YTBS] Hourly batch failed for ${group.licenseNo}:`, err.message);
+                    const ids = group.records.map(r => r.id);
+                    await db.update(schema.ytbsHourlyProduction)
+                        .set({ retryCount: sql`${schema.ytbsHourlyProduction.retryCount} + 1`, lastAttemptAt: new Date() })
+                        .where(inArray(schema.ytbsHourlyProduction.id, ids));
                 }
             }
-            
-            // Repeat similar correction for Instant Productions...
         } catch (error) {
-            console.error('[YTBS] Background sync error:', error);
+            console.error('[YTBS] Hourly background sync error:', error);
+        }
+    }
+
+    /**
+     * Adım 4.2: Anlık Lisanssız Santral Arz (Toplu Gönderim)
+     */
+    private async processPendingInstantRecords() {
+        try {
+            const pending = await db.query.ytbsInstantProduction.findMany({
+                where: and(eq(schema.ytbsInstantProduction.isSent, false), lt(schema.ytbsInstantProduction.retryCount, 10)),
+                with: { 
+                    ytbsPlant: { with: { plant: { with: { company: true } } } } 
+                },
+                limit: 1000
+            });
+
+            if (pending.length === 0) return;
+
+            // Group by Company and License
+            const groups = new Map<string, { company: any, licenseNo: string, records: any[] }>();
+            
+            for (const r of pending) {
+                const company = r.ytbsPlant.plant.company;
+                const license = r.ytbsPlant.licenseNo;
+                const groupKey = `${company.id}:${license}`;
+                
+                if (!groups.has(groupKey)) {
+                    groups.set(groupKey, { company, licenseNo: license, records: [] });
+                }
+                groups.get(groupKey)!.records.push(r);
+            }
+
+            for (const group of groups.values()) {
+                console.log(`[YTBS] Sending batch of ${group.records.length} instant records for license ${group.licenseNo}`);
+                
+                try {
+                    const res = await this.sendInstantProductionBatch(
+                        group.company.id, 
+                        group.licenseNo, 
+                        group.records.map(r => ({
+                            date: r.readingDate,
+                            hour: r.readingTime,
+                            ytbsId: r.ytbsPlant.ytbsId,
+                            value: r.valueMw
+                        }))
+                    );
+
+                    if (res && res.success) {
+                        const ids = group.records.map(r => r.id);
+                        await db.update(schema.ytbsInstantProduction)
+                            .set({ isSent: true, lastAttemptAt: new Date() })
+                            .where(inArray(schema.ytbsInstantProduction.id, ids));
+                        console.log(`[YTBS] Successfully sent ${ids.length} instant records.`);
+                    } else {
+                        throw new Error(res?.message || 'YTBS response not successful');
+                    }
+                } catch (err: any) {
+                    console.error(`[YTBS] Instant batch failed for ${group.licenseNo}:`, err.message);
+                    const ids = group.records.map(r => r.id);
+                    await db.update(schema.ytbsInstantProduction)
+                        .set({ retryCount: sql`${schema.ytbsInstantProduction.retryCount} + 1`, lastAttemptAt: new Date() })
+                        .where(inArray(schema.ytbsInstantProduction.id, ids));
+                }
+            }
+        } catch (error) {
+            console.error('[YTBS] Instant background sync error:', error);
         }
     }
 }

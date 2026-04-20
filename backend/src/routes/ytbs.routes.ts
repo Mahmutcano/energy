@@ -7,6 +7,8 @@ import {
     triggerYtbsSync,
     queryExternalPlants,
     importExternalPlants,
+    removeExternalPlant,
+    getImportedIds,
     getProductionLogs,
     deleteProductionLog
 } from '../controllers/ytbs.controller';
@@ -25,6 +27,8 @@ router.get('/stats', getYtbsStats);
 router.post('/sync', triggerYtbsSync);
 router.post('/query-external', queryExternalPlants);
 router.post('/import-external', importExternalPlants);
+router.post('/remove-external', removeExternalPlant);
+router.get('/imported-ids', getImportedIds);
 
 router.get('/logs', getProductionLogs);
 router.delete('/logs/:type/:id', deleteProductionLog);

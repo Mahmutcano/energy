@@ -13,6 +13,9 @@ import SidebarInfo from '@/components/customer/SidebarInfo';
 import TerminalToolbelt from '@/components/customer/TerminalToolbelt';
 import TerminalCard from '@/components/customer/TerminalCard';
 import AppleSparkCard from '@/components/customer/AppleSparkCard';
+import MobileBottomNav from '@/components/customer/MobileBottomNav';
+import { Menu, Bell, User, Activity } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
 
 /** API / socket telemetry point (customer dashboard) */
 interface TelemetryPoint {
@@ -63,6 +66,7 @@ interface DashboardState {
 }
 
 export default function TradingViewCustomerDashboard() {
+    const { user } = useAuth();
     const searchParams = useSearchParams();
     const activeTab = (searchParams?.get('cat') || 'dashboard').toLowerCase(); 
     
@@ -440,30 +444,71 @@ export default function TradingViewCustomerDashboard() {
 
     return (
         <div className="h-screen w-full bg-[#f8f9fb] flex flex-col font-sans overflow-hidden text-[#131722] selection:bg-blue-100">
+            {/* Mobile Header (Hidden on Desktop) */}
+            <div className="lg:hidden h-20 bg-white border-b border-[#dfe2e7] flex items-center justify-between px-4 sticky top-0 z-[1000] shadow-sm">
+                <div className="flex-1 flex flex-col min-w-0">
+                    <button className="flex flex-col items-start group">
+                        <div className="text-[15px] font-black tracking-tight leading-tight text-[#131722] truncate w-full text-left">
+                            {plants.find(p => p.id === selectedPlantId)?.plantName || 'TESİS SEÇİLMEMİŞ'}
+                        </div>
+                        <div className="text-[11px] font-bold text-[#2962ff] truncate w-full text-left">
+                            {devices.find(d => d.id === selectedDeviceId)?.deviceName || 'CİHAZ SEÇİLMEMİŞ'}
+                        </div>
+                    </button>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0 ml-3">
+                    <button className="w-10 h-10 flex items-center justify-center text-[#787b86] bg-gray-50 rounded-xl relative">
+                        <Bell size={20} />
+                        {dashboardState.activeAlarms.length > 0 && <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white" />}
+                    </button>
+                    <div className="w-10 h-10 rounded-xl bg-[#131722] border border-[#131722] flex items-center justify-center text-[11px] font-black text-white shadow-lg">
+                        {user?.name?.substring(0, 1).toUpperCase() || 'O'}
+                    </div>
+                </div>
+            </div>
+
             {/* Main Layout Row */}
             <div className="flex-1 flex flex-col min-h-0 bg-white">
-                {/* Header Row */}
-                <TradingViewHeader 
-                    plants={plants}
-                    devices={devices}
-                    selectedPlantId={selectedPlantId}
-                    selectedDeviceId={selectedDeviceId}
-                    activeTab={activeTab}
-                    setActiveTab={setActiveTab}
-                    isHistoricalMode={isHistoricalMode}
-                    setHistoricalMode={setIsHistoricalMode}
-                    titleMap={titleMap}
-                    sidebarOpen={sidebarOpen}
-                    setSidebarOpen={setSidebarOpen}
-                />
+                {/* Desktop Header Row (Hidden on Mobile) */}
+                <div className="hidden lg:block">
+                    <TradingViewHeader 
+                        plants={plants}
+                        devices={devices}
+                        selectedPlantId={selectedPlantId}
+                        selectedDeviceId={selectedDeviceId}
+                        activeTab={activeTab}
+                        setActiveTab={setActiveTab}
+                        isHistoricalMode={isHistoricalMode}
+                        setHistoricalMode={setIsHistoricalMode}
+                        titleMap={titleMap}
+                        sidebarOpen={sidebarOpen}
+                        setSidebarOpen={setSidebarOpen}
+                    />
+                </div>
 
                 {/* Sub-body (Sidebar + Toolbelt + Content) */}
                 <div className="flex-1 flex overflow-hidden">
-                    <TerminalToolbelt activeTab={activeTab} setActiveTab={setActiveTab} />
-                    <main className="flex-1 overflow-auto bg-[#f8fafc] p-2 relative">
-                        <div className="max-w-[1800px] mx-auto h-full flex flex-col gap-2">
-                            <div className="flex items-center justify-between shrink-0 px-2 py-0">
-                                <h1 className="text-xl font-black tracking-tighter uppercase text-[#131722]">{titleMap[activeTab]}</h1>
+                    <div className="hidden lg:block">
+                        <TerminalToolbelt activeTab={activeTab} setActiveTab={setActiveTab} />
+                    </div>
+                    <main className="flex-1 overflow-auto bg-[#f8fafc] p-3 lg:p-4 relative pb-28 lg:pb-2">
+                        <div className="max-w-[1800px] mx-auto h-full flex flex-col gap-4">
+                            {/* Mobile Welcome (Hidden on Desktop) */}
+                            <div className="lg:hidden bg-[#131722] rounded-3xl p-6 text-white shadow-xl shadow-gray-200 relative overflow-hidden">
+                                <div className="absolute top-0 right-0 w-32 h-32 bg-blue-600/20 blur-3xl -mr-16 -mt-16 rounded-full" />
+                                <div className="relative z-10">
+                                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-400">Hoş Geldiniz</span>
+                                    <h2 className="text-2xl font-black tracking-tighter mt-1">{user?.fullName || user?.name || 'Operatör'}</h2>
+                                    <p className="text-[10px] font-medium text-gray-400 mt-2 flex items-center gap-2">
+                                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                                        Sistem durumu optimize edildi.
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="flex items-center justify-between shrink-0 px-1 mt-2 lg:mt-0">
+                                <h1 className="text-lg lg:text-xl font-black tracking-tighter uppercase text-[#131722]">{titleMap[activeTab]}</h1>
                             </div>
 
                             <div className="flex-1 min-h-0">
@@ -477,18 +522,27 @@ export default function TradingViewCustomerDashboard() {
                         </div>
                     </main>
 
-                    <AnimatePresence>
-                        {sidebarOpen && (
-                            <SidebarInfo 
-                                key="sidebar-info-panel"
-                                isOpen={sidebarOpen} 
-                                setOpen={setSidebarOpen} 
-                                livePoints={dashboardState.allRaw} 
-                            />
-                        )}
-                    </AnimatePresence>
+                    <div className="hidden lg:block">
+                        <AnimatePresence>
+                            {sidebarOpen && (
+                                <SidebarInfo 
+                                    key="sidebar-info-panel"
+                                    isOpen={sidebarOpen} 
+                                    setOpen={setSidebarOpen} 
+                                    livePoints={dashboardState.allRaw} 
+                                />
+                            )}
+                        </AnimatePresence>
+                    </div>
                 </div>
             </div>
+
+            {/* Mobile Bottom Nav (Hidden on Desktop) */}
+            <MobileBottomNav 
+                activeTab={activeTab} 
+                setActiveTab={setActiveTab} 
+                alarmCount={dashboardState.activeAlarms.length} 
+            />
 
             <style jsx global>{`
                 ::selection { background: rgba(41, 98, 255, 0.15); color: #2962ff; }
@@ -500,7 +554,7 @@ export default function TradingViewCustomerDashboard() {
 }
 
 function TradingViewContentGrid({ tab, data, range, setRange }: { tab: string, data: DashboardState, range: string, setRange: (r: string) => void }) {
-    const gridStyle = "grid grid-cols-1 gap-4 xl:grid-cols-2 h-auto pr-2 custom-scroll";
+    const gridStyle = "grid grid-cols-1 gap-4 xl:grid-cols-2 h-auto pb-10 custom-scroll";
     return (
         <div className="h-auto space-y-8 pb-10">
             {tab === 'alarms' && (

@@ -58,6 +58,7 @@ interface DashboardState {
     quality: { thd_v: TelemetryPoint[]; thd_i: TelemetryPoint[] };
     system: { metrics: TelemetryPoint[] };
     allRaw: TelemetryPoint[];
+    status: string;
     activeAlarms: any[];
 }
 
@@ -85,6 +86,7 @@ export default function TradingViewCustomerDashboard() {
     const [devices, setDevices] = useState<DeviceRow[]>([]);
     const [selectedPlantId, setSelectedPlantId] = useState<string>('');
     const [selectedDeviceId, setSelectedDeviceId] = useState<string>('');
+    const [persistentAlarms, setPersistentAlarms] = useState<any[]>([]);
 
     const historicalModeRef = React.useRef(isHistoricalMode);
     useEffect(() => { historicalModeRef.current = isHistoricalMode; }, [isHistoricalMode]);
@@ -111,7 +113,19 @@ export default function TradingViewCustomerDashboard() {
                 }
             } catch (err) { console.error("Fetch plants error:", err); }
         };
+
+        const fetchAlarms = async () => {
+            try {
+                const res = await apiRequest('/api/alarms');
+                if (res.ok) {
+                    const data = await res.json();
+                    setPersistentAlarms(data);
+                }
+            } catch (err) { console.error("Fetch alarms error:", err); }
+        };
+
         fetchInitial();
+        fetchAlarms();
     }, []);
 
     useEffect(() => {
@@ -161,6 +175,20 @@ export default function TradingViewCustomerDashboard() {
         socket.on(`telemetry:raw:${pId}`, (data: any) => {
             if (Array.isArray(data)) data.forEach(handleUpdate);
             else handleUpdate(data);
+        });
+
+        // Alarm Listeners
+        socket.on('alarm:comm:new', (alarm: any) => {
+            setPersistentAlarms(prev => {
+                if (prev.find(a => a.id === alarm.id)) return prev;
+                return [alarm, ...prev];
+            });
+        });
+
+        socket.on('alarm:comm:resolved', (resolved: any) => {
+            setPersistentAlarms(prev => 
+                prev.map(a => a.id === resolved.id ? { ...a, status: 'RESOLVED', endTime: resolved.endTime } : a)
+            );
         });
     };
 
@@ -249,6 +277,8 @@ export default function TradingViewCustomerDashboard() {
         return () => {
             socket.off('protocol:status');
             socket.off('telemetry:update');
+            socket.off('alarm:comm:new');
+            socket.off('alarm:comm:resolved');
             const device = devices.find(d => d.id === selectedDeviceId);
             if (device?.protocolConfigId) {
                 socket.off(`telemetry:raw:${device.protocolConfigId}`);
@@ -310,6 +340,7 @@ export default function TradingViewCustomerDashboard() {
             quality: { thd_v: [], thd_i: [] }, 
             system: { metrics: [] }, 
             allRaw: [],
+            status: status,
             activeAlarms: []
         };
 
@@ -359,36 +390,42 @@ export default function TradingViewCustomerDashboard() {
             quality: { thd_v: dataArr.filter(p => testMatch(p, ['harmonik gerilim', 'thdv'], ['HARMONIC_VOLTAGE'])), thd_i: dataArr.filter(p => testMatch(p, ['harmonik akım', 'thdi'], ['HARMONIC_CURRENT'])) },
             system: { metrics: dataArr.filter(p => testMatch(p, ['güç faktörü', 'frekans', 'hz', 'pf'], ['FREQUENCY', 'POWER_FACTOR'])) },
             allRaw: dataArr,
+            status: status,
             activeAlarms: [
-                ...(status !== 'CONNECTED' ? [{
-                    id: 'conn-lost',
-                    severity: 'critical',
-                    type: 'BAĞLANTI',
-                    message: 'Cihaz haberleşmesi koptu. Veriler güncellenemiyor.',
-                    time: new Date().toLocaleTimeString(),
-                    area: 'HABERLEŞME'
-                }] : []),
+                // 1. Backend Persistent Alarms (Only show relevant for selected device or global ones if needed)
+                ...persistentAlarms
+                    .filter(a => a.status === 'ACTIVE')
+                    .map(a => ({
+                        id: a.id,
+                        severity: 'critical',
+                        type: 'SİSTEM',
+                        message: a.message,
+                        time: new Date(a.startTime).toLocaleTimeString(),
+                        area: 'HABERLEŞME'
+                    })),
+
+                // 2. Local threshold based (keep these for UI responsiveness)
                 ...dataArr.filter(p => {
                     const val = p.value || 0;
                     const name = (p.name || "").toLowerCase();
                     if (name.includes('gerilim') || name.includes('voltage')) {
-                        return val > 250 || val < 185;
+                        return (val > 255 || (val > 10 && val < 170)); // Adjusted range
                     }
                     if (name.includes('akım') || name.includes('current')) {
-                        return val > 100;
+                        return val > 2000; // Adjusted for CT ratios if they are not normalized
                     }
                     return false;
                 }).map(p => ({
                     id: `limit-${p.pointId}`,
-                    severity: (p.value || 0) > 260 || (p.value || 0) < 170 ? 'critical' : 'warning',
-                    type: 'EŞİK AŞIMI',
-                    message: `${p.name} sınırı aşıldı! Güncel: ${p.value?.toFixed(2)} ${p.unit}`,
+                    severity: 'warning',
+                    type: 'EŞİK',
+                    message: `${p.name} limit dışı: ${p.value?.toFixed(1)} ${p.unit}`,
                     time: new Date().toLocaleTimeString(),
-                    area: p.name?.split(' ')[0] || 'GENEL'
+                    area: 'LİMİT'
                 }))
             ]
         };
-    }, [liveData, historyData, isHistoricalMode, status]);
+    }, [liveData, historyData, isHistoricalMode, status, persistentAlarms]);
 
     const titleMap: Record<string, string> = { 
         dashboard: 'GENEL BAKIŞ',

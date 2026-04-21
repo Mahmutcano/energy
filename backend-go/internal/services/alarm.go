@@ -118,10 +118,14 @@ func (s *AlarmService) CreateCommAlarm(deviceID uuid.UUID) {
 	lastSeenAt := s.lastSeenTimes[deviceID]
 	s.mu.Unlock()
 
+	alarmID := uuid.New()
+	startTime := time.Now()
+	message := "Veri akışı kesildi / Data stream interrupted"
+
 	_, err := db.Pool.Exec(context.Background(), `
 		INSERT INTO "CommunicationAlarm" (id, "deviceId", message, status, "startTime", "lastSeenAt")
-		VALUES ($1, $2, 'Veri akışı kesildi / Data stream interrupted', 'ACTIVE', $3, $4)
-	`, uuid.New(), deviceID, time.Now(), lastSeenAt)
+		VALUES ($1, $2, $3, 'ACTIVE', $4, $5)
+	`, alarmID, deviceID, message, startTime, lastSeenAt)
 
 	if err != nil {
 		log.Printf("[ALARM] Failed to DB record alarm: %v", err)
@@ -129,11 +133,12 @@ func (s *AlarmService) CreateCommAlarm(deviceID uuid.UUID) {
 
 	if s.socket != nil {
 		eventData := map[string]interface{}{
+			"id":         alarmID,
 			"deviceId":   deviceID,
 			"status":     "ACTIVE",
-			"startTime":  time.Now(),
+			"startTime":  startTime,
 			"lastSeenAt": lastSeenAt,
-			"message":    "Veri akışı kesildi / Data stream interrupted",
+			"message":    message,
 		}
 		s.socket.Sockets().Emit("alarm:comm:new", eventData)
 	}

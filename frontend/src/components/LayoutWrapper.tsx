@@ -20,8 +20,14 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
     useEffect(() => {
         if (!loading && !isAuthenticated && !isAuthPage && !isCustomerPage) {
             router.push('/login');
+            return;
         }
-    }, [isAuthenticated, loading, isAuthPage, isCustomerPage, router]);
+
+        // Role based access control
+        if (!loading && isAuthenticated && user?.role === 'NORMAL_USER' && !isCustomerPage && !isAuthPage) {
+            router.push('/customer');
+        }
+    }, [isAuthenticated, loading, isAuthPage, isCustomerPage, user, router]);
 
     if (loading) {
         return (

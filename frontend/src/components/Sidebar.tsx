@@ -65,6 +65,8 @@ export default function Sidebar() {
 
     const isCustomer = pathname?.startsWith('/customer');
 
+    if (user?.role === 'NORMAL_USER' && !isCustomer) return null;
+
     return (
         <aside className={cn(
             "w-56 h-screen flex flex-col z-[100] shrink-0 transition-all duration-500",

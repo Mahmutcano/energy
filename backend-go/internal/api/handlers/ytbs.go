@@ -19,6 +19,7 @@ import (
 func GetImportedIds(c *gin.Context) {
 	rows, err := db.Pool.Query(context.Background(), `SELECT "ytbsId" FROM "YtbsPlant"`)
 	if err != nil {
+		log.Printf("[YTBS] Error fetching imported IDs: %v", err)
 		response.Error(c, http.StatusInternalServerError, response.ErrDatabase, err.Error())
 		return
 	}
@@ -27,13 +28,16 @@ func GetImportedIds(c *gin.Context) {
 	var ids []int
 	for rows.Next() {
 		var id int
-		if err := rows.Scan(&id); err == nil {
-			ids = append(ids, id)
+		if err := rows.Scan(&id); err != nil {
+			log.Printf("[YTBS] Error scanning ytbsId: %v", err)
+			continue
 		}
+		ids = append(ids, id)
 	}
 	if ids == nil {
 		ids = []int{}
 	}
+	log.Printf("[YTBS] Returning %d imported IDs", len(ids))
 	response.Success(c, http.StatusOK, ids)
 }
 
@@ -213,9 +217,12 @@ func ImportExternalPlants(c *gin.Context) {
 	ctx := context.Background()
 	importedCount := 0
 	
-	for _, pObj := range req.Plants {
+	log.Printf("[YTBS] Starting import for company %s, received %d plants", req.CompanyID, len(req.Plants))
+	
+	for i, pObj := range req.Plants {
 		p, ok := pObj.(map[string]interface{})
 		if !ok {
+			log.Printf("[YTBS] Plant at index %d is not a valid map", i)
 			continue
 		}
 		
@@ -231,6 +238,7 @@ func ImportExternalPlants(c *gin.Context) {
 		}
 
 		if ytbsId == 0 {
+			log.Printf("[YTBS] Plant at index %d has no valid ID: %+v", i, p)
 			continue
 		}
 		
@@ -261,6 +269,7 @@ func ImportExternalPlants(c *gin.Context) {
 		err = db.Pool.QueryRow(ctx, `SELECT "plantId" FROM "YtbsPlant" WHERE "ytbsId" = $1`, ytbsId).Scan(&plantId)
 		if err == nil {
 			foundPlant = true
+			log.Printf("[YTBS] Found existing link for plant %s (ytbsId: %d) -> plantId: %s", ad, ytbsId, plantId)
 		}
 
 		// 2. If not found by YtbsPlant link, try to find in main Plant table by ytbsCode
@@ -268,12 +277,14 @@ func ImportExternalPlants(c *gin.Context) {
 			err = db.Pool.QueryRow(ctx, `SELECT "id" FROM "Plant" WHERE "ytbsCode" = $1 AND "companyId" = $2`, strconv.Itoa(ytbsId), compUUID).Scan(&plantId)
 			if err == nil {
 				foundPlant = true
+				log.Printf("[YTBS] Found existing Plant record (ytbsCode: %d) -> plantId: %s", ytbsId, plantId)
 			}
 		}
 
 		// 3. If still NOT found, CREATE a new record in the main Plant table
 		if !foundPlant {
 			plantId = uuid.New()
+			log.Printf("[YTBS] Creating NEW Plant record for %s (ytbsId: %d)", ad, ytbsId)
 			_, err = db.Pool.Exec(ctx, `
 				INSERT INTO "Plant" ("id", "companyId", "plantName", "plantType", "isActive", "ytbsCode", "canSendYtbs", "createdAt", "updatedAt")
 				VALUES ($1, $2, $3, $4, true, $5, true, NOW(), NOW())
@@ -281,27 +292,29 @@ func ImportExternalPlants(c *gin.Context) {
 			
 			if err != nil {
 				log.Printf("[YTBS] Error creating main Plant for %s: %v", ad, err)
-				continue // Skip the rest if we can't create the main record
+				continue 
 			}
 			foundPlant = true
 		}
 
 		// 4. Create or update the YtbsPlant integration record
+		// Using underscore names as they seem more likely based on patterns seen in services
 		_, err = db.Pool.Exec(ctx, `
-			INSERT INTO "YtbsPlant" ("id", "plantId", "ytbsId", "licenseNo", "plantName", "capacityAc", "isActive")
+			INSERT INTO "YtbsPlant" ("id", "plantId", "ytbsId", "license_no", "plant_name", "capacity_ac", "isActive")
 			VALUES ($1, $2, $3, $4, $5, $6, true)
 			ON CONFLICT ("ytbsId") DO UPDATE SET 
 				"plantId" = EXCLUDED."plantId",
-				"plantName" = EXCLUDED."plantName", 
-				"capacityAc" = EXCLUDED."capacityAc"
+				"plant_name" = EXCLUDED."plant_name", 
+				"capacity_ac" = EXCLUDED."capacity_ac"
 		`, uuid.New(), plantId, ytbsId, licenseNo, ad, guc)
 		
 		if err != nil {
-			log.Printf("[YTBS] Database error during YtbsPlant insert for %d: %v", ytbsId, err)
+			log.Printf("[YTBS] Database error during YtbsPlant insert for %d (%s): %v", ytbsId, ad, err)
 			continue
 		}
 		importedCount++
 	}
+	log.Printf("[YTBS] Finished import. Imported %d/%d plants.", importedCount, len(req.Plants))
 
 	response.Success(c, http.StatusOK, gin.H{
 		"message": "İşlem tamamlandı",

@@ -211,7 +211,7 @@ func (s *YtbsService) QueryExternalLogs(ctx context.Context, companyID uuid.UUID
 	}
 
 	rows, err := db.Pool.Query(ctx, `
-		SELECT yp."ytbsId", yp."licenseNo" 
+		SELECT yp."ytbsId", yp.license_no 
 		FROM "YtbsPlant" yp
 		JOIN "Plant" p ON yp."plantId" = p.id
 		WHERE p."companyId" = $1

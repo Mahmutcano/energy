@@ -22,8 +22,8 @@ interface AuthContextType {
     user: User | null;
     companyProfile: CompanyProfile | null;
     token: string | null;
-    login: (email: string, password: string) => Promise<void>;
-    register: (name: string, email: string, password: string) => Promise<void>;
+    login: (email: string, password: string) => Promise<User>;
+    register: (name: string, email: string, password: string) => Promise<User>;
     logout: () => void;
     isAuthenticated: boolean;
     loading: boolean;
@@ -98,9 +98,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (data.companyProfile) {
             localStorage.setItem('auth_company', JSON.stringify(data.companyProfile));
         }
+        return data.user as User;
     };
 
-    const register = async (name: string, email: string, password: string) => {
+    const register = async (name: string, email: string, password: string): Promise<User> => {
         const response = await apiRequest('/api/auth/register', {
             method: 'POST',
             body: JSON.stringify({ name, email, password })
@@ -124,6 +125,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (data.companyProfile) {
             localStorage.setItem('auth_company', JSON.stringify(data.companyProfile));
         }
+        return data.user;
     };
 
     const logout = () => {

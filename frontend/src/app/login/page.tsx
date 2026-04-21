@@ -21,8 +21,13 @@ export default function LoginPage() {
         setLoading(true);
 
         try {
-            await login(email, password);
-            router.push('/');
+            const user = await login(email, password);
+            // Redirect based on role
+            if (user?.role === 'NORMAL_USER') {
+                router.push('/customer');
+            } else {
+                router.push('/');
+            }
         } catch (err: any) {
             setError(err.message || 'Kimlik doğrulama başarısız. Lütfen bilgilerinizi kontrol edin.');
         } finally {

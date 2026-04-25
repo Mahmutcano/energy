@@ -23,12 +23,11 @@ const MENU_GROUPS = [
     },
     {
         label: 'Altyapı',
-        adminOnly: true,
         items: [
             { name: 'Santraller', href: '/plants', icon: Factory },
             { name: 'Cihazlar', href: '/devices', icon: Cpu },
-            { name: 'Protokoller', href: '/protocols', icon: Network },
-            { name: 'Veri Şemaları', href: '/datasheets', icon: FileText },
+            { name: 'Protokoller', href: '/protocols', icon: Network, adminOnly: true },
+            { name: 'Veri Şemaları', href: '/datasheets', icon: FileText, adminOnly: true },
         ]
     },
     {
@@ -104,6 +103,7 @@ export default function Sidebar() {
                             </h3>
                             <div className="space-y-1">
                                 {group.items.map((item: any) => {
+                                    if (item.adminOnly && !isAdmin) return null;
                                     const isActive = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href));
 
                                     return (

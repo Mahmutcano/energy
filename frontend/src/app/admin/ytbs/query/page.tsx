@@ -101,6 +101,12 @@ export default function YtbsQueryPage() {
         }
     };
 
+    const handleCompanyChange = (id: string) => {
+        setSelectedCompanyId(id);
+        setExternalPlants([]);
+        setLogs([]);
+    };
+
     const handleQuery = async () => {
         if (!selectedCompanyId) {
             toast.error('Lütfen bir firma seçin');
@@ -168,8 +174,17 @@ export default function YtbsQueryPage() {
             });
             if (res.ok) {
                 const result = await res.json();
-                toast.success(`${result.importedCount} santral başarıyla eklendi/güncellendi.`, { id: t });
-                setImportedIds(prev => [...prev, ...plantsToImport.map(p => p.id)]);
+                const data = result.data || result;
+                
+                if (plantsToImport.length === 1) {
+                    toast.success(`[${plantsToImport[0].ad}] santrali başarıyla sisteme aktarıldı.`, { id: t });
+                } else {
+                    toast.success(`${data.importedCount || plantsToImport.length} santral başarıyla sisteme aktarıldı.`, { id: t });
+                }
+
+                // Ensure IDs are treated as numbers for consistency
+                const newIds = plantsToImport.map(p => Number(p.id));
+                setImportedIds(prev => [...prev, ...newIds]);
             } else {
                 toast.error('Aktarım başarısız.', { id: t });
             }
@@ -227,7 +242,8 @@ export default function YtbsQueryPage() {
                 toast.success('Test kaydı oluşturuldu!', { id: t });
                 fetchLogs();
             } else {
-                toast.error('Oluşturulamadı', { id: t });
+                const errData = await res.json();
+                toast.error(errData.error?.message || errData.message || 'Oluşturulamadı', { id: t });
             }
         } catch (err) {
             toast.error('Hata oluştu', { id: t });
@@ -277,7 +293,7 @@ export default function YtbsQueryPage() {
                                 <div className="relative">
                                     <select
                                         value={selectedCompanyId}
-                                        onChange={(e) => setSelectedCompanyId(e.target.value)}
+                                        onChange={(e) => handleCompanyChange(e.target.value)}
                                         className="w-full bg-grafana-bg border border-grafana-border rounded-sm px-4 py-3 text-xs font-bold text-white focus:border-grafana-accent-blue outline-none appearance-none pr-12 font-mono"
                                     >
                                         <option value="">FİRMA SEÇİNİZ...</option>
@@ -388,10 +404,10 @@ export default function YtbsQueryPage() {
                                                     <td className="px-4 py-3 text-center text-[10px] font-bold text-grafana-text-secondary font-mono">{plant.il?.ad || '-'}</td>
                                                     <td className="px-4 py-3 text-right">
                                                         <div className="flex justify-end gap-2">
-                                                            {importedIds.includes(plant.id) ? (
+                                                            {importedIds.some(id => String(id) === String(plant.id)) ? (
                                                                 <>
                                                                     <div className="px-2 py-1 bg-grafana-accent-green/5 text-grafana-accent-green border border-grafana-accent-green/20 rounded-sm text-[8px] font-bold uppercase flex items-center gap-1 font-mono">
-                                                                        <CheckCircle2 size={10}/> AKTİF
+                                                                        <CheckCircle2 size={10}/> AKTARILDI
                                                                     </div>
                                                                     <button onClick={() => handleRemove(plant.id)} className="p-1.5 text-grafana-text-secondary hover:text-grafana-accent-red transition-all">
                                                                         <Trash2 size={14}/>
@@ -403,7 +419,7 @@ export default function YtbsQueryPage() {
                                                                     disabled={importing} 
                                                                     className="px-3 py-1.5 bg-grafana-accent-blue text-white rounded-sm text-[9px] font-bold uppercase tracking-widest hover:bg-grafana-accent-blue/90 transition-all font-mono"
                                                                 >
-                                                                    SİSTEME EKLE
+                                                                    SİSTEME AKTAR
                                                                 </button>
                                                             )}
                                                         </div>

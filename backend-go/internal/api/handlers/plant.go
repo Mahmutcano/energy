@@ -16,12 +16,12 @@ import (
 )
 
 func GetPlants(c *gin.Context) {
-	companyID, role := getUserCompanyID(c)
+	ctx := getAccessContext(c)
 
 	var rows pgx.Rows
 	var err error
 
-	if role == "SUPER_ADMIN" {
+	if ctx.Role == "SUPER_ADMIN" {
 		rows, err = db.Pool.Query(context.Background(), `
 			SELECT p.id, p."companyId", p."plantName", p."plantType", p.latitude, p.longitude, p."isActive", c.name as company_name, 
 			       p."ytbsCode", p."canSendYtbs", p."createdAt", p."updatedAt", p."createdBy", p."updatedBy"
@@ -29,7 +29,18 @@ func GetPlants(c *gin.Context) {
 			JOIN "CompanyProfile" c ON p."companyId" = c.id
 			ORDER BY p."plantName" ASC
 		`)
-	} else if companyID != nil {
+	} else if len(ctx.PlantIDs) > 0 {
+		// Explicit plant links
+		rows, err = db.Pool.Query(context.Background(), `
+			SELECT p.id, p."companyId", p."plantName", p."plantType", p.latitude, p.longitude, p."isActive", c.name as company_name, 
+			       p."ytbsCode", p."canSendYtbs", p."createdAt", p."updatedAt", p."createdBy", p."updatedBy"
+			FROM "Plant" p
+			JOIN "CompanyProfile" c ON p."companyId" = c.id
+			WHERE p.id = ANY($1)
+			ORDER BY p."plantName" ASC
+		`, ctx.PlantIDs)
+	} else if ctx.CompanyID != nil {
+		// Company-wide access (fallback)
 		rows, err = db.Pool.Query(context.Background(), `
 			SELECT p.id, p."companyId", p."plantName", p."plantType", p.latitude, p.longitude, p."isActive", c.name as company_name, 
 			       p."ytbsCode", p."canSendYtbs", p."createdAt", p."updatedAt", p."createdBy", p."updatedBy"
@@ -37,8 +48,9 @@ func GetPlants(c *gin.Context) {
 			JOIN "CompanyProfile" c ON p."companyId" = c.id
 			WHERE p."companyId" = $1
 			ORDER BY p."plantName" ASC
-		`, *companyID)
+		`, *ctx.CompanyID)
 	} else {
+		log.Printf("[PLANT] No access for user %v (Role: %s)", ctx.UserID, ctx.Role)
 		response.Success(c, http.StatusOK, []any{})
 		return
 	}

@@ -9,6 +9,7 @@ import toast from 'react-hot-toast';
 import Modal from '@/components/Modal';
 import { cn } from '@/lib/utils';
 import PageHeader from '@/components/PageHeader';
+import { useAuth } from '@/context/AuthContext';
 
 interface ProtocolConfig {
     id: string;
@@ -83,6 +84,8 @@ function DevicesContent() {
     });
 
     const submittingRef = React.useRef(false);
+    const { user } = useAuth();
+    const isAdmin = user?.role === 'SUPER_ADMIN' || user?.role === 'COMPANY_ADMIN';
 
     const fetchDevices = async () => {
         try {
@@ -148,8 +151,13 @@ function DevicesContent() {
     };
 
     useEffect(() => {
-        Promise.all([fetchDevices(), fetchProtocols(), fetchProfiles(), fetchPlants()]);
-    }, [initialProtocolId]);
+        fetchDevices();
+        fetchPlants();
+        if (isAdmin) {
+            fetchProtocols();
+            fetchProfiles();
+        }
+    }, [initialProtocolId, isAdmin]);
 
 
     const openCreateModal = () => {
@@ -361,12 +369,14 @@ function DevicesContent() {
                         className="w-full pl-10 pr-4 py-2 bg-grafana-bg border border-grafana-border rounded-sm text-[11px] text-grafana-text-primary focus:border-grafana-accent-blue/50 outline-none font-mono placeholder:text-grafana-text-secondary/30 transition-all uppercase"
                     />
                 </div>
-                <button
-                    onClick={openCreateModal}
-                    className="flex items-center gap-3 px-6 py-2.5 bg-grafana-accent-blue hover:bg-grafana-accent-blue/90 text-white rounded-sm text-[11px] font-bold uppercase tracking-[0.2em] transition-all shadow-[0_0_15px_rgba(87,148,242,0.2)] font-mono whitespace-nowrap"
-                >
-                    <Plus size={14} /> CİHAZI DEVREYE AL
-                </button>
+                {isAdmin && (
+                    <button
+                        onClick={openCreateModal}
+                        className="flex items-center gap-3 px-6 py-2.5 bg-grafana-accent-blue hover:bg-grafana-accent-blue/90 text-white rounded-sm text-[11px] font-bold uppercase tracking-[0.2em] transition-all shadow-[0_0_15px_rgba(87,148,242,0.2)] font-mono whitespace-nowrap"
+                    >
+                        <Plus size={14} /> CİHAZI DEVREYE AL
+                    </button>
+                )}
             </PageHeader>
 
             {/* Cihaz Tablosu */}
@@ -477,20 +487,24 @@ function DevicesContent() {
                                     </td>
                                     <td className="text-right">
                                         <div className="flex justify-end gap-2">
-                                            <button 
-                                                title="Yapılandır" 
-                                                onClick={() => openEditModal(device)} 
-                                                className="p-2 rounded-sm bg-grafana-bg border border-grafana-border text-grafana-text-secondary hover:text-grafana-accent-blue hover:border-grafana-accent-blue/50 transition-all"
-                                            >
-                                                <Pencil size={14} />
-                                            </button>
-                                            <button 
-                                                title="Devreden Çıkar" 
-                                                onClick={() => handleDeleteClick(device)} 
-                                                className="p-2 rounded-sm bg-grafana-bg border border-grafana-border text-grafana-text-secondary hover:text-grafana-accent-red hover:border-grafana-accent-red/50 transition-all"
-                                            >
-                                                <Trash2 size={14} />
-                                            </button>
+                                            {isAdmin && (
+                                                <>
+                                                    <button 
+                                                        title="Yapılandır" 
+                                                        onClick={() => openEditModal(device)} 
+                                                        className="p-2 rounded-sm bg-grafana-bg border border-grafana-border text-grafana-text-secondary hover:text-grafana-accent-blue hover:border-grafana-accent-blue/50 transition-all"
+                                                    >
+                                                        <Pencil size={14} />
+                                                    </button>
+                                                    <button 
+                                                        title="Devreden Çıkar" 
+                                                        onClick={() => handleDeleteClick(device)} 
+                                                        className="p-2 rounded-sm bg-grafana-bg border border-grafana-border text-grafana-text-secondary hover:text-grafana-accent-red hover:border-grafana-accent-red/50 transition-all"
+                                                    >
+                                                        <Trash2 size={14} />
+                                                    </button>
+                                                </>
+                                            )}
                                         </div>
                                     </td>
                                 </tr>

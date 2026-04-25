@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"strings"
@@ -80,7 +81,10 @@ func RoleMiddleware(allowedRoles ...string) gin.HandlerFunc {
 		}
 
 		if !isAllowed {
-			c.JSON(http.StatusForbidden, gin.H{"error": "You do not have permission to access this resource"})
+			log.Printf("[AUTH] Forbidden: User Role '%s' tried to access '%s %s'", userRole, c.Request.Method, c.Request.URL.Path)
+			c.JSON(http.StatusForbidden, gin.H{
+				"error": fmt.Sprintf("You do not have permission to access %s %s", c.Request.Method, c.Request.URL.Path),
+			})
 			c.Abort()
 			return
 		}

@@ -11,6 +11,7 @@ import PlantForm, { PlantFormData } from '@/components/forms/PlantForm';
 import CompanyForm, { CompanyFormData } from '@/components/forms/CompanyForm';
 import { cn } from '@/lib/utils';
 import PageHeader from '@/components/PageHeader';
+import { useAuth } from '@/context/AuthContext';
 
 interface Plant {
     id: string;
@@ -65,6 +66,8 @@ function PlantsContent() {
     const [isCreatingCompany, setIsCreatingCompany] = useState(false);
 
     const submittingRef = React.useRef(false);
+    const { user } = useAuth();
+    const isAdmin = user?.role === 'SUPER_ADMIN' || user?.role === 'COMPANY_ADMIN';
 
     const fetchPlants = async () => {
         try {
@@ -100,8 +103,11 @@ function PlantsContent() {
     };
 
     useEffect(() => {
-        Promise.all([fetchPlants(), fetchCompanies()]);
-    }, [initialCompanyId]);
+        fetchPlants();
+        if (isAdmin) {
+            fetchCompanies();
+        }
+    }, [initialCompanyId, isAdmin]);
 
     const openCreateModal = () => {
         setEditingPlant(null);
@@ -221,12 +227,14 @@ function PlantsContent() {
                 subtitle="Fiziksel varlıklar ve saha yapılandırma matrisi"
                 icon={Factory}
             >
-                <button
-                    onClick={openCreateModal}
-                    className="flex items-center gap-3 px-6 py-2.5 bg-grafana-accent-blue hover:bg-grafana-accent-blue/90 text-white rounded-sm text-[11px] font-bold uppercase tracking-[0.2em] transition-all shadow-[0_0_15px_rgba(87,148,242,0.2)] font-mono"
-                >
-                    <Plus size={14} /> YENİ DÜĞÜM TANIMLA
-                </button>
+                {isAdmin && (
+                    <button
+                        onClick={openCreateModal}
+                        className="flex items-center gap-3 px-6 py-2.5 bg-grafana-accent-blue hover:bg-grafana-accent-blue/90 text-white rounded-sm text-[11px] font-bold uppercase tracking-[0.2em] transition-all shadow-[0_0_15px_rgba(87,148,242,0.2)] font-mono"
+                    >
+                        <Plus size={14} /> YENİ DÜĞÜM TANIMLA
+                    </button>
+                )}
             </PageHeader>
 
             {/* Metrics Row */}
@@ -334,20 +342,24 @@ function PlantsContent() {
                                             >
                                                 <Settings size={14} />
                                             </button>
-                                            <button 
-                                                title="Düzenle" 
-                                                onClick={() => openEditModal(plant)} 
-                                                className="p-2 rounded-sm bg-grafana-bg border border-grafana-border text-grafana-text-secondary hover:text-grafana-accent-blue hover:border-grafana-accent-blue/50 transition-all"
-                                            >
-                                                <Pencil size={14} />
-                                            </button>
-                                            <button 
-                                                title="Sil" 
-                                                onClick={() => handleDeleteClick(plant)} 
-                                                className="p-2 rounded-sm bg-grafana-bg border border-grafana-border text-grafana-text-secondary hover:text-grafana-accent-red hover:border-grafana-accent-red/50 transition-all"
-                                            >
-                                                <Trash2 size={14} />
-                                            </button>
+                                            {isAdmin && (
+                                                <>
+                                                    <button 
+                                                        title="Düzenle" 
+                                                        onClick={() => openEditModal(plant)} 
+                                                        className="p-2 rounded-sm bg-grafana-bg border border-grafana-border text-grafana-text-secondary hover:text-grafana-accent-blue hover:border-grafana-accent-blue/50 transition-all"
+                                                    >
+                                                        <Pencil size={14} />
+                                                    </button>
+                                                    <button 
+                                                        title="Sil" 
+                                                        onClick={() => handleDeleteClick(plant)} 
+                                                        className="p-2 rounded-sm bg-grafana-bg border border-grafana-border text-grafana-text-secondary hover:text-grafana-accent-red hover:border-grafana-accent-red/50 transition-all"
+                                                    >
+                                                        <Trash2 size={14} />
+                                                    </button>
+                                                </>
+                                            )}
                                         </div>
                                     </td>
                                 </tr>

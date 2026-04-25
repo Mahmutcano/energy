@@ -1,7 +1,7 @@
 "use client";
 
 import React from 'react';
-import { Database, Maximize2, Settings2, Info, Activity, Clock, Zap } from 'lucide-react';
+import { Database, Maximize2, Settings2, Info, Activity, Clock, Zap, LogOut } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface HeaderProps {
@@ -16,6 +16,7 @@ interface HeaderProps {
     titleMap: Record<string, string>;
     sidebarOpen: boolean;
     setSidebarOpen: (val: boolean) => void;
+    logout: () => void;
 }
 
 export default function TradingViewHeader({
@@ -29,7 +30,8 @@ export default function TradingViewHeader({
     setHistoricalMode,
     titleMap,
     sidebarOpen,
-    setSidebarOpen
+    setSidebarOpen,
+    logout
 }: HeaderProps) {
     return (
         <header className="h-12 flex items-center justify-between border-b border-grafana-border px-4 shrink-0 bg-grafana-panel/80 z-40 relative backdrop-blur-md">
@@ -98,6 +100,14 @@ export default function TradingViewHeader({
                     </button>
                     <button className="p-2 text-grafana-text-secondary hover:text-white transition-colors">
                         <Settings2 size={16} />
+                    </button>
+                    <button 
+                        onClick={logout}
+                        className="p-2 text-grafana-accent-red hover:bg-grafana-accent-red/10 rounded-sm transition-all flex items-center gap-2"
+                        title="Güvenli Çıkış"
+                    >
+                        <LogOut size={16} />
+                        <span className="text-[10px] font-bold uppercase tracking-widest font-mono hidden xl:block">ÇIKIŞ</span>
                     </button>
                     <button 
                         onClick={() => setSidebarOpen(!sidebarOpen)}

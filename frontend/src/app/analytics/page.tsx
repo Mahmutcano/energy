@@ -51,6 +51,9 @@ export default function AnalyticsPage() {
     useEffect(() => {
         const fetchInitial = async () => {
             try {
+                const isAdmin = localStorage.getItem('auth_user') ? JSON.parse(localStorage.getItem('auth_user')!).role !== 'NORMAL_USER' : false;
+                if (!isAdmin) return;
+
                 const res = await apiRequest('/api/companies');
                 if (res.ok) {
                     const result = await res.json();

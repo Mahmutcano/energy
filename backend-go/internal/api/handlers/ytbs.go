@@ -121,6 +121,7 @@ func CreateTestLog(c *gin.Context) {
 	// Şirkete ait bir YTBS santrali bul
 	var ypID, plantID uuid.UUID
 	var ytbsID int
+	log.Printf("[YTBS-TEST] Looking for YTBS plant for company ID: %s", req.CompanyID)
 	err := db.Pool.QueryRow(context.Background(), `
 		SELECT yp.id, yp."plantId", yp."ytbsId"
 		FROM "YtbsPlant" yp
@@ -130,9 +131,11 @@ func CreateTestLog(c *gin.Context) {
 	`, req.CompanyID).Scan(&ypID, &plantID, &ytbsID)
 
 	if err != nil {
-		response.Error(c, http.StatusNotFound, response.ErrNotFound, "Bu şirkete kayıtlı YTBS santrali bulunamadı")
+		log.Printf("[YTBS-TEST] No plant found or DB error: %v", err)
+		response.Error(c, http.StatusNotFound, response.ErrNotFound, "Bu şirkete kayıtlı YTBS santrali bulunamadı. Lütfen önce 'Sisteme Aktar' işlemini yapın.")
 		return
 	}
+	log.Printf("[YTBS-TEST] Found plant: %s (YTBS ID: %d)", ypID, ytbsID)
 
 	now := time.Now()
 	dateStr := now.Format("2006-01-02")
@@ -153,7 +156,8 @@ func CreateTestLog(c *gin.Context) {
 	}
 
 	if err != nil {
-		response.Error(c, http.StatusInternalServerError, response.ErrDatabase, err.Error())
+		log.Printf("[YTBS-TEST] INSERT error: %v", err)
+		response.Error(c, http.StatusInternalServerError, response.ErrDatabase, "Veritabanı hatası: "+err.Error())
 		return
 	}
 

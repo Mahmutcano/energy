@@ -14,7 +14,7 @@ import TerminalToolbelt from '@/components/customer/TerminalToolbelt';
 import TerminalCard from '@/components/customer/TerminalCard';
 import AppleSparkCard from '@/components/customer/AppleSparkCard';
 import MobileBottomNav from '@/components/customer/MobileBottomNav';
-import { Menu, Bell, User, Activity, Shield, Zap, Database, Terminal, Clock, RefreshCw, LayoutGrid } from 'lucide-react';
+import { Menu, Bell, User, Activity, Shield, Zap, Database, Terminal, Clock, RefreshCw, LayoutGrid, LogOut } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { cn } from '@/lib/utils';
 
@@ -67,7 +67,7 @@ interface DashboardState {
 }
 
 export default function TradingViewCustomerDashboard() {
-    const { user } = useAuth();
+    const { user, logout } = useAuth();
     const searchParams = useSearchParams();
     const activeTab = (searchParams?.get('cat') || 'dashboard').toLowerCase(); 
     
@@ -464,6 +464,12 @@ export default function TradingViewCustomerDashboard() {
                             <span className="absolute top-2 right-2 w-2 h-2 bg-grafana-accent-red rounded-full animate-pulse shadow-[0_0_8px_rgba(242,73,92,0.6)]" />
                         )}
                     </button>
+                    <button 
+                        onClick={logout}
+                        className="w-10 h-10 rounded-sm bg-grafana-accent-red/10 border border-grafana-accent-red/20 flex items-center justify-center text-grafana-accent-red"
+                    >
+                        <LogOut size={18} />
+                    </button>
                     <div className="w-10 h-10 rounded-sm bg-grafana-accent-blue border border-grafana-accent-blue/20 flex items-center justify-center text-[11px] font-bold text-white uppercase font-mono">
                         {user?.name?.substring(0, 1).toUpperCase() || 'U'}
                     </div>
@@ -485,6 +491,7 @@ export default function TradingViewCustomerDashboard() {
                         titleMap={titleMap}
                         sidebarOpen={sidebarOpen}
                         setSidebarOpen={setSidebarOpen}
+                        logout={logout}
                     />
                 </div>
 

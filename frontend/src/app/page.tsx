@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { socket, socketService } from '@/lib/socket';
+import { useAuth } from '@/context/AuthContext';
 import toast from 'react-hot-toast';
 import { cn } from '@/lib/utils';
 import PageHeader from '@/components/PageHeader';
@@ -39,6 +40,7 @@ interface CommProtocol {
 }
 
 export default function Dashboard() {
+  const { user } = useAuth();
   const [stats, setStats] = useState<DashboardStats>({
     companies: 0, plants: 0, devices: 0, protocols: 0, activeAlarms: 0
   });
@@ -61,6 +63,11 @@ export default function Dashboard() {
   };
 
   useEffect(() => {
+    if (!user || user.role === 'NORMAL_USER') {
+      setLoading(false);
+      return;
+    }
+
     const fetchDashboardData = async () => {
       try {
         const [devRes, alarmRes, protoRes, compRes, plantRes] = await Promise.all([
@@ -77,11 +84,13 @@ export default function Dashboard() {
           return (result && result.success) ? result.data : (Array.isArray(result) ? result : []);
         };
 
-        const devices = await extractData(devRes);
-        const alarms = await extractData(alarmRes);
-        const protos = await extractData(protoRes);
-        const companies = await extractData(compRes);
-        const plants = await extractData(plantRes);
+        const [devices, alarms, protos, companies, plants] = await Promise.all([
+          extractData(devRes),
+          extractData(alarmRes),
+          extractData(protoRes),
+          extractData(compRes),
+          extractData(plantRes),
+        ]);
 
         setProtocols(Array.isArray(protos) ? protos.slice(0, 4) : []);
         setStats({
@@ -99,7 +108,7 @@ export default function Dashboard() {
     };
 
     fetchDashboardData();
-  }, []);
+  }, [user]);
 
   return (
     <div className="space-y-8 pb-20 font-sans">

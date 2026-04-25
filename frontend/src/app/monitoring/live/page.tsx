@@ -206,10 +206,14 @@ export default function LiveMonitoringPage() {
         const d = () => setSocketConnected(false);
         socket.on('connect', c);
         socket.on('disconnect', d);
-        apiRequest('/api/companies').then(r => r.json()).then(res => {
-            const data = res?.data || res;
-            setCompanies(Array.isArray(data) ? data : []);
-        }).catch(() => {});
+        const isAdmin = localStorage.getItem('auth_user') ? JSON.parse(localStorage.getItem('auth_user')!).role !== 'NORMAL_USER' : false;
+
+        if (isAdmin) {
+            apiRequest('/api/companies').then(r => r.json()).then(res => {
+                const data = res?.data || res;
+                setCompanies(Array.isArray(data) ? data : []);
+            }).catch(() => {});
+        }
         return () => { socket.off('connect', c); socket.off('disconnect', d); };
     }, []);
 

@@ -1,184 +1,44 @@
 @import "tailwindcss";
 
 @theme {
-  --color-brand-green: var(--brand-color);
-  --color-brand-green-glow: var(--brand-glow);
-  --color-tech-bg: var(--background);
-  --color-tech-card: var(--card);
-  --color-tech-border: var(--border);
+  --color-grafana-bg: #0b0c0e;
+  --color-grafana-panel: #141619;
+  --color-grafana-border: #262626;
+  --color-grafana-grid: #2c2c2c;
+  
+  --color-grafana-text-primary: #d8d9da;
+  --color-grafana-text-secondary: #7b7b7b;
+  
+  --color-grafana-accent-blue: #5794f2;
+  --color-grafana-accent-green: #73bf69;
+  --color-grafana-accent-red: #f2495c;
+  --color-grafana-accent-orange: #ff9830;
 
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-card: var(--card);
-  --color-border: var(--border);
-  --color-muted: var(--muted);
+  /* Mapping base colors to Grafana tokens */
+  --color-background: var(--color-grafana-bg);
+  --color-foreground: var(--color-grafana-text-primary);
+  --color-card: var(--color-grafana-panel);
+  --color-border: var(--color-grafana-border);
+  --color-muted: var(--color-grafana-text-secondary);
 
-  --color-success: #10b981;
-  --color-warning: #f59e0b;
-  --color-danger: #ef4444;
-  --radius-xl: 12px;
-
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Roboto Mono", ui-monospace, SFMono-Regular, monospace;
 }
 
 :root {
-  --background: #0b0e14;
-  --foreground: #d1d4dc;
-  --card: #131722;
-  --border: #2a2e39;
-  --muted: #1e222d;
-  --brand-color: #2962ff;
-  --brand-glow: rgba(41, 98, 255, 0.2);
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-}
-
-[data-theme="light-pure"] {
-  --background: #f8fafc;
-  --foreground: #0f172a;
-  --card: #ffffff;
-  --border: #e2e8f0;
-  --muted: #f1f5f9;
-  --brand-color: #10b981;
-  --brand-glow: rgba(16, 185, 129, 0.4);
-
-  --color-slate-950: #f8fafc;
-  --color-slate-900: #ffffff;
-  --color-slate-800: #e2e8f0;
-  --color-slate-700: #cbd5e1;
-  --color-slate-600: #94a3b8;
-  --color-slate-500: #64748b;
-  --color-slate-400: #475569;
-  --color-slate-300: #334155;
-  --color-slate-200: #1e293b;
-  --color-slate-100: #0f172a;
-  --color-slate-50: #020617;
-
-  --color-white: #0f172a;
-  --color-black: #ffffff;
-}
-
-[data-theme="industrial-emerald"] {
-  --background: #020617;
-  --foreground: #f1f5f9;
-  --card: #0B0F1A;
-  --border: #1E293B;
-  --muted: #1e293b;
-  --brand-color: #10b981;
-  --brand-glow: rgba(16, 185, 129, 0.4);
-}
-
-[data-theme="classic-grid"] {
-  --background: #0f172a;
-  --foreground: #f8fafc;
-  --card: #1e293b;
-  --border: #334155;
-  --muted: #1e293b;
-  --brand-color: #38bdf8;
-  --brand-glow: rgba(56, 189, 248, 0.4);
-}
-
-[data-theme="warning-hazard"] {
-  --background: #1c1917;
-  --foreground: #fafaf9;
-  --card: #292524;
-  --border: #44403c;
-  --muted: #292524;
-  --brand-color: #f59e0b;
-  --brand-glow: rgba(245, 158, 11, 0.4);
-}
-
-[data-theme="ghost-white"] {
-  --background: #f8fafc;
-  --foreground: #0f172a;
-  --card: #ffffff;
-  --border: #e2e8f0;
-  --muted: #f1f5f9;
-  --brand-color: #64748b;
-  --brand-glow: rgba(100, 116, 139, 0.4);
-}
-
-[data-theme="cyber-neon"] {
-  --background: #0f0524;
-  --foreground: #ffffff;
-  --card: #1a0b3c;
-  --border: #3d1b7a;
-  --muted: #1a0b3c;
-  --brand-color: #ff00ff;
-  --brand-glow: rgba(255, 0, 255, 0.6);
-}
-
-[data-theme="midnight-oil"] {
-  --background: #040914;
-  --foreground: #ccd6f6;
-  --card: #0a192f;
-  --border: #112240;
-  --muted: #112240;
-  --brand-color: #64ffda;
-  --brand-glow: rgba(100, 255, 218, 0.4);
-}
-
-[data-theme="oceanic-depth"] {
-  --background: #001219;
-  --foreground: #e9ecef;
-  --card: #001b24;
-  --border: #002e3b;
-  --muted: #001b24;
-  --brand-color: #00b4d8;
-  --brand-glow: rgba(0, 180, 216, 0.4);
-}
-
-[data-theme="solar-flare"] {
-  --background: #1a0a00;
-  --foreground: #fff5eb;
-  --card: #2b1200;
-  --border: #4a1d00;
-  --muted: #2b1200;
-  --brand-color: #ff6b00;
-  --brand-glow: rgba(255, 107, 0, 0.4);
-}
-
-[data-theme="toxic-waste"] {
-  --background: #050505;
-  --foreground: #e0ff00;
-  --card: #0a0a0a;
-  --border: #1a1a1a;
-  --muted: #0f0f0f;
-  --brand-color: #d4ff00;
-  --brand-glow: rgba(212, 255, 0, 0.6);
-}
-
-[data-theme="monokai-pro"] {
-  --background: #2d2a2e;
-  --foreground: #fcfcfa;
-  --card: #353236;
-  --border: #403e41;
-  --muted: #353236;
-  --brand-color: #ffd866;
-  --brand-glow: rgba(255, 216, 102, 0.4);
-}
-
-[data-theme="matrix-overload"] {
-  --background: #000000;
-  --foreground: #00ff41;
-  --card: #050505;
-  --border: #003b00;
-  --muted: #001100;
-  --brand-color: #00ff41;
-  --brand-glow: rgba(0, 255, 65, 0.6);
-}
-
-[data-theme="frost-bit"] {
-  --background: #f0f4f8;
-  --foreground: #102a43;
-  --card: #ffffff;
-  --border: #d9e2ec;
-  --muted: #f0f4f8;
-  --brand-color: #1992d4;
-  --brand-glow: rgba(25, 146, 212, 0.4);
+  --background: #0b0c0e;
+  --foreground: #d8d9da;
+  --card: #141619;
+  --border: #262626;
+  --muted: #7b7b7b;
+  --brand-color: #5794f2;
+  --brand-glow: rgba(87, 148, 242, 0.2);
+  font-family: var(--font-sans);
 }
 
 @layer base {
   body {
-    @apply bg-background text-foreground antialiased selection:bg-brand-green/20;
+    @apply bg-background text-foreground antialiased selection:bg-grafana-accent-blue/30;
     font-feature-settings: "cv02", "cv05", "cv11";
   }
 
@@ -206,45 +66,49 @@
   }
 }
 
-/* Base UI Components - Compact */
+/* Base UI Components - Grafana Style */
 .card-base {
-  @apply bg-[#131722] border border-[#2a2e39] rounded transition-colors duration-200 relative overflow-hidden;
+  @apply bg-grafana-panel border border-grafana-border rounded-sm transition-colors duration-200 relative overflow-hidden;
 }
 
 .card-base:hover {
-  @apply border-[#363a45];
+  @apply border-grafana-text-secondary/50;
 }
 
 /* Compact Technical Typography */
 .text-tech-label {
-  @apply text-[8px] font-bold text-slate-500 tracking-[0.15em];
+  @apply text-[10px] font-bold text-grafana-text-secondary tracking-wider uppercase font-mono;
 }
 
 .text-tech-value {
-  @apply text-lg font-bold tracking-tight text-white tabular-nums;
+  @apply text-xl font-bold tracking-tight text-grafana-text-primary tabular-nums font-mono;
 }
 
 .status-indicator {
-  @apply w-1.5 h-1.5 rounded-full;
+  @apply w-2 h-2 rounded-full shadow-[0_0_8px_rgba(0,0,0,0.5)];
 }
 
 /* Technical Grid Decorator */
 .dot-bg {
-  background-image: radial-gradient(circle at 1px 1px, rgba(255, 255, 255, 0.03) 1px, transparent 0);
-  background-size: 24px 24px;
+  background-image: radial-gradient(circle at 1px 1px, var(--color-grafana-grid) 1px, transparent 0);
+  background-size: 32px 32px;
 }
 
-/* Data Table - Compact */
+/* Data Table - Technical Grid */
 .scada-table {
-  @apply w-full text-left border-collapse;
+  @apply w-full text-left border-collapse font-sans;
 }
 
 .scada-table th {
-  @apply px-3 py-2 text-[9px] font-bold text-slate-500 tracking-widest border-b border-border bg-muted/50;
+  @apply px-4 py-2 text-[11px] font-bold text-grafana-text-secondary tracking-widest border-b border-grafana-border bg-grafana-bg/80 sticky top-0;
 }
 
 .scada-table td {
-  @apply px-3 py-2 text-xs border-b border-border/50 align-middle;
+  @apply px-4 py-3 text-sm border-b border-grafana-border/30 align-middle text-grafana-text-primary;
+}
+
+.scada-table tr:hover td {
+  @apply bg-grafana-panel/50;
 }
 
 /* Status Indicator */
@@ -268,16 +132,12 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #CBD5E1;
+  background: #262626;
   border-radius: 20px;
 }
 
-.dark ::-webkit-scrollbar-thumb {
-  background: #334155;
-}
-
 ::-webkit-scrollbar-thumb:hover {
-  background: #00754A;
+  background: #5794f2;
 }
 
 /* Viewport helper */
@@ -285,118 +145,30 @@
   @apply h-[calc(100vh-2.5rem)] overflow-y-auto overflow-x-hidden;
 }
 
-/* 
-  ========================================
-  LEAFLET & GEOSEARCH DARK THEME 
-  ========================================
-*/
+/* Leaflet Dark Theme */
 .leaflet-container {
-  background: #020617 !important;
+  background: #0b0c0e !important;
   font-family: inherit !important;
 }
 
-.leaflet-geosearch-bar {
-  z-index: 1000 !important;
-  position: absolute !important;
-  top: 10px !important;
-  left: 50px !important;
-  right: 10px !important;
-  width: auto !important;
-}
-
-.leaflet-geosearch-bar form {
-  background-color: #0f172a !important;
-  border: 1px solid rgba(255, 255, 255, 0.1) !important;
-  border-radius: 12px !important;
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -2px rgba(0, 0, 0, 0.2) !important;
-  padding: 4px 8px !important;
-  transition: all 0.2s ease !important;
-}
-
-.leaflet-geosearch-bar form:focus-within {
-  border-color: #10b981 !important;
-  box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.1) !important;
-}
-
-.leaflet-geosearch-bar form input {
-  color: white !important;
-  background: transparent !important;
-  font-size: 14px !important;
-  height: 40px !important;
-  padding-left: 10px !important;
-  width: 100% !important;
-}
-
-.leaflet-control-zoom {
-  border: none !important;
-  margin-top: 10px !important;
-  margin-left: 14px !important;
-}
-
 .leaflet-control-zoom a {
-  background-color: #0f172a !important;
-  color: white !important;
-  border: 1px solid rgba(255, 255, 255, 0.1) !important;
-  border-radius: 10px !important;
-  margin-bottom: 6px !important;
-  width: 32px !important;
-  height: 32px !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  transition: all 0.2s ease !important;
+  background-color: #141619 !important;
+  color: #d8d9da !important;
+  border: 1px solid #262626 !important;
+  border-radius: 2px !important;
 }
 
 .leaflet-control-zoom a:hover {
-  background-color: #1e293b !important;
-  color: #10b981 !important;
-}
-
-.leaflet-geosearch-results {
-  background-color: rgba(15, 23, 42, 0.95) !important;
-  backdrop-filter: blur(12px) !important;
-  color: #94a3b8 !important;
-  border: 1px solid rgba(255, 255, 255, 0.1) !important;
-  border-radius: 14px !important;
-  margin-top: 10px !important;
-  overflow: hidden !important;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5) !important;
-}
-
-.leaflet-geosearch-results>* {
-  padding: 12px 16px !important;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
-  font-size: 13px !important;
-  cursor: pointer !important;
-  transition: all 0.15s ease !important;
-}
-
-.leaflet-geosearch-results>.active,
-.leaflet-geosearch-results> :hover {
-  background-color: rgba(30, 41, 59, 0.8) !important;
-  color: #10b981 !important;
-  padding-left: 20px !important;
-}
-
-.leaflet-bar {
-  border: none !important;
-  box-shadow: none !important;
+  background-color: #262626 !important;
+  color: #5794f2 !important;
 }
 
 /* Entry Animations */
 @keyframes animateInFade {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-.animate-in-up {
-  animation: animateInUp 0.6s ease-out forwards;
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 .animate-in-fade {
-  animation: animateInFade 0.6s ease-out forwards;
+  animation: animateInFade 0.4s ease-out forwards;
 }

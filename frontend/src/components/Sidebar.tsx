@@ -4,7 +4,8 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
     LayoutDashboard, BarChart3, Cpu, AlertTriangle, ShieldCheck, Terminal,
-    Settings, Activity, LogOut, Factory, Building2, Network, Layers, FileText, Database
+    Settings, Activity, LogOut, Factory, Building2, Network, FileText, Database,
+    Server, Activity as PulseIcon, ChevronRight
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/context/AuthContext';
@@ -12,44 +13,41 @@ import { cn } from '../lib/utils';
 
 const MENU_GROUPS = [
     {
-        label: 'Admin',
+        label: 'İzleme',
+        items: [
+            { name: 'Panel', href: '/', icon: LayoutDashboard },
+            { name: 'Analiz', href: '/analytics', icon: BarChart3 },
+            { name: 'Canlı Yayın', href: '/monitoring/live', icon: PulseIcon },
+            { name: 'Alarmlar', href: '/alarms', icon: AlertTriangle },
+        ]
+    },
+    {
+        label: 'Altyapı',
         adminOnly: true,
         items: [
-            { name: 'Companies', href: '/admin/companies', icon: Building2 },
-            { name: 'Users', href: '/admin/users', icon: ShieldCheck },
-            { name: 'System Control', href: '/admin/system', icon: Layers },
-            { name: 'YTBS Sync', href: '/admin/ytbs', icon: Database },
+            { name: 'Santraller', href: '/plants', icon: Factory },
+            { name: 'Cihazlar', href: '/devices', icon: Cpu },
+            { name: 'Protokoller', href: '/protocols', icon: Network },
+            { name: 'Veri Şemaları', href: '/datasheets', icon: FileText },
         ]
     },
     {
-        label: 'Infrastructure',
+        label: 'Yapılandırma',
+        adminOnly: true,
         items: [
-            { name: 'Plants', href: '/plants', icon: Factory },
-            { name: 'Protocols', href: '/protocols', icon: Network },
-            { name: 'Datasheets', href: '/datasheets', icon: FileText },
+            { name: 'Kurumlar', href: '/admin/companies', icon: Building2 },
+            { name: 'Kullanıcı Yönetimi', href: '/admin/users', icon: ShieldCheck },
+            { name: 'YTBS Ayarları', href: '/admin/ytbs', icon: Database },
         ]
     },
     {
-        label: 'Operations',
+        label: 'Sistem Yönetimi',
+        adminOnly: true,
         items: [
-            { name: 'Devices', href: '/devices', icon: Cpu },
-            { name: 'Alarms', href: '/alarms', icon: AlertTriangle },
-        ]
-    },
-    {
-        label: 'Monitoring',
-        items: [
-            { name: 'Dashboard', href: '/', icon: LayoutDashboard },
-            { name: 'Live', href: '/monitoring/live', icon: Activity },
-        ]
-    },
-    {
-        label: 'System',
-        items: [
-            { name: 'Database', href: '/database', icon: Database },
-            { name: 'Modbus', href: '/admin/modbus-test', icon: Terminal, adminOnly: true },
-            { name: 'IEC104', href: '/admin/iec104-test', icon: Terminal, adminOnly: true },
-            { name: 'Settings', href: '/settings', icon: Settings },
+            { name: 'Sistem Sağlığı', href: '/admin/system', icon: Server },
+            { name: 'Modbus Testi', href: '/admin/modbus-test', icon: Terminal },
+            { name: 'IEC104 Testi', href: '/admin/iec104-test', icon: Terminal },
+            { name: 'Platform Ayarları', href: '/settings', icon: Settings },
         ]
     }
 ];
@@ -58,60 +56,38 @@ export default function Sidebar() {
     const pathname = usePathname();
     const { logout, user } = useAuth();
 
-    const isCustomer = pathname?.startsWith('/customer');
-
-    if (user?.role === 'NORMAL_USER' && !isCustomer) return null;
+    const isAdmin = user?.role === 'SUPER_ADMIN' || user?.role === 'COMPANY_ADMIN';
 
     return (
-        <aside className={cn(
-            "w-56 h-screen flex flex-col z-[100] shrink-0 transition-all duration-500",
-            isCustomer 
-                ? "bg-[#f3f4f6] border-r border-[#dfe2e7] text-[#131722]" 
-                : "bg-card border-r border-border"
-        )}>
-            {/* Logo */}
-            <div className={cn(
-                "h-14 flex items-center gap-3 px-4 border-b transition-colors",
-                isCustomer ? "border-[#dfe2e7] bg-white" : "border-border bg-background/50"
-            )}>
-                <div className={cn(
-                    "w-8 h-8 rounded-xl flex items-center justify-center shadow-lg transition-all",
-                    isCustomer ? "bg-[#2962ff] text-white shadow-blue-100" : "bg-brand-green text-white shadow-brand-green/20"
-                )}>
-                    <Activity size={16} strokeWidth={3} />
+        <aside className="w-64 h-screen flex flex-col z-[100] bg-grafana-bg border-r border-grafana-border shrink-0">
+            {/* Brand Logo */}
+            <div className="h-16 flex items-center gap-3 px-6 border-b border-grafana-border bg-grafana-panel/30">
+                <div className="w-9 h-9 rounded bg-grafana-accent-blue flex items-center justify-center shadow-[0_0_15px_rgba(87,148,242,0.3)]">
+                    <Activity size={20} className="text-white" strokeWidth={2.5} />
                 </div>
                 <div className="flex flex-col">
-                    <h1 className={cn(
-                        "text-[13px] font-black tracking-tighter leading-none transition-colors",
-                        isCustomer ? "text-[#131722]" : "text-white"
-                    )}>X-SCADA</h1>
-                    <span className={cn(
-                        "text-[8px] font-black tracking-[0.2em] transition-colors",
-                        isCustomer ? "text-[#2962ff]" : "text-brand-green"
-                    )}>TERMINAL</span>
+                    <h1 className="text-sm font-black tracking-widest text-grafana-text-primary uppercase font-sans">
+                        SCADA<span className="text-grafana-accent-blue">.PRO</span>
+                    </h1>
+                    <span className="text-[9px] font-bold tracking-[0.3em] text-grafana-text-secondary uppercase -mt-0.5 font-mono">
+                        TERMINAL V2
+                    </span>
                 </div>
             </div>
 
-            {/* Nav */}
-            <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-2 custom-scrollbar">
+            {/* Navigation Menu */}
+            <nav className="flex-1 overflow-y-auto py-6 px-4 space-y-8 custom-scrollbar">
                 {MENU_GROUPS.map((group, idx) => {
-                    if (group.adminOnly && user?.role !== 'SUPER_ADMIN' && user?.role !== 'COMPANY_ADMIN') return null;
+                    if (group.adminOnly && !isAdmin) return null;
 
                     return (
-                        <div key={idx} className="mb-6">
-                            <h3 className={cn(
-                                "px-3 text-[9px] font-black uppercase tracking-[0.2em] mb-3 flex items-center gap-2 transition-colors",
-                                isCustomer ? "text-[#787b86]" : "text-foreground/25"
-                            )}>
-                                <span className={cn(
-                                    "w-1 h-1 rounded-full",
-                                    isCustomer ? "bg-[#2962ff]" : "bg-brand-green"
-                                )}></span>
+                        <div key={idx} className="space-y-2">
+                            <h3 className="px-3 text-[10px] font-bold text-grafana-text-secondary uppercase tracking-[0.2em] flex items-center justify-between">
                                 {group.label}
+                                {group.adminOnly && <ShieldCheck size={10} className="text-grafana-accent-orange" />}
                             </h3>
                             <div className="space-y-1">
                                 {group.items.map((item: any) => {
-                                    if (item.adminOnly && user?.role !== 'SUPER_ADMIN' && user?.role !== 'COMPANY_ADMIN') return null;
                                     const isActive = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href));
 
                                     return (
@@ -119,33 +95,25 @@ export default function Sidebar() {
                                             key={item.href}
                                             href={item.href}
                                             className={cn(
-                                                "group flex items-center justify-between px-3 py-2.5 rounded-xl transition-all border",
+                                                "group flex items-center gap-3 px-3 py-2 rounded-sm transition-all relative",
                                                 isActive
-                                                    ? isCustomer 
-                                                        ? "bg-white text-[#2962ff] border-[#dfe2e7] shadow-sm font-black" 
-                                                        : "bg-brand-green/10 text-brand-green border-brand-green/20 font-bold"
-                                                    : isCustomer
-                                                        ? "text-[#787b86] hover:bg-white hover:text-[#131722] border-transparent"
-                                                        : "text-foreground/50 hover:bg-foreground/[0.03] hover:text-foreground border-transparent font-medium"
+                                                    ? "bg-grafana-accent-blue/10 text-grafana-accent-blue border-l-2 border-grafana-accent-blue"
+                                                    : "text-grafana-text-secondary hover:bg-grafana-panel hover:text-grafana-text-primary border-l-2 border-transparent"
                                             )}
                                         >
-                                            <div className="flex items-center gap-3">
-                                                <item.icon size={16} className={cn(
-                                                    "transition-colors",
-                                                    isActive 
-                                                        ? isCustomer ? "text-[#2962ff]" : "text-brand-green" 
-                                                        : isCustomer ? "text-[#787b86] group-hover:text-[#2962ff]" : "text-foreground/30 group-hover:text-brand-green/70"
-                                                )} />
-                                                <span className="text-[11px] font-bold">{item.name}</span>
-                                            </div>
+                                            <item.icon size={18} className={cn(
+                                                "transition-colors",
+                                                isActive ? "text-grafana-accent-blue" : "group-hover:text-grafana-text-primary"
+                                            )} />
+                                            <span className="text-[13px] font-medium font-sans">{item.name}</span>
+                                            
                                             {isActive && (
-                                                <motion.div 
-                                                    layoutId="active-indicator" 
-                                                    className={cn(
-                                                        "w-1 h-4 rounded-full shadow-lg",
-                                                        isCustomer ? "bg-[#2962ff] shadow-blue-100" : "bg-brand-green shadow-emerald-100"
-                                                    )} 
-                                                />
+                                                <motion.div
+                                                    layoutId="active-indicator"
+                                                    className="absolute right-2"
+                                                >
+                                                    <ChevronRight size={14} />
+                                                </motion.div>
                                             )}
                                         </Link>
                                     );
@@ -156,52 +124,37 @@ export default function Sidebar() {
                 })}
             </nav>
 
-            {/* Footer */}
-            <div className={cn(
-                "p-3 border-t transition-colors",
-                isCustomer ? "border-[#dfe2e7] bg-white" : "border-border bg-background/30"
-            )}>
-                <div className={cn(
-                    "mb-3 px-3 py-3 rounded-2xl border transition-all",
-                    isCustomer ? "bg-[#f3f4f6] border-[#dfe2e7]" : "bg-white/5 border-border/50"
-                )}>
-                    <div className="flex items-center gap-3">
-                        <div className={cn(
-                            "w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-black shadow-sm",
-                            isCustomer ? "bg-white text-[#131722] border border-[#dfe2e7]" : "bg-background border border-border text-white"
-                        )}>
-                            {user?.name?.substring(0, 2).toUpperCase() || 'OP'}
-                        </div>
-                        <div className="flex flex-col min-w-0">
-                            <span className={cn(
-                                "text-[11px] font-black truncate leading-none",
-                                isCustomer ? "text-[#131722]" : "text-white"
-                            )}>{user?.name || 'Operator'}</span>
-                            <span className={cn(
-                                "text-[8px] font-black uppercase tracking-widest mt-1",
-                                isCustomer ? "text-[#2962ff]" : "text-foreground/40"
-                            )}>{user?.role || 'GUEST'}</span>
+            {/* Profile & Logout */}
+            <div className="p-4 border-t border-grafana-border bg-grafana-panel/20">
+                <div className="flex items-center gap-3 px-2 py-3 mb-4 rounded-sm bg-grafana-bg border border-grafana-border/50">
+                    <div className="w-10 h-10 rounded-sm bg-grafana-panel flex items-center justify-center text-xs font-bold text-grafana-text-primary border border-grafana-border">
+                        {user?.name?.substring(0, 2).toUpperCase() || 'OP'}
+                    </div>
+                    <div className="flex flex-col min-w-0">
+                        <span className="text-[12px] font-bold text-grafana-text-primary truncate font-sans">
+                            {user?.name || 'Operator'}
+                        </span>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                            <div className={cn(
+                                "w-1.5 h-1.5 rounded-full",
+                                isAdmin ? "bg-grafana-accent-orange" : "bg-grafana-accent-green"
+                            )} />
+                            <span className="text-[9px] font-bold text-grafana-text-secondary uppercase tracking-wider font-mono">
+                                {user?.role === 'SUPER_ADMIN' ? 'KÖK ADMİN' : user?.role === 'COMPANY_ADMIN' ? 'KURUM ADMİNİ' : 'OPERATÖR'}
+                            </span>
                         </div>
                     </div>
                 </div>
+                
                 <button
                     onClick={logout}
-                    className={cn(
-                        "w-full h-9 flex items-center justify-center gap-2 rounded-xl transition-all text-[10px] font-black tracking-widest border",
-                        isCustomer 
-                            ? "text-[#787b86] hover:bg-rose-50 hover:text-rose-600 border-transparent" 
-                            : "text-foreground/40 hover:bg-red-500 hover:text-white border-transparent"
-                    )}
+                    className="w-full h-10 flex items-center justify-center gap-2 rounded-sm border border-grafana-accent-red/20 text-grafana-accent-red hover:bg-grafana-accent-red hover:text-white transition-all text-[11px] font-bold tracking-widest uppercase font-mono"
                 >
                     <LogOut size={14} />
-                    SIGN OUT
+                    Güvenli Çıkış
                 </button>
             </div>
-            <style jsx>{`
-                .custom-scrollbar::-webkit-scrollbar { width: 3px; }
-                .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-                .custom-scrollbar::-webkit-scrollbar-thumb { background: ${isCustomer ? '#dfe2e7' : '#2a2e39'}; border-radius: 10px; }
-            `}</style>
         </aside>
     );
 }
+

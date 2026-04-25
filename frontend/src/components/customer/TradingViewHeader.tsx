@@ -1,7 +1,8 @@
 "use client";
 
 import React from 'react';
-import { Database, Maximize2, Settings2, Info } from 'lucide-react';
+import { Database, Maximize2, Settings2, Info, Activity, Clock, Zap } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface HeaderProps {
     plants: any[];
@@ -31,28 +32,33 @@ export default function TradingViewHeader({
     setSidebarOpen
 }: HeaderProps) {
     return (
-        <header className="h-12 flex items-center justify-between border-b border-[#dfe2e7] px-3 shrink-0 bg-white z-40 relative">
-            <div className="flex items-center gap-4">
-                <div className="flex items-center gap-2 pr-4 border-r border-[#dfe2e7]">
-                    <div className="w-7 h-7 rounded-lg bg-[#2962ff] flex items-center justify-center text-white">
-                        <Database size={14} />
+        <header className="h-12 flex items-center justify-between border-b border-grafana-border px-4 shrink-0 bg-grafana-panel/80 z-40 relative backdrop-blur-md">
+            <div className="flex items-center gap-6">
+                <div className="flex items-center gap-3 pr-6 border-r border-grafana-border/50">
+                    <div className="w-8 h-8 rounded-sm bg-grafana-bg border border-grafana-border flex items-center justify-center text-grafana-accent-blue shadow-inner">
+                        <Database size={16} />
                     </div>
                     <div className="flex flex-col">
-                        <span className="text-[11px] font-black tracking-tight text-[#131722] leading-none uppercase">
-                            {plants.find(p => p.id === selectedPlantId)?.plantName || 'TESİS'} 
+                        <span className="text-[11px] font-bold tracking-tight text-white leading-none uppercase font-mono">
+                            {plants.find(p => p.id === selectedPlantId)?.plantName || 'TESİS YOK'} 
                         </span>
-                        <span className="text-[8px] text-[#2962ff] font-black uppercase tracking-tighter">
-                            {devices.find(d => d.id === selectedDeviceId)?.deviceName || 'CİHAZ'}
+                        <span className="text-[9px] text-grafana-accent-blue font-bold uppercase tracking-widest font-mono mt-1">
+                            {devices.find(d => d.id === selectedDeviceId)?.deviceName || 'İSTASYON YOK'}
                         </span>
                     </div>
                 </div>
                 
-                <nav className="flex items-center h-full gap-0.5">
+                <nav className="flex items-center h-full gap-1">
                     {Object.keys(titleMap).map((tab) => (
                         <button
                             key={tab}
                             onClick={() => setActiveTab(tab)}
-                            className={`px-3 h-8 rounded-md flex items-center text-[10px] font-black uppercase tracking-tight transition-all hover:bg-[#f0f3fa] ${activeTab === tab ? 'text-[#2962ff] bg-blue-50' : 'text-[#787b86]'}`}
+                            className={cn(
+                                "px-4 h-8 rounded-sm flex items-center text-[10px] font-bold uppercase tracking-widest transition-all font-mono",
+                                activeTab === tab 
+                                    ? "text-white bg-grafana-accent-blue/10 border border-grafana-accent-blue/20" 
+                                    : "text-grafana-text-secondary hover:text-white hover:bg-grafana-panel"
+                            )}
                         >
                             {titleMap[tab]}
                         </button>
@@ -60,32 +66,45 @@ export default function TradingViewHeader({
                 </nav>
             </div>
 
-            <div className="flex items-center gap-3">
-                <div className="flex bg-[#f0f3fa] p-0.5 rounded-lg border border-[#dfe2e7]">
+            <div className="flex items-center gap-4">
+                <div className="flex bg-grafana-bg p-0.5 rounded-sm border border-grafana-border">
                     <button 
                         onClick={() => setHistoricalMode(false)}
-                        className={`px-4 py-1.5 text-[9px] font-black uppercase rounded-md transition-all ${!isHistoricalMode ? 'bg-white text-[#2962ff] shadow-sm' : 'text-[#787b86] hover:text-[#131722]'}`}
+                        className={cn(
+                            "px-5 py-1.5 text-[9px] font-bold uppercase rounded-sm transition-all font-mono tracking-widest",
+                            !isHistoricalMode 
+                                ? "bg-grafana-panel text-grafana-accent-green shadow-inner" 
+                                : "text-grafana-text-secondary hover:text-white"
+                        )}
                     >
-                        CANLI
+                        CANLI AKIŞ
                     </button>
                     <button 
                         onClick={() => setHistoricalMode(true)}
-                        className={`px-4 py-1.5 text-[9px] font-black uppercase rounded-md transition-all ${isHistoricalMode ? 'bg-white text-[#2962ff] shadow-sm' : 'text-[#787b86] hover:text-[#131722]'}`}
+                        className={cn(
+                            "px-5 py-1.5 text-[9px] font-bold uppercase rounded-sm transition-all font-mono tracking-widest",
+                            isHistoricalMode 
+                                ? "bg-grafana-panel text-grafana-accent-blue shadow-inner" 
+                                : "text-grafana-text-secondary hover:text-white"
+                        )}
                     >
                         GEÇMİŞ
                     </button>
                 </div>
                 
-                <div className="flex items-center gap-1 border-l border-[#dfe2e7] pl-3">
-                    <button className="p-2 hover:bg-[#f0f3fa] rounded-lg text-[#787b86] hover:text-[#2962ff] transition-all">
+                <div className="flex items-center gap-1 border-l border-grafana-border pl-4">
+                    <button className="p-2 text-grafana-text-secondary hover:text-white transition-colors">
                         <Maximize2 size={16} />
                     </button>
-                    <button className="p-2 hover:bg-[#f0f3fa] rounded-lg text-[#787b86] hover:text-[#2962ff] transition-all">
+                    <button className="p-2 text-grafana-text-secondary hover:text-white transition-colors">
                         <Settings2 size={16} />
                     </button>
                     <button 
                         onClick={() => setSidebarOpen(!sidebarOpen)}
-                        className={`p-2 rounded-lg transition-all ${sidebarOpen ? 'bg-blue-50 text-[#2962ff]' : 'text-[#787b86] hover:bg-[#f0f3fa]'}`}
+                        className={cn(
+                            "p-2 rounded-sm transition-all",
+                            sidebarOpen ? "text-grafana-accent-blue bg-grafana-accent-blue/10" : "text-grafana-text-secondary hover:text-white"
+                        )}
                     >
                         <Info size={16} />
                     </button>

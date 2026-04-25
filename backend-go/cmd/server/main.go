@@ -67,6 +67,7 @@ func main() {
 
 	// Initialize API
 	r := gin.New()
+	r.Use(gin.Logger())
 	r.Use(gin.Recovery())
 
 	// CORS Setup
@@ -92,7 +93,7 @@ func main() {
 		{
 			// Management routes (ADMIN ONLY)
 			mgmt := protected.Group("/")
-			mgmt.Use(middleware.RoleMiddleware("ADMIN"))
+			mgmt.Use(middleware.RoleMiddleware("SUPER_ADMIN", "COMPANY_ADMIN"))
 			{
 				mgmt.GET("/plants", handlers.GetPlants)
 				mgmt.POST("/plants", handlers.CreatePlant)

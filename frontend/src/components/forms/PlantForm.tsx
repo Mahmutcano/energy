@@ -1,9 +1,13 @@
-import React, { useState } from 'react';
+"use client";
+
+import React, { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
+import { MapPin, Building2, Cpu, Zap, Wind, Waves, ShieldCheck, Terminal } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 const LocationPicker = dynamic(() => import('@/components/LocationPicker'), {
     ssr: false,
-    loading: () => <div className="h-[300px] w-full bg-slate-900 animate-pulse rounded-xl border border-slate-800" />
+    loading: () => <div className="h-[400px] w-full bg-grafana-panel/20 animate-pulse rounded-sm border border-grafana-border" />
 });
 
 export interface PlantFormData {
@@ -43,8 +47,7 @@ export default function PlantForm({
         canSendYtbs: initialData?.canSendYtbs || false,
     });
 
-    // Sync state with initialData when it changes (important for Modal reuse)
-    React.useEffect(() => {
+    useEffect(() => {
         if (initialData) {
             setFormData({
                 companyId: initialData.companyId || '',
@@ -64,24 +67,38 @@ export default function PlantForm({
     };
 
     return (
-        <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="flex flex-col lg:grid lg:grid-cols-12 gap-6 min-h-[450px]">
+        <form onSubmit={handleSubmit} className="space-y-8">
+            <div className="flex flex-col lg:grid lg:grid-cols-12 gap-8 min-h-[500px]">
                 {/* Left Side: Map Picker */}
-                <div className="lg:col-span-7 flex flex-col gap-3 h-full min-h-[350px]">
-                    <div className="flex items-center justify-between">
-                        <label className="text-xs font-bold text-slate-400 tracking-widest uppercase">Plant Location</label>
-                        <span className="text-[10px] text-slate-500 font-medium">Search or click to pick</span>
+                <div className="lg:col-span-7 flex flex-col gap-4 h-full min-h-[400px]">
+                    <div className="flex items-center justify-between px-1">
+                        <div className="flex items-center gap-2">
+                            <MapPin size={14} className="text-grafana-accent-blue" />
+                            <label className="text-[10px] font-bold text-grafana-text-secondary tracking-[0.2em] uppercase font-mono">GEO_SPATIAL_COORDINATES</label>
+                        </div>
+                        <span className="text-[9px] text-grafana-accent-blue font-bold font-mono uppercase tracking-widest animate-pulse">Awaiting_Selection...</span>
                     </div>
-                    <LocationPicker
-                        initialPos={formData.latitude && formData.longitude ? [parseFloat(formData.latitude), parseFloat(formData.longitude)] : undefined}
-                        onLocationSelect={(lat, lng) => setFormData({ ...formData, latitude: lat.toString(), longitude: lng.toString() })}
-                    />
+                    <div className="flex-1 rounded-sm border border-grafana-border overflow-hidden shadow-2xl relative group">
+                        <LocationPicker
+                            initialPos={formData.latitude && formData.longitude ? [parseFloat(formData.latitude), parseFloat(formData.longitude)] : undefined}
+                            onLocationSelect={(lat, lng) => setFormData({ ...formData, latitude: lat.toString(), longitude: lng.toString() })}
+                        />
+                        <div className="absolute top-4 right-4 z-[1000] p-3 bg-grafana-panel/90 backdrop-blur-md border border-grafana-border rounded-sm shadow-2xl pointer-events-none group-hover:opacity-100 opacity-0 transition-opacity">
+                            <div className="space-y-1">
+                                <p className="text-[8px] font-bold text-grafana-text-secondary uppercase font-mono">LAT: <span className="text-white">{formData.latitude || '0.0000'}</span></p>
+                                <p className="text-[8px] font-bold text-grafana-text-secondary uppercase font-mono">LNG: <span className="text-white">{formData.longitude || '0.0000'}</span></p>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 {/* Right Side: Form Details */}
-                <div className="lg:col-span-5 flex flex-col gap-5">
-                    <div className="space-y-2">
-                        <label className="text-xs font-bold text-slate-400 tracking-widest uppercase">Company</label>
+                <div className="lg:col-span-5 flex flex-col gap-6">
+                    <div className="space-y-2.5">
+                        <label className="flex items-center gap-2 text-[10px] font-bold text-grafana-text-secondary tracking-[0.2em] uppercase font-mono ml-1">
+                            <Building2 size={12} />
+                            ORG_REGISTRY
+                        </label>
                         <select
                             value={formData.companyId}
                             onChange={(e) => {
@@ -91,85 +108,85 @@ export default function PlantForm({
                                     setFormData({ ...formData, companyId: e.target.value });
                                 }
                             }}
-                            className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none transition-all"
+                            className="w-full h-12 bg-grafana-bg border border-grafana-border rounded-sm px-4 text-xs font-bold text-white outline-none focus:border-grafana-accent-blue/50 focus:bg-grafana-panel/50 transition-all font-mono appearance-none cursor-pointer"
                             required
                         >
-                            <option value="">Select Company...</option>
+                            <option value="" className="bg-grafana-bg text-grafana-text-secondary">SELECT_ENTITY_CLUSTER</option>
                             {companies.map(c => (
-                                <option key={c.id} value={c.id}>{c.name}</option>
+                                <option key={c.id} value={c.id} className="bg-grafana-bg">{c.name.toUpperCase()}</option>
                             ))}
                             {onAddNewCompany && (
-                                <option value="ADD_NEW" className="font-bold text-brand-green bg-brand-green/10">
-                                    + Add New Company
+                                <option value="ADD_NEW" className="bg-grafana-accent-blue/20 text-grafana-accent-blue font-bold">
+                                    + ADD_NEW_REGISTRY
                                 </option>
                             )}
                         </select>
                     </div>
 
-                    <div className="space-y-2">
-                        <label className="text-xs font-bold text-slate-400 tracking-widest uppercase">Plant Name</label>
+                    <div className="space-y-2.5">
+                        <label className="flex items-center gap-2 text-[10px] font-bold text-grafana-text-secondary tracking-[0.2em] uppercase font-mono ml-1">
+                            <Cpu size={12} />
+                            NODE_IDENTIFIER
+                        </label>
                         <input
                             type="text"
                             value={formData.plantName}
                             onChange={(e) => setFormData({ ...formData, plantName: e.target.value })}
-                            className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none transition-all"
-                            placeholder="e.g. Solar Plant Alpha"
+                            className="w-full h-12 bg-grafana-bg border border-grafana-border rounded-sm px-4 text-xs font-bold text-white outline-none focus:border-grafana-accent-blue/50 focus:bg-grafana-panel/50 transition-all font-mono placeholder:text-grafana-text-secondary/20"
+                            placeholder="OPERATIONAL_NAME_STRING"
                             required
                         />
                     </div>
 
-                    <div className="space-y-2">
-                        <label className="text-xs font-bold text-slate-400 tracking-widest uppercase">Type</label>
-                        <select
-                            value={formData.plantType}
-                            onChange={(e) => setFormData({ ...formData, plantType: e.target.value as any })}
-                            className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none transition-all"
-                            required
-                        >
-                            <option value="SOLAR">Solar Power</option>
-                            <option value="WIND">Wind Farm</option>
-                            <option value="HYDRO">Hydroelectric</option>
-                        </select>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                            <label className="text-[10px] font-bold text-slate-500 tracking-widest uppercase ml-1">Latitude</label>
-                            <input
-                                type="number"
-                                step="any"
-                                value={formData.latitude}
-                                onChange={(e) => setFormData({ ...formData, latitude: e.target.value })}
-                                className="w-full px-4 py-2.5 bg-slate-900/50 border border-slate-800 rounded-xl text-xs text-white focus:border-brand-green/50 outline-none tabular-nums transition-all"
-                                placeholder="38.4237"
-                            />
-                        </div>
-                        <div className="space-y-2">
-                            <label className="text-[10px] font-bold text-slate-500 tracking-widest uppercase ml-1">Longitude</label>
-                            <input
-                                type="number"
-                                step="any"
-                                value={formData.longitude}
-                                onChange={(e) => setFormData({ ...formData, longitude: e.target.value })}
-                                className="w-full px-4 py-2.5 bg-slate-900/50 border border-slate-800 rounded-xl text-xs text-white focus:border-brand-green/50 outline-none tabular-nums transition-all"
-                                placeholder="27.1428"
-                            />
+                    <div className="space-y-2.5">
+                        <label className="flex items-center gap-2 text-[10px] font-bold text-grafana-text-secondary tracking-[0.2em] uppercase font-mono ml-1">
+                            {formData.plantType === 'SOLAR' && <Zap size={12} className="text-grafana-accent-orange" />}
+                            {formData.plantType === 'WIND' && <Wind size={12} className="text-grafana-accent-blue" />}
+                            {formData.plantType === 'HYDRO' && <Waves size={12} className="text-grafana-accent-green" />}
+                            POWER_GENERATION_MODE
+                        </label>
+                        <div className="grid grid-cols-3 gap-2">
+                            {(['SOLAR', 'WIND', 'HYDRO'] as const).map((type) => (
+                                <button
+                                    key={type}
+                                    type="button"
+                                    onClick={() => setFormData({ ...formData, plantType: type })}
+                                    className={cn(
+                                        "py-3 border rounded-sm text-[9px] font-bold uppercase font-mono transition-all tracking-widest",
+                                        formData.plantType === type 
+                                            ? "bg-grafana-accent-blue/10 border-grafana-accent-blue text-white shadow-[0_0_15px_rgba(87,148,242,0.1)]" 
+                                            : "bg-grafana-bg border-grafana-border text-grafana-text-secondary hover:border-grafana-text-secondary/50"
+                                    )}
+                                >
+                                    {type}
+                                </button>
+                            ))}
                         </div>
                     </div>
 
-                    <div className="space-y-4 border-t border-slate-800/40 pt-4">
-                        <div className="space-y-2">
-                            <label className="text-xs font-bold text-slate-400 tracking-widest uppercase">YTBS Code</label>
+                    <div className="space-y-6 pt-4 border-t border-grafana-border/50 mt-2">
+                        <div className="space-y-2.5">
+                            <label className="flex items-center gap-2 text-[10px] font-bold text-grafana-text-secondary tracking-[0.2em] uppercase font-mono ml-1">
+                                <Terminal size={12} />
+                                YTBS_IDENT_KEY
+                            </label>
                             <input
                                 type="text"
                                 value={formData.ytbsCode}
                                 onChange={(e) => setFormData({ ...formData, ytbsCode: e.target.value })}
-                                className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none transition-all placeholder:text-slate-600"
-                                placeholder="YTBS Identification Code"
+                                className="w-full h-12 bg-grafana-bg border border-grafana-border rounded-sm px-4 text-xs font-bold text-white outline-none focus:border-grafana-accent-blue/50 focus:bg-grafana-panel/50 transition-all font-mono placeholder:text-grafana-text-secondary/20"
+                                placeholder="PROTOCOL_HEX_IDENT"
                             />
                         </div>
 
-                        <label className="flex items-center gap-3 group cursor-pointer p-3 bg-slate-900/30 border border-slate-800/50 rounded-xl hover:bg-slate-900/50 transition-all">
+                        <label className="flex items-center justify-between p-4 bg-grafana-panel/30 border border-grafana-border rounded-sm hover:border-grafana-accent-blue/30 transition-all cursor-pointer group">
+                            <div className="flex flex-col gap-1">
+                                <div className="flex items-center gap-2">
+                                    <ShieldCheck size={14} className={formData.canSendYtbs ? "text-grafana-accent-green" : "text-grafana-text-secondary"} />
+                                    <span className="text-[10px] font-bold text-white uppercase tracking-widest font-mono group-hover:text-grafana-accent-blue transition-colors">DATA_EMISSION_PROTOCOL</span>
+                                </div>
+                                <span className="text-[8px] text-grafana-text-secondary uppercase font-mono">Allow this node to broadcast telemetry</span>
+                            </div>
                             <div className="relative flex items-center">
                                 <input
                                     type="checkbox"
@@ -177,11 +194,7 @@ export default function PlantForm({
                                     onChange={(e) => setFormData({ ...formData, canSendYtbs: e.target.checked })}
                                     className="peer sr-only"
                                 />
-                                <div className="w-10 h-6 bg-slate-800 rounded-full peer peer-checked:bg-brand-green/30 transition-all after:content-[''] after:absolute after:top-1 after:left-1 after:bg-slate-600 after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-4 peer-checked:after:bg-brand-green"></div>
-                            </div>
-                            <div className="flex flex-col">
-                                <span className="text-xs font-bold text-slate-300 group-hover:text-white transition-colors">YTBS Data Emission</span>
-                                <span className="text-[10px] text-slate-500">Allow this plant to send data to YTBS</span>
+                                <div className="w-12 h-6 bg-grafana-bg border border-grafana-border rounded-full peer peer-checked:bg-grafana-accent-green/20 transition-all after:content-[''] after:absolute after:top-1 after:left-1 after:bg-grafana-text-secondary after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-6 peer-checked:after:bg-grafana-accent-green"></div>
                             </div>
                         </label>
                     </div>
@@ -190,9 +203,16 @@ export default function PlantForm({
                         <button
                             type="submit"
                             disabled={isSubmitting}
-                            className="w-full py-4 bg-brand-green disabled:bg-brand-green/50 text-white font-bold tracking-widest text-xs rounded-xl shadow-lg shadow-brand-green/20 hover:scale-[1.01] active:scale-[0.99] transition-all uppercase mt-2"
+                            className="w-full h-14 bg-grafana-accent-blue disabled:opacity-50 text-white font-black tracking-[0.3em] text-xs rounded-sm shadow-2xl hover:scale-[1.02] active:scale-[0.98] transition-all uppercase flex items-center justify-center gap-3 font-mono"
                         >
-                            {isSubmitting ? 'Saving...' : submitLabel}
+                            {isSubmitting ? (
+                                <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                            ) : (
+                                <>
+                                    {submitLabel.toUpperCase()}
+                                    <Terminal size={16} />
+                                </>
+                            )}
                         </button>
                     </div>
                 </div>

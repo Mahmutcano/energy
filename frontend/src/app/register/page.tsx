@@ -4,8 +4,9 @@ import { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Activity, Mail, Lock, User, PlusCircle, ArrowRight, ShieldCheck } from 'lucide-react';
+import { Activity, Mail, Lock, User, ArrowRight, ShieldCheck, Database, Server } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { cn } from '@/lib/utils';
 
 export default function RegisterPage() {
     const [name, setName] = useState('');
@@ -25,32 +26,33 @@ export default function RegisterPage() {
             await register(name, email, password);
             router.push('/');
         } catch (err: any) {
-            setError(err.message || 'Kayıt işlemi başarısız. Lütfen bilgilerinizi kontrol edin.');
+            setError(err.message || 'Registration failed. Please check your inputs.');
         } finally {
             setLoading(false);
         }
     };
 
     return (
-        <div className="min-h-screen w-full flex bg-slate-950 font-sans selection:bg-brand-green/20 relative overflow-hidden">
+        <div className="min-h-screen w-full flex bg-grafana-bg font-sans selection:bg-grafana-accent-blue/20 relative overflow-hidden">
             {/* Ambient Background Elements */}
-            <div className="absolute top-0 right-0 w-full h-full bg-[radial-gradient(circle_at_80%_20%,rgba(16,185,129,0.05),transparent_40%)] pointer-events-none"></div>
-            <div className="absolute bottom-0 left-0 w-full h-full bg-[radial-gradient(circle_at_20%_80%,rgba(16,185,129,0.03),transparent_40%)] pointer-events-none"></div>
-            <div className="absolute inset-0 dot-bg opacity-30 pointer-events-none"></div>
+            <div className="absolute top-0 right-0 w-full h-full bg-[radial-gradient(circle_at_80%_20%,rgba(115,191,105,0.03),transparent_40%)] pointer-events-none"></div>
+            <div className="absolute inset-0 dot-bg opacity-20 pointer-events-none"></div>
 
-            {/* Left Branding (Compact for Register) */}
-            <div className="hidden lg:flex w-5/12 flex-col p-24 justify-between relative z-10">
+            {/* Left Branding */}
+            <div className="hidden lg:flex w-5/12 flex-col p-24 justify-between relative z-10 border-r border-grafana-border bg-grafana-panel/10">
                 <motion.div
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
                     className="flex items-center gap-4"
                 >
-                    <div className="p-4 bg-slate-900 border border-slate-800 rounded-2xl shadow-xl">
-                        <Activity size={32} className="text-brand-green" />
+                    <div className="p-4 bg-grafana-panel border border-grafana-border rounded-sm shadow-xl">
+                        <Activity size={32} className="text-grafana-accent-green" />
                     </div>
                     <div>
-                        <h1 className="text-3xl font-black text-white italic tracking-tighter  leading-none">ENERGY</h1>
-                        <span className="text-[10px] font-black text-slate-700 tracking-[0.4em]  mt-1 block">SCADA Platform</span>
+                        <h1 className="text-3xl font-bold text-grafana-text-primary tracking-tighter uppercase font-sans leading-none">
+                            X-SCADA
+                        </h1>
+                        <span className="text-[10px] font-bold text-grafana-accent-green uppercase tracking-[0.4em] mt-1 block font-mono">Registry Node</span>
                     </div>
                 </motion.div>
 
@@ -59,136 +61,131 @@ export default function RegisterPage() {
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.1 }}
-                        className="text-5xl font-black text-white tracking-tight leading-[1.1] italic "
+                        className="text-4xl font-bold text-grafana-text-primary tracking-tight leading-tight uppercase font-sans"
                     >
-                        Join the <br /> <span className="text-brand-green">Industrial Grid.</span>
+                        Initialize Your <br /> <span className="text-grafana-accent-green">Operator Profile.</span>
                     </motion.h2>
-                    <div className="space-y-8">
+                    <div className="space-y-6">
                         {[
-                            { title: 'Global Authentication', desc: 'Secure SSO ready authorization for critical nodes.', icon: ShieldCheck },
-                            { title: 'Role Mapping', desc: 'Precise authorization for various operator levels.', icon: User },
+                            { title: 'Secure Onboarding', desc: 'Enterprise-grade encryption for personnel credentials.', icon: ShieldCheck },
+                            { title: 'Role Distribution', desc: 'Granular access control based on operational duty.', icon: User },
+                            { title: 'Global Sync', desc: 'Instant propagation across all monitoring nodes.', icon: Server },
                         ].map((item, i) => (
                             <motion.div
                                 key={i}
                                 initial={{ opacity: 0, y: 10 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ delay: 0.2 + (i * 0.1) }}
-                                className="flex gap-6 items-start"
+                                className="flex gap-4 items-start"
                             >
-                                <div className="p-3 bg-slate-900 border border-slate-800 rounded-xl text-brand-green">
-                                    <item.icon size={20} />
+                                <div className="p-3 bg-grafana-panel border border-grafana-border rounded-sm text-grafana-accent-green">
+                                    <item.icon size={16} />
                                 </div>
                                 <div className="space-y-1">
-                                    <p className="text-sm font-black text-white  tracking-widest leading-none">{item.title}</p>
-                                    <p className="text-xs text-slate-500 font-medium leading-relaxed max-w-[280px]">{item.desc}</p>
+                                    <p className="text-[11px] font-bold text-grafana-text-primary uppercase tracking-widest font-mono leading-none">{item.title}</p>
+                                    <p className="text-[11px] text-grafana-text-secondary font-mono leading-relaxed max-w-[280px]">{item.desc}</p>
                                 </div>
                             </motion.div>
                         ))}
                     </div>
                 </div>
 
-                <div className="text-[10px] font-black text-slate-800  tracking-[0.5em] italic">
-                    Personnel Management Shell v1.4
+                <div className="text-[9px] font-bold text-grafana-text-secondary/40 uppercase tracking-[0.5em] font-mono">
+                    System Registry v2.0.4
                 </div>
             </div>
 
             {/* Right: Registration Form */}
-            <div className="w-full lg:w-7/12 flex items-center justify-center p-8 relative z-10">
+            <div className="w-full lg:w-7/12 flex items-center justify-center p-8 relative z-10 bg-grafana-panel/20 backdrop-blur-sm">
                 <motion.div
-                    initial={{ opacity: 0, scale: 0.95 }}
+                    initial={{ opacity: 0, scale: 0.98 }}
                     animate={{ opacity: 1, scale: 1 }}
-                    className="w-full max-w-xl"
+                    className="w-full max-w-lg"
                 >
-                    <div className="card-base p-14 bg-slate-900/40 border-slate-800 shadow-2xl backdrop-blur-xl relative overflow-hidden">
-                        <div className="absolute top-0 right-0 p-10 opacity-[0.02] pointer-events-none">
-                            <PlusCircle size={320} />
+                    <div className="bg-grafana-panel border border-grafana-border p-12 rounded-sm shadow-2xl relative overflow-hidden">
+                         {/* Technical corner accents */}
+                        <div className="absolute top-0 right-0 w-12 h-12 border-t border-r border-grafana-accent-green/30 m-2" />
+                        <div className="absolute bottom-0 left-0 w-12 h-12 border-b border-l border-grafana-accent-green/30 m-2" />
+
+                        <div className="mb-10">
+                            <h3 className="text-2xl font-bold text-grafana-text-primary uppercase tracking-[0.2em] mb-2 font-sans">Personnel Enrollment</h3>
+                            <div className="h-px w-16 bg-grafana-accent-green mb-4" />
+                            <p className="text-[10px] font-bold text-grafana-text-secondary uppercase tracking-widest font-mono">Create new operational credentials</p>
                         </div>
 
-                        <div className="space-y-3 mb-12 relative z-10">
-                            <h3 className="text-4xl font-black text-white  tracking-tighter italic">Onboard Personnel</h3>
-                            <div className="flex items-center gap-3">
-                                <span className="text-tech-label text-slate-600 tracking-[0.2em]">Initialize Authorized Operator Profile</span>
-                            </div>
-                        </div>
-
-                        <form onSubmit={handleSubmit} className="space-y-8 relative z-10">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                <div className="space-y-3 group md:col-span-2">
-                                    <label className="text-tech-label ml-1 group-focus-within:text-brand-green transition-colors">Personnel Name</label>
+                        <form onSubmit={handleSubmit} className="space-y-6 relative z-10">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="space-y-2 group md:col-span-2">
+                                    <label className="text-[10px] font-bold text-grafana-text-secondary uppercase tracking-widest font-mono ml-1">Identity Name</label>
                                     <div className="relative">
-                                        <User size={18} className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-700 group-focus-within:text-brand-green transition-all" />
+                                        <User size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-grafana-text-secondary/50 group-focus-within:text-grafana-accent-green transition-colors" />
                                         <input
                                             type="text"
                                             required
                                             value={name}
                                             onChange={(e) => setName(e.target.value)}
-                                            className="w-full h-16 bg-slate-950/50 border border-slate-800 rounded-2xl pl-14 pr-6 text-sm font-black text-white outline-none focus:border-brand-green/30 focus:shadow-[0_0_20px_rgba(16,185,129,0.05)] transition-all placeholder:text-slate-900 tracking-wide"
-                                            placeholder="Operator Full Identity"
+                                            className="w-full h-12 bg-grafana-bg border border-grafana-border rounded-sm pl-12 pr-4 text-xs font-bold text-grafana-text-primary outline-none focus:border-grafana-accent-green/50 transition-all font-mono placeholder:text-grafana-text-secondary/30"
+                                            placeholder="OPERATOR_FULL_NAME"
                                         />
                                     </div>
                                 </div>
 
-                                <div className="space-y-3 group md:col-span-2">
-                                    <label className="text-tech-label ml-1 group-focus-within:text-brand-green transition-colors">Credential Email</label>
+                                <div className="space-y-2 group md:col-span-2">
+                                    <label className="text-[10px] font-bold text-grafana-text-secondary uppercase tracking-widest font-mono ml-1">Primary Email</label>
                                     <div className="relative">
-                                        <Mail size={18} className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-700 group-focus-within:text-brand-green transition-all" />
+                                        <Mail size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-grafana-text-secondary/50 group-focus-within:text-grafana-accent-green transition-colors" />
                                         <input
                                             type="email"
                                             required
                                             value={email}
                                             onChange={(e) => setEmail(e.target.value)}
-                                            className="w-full h-16 bg-slate-950/50 border border-slate-800 rounded-2xl pl-14 pr-6 text-sm font-black text-white outline-none focus:border-brand-green/30 focus:shadow-[0_0_20px_rgba(16,185,129,0.05)] transition-all placeholder:text-slate-900 tracking-wide"
-                                            placeholder="operator@system.io"
+                                            className="w-full h-12 bg-grafana-bg border border-grafana-border rounded-sm pl-12 pr-4 text-xs font-bold text-grafana-text-primary outline-none focus:border-grafana-accent-green/50 transition-all font-mono placeholder:text-grafana-text-secondary/30"
+                                            placeholder="ENDPOINT_EMAIL"
                                         />
                                     </div>
                                 </div>
 
-                                <div className="space-y-3 group md:col-span-2">
-                                    <label className="text-tech-label ml-1 group-focus-within:text-brand-green transition-colors">Security Password</label>
+                                <div className="space-y-2 group md:col-span-2">
+                                    <label className="text-[10px] font-bold text-grafana-text-secondary uppercase tracking-widest font-mono ml-1">Security Key (Passphrase)</label>
                                     <div className="relative">
-                                        <Lock size={18} className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-700 group-focus-within:text-brand-green transition-all" />
+                                        <Lock size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-grafana-text-secondary/50 group-focus-within:text-grafana-accent-green transition-colors" />
                                         <input
                                             type="password"
                                             required
                                             value={password}
                                             onChange={(e) => setPassword(e.target.value)}
-                                            className="w-full h-16 bg-slate-950/50 border border-slate-800 rounded-2xl pl-14 pr-6 text-sm font-black text-white outline-none focus:border-brand-green/30 focus:shadow-[0_0_20px_rgba(16,185,129,0.05)] transition-all placeholder:text-slate-900"
-                                            placeholder="Minimum 8 Alpha-Numeric Units"
+                                            className="w-full h-12 bg-grafana-bg border border-grafana-border rounded-sm pl-12 pr-4 text-xs font-bold text-grafana-text-primary outline-none focus:border-grafana-accent-green/50 transition-all font-mono placeholder:text-grafana-text-secondary/30"
+                                            placeholder="ENCRYPTION_KEY"
                                         />
                                     </div>
                                 </div>
                             </div>
 
                             {error && (
-                                <motion.div
-                                    initial={{ opacity: 0, y: -10 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    className="p-5 bg-danger/5 border border-danger/20 text-danger rounded-2xl text-[11px] font-black  tracking-tight flex items-start gap-4"
-                                >
-                                    <div className="w-1.5 h-1.5 rounded-full bg-danger mt-1.5 shadow-[0_0_8px_rgba(239,68,68,0.5)]"></div>
-                                    <span className="flex-1">{error}</span>
-                                </motion.div>
+                                <div className="p-3 bg-grafana-accent-red/10 border border-grafana-accent-red/20 text-grafana-accent-red rounded-sm text-[9px] font-bold uppercase tracking-widest font-mono">
+                                    Error: {error}
+                                </div>
                             )}
 
                             <button
                                 type="submit"
                                 disabled={loading}
-                                className="w-full h-16 bg-brand-green text-white rounded-2xl shadow-2xl shadow-brand-green/20 font-black  tracking-[0.3em] text-xs transition-all flex items-center justify-center gap-4 disabled:opacity-50 disabled:cursor-not-allowed group active:scale-[0.98]"
+                                className="w-full h-12 bg-grafana-accent-green hover:bg-grafana-accent-green/90 text-grafana-bg rounded-sm font-bold uppercase tracking-[0.2em] text-[11px] transition-all flex items-center justify-center gap-3 disabled:opacity-50 font-mono shadow-[0_0_15px_rgba(115,191,105,0.2)]"
                             >
                                 {loading ? (
-                                    <div className="w-6 h-6 border-3 border-white/20 border-t-white rounded-full animate-spin"></div>
+                                    <div className="w-4 h-4 border-2 border-grafana-bg/20 border-t-grafana-bg rounded-full animate-spin"></div>
                                 ) : (
                                     <>
                                         Initialize Registry
-                                        <ArrowRight size={20} className="group-hover:translate-x-1.5 transition-transform" />
+                                        <ArrowRight size={16} />
                                     </>
                                 )}
                             </button>
                         </form>
 
-                        <div className="mt-12 pt-8 border-t border-slate-800 flex flex-col items-center gap-4 relative z-10">
-                            <p className="text-xs font-black text-slate-600  tracking-widest">
-                                Already registered? <Link href="/login" className="text-brand-green hover:underline">Access Authorized Portal</Link>
+                        <div className="mt-10 pt-8 border-t border-grafana-border text-center">
+                            <p className="text-[10px] font-bold text-grafana-text-secondary uppercase tracking-widest font-mono">
+                                Already in system? <Link href="/login" className="text-grafana-accent-green hover:underline">Access Authorized Portal</Link>
                             </p>
                         </div>
                     </div>
@@ -197,3 +194,4 @@ export default function RegisterPage() {
         </div>
     );
 }
+

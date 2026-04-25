@@ -1,5 +1,8 @@
-import React, { useState } from 'react';
-import { ToggleLeft, ToggleRight } from 'lucide-react';
+"use client";
+
+import React, { useState, useEffect } from 'react';
+import { ToggleLeft, ToggleRight, Building2, MapPin, Phone, Mail, User, ShieldCheck, Key, Hash, FileText } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 export interface CompanyFormData {
     name: string;
@@ -44,8 +47,7 @@ export default function CompanyForm({
         isActive: initialData?.isActive ?? true,
     });
 
-    // Sync state with initialData when it changes (important for Modal reuse)
-    React.useEffect(() => {
+    useEffect(() => {
         if (initialData) {
             setFormData({
                 name: initialData.name || '',
@@ -70,152 +72,203 @@ export default function CompanyForm({
     };
 
     return (
-        <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2 md:col-span-2">
-                    <label className="text-xs font-bold text-slate-400 tracking-widest uppercase">Company Name</label>
+                    <label className="flex items-center gap-2 text-[10px] font-bold text-grafana-text-secondary tracking-[0.2em] uppercase font-mono ml-1">
+                        <Building2 size={12} />
+                        CORPORATE_LEGAL_ENTITY
+                    </label>
                     <input
                         type="text"
                         value={formData.name}
                         onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                        className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none transition-all"
-                        placeholder="e.g. Enerji Corp."
+                        className="w-full h-12 bg-grafana-bg border border-grafana-border rounded-sm px-4 text-xs font-bold text-white outline-none focus:border-grafana-accent-blue/50 focus:bg-grafana-panel/50 transition-all font-mono placeholder:text-grafana-text-secondary/20"
+                        placeholder="ENTITY_NAME_STRING"
                         required
                     />
                 </div>
+
                 <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-400 tracking-widest uppercase">Tax Office</label>
+                    <label className="flex items-center gap-2 text-[10px] font-bold text-grafana-text-secondary tracking-[0.2em] uppercase font-mono ml-1">
+                        <FileText size={12} />
+                        TAX_OFFICE_LOCUS
+                    </label>
                     <input
                         type="text"
                         value={formData.taxOffice || ''}
                         onChange={(e) => setFormData({ ...formData, taxOffice: e.target.value })}
-                        className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none transition-all"
-                        placeholder="Tax Office"
+                        className="w-full h-12 bg-grafana-bg border border-grafana-border rounded-sm px-4 text-xs font-bold text-white outline-none focus:border-grafana-accent-blue/50 focus:bg-grafana-panel/50 transition-all font-mono placeholder:text-grafana-text-secondary/20"
+                        placeholder="OFFICE_NAME"
                     />
                 </div>
+
                 <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-400 tracking-widest uppercase">Tax Number</label>
+                    <label className="flex items-center gap-2 text-[10px] font-bold text-grafana-text-secondary tracking-[0.2em] uppercase font-mono ml-1">
+                        <Hash size={12} />
+                        TAX_IDENT_NUMBER
+                    </label>
                     <input
                         type="number"
                         value={formData.taxNumber || ''}
                         onChange={(e) => setFormData({ ...formData, taxNumber: e.target.value })}
-                        className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none transition-all"
-                        placeholder="Tax Number"
+                        className="w-full h-12 bg-grafana-bg border border-grafana-border rounded-sm px-4 text-xs font-bold text-white outline-none focus:border-grafana-accent-blue/50 focus:bg-grafana-panel/50 transition-all font-mono placeholder:text-grafana-text-secondary/20"
+                        placeholder="NUMERIC_ID"
                     />
                 </div>
+
                 <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-400 tracking-widest uppercase">Email</label>
+                    <label className="flex items-center gap-2 text-[10px] font-bold text-grafana-text-secondary tracking-[0.2em] uppercase font-mono ml-1">
+                        <Mail size={12} />
+                        COMM_ENDPOINT_EMAIL
+                    </label>
                     <input
                         type="email"
                         value={formData.email || ''}
                         onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                        className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none transition-all"
-                        placeholder="Email"
+                        className="w-full h-12 bg-grafana-bg border border-grafana-border rounded-sm px-4 text-xs font-bold text-white outline-none focus:border-grafana-accent-blue/50 focus:bg-grafana-panel/50 transition-all font-mono placeholder:text-grafana-text-secondary/20"
+                        placeholder="EMAIL_ADDR"
                     />
                 </div>
+
                 <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-400 tracking-widest uppercase">Phone</label>
+                    <label className="flex items-center gap-2 text-[10px] font-bold text-grafana-text-secondary tracking-[0.2em] uppercase font-mono ml-1">
+                        <Phone size={12} />
+                        TEL_VOICE_UPLINK
+                    </label>
                     <input
                         type="text"
                         value={formData.phone || ''}
                         onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                        className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none transition-all"
-                        placeholder="Phone"
+                        className="w-full h-12 bg-grafana-bg border border-grafana-border rounded-sm px-4 text-xs font-bold text-white outline-none focus:border-grafana-accent-blue/50 focus:bg-grafana-panel/50 transition-all font-mono placeholder:text-grafana-text-secondary/20"
+                        placeholder="PHONE_NUM"
                     />
                 </div>
+
                 <div className="space-y-2 md:col-span-2">
-                    <label className="text-xs font-bold text-slate-400 tracking-widest uppercase">Representative</label>
+                    <label className="flex items-center gap-2 text-[10px] font-bold text-grafana-text-secondary tracking-[0.2em] uppercase font-mono ml-1">
+                        <User size={12} />
+                        LEGAL_REPRESENTATIVE
+                    </label>
                     <input
                         type="text"
                         value={formData.representative || ''}
                         onChange={(e) => setFormData({ ...formData, representative: e.target.value })}
-                        className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none transition-all"
-                        placeholder="Representative Name"
+                        className="w-full h-12 bg-grafana-bg border border-grafana-border rounded-sm px-4 text-xs font-bold text-white outline-none focus:border-grafana-accent-blue/50 focus:bg-grafana-panel/50 transition-all font-mono placeholder:text-grafana-text-secondary/20"
+                        placeholder="REP_FULL_NAME"
                     />
                 </div>
+
                 <div className="space-y-2 md:col-span-2">
-                    <label className="text-xs font-bold text-slate-400 tracking-widest uppercase">Address</label>
+                    <label className="flex items-center gap-2 text-[10px] font-bold text-grafana-text-secondary tracking-[0.2em] uppercase font-mono ml-1">
+                        <MapPin size={12} />
+                        GEOGRAPHIC_ADDRESS_STRING
+                    </label>
                     <textarea
                         value={formData.address || ''}
                         onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                        className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none resize-none h-16 transition-all"
-                        placeholder="Company address"
+                        className="w-full bg-grafana-bg border border-grafana-border rounded-sm px-4 py-3 text-xs font-bold text-white outline-none focus:border-grafana-accent-blue/50 focus:bg-grafana-panel/50 transition-all font-mono placeholder:text-grafana-text-secondary/20 min-h-[80px]"
+                        placeholder="PHYSICAL_LOCATION_DETAILS"
                     />
                 </div>
 
                 {/* YTBS Section */}
-                <div className="md:col-span-2 pt-4 border-t border-slate-800/40">
-                    <h4 className="text-[10px] font-black text-brand-green uppercase tracking-widest mb-4 flex items-center gap-2">
-                        <span className="w-1.5 h-1.5 rounded-full bg-brand-green"></span>
-                        YTBS Integration Details
-                    </h4>
-                </div>
+                <div className="md:col-span-2 pt-6 border-t border-grafana-border/50">
+                    <div className="flex items-center gap-3 mb-6 px-1">
+                        <ShieldCheck size={16} className="text-grafana-accent-blue" />
+                        <h4 className="text-[10px] font-bold text-white uppercase tracking-[0.3em] font-mono">YTBS_INTEGRATION_PROTOCOLS</h4>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-2">
+                            <label className="flex items-center gap-2 text-[10px] font-bold text-grafana-text-secondary tracking-[0.2em] uppercase font-mono ml-1">
+                                <User size={12} />
+                                YTBS_AUTH_USER
+                            </label>
+                            <input
+                                type="text"
+                                value={formData.ytbsUsername || ''}
+                                onChange={(e) => setFormData({ ...formData, ytbsUsername: e.target.value })}
+                                className="w-full h-12 bg-grafana-bg border border-grafana-border rounded-sm px-4 text-xs font-bold text-white outline-none focus:border-grafana-accent-blue/50 focus:bg-grafana-panel/50 transition-all font-mono"
+                                placeholder="USERNAME"
+                            />
+                        </div>
 
-                <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-400 tracking-widest uppercase">YTBS Username</label>
-                    <input
-                        type="text"
-                        value={formData.ytbsUsername || ''}
-                        onChange={(e) => setFormData({
-                            ...formData,
-                            ytbsUsername: e.target.value
-                        })}
-                        className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none transition-all font-mono"
-                        placeholder="YTBS Username"
-                    />
-                </div>
-                <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-400 tracking-widest uppercase">YTBS Password</label>
-                    <input
-                        type="password"
-                        value={formData.ytbsPassword || ''}
-                        onChange={(e) => setFormData({
-                            ...formData,
-                            ytbsPassword: e.target.value
-                        })}
-                        className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none transition-all font-mono"
-                        placeholder="YTBS Password"
-                    />
-                </div>
-                <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-400 tracking-widest uppercase">YTBS API Key</label>
-                    <input
-                        type="text"
-                        value={formData.ytbsApiKey || ''}
-                        onChange={(e) => setFormData({ ...formData, ytbsApiKey: e.target.value })}
-                        className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none transition-all font-mono"
-                        placeholder="YTBS API Key"
-                    />
-                </div>
-                <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-400 tracking-widest uppercase">YTBS Lisans No</label>
-                    <input
-                        type="text"
-                        value={formData.baglantiAnlasmasiSirketiLisansNo || ''}
-                        onChange={(e) => setFormData({ ...formData, baglantiAnlasmasiSirketiLisansNo: e.target.value })}
-                        className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none transition-all"
-                        placeholder="License Number"
-                    />
+                        <div className="space-y-2">
+                            <label className="flex items-center gap-2 text-[10px] font-bold text-grafana-text-secondary tracking-[0.2em] uppercase font-mono ml-1">
+                                <Key size={12} />
+                                YTBS_AUTH_SECRET
+                            </label>
+                            <input
+                                type="password"
+                                value={formData.ytbsPassword || ''}
+                                onChange={(e) => setFormData({ ...formData, ytbsPassword: e.target.value })}
+                                className="w-full h-12 bg-grafana-bg border border-grafana-border rounded-sm px-4 text-xs font-bold text-white outline-none focus:border-grafana-accent-blue/50 focus:bg-grafana-panel/50 transition-all font-mono"
+                                placeholder="••••••••"
+                            />
+                        </div>
+
+                        <div className="space-y-2">
+                            <label className="flex items-center gap-2 text-[10px] font-bold text-grafana-text-secondary tracking-[0.2em] uppercase font-mono ml-1">
+                                <ShieldCheck size={12} />
+                                YTBS_API_CREDENTIAL
+                            </label>
+                            <input
+                                type="text"
+                                value={formData.ytbsApiKey || ''}
+                                onChange={(e) => setFormData({ ...formData, ytbsApiKey: e.target.value })}
+                                className="w-full h-12 bg-grafana-bg border border-grafana-border rounded-sm px-4 text-xs font-bold text-white outline-none focus:border-grafana-accent-blue/50 focus:bg-grafana-panel/50 transition-all font-mono"
+                                placeholder="API_KEY_STRING"
+                            />
+                        </div>
+
+                        <div className="space-y-2">
+                            <label className="flex items-center gap-2 text-[10px] font-bold text-grafana-text-secondary tracking-[0.2em] uppercase font-mono ml-1">
+                                <FileText size={12} />
+                                LICENSE_PROTOCOL_ID
+                            </label>
+                            <input
+                                type="text"
+                                value={formData.baglantiAnlasmasiSirketiLisansNo || ''}
+                                onChange={(e) => setFormData({ ...formData, baglantiAnlasmasiSirketiLisansNo: e.target.value })}
+                                className="w-full h-12 bg-grafana-bg border border-grafana-border rounded-sm px-4 text-xs font-bold text-white outline-none focus:border-grafana-accent-blue/50 focus:bg-grafana-panel/50 transition-all font-mono"
+                                placeholder="LIC_NUM"
+                            />
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <div className="flex items-center justify-between p-4 bg-slate-900/30 rounded-xl border border-slate-800/40">
-                <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Active Status</span>
+            <div className="flex items-center justify-between p-4 bg-grafana-panel/30 rounded-sm border border-grafana-border group hover:border-grafana-accent-blue/30 transition-all">
+                <div className="flex flex-col gap-1">
+                    <span className="text-[10px] font-bold text-white uppercase tracking-[0.2em] font-mono group-hover:text-grafana-accent-blue transition-colors">OPERATIONAL_STATUS</span>
+                    <span className="text-[8px] text-grafana-text-secondary uppercase font-mono">Toggle active registry in global cluster</span>
+                </div>
                 <button
                     type="button"
                     onClick={() => setFormData({ ...formData, isActive: !formData.isActive })}
-                    className="text-brand-green transition-transform active:scale-95"
+                    className={cn(
+                        "transition-all active:scale-95",
+                        formData.isActive ? "text-grafana-accent-green" : "text-grafana-text-secondary"
+                    )}
                 >
-                    {formData.isActive ? <ToggleRight size={28} /> : <ToggleLeft size={28} className="text-slate-600" />}
+                    {formData.isActive ? <ToggleRight size={32} /> : <ToggleLeft size={32} />}
                 </button>
             </div>
 
             <button
                 type="submit"
                 disabled={isSubmitting}
-                className="w-full py-4 bg-brand-green disabled:bg-brand-green/50 text-white font-bold tracking-widest text-xs rounded-xl shadow-lg shadow-brand-green/20 hover:scale-[1.01] active:scale-[0.99] transition-all uppercase"
+                className="w-full h-14 bg-grafana-accent-blue disabled:opacity-50 text-white font-black tracking-[0.3em] text-xs rounded-sm shadow-2xl hover:scale-[1.02] active:scale-[0.98] transition-all uppercase flex items-center justify-center gap-3 font-mono"
             >
-                {isSubmitting ? 'Saving...' : submitLabel}
+                {isSubmitting ? (
+                    <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                ) : (
+                    <>
+                        {submitLabel.toUpperCase()}
+                        <ShieldCheck size={18} />
+                    </>
+                )}
             </button>
         </form>
     );

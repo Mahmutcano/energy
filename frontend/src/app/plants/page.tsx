@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, Suspense } from 'react';
-import { Factory, Plus, Search, MapPin, X, Building2, Cpu, Activity, Pencil, Trash2, Settings, AlertTriangle } from 'lucide-react';
+import { Factory, Plus, Search, MapPin, X, Building2, Cpu, Activity, Pencil, Trash2, Settings, AlertTriangle, ExternalLink, ChevronRight } from 'lucide-react';
 import { apiRequest } from '@/lib/api';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -9,6 +9,8 @@ import toast from 'react-hot-toast';
 import Modal from '@/components/Modal';
 import PlantForm, { PlantFormData } from '@/components/forms/PlantForm';
 import CompanyForm, { CompanyFormData } from '@/components/forms/CompanyForm';
+import { cn } from '@/lib/utils';
+import PageHeader from '@/components/PageHeader';
 
 interface Plant {
     id: string;
@@ -131,7 +133,7 @@ function PlantsContent() {
         try {
             const res = await apiRequest(`/api/plants/${plantToDelete.id}`, { method: 'DELETE' });
             if (res.ok) {
-                toast.success('Santral başarıyla silindi');
+                toast.success('Plant decommissioned successfully');
                 setPlantToDelete(null);
                 fetchPlants();
             }
@@ -166,7 +168,7 @@ function PlantsContent() {
             });
 
             if (res.ok) {
-                toast.success(editingPlant ? 'Santral güncellendi' : 'Santral oluşturuldu');
+                toast.success(editingPlant ? 'Plant parameters updated' : 'New plant registered');
                 setIsModalOpen(false);
                 setEditingPlant(null);
                 fetchPlants();
@@ -194,7 +196,7 @@ function PlantsContent() {
                 const result = await res.json();
                 const newCompany = (result && result.success) ? result.data : result;
                 const companyId = newCompany.id || newCompany;
-                toast.success('Company created');
+                toast.success('Company entity created');
                 await fetchCompanies();
                 setEditingPlant(prev => prev ? { ...prev, companyId : (typeof companyId === 'string' ? companyId : companyId.id) } : null);
                 setFormData(prev => ({ ...prev, companyId: (typeof companyId === 'string' ? companyId : companyId.id) }));
@@ -212,142 +214,154 @@ function PlantsContent() {
     };
 
     return (
-        <div className="space-y-8 pb-16 animate-in-up font-sans">
-            {/* Header */}
-            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-8">
-                <div className="space-y-2">
-                    <div className="flex items-center gap-4">
-                        <div className="w-1.5 h-8 bg-brand-green rounded-full shadow-[0_0_20px_rgba(16,185,129,0.4)]"></div>
-                        <h1 className="text-3xl font-black text-white tracking-tight ">Power Plants</h1>
-                    </div>
-                    <p className="text-sm text-slate-500 ml-6">Manage power plant locations and their connected devices</p>
-                </div>
-
+        <div className="space-y-8 pb-16 font-sans">
+            <PageHeader 
+                title="ALTYAPI" 
+                highlightedTitle="DÜĞÜMLERİ"
+                subtitle="Fiziksel varlıklar ve saha yapılandırma matrisi"
+                icon={Factory}
+            >
                 <button
                     onClick={openCreateModal}
-                    className="flex items-center gap-3 px-6 py-3 bg-brand-green text-white rounded-xl text-xs font-bold shadow-lg shadow-brand-green/20 hover:scale-[1.02] transition-all  tracking-widest"
+                    className="flex items-center gap-3 px-6 py-2.5 bg-grafana-accent-blue hover:bg-grafana-accent-blue/90 text-white rounded-sm text-[11px] font-bold uppercase tracking-[0.2em] transition-all shadow-[0_0_15px_rgba(87,148,242,0.2)] font-mono"
                 >
-                    <Plus size={16} strokeWidth={3} /> New Plant
+                    <Plus size={14} /> YENİ DÜĞÜM TANIMLA
                 </button>
-            </div>
+            </PageHeader>
 
-            {/* Stats Row */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* Metrics Row */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {[
-                    { label: 'Total Plants', val: plants.length.toString(), icon: Factory, color: 'text-brand-green' },
-                    { label: 'Total Protocols', val: plants.reduce((sum, p) => sum + (p.protocols?.length || 0), 0).toString(), icon: Cpu, color: 'text-blue-400' },
-                    { label: 'Companies', val: companies.length.toString(), icon: Building2, color: 'text-amber-400' },
+                    { label: 'Aktif Sahalar', val: plants.length, icon: Factory, color: 'text-grafana-accent-green' },
+                    { label: 'Toplam Protokol', val: plants.reduce((sum, p) => sum + (p.protocols?.length || 0), 0), icon: Cpu, color: 'text-grafana-accent-blue' },
+                    { label: 'Kurumlar', val: companies.length, icon: Building2, color: 'text-grafana-accent-orange' },
                 ].map((stat, i) => (
-                    <div key={i} className="card-base p-6 flex items-center gap-4">
-                        <div className={`p-3 rounded-xl bg-slate-950 border border-slate-800 ${stat.color}`}>
-                            <stat.icon size={20} />
+                    <div key={i} className="card-base p-5 bg-grafana-panel/50 flex items-center gap-4 border border-grafana-border">
+                        <div className={cn("p-2.5 rounded-sm bg-grafana-bg border border-grafana-border", stat.color)}>
+                            <stat.icon size={18} />
                         </div>
                         <div>
-                            <p className="text-[10px] font-bold text-slate-500  tracking-widest">{stat.label}</p>
-                            <p className="text-2xl font-black text-white tabular-nums">{stat.val}</p>
+                            <p className="text-[10px] font-bold text-grafana-text-secondary uppercase tracking-widest font-mono mb-1">{stat.label}</p>
+                            <p className="text-2xl font-bold text-grafana-text-primary font-mono tabular-nums leading-none">{stat.val.toString().padStart(2, '0')}</p>
                         </div>
                     </div>
                 ))}
             </div>
 
-            {/* Plants Grid */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {loading ? (
-                    <div className="col-span-full card-base p-12 text-center">
-                        <span className="text-sm text-slate-500 animate-pulse">Loading plants...</span>
+            {/* Plants Table View */}
+            <div className="bg-grafana-panel/50 border border-grafana-border rounded-sm overflow-hidden">
+                <div className="p-4 border-b border-grafana-border bg-grafana-bg/50 flex items-center justify-between">
+                    <h3 className="text-[11px] font-bold text-grafana-text-primary uppercase tracking-[0.2em] font-mono">Kayıtlı Varlık Matrisi</h3>
+                    <div className="flex items-center gap-2 px-3 py-1 bg-grafana-bg border border-grafana-border rounded-sm text-[9px] font-bold text-grafana-text-secondary uppercase font-mono">
+                        <div className="w-1.5 h-1.5 rounded-full bg-grafana-accent-green animate-pulse" /> Canlı Sistem
                     </div>
-                ) : plants.length === 0 ? (
-                    <div className="col-span-full card-base p-12 text-center">
-                        <Factory size={48} className="text-slate-800 mx-auto mb-4" />
-                        <p className="text-sm text-slate-500">No plants registered yet</p>
-                        <p className="text-xs text-slate-600 mt-1">Click "New Plant" to add your first plant</p>
-                    </div>
-                ) : plants.map((plant) => (
-                    <div key={plant.id} className="card-base p-6 hover:border-brand-green/30 transition-all group">
-                        <div className="flex items-start justify-between mb-4">
-                            <div className="flex items-center gap-4">
-                                <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 text-brand-green group-hover:bg-brand-green/10 transition-colors">
-                                    <Factory size={22} />
-                                </div>
-                                <div>
-                                    <h3 className="text-base font-bold text-white">{plant.plantName}</h3>
-                                    <p className="text-xs text-slate-500 mt-0.5">{plant.company?.name || 'N/A'}</p>
-                                </div>
-                            </div>
-                            <div className="flex flex-col items-end gap-1">
-                                <div className="flex items-center gap-2 text-[10px] font-bold text-brand-green">
-                                    <div className="w-2 h-2 rounded-full bg-brand-green animate-pulse"></div>
-                                    <span>Active</span>
-                                </div>
-                                {plant.canSendYtbs ? (
-                                    <div className="flex items-center gap-2 text-[8px] font-bold text-blue-400 bg-blue-400/10 px-2 py-0.5 rounded-full border border-blue-400/20">
-                                        <Activity size={8} />
-                                        <span>YTBS ACTIVE</span>
-                                    </div>
-                                ) : (
-                                    <div className="flex items-center gap-2 text-[8px] font-bold text-slate-500 bg-slate-500/10 px-2 py-0.5 rounded-full border border-slate-500/20">
-                                        <span>YTBS OFF</span>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-
-                        <div className="flex flex-col gap-2 mb-4 px-1">
-                            <div className="flex items-center justify-between text-[10px] text-slate-600 font-bold uppercase tracking-tighter">
-                                <div className="flex flex-col">
-                                    <span>Created At</span>
-                                    {plant.createdBy && <span className="text-[8px] text-slate-700 font-medium lowercase">by: {plant.createdBy.substring(0, 8)}</span>}
-                                </div>
-                                <span className="text-slate-500 tabular-nums text-right">
-                                    {plant.createdAt ? new Date(plant.createdAt).toLocaleDateString('tr-TR') + ' ' + new Date(plant.createdAt).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }) : '—'}
-                                </span>
-                            </div>
-                            <div className="flex items-center justify-between text-[10px] text-slate-600 font-bold uppercase tracking-tighter">
-                                <div className="flex flex-col">
-                                    <span>Last Update</span>
-                                    {plant.updatedBy && <span className="text-[8px] text-slate-700 font-medium lowercase">by: {plant.updatedBy.substring(0, 8)}</span>}
-                                </div>
-                                <span className="text-amber-500/80 tabular-nums text-right">
-                                    {plant.updatedAt ? new Date(plant.updatedAt).toLocaleDateString('tr-TR') + ' ' + new Date(plant.updatedAt).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }) : '—'}
-                                </span>
-                            </div>
-                        </div>
-
-                        <div className="grid grid-cols-4 gap-4 mt-4 pt-4 border-t border-slate-800/40">
-                            <div>
-                                <p className="text-[10px] font-bold text-slate-600  tracking-widest mb-1">Protocols</p>
-                                <p className="text-sm font-bold text-white tabular-nums">{plant.protocols?.length || 0}</p>
-                            </div>
-                            <div>
-                                <p className="text-[10px] font-bold text-slate-600  tracking-widest mb-1">Latitude</p>
-                                <p className="text-sm font-mono text-slate-400">{plant.latitude ? Number(plant.latitude).toFixed(4) : '—'}</p>
-                            </div>
-                            <div>
-                                <p className="text-[10px] font-bold text-slate-600  tracking-widest mb-1">Longitude</p>
-                                <p className="text-sm font-mono text-slate-400">{plant.longitude ? Number(plant.longitude).toFixed(4) : '—'}</p>
-                            </div>
-                            <div className="flex justify-end gap-2 items-end">
-                                <button title="Protocols" onClick={() => router.push(`/protocols?plantId=${plant.id}`)} className="p-2 rounded-lg bg-slate-950 border border-slate-800 text-slate-600 hover:text-brand-green hover:border-brand-green/30 transition-all">
-                                    <Settings size={14} />
-                                </button>
-                                <button title="Edit" onClick={() => openEditModal(plant)} className="p-2 rounded-lg bg-slate-950 border border-slate-800 text-slate-600 hover:text-brand-green hover:border-brand-green/30 transition-all">
-                                    <Pencil size={14} />
-                                </button>
-                                <button title="Delete" onClick={() => handleDeleteClick(plant)} className="p-2 rounded-lg bg-slate-950 border border-slate-800 text-slate-600 hover:text-red-500 hover:border-red-500/30 transition-all">
-                                    <Trash2 size={14} />
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                ))}
+                </div>
+                
+                <div className="overflow-x-auto">
+                    <table className="scada-table">
+                        <thead>
+                            <tr>
+                                <th>TANIMLAYICI</th>
+                                <th>KURUM</th>
+                                <th>TİP</th>
+                                <th>YTBS DURUMU</th>
+                                <th>KOORDİNATLAR</th>
+                                <th>KAPASİTE</th>
+                                <th className="text-right">İŞLEMLER</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {loading ? (
+                                <tr>
+                                    <td colSpan={7} className="text-center py-20 font-mono text-grafana-text-secondary animate-pulse uppercase tracking-widest">Saha düğümleri taranıyor...</td>
+                                </tr>
+                            ) : plants.length === 0 ? (
+                                <tr>
+                                    <td colSpan={7} className="text-center py-20 font-mono text-grafana-text-secondary uppercase tracking-widest">Kayıtlı saha bulunamadı</td>
+                                </tr>
+                            ) : plants.map((plant) => (
+                                <tr key={plant.id} className="group">
+                                    <td>
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-1.5 h-6 bg-grafana-accent-blue rounded-full group-hover:shadow-[0_0_10px_#5794f2] transition-all" />
+                                            <div className="flex flex-col">
+                                                <span className="text-grafana-text-primary font-bold uppercase tracking-wide">{plant.plantName}</span>
+                                                <span className="text-[9px] font-mono text-grafana-text-secondary/50">UUID: {plant.id.substring(0, 8)}</span>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div className="flex items-center gap-2">
+                                            <Building2 size={12} className="text-grafana-text-secondary/50" />
+                                            <span className="font-mono text-[11px] text-grafana-text-secondary">{plant.company?.name || 'ROOT'}</span>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span className={cn(
+                                            "text-[9px] font-bold px-2 py-0.5 rounded-sm border font-mono uppercase tracking-widest",
+                                            plant.plantType === 'SOLAR' ? "bg-grafana-accent-orange/10 border-grafana-accent-orange/30 text-grafana-accent-orange" :
+                                            plant.plantType === 'WIND' ? "bg-grafana-accent-blue/10 border-grafana-accent-blue/30 text-grafana-accent-blue" :
+                                            "bg-grafana-accent-green/10 border-grafana-accent-green/30 text-grafana-accent-green"
+                                        )}>
+                                            {plant.plantType === 'SOLAR' ? 'GÜNEŞ' : plant.plantType === 'WIND' ? 'RÜZGAR' : 'HİDRO'}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div className="flex items-center gap-2">
+                                            <div className={cn("w-1.5 h-1.5 rounded-full", plant.canSendYtbs ? "bg-grafana-accent-green shadow-[0_0_8px_#73bf69]" : "bg-grafana-text-secondary/30")} />
+                                            <span className={cn("text-[10px] font-bold font-mono uppercase", plant.canSendYtbs ? "text-grafana-accent-green" : "text-grafana-text-secondary/50")}>
+                                                {plant.canSendYtbs ? 'AKTARILIYOR' : 'BEKLEMEDE'}
+                                            </span>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span className="text-[10px] font-mono text-grafana-text-secondary">
+                                            {plant.latitude ? Number(plant.latitude).toFixed(4) : '0.0000'}, {plant.longitude ? Number(plant.longitude).toFixed(4) : '0.0000'}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div className="flex flex-col">
+                                            <span className="text-xs font-bold font-mono text-grafana-text-primary">{plant.protocols?.length || 0}</span>
+                                            <span className="text-[9px] font-bold font-mono text-grafana-text-secondary uppercase tracking-tighter">Uç Noktalar</span>
+                                        </div>
+                                    </td>
+                                    <td className="text-right">
+                                        <div className="flex justify-end gap-2">
+                                            <button 
+                                                title="Yapılandırmayı Görüntüle" 
+                                                onClick={() => router.push(`/plants/${plant.id}`)} 
+                                                className="p-2 rounded-sm bg-grafana-bg border border-grafana-border text-grafana-text-secondary hover:text-grafana-accent-blue hover:border-grafana-accent-blue/50 transition-all"
+                                            >
+                                                <Settings size={14} />
+                                            </button>
+                                            <button 
+                                                title="Düzenle" 
+                                                onClick={() => openEditModal(plant)} 
+                                                className="p-2 rounded-sm bg-grafana-bg border border-grafana-border text-grafana-text-secondary hover:text-grafana-accent-blue hover:border-grafana-accent-blue/50 transition-all"
+                                            >
+                                                <Pencil size={14} />
+                                            </button>
+                                            <button 
+                                                title="Sil" 
+                                                onClick={() => handleDeleteClick(plant)} 
+                                                className="p-2 rounded-sm bg-grafana-bg border border-grafana-border text-grafana-text-secondary hover:text-grafana-accent-red hover:border-grafana-accent-red/50 transition-all"
+                                            >
+                                                <Trash2 size={14} />
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
             </div>
 
             {/* Create / Edit Modal */}
             <Modal
                 isOpen={isModalOpen}
                 onClose={() => setIsModalOpen(false)}
-                title={editingPlant ? 'Edit Plant' : 'New Plant'}
-                subtitle={editingPlant ? 'Update plant details' : 'Register a new power plant'}
+                title={editingPlant ? 'DÜĞÜM YAPILANDIRMA' : 'DÜĞÜM TANIMLAMA'}
                 icon={Factory}
                 maxWidth="5xl"
             >
@@ -366,7 +380,7 @@ function PlantsContent() {
                     onSubmit={handlePlantSubmit}
                     onAddNewCompany={() => setIsCompanyModalOpen(true)}
                     isSubmitting={isSubmitting}
-                    submitLabel={editingPlant ? 'Update Plant' : 'Create Plant'}
+                    submitLabel={editingPlant ? 'Düğümü Yapılandır' : 'Düğümü Kaydet'}
                 />
             </Modal>
 
@@ -374,35 +388,36 @@ function PlantsContent() {
             <Modal
                 isOpen={!!plantToDelete}
                 onClose={() => setPlantToDelete(null)}
-                title="Delete Plant"
+                title="DÜĞÜMÜ KALDIR"
                 icon={AlertTriangle}
                 maxWidth="sm"
             >
-                <div className="text-center space-y-4">
-                    <div className="w-12 h-12 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 flex items-center justify-center mx-auto mb-4">
-                        <AlertTriangle size={24} />
+                <div className="text-center space-y-6 py-4">
+                    <div className="w-16 h-16 rounded-sm bg-grafana-accent-red/10 border border-grafana-accent-red/20 text-grafana-accent-red flex items-center justify-center mx-auto mb-6">
+                        <AlertTriangle size={32} />
                     </div>
 
-                    <div>
-                        <p className="text-sm text-slate-400 leading-relaxed">
-                            Are you sure you want to delete <span className="font-bold text-white">{plantToDelete?.plantName}</span>? This action cannot be undone.
+                    <div className="space-y-2">
+                        <h4 className="text-sm font-bold text-grafana-text-primary uppercase tracking-widest font-mono">Düğümü Devre Dışı Bırakmayı Onayla</h4>
+                        <p className="text-[11px] text-grafana-text-secondary leading-relaxed font-mono">
+                            <span className="font-bold text-grafana-accent-red">[{plantToDelete?.plantName}]</span> düğümünü altyapı matrisinden kalıcı olarak siliyorsunuz. Telemetri akışı sonlandırılacaktır.
                         </p>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-3 pt-2">
+                    <div className="grid grid-cols-2 gap-3">
                         <button
                             onClick={() => setPlantToDelete(null)}
                             disabled={isDeleting}
-                            className="py-2.5 px-4 rounded-lg border border-slate-800 text-slate-400 font-bold text-[10px] hover:bg-slate-900 transition-colors disabled:opacity-50 tracking-widest uppercase"
+                            className="py-2.5 px-4 rounded-sm border border-grafana-border bg-grafana-bg text-grafana-text-secondary font-bold text-[10px] hover:bg-grafana-panel transition-colors disabled:opacity-50 tracking-widest uppercase font-mono"
                         >
-                            Cancel
+                            Vazgeç
                         </button>
                         <button
                             onClick={confirmDelete}
                             disabled={isDeleting}
-                            className="py-2.5 px-4 rounded-lg bg-red-500 text-white font-bold text-[10px] hover:bg-red-600 shadow-lg shadow-red-500/20 transition-all disabled:opacity-50 tracking-widest uppercase flex items-center justify-center gap-2"
+                            className="py-2.5 px-4 rounded-sm bg-grafana-accent-red text-white font-bold text-[10px] hover:bg-grafana-accent-red/90 shadow-lg shadow-grafana-accent-red/20 transition-all disabled:opacity-50 tracking-widest uppercase flex items-center justify-center gap-2 font-mono"
                         >
-                            {isDeleting ? 'Deleting...' : 'Yes, Delete'}
+                            {isDeleting ? 'Sonlandırılıyor...' : 'Kaldırmayı Onayla'}
                         </button>
                     </div>
                 </div>
@@ -412,7 +427,7 @@ function PlantsContent() {
             <Modal
                 isOpen={isCompanyModalOpen}
                 onClose={() => setIsCompanyModalOpen(false)}
-                title="Add New Company"
+                title="KURUM KAYDI"
                 icon={Building2}
                 maxWidth="xl"
                 zIndex={250}
@@ -420,7 +435,7 @@ function PlantsContent() {
                 <CompanyForm
                     onSubmit={handleCompanySubmit}
                     isSubmitting={isCreatingCompany}
-                    submitLabel="Add Company"
+                    submitLabel="Kurumu Kaydet"
                 />
             </Modal>
         </div>
@@ -429,8 +444,9 @@ function PlantsContent() {
 
 export default function PlantsPage() {
     return (
-        <Suspense fallback={<div>Loading...</div>}>
+        <Suspense fallback={<div className="p-10 font-mono text-grafana-text-secondary animate-pulse">Varlık Matrisi Yükleniyor...</div>}>
             <PlantsContent />
         </Suspense>
     );
 }
+

@@ -13,6 +13,7 @@ import {
     HardDrive
 } from 'lucide-react';
 import { motion } from 'framer-motion';
+import PageHeader from '@/components/PageHeader';
 
 export default function SettingsPage() {
     const { theme, setTheme } = useTheme();
@@ -20,79 +21,79 @@ export default function SettingsPage() {
     const themes = [
         {
             id: 'light-pure',
-            name: 'PURE_WHITE_TECH',
+            name: 'PURE WHITE TECH',
             color: '#f8fafc',
             desc: 'Ultra-clean energy monitoring laboratory aesthetic'
         },
         {
             id: 'industrial-emerald',
-            name: 'INDUSTRIAL_EMERALD',
+            name: 'INDUSTRIAL EMERALD',
             color: '#10b981',
             desc: 'New corporate protocol identity (Active: 0x01)'
         },
         {
             id: 'classic-grid',
-            name: 'CLASSIC_GRID',
+            name: 'CLASSIC GRID',
             color: '#38bdf8',
             desc: 'Legacy system aesthetic for core grid control'
         },
         {
             id: 'warning-hazard',
-            name: 'WARNING_HAZARD',
+            name: 'WARNING HAZARD',
             color: '#f59e0b',
             desc: 'High visibility mode for critical environments'
         },
         {
             id: 'ghost-white',
-            name: 'GHOST_INTERFACE',
+            name: 'GHOST INTERFACE',
             color: '#64748b',
             desc: 'Ultra-clear monochrome mapping interface'
         },
         {
             id: 'cyber-neon',
-            name: 'CYBER_NEON_V1',
+            name: 'CYBER NEON V1',
             color: '#ff00ff',
             desc: 'Night-shift optimized synthetic aesthetics'
         },
         {
             id: 'midnight-oil',
-            name: 'MIDNIGHT_OIL',
+            name: 'MIDNIGHT OIL',
             color: '#64ffda',
             desc: 'Deep-sea operations console environment'
         },
         {
             id: 'oceanic-depth',
-            name: 'OCEANIC_DEPTH',
+            name: 'OCEANIC DEPTH',
             color: '#00b4d8',
             desc: 'Hydro-thermal plant monitoring interface'
         },
         {
             id: 'solar-flare',
-            name: 'SOLAR_FLARE',
+            name: 'SOLAR FLARE',
             color: '#ff6b00',
             desc: 'High-energy fusion reactor telemetry'
         },
         {
             id: 'toxic-waste',
-            name: 'TOXIC_WASTE',
+            name: 'TOXIC WASTE',
             color: '#d4ff00',
             desc: 'Bio-chemical containment unit monitor'
         },
         {
             id: 'monokai-pro',
-            name: 'MONOKAI_TECH',
+            name: 'MONOKAI TECH',
             color: '#ffd866',
             desc: 'System engineer diagnostic environment'
         },
         {
             id: 'matrix-overload',
-            name: 'MATRIX_RELOADED',
+            name: 'MATRIX RELOADED',
             color: '#00ff41',
             desc: 'Kernal-level direct memory visualization'
         },
         {
             id: 'frost-bit',
-            name: 'FROST_CRYOGENIC',
+            name: 'FROST CRYOGENIC',
             color: '#1992d4',
             desc: 'Sub-zero storage facility SCADA node'
         }
@@ -100,25 +101,17 @@ export default function SettingsPage() {
 
     return (
         <div className="space-y-10 pb-16 animate-in-up font-sans">
-            {/* 1. Configuration Directive Header */}
-            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-8 relative">
-                <div className="space-y-2">
-                    <div className="flex items-center gap-4">
-                        <div className="w-1.5 h-8 bg-brand-green rounded-full shadow-[0_0_20px_rgba(16,185,129,0.4)]"></div>
-                        <h1 className="text-4xl font-black text-white tracking-tighter  italic">System Settings</h1>
-                    </div>
-                    <div className="flex items-center gap-3">
-                        <span className="text-tech-label text-brand-green/80 tracking-[0.4em]">Core Configuration</span>
-                        <div className="h-px w-12 bg-slate-800"></div>
-                        <span className="text-[10px] font-mono text-slate-600">STABILITY: NOMINAL</span>
-                    </div>
+            <PageHeader 
+                title="SİSTEM" 
+                highlightedTitle="AYARLARI"
+                subtitle="Çekirdek yapılandırma ve arayüz özelleştirme matrisi"
+                icon={SettingsIcon}
+            >
+                <div className="flex items-center gap-4 text-[10px] font-black text-grafana-text-secondary tracking-widest px-6 py-3 bg-grafana-bg border border-grafana-border rounded-sm font-mono">
+                    <span>HOST: SCADA KERNEL V1.0.4</span>
+                    <div className="w-2 h-2 rounded-full bg-grafana-accent-green shadow-[0_0_10px_rgba(115,191,105,0.5)]"></div>
                 </div>
-
-                <div className="flex items-center gap-4 text-[10px] font-black text-slate-500  tracking-widest px-6 py-3 bg-slate-950/40 rounded-xl border border-slate-800/40">
-                    <span>Host: SCADA Kernel v1.0.4</span>
-                    <div className="w-2 h-2 rounded-full bg-brand-green shadow-[0_0_10px_rgba(16,185,129,0.5)]"></div>
-                </div>
-            </div>
+            </PageHeader>
 
             <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 items-start">
                 {/* 2. Visual & Master Controls */}
@@ -126,10 +119,10 @@ export default function SettingsPage() {
                     <section className="card-base bg-slate-900/20 dot-bg border-slate-800/60 overflow-hidden">
                         <div className="p-8 border-b border-slate-800 flex items-center justify-between bg-slate-900/40">
                             <div className="flex items-center gap-4">
-                                <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 text-brand-green">
+                                <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 text-grafana-accent-blue">
                                     <Palette size={20} />
                                 </div>
-                                <h3 className="text-lg font-black text-white  tracking-tight">UI Theme Subsystem</h3>
+                                <h3 className="text-lg font-black text-white  tracking-tight">GÖRÜNÜM TEMASI SİSTEMİ</h3>
                             </div>
                         </div>
 
@@ -139,7 +132,7 @@ export default function SettingsPage() {
                                     key={t.id}
                                     onClick={() => setTheme(t.id as any)}
                                     className={`relative p-6 text-left border-2 rounded-2xl transition-all group overflow-hidden ${theme === t.id
-                                        ? 'bg-slate-900/60 border-brand-green shadow-xl'
+                                        ? 'bg-slate-900/60 border-grafana-accent-blue shadow-xl'
                                         : 'bg-slate-950/20 border-slate-800 hover:border-slate-700'
                                         }`}
                                 >
@@ -154,7 +147,7 @@ export default function SettingsPage() {
                                             </span>
                                         </div>
                                         {theme === t.id && (
-                                            <div className="w-5 h-5 bg-brand-green rounded-full flex items-center justify-center">
+                                            <div className="w-5 h-5 bg-grafana-accent-blue rounded-full flex items-center justify-center">
                                                 <Check size={12} className="text-white" />
                                             </div>
                                         )}
@@ -170,33 +163,33 @@ export default function SettingsPage() {
                     <section className="card-base bg-slate-900/20 dot-bg border-slate-800/60 overflow-hidden">
                         <div className="p-8 border-b border-slate-800 flex items-center justify-between bg-slate-900/40">
                             <div className="flex items-center gap-4">
-                                <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 text-brand-green">
+                                <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 text-grafana-accent-blue">
                                     <Zap size={20} />
                                 </div>
-                                <h3 className="text-lg font-black text-white  tracking-tight">System Deployment Core</h3>
+                                <h3 className="text-lg font-black text-white  tracking-tight">SİSTEM DAĞITIM MERKEZİ</h3>
                             </div>
                         </div>
                         <div className="p-10 grid grid-cols-1 md:grid-cols-2 gap-10 relative z-10">
                             <div className="space-y-6">
                                 <div className="space-y-3">
                                     <label className="text-tech-label">Gateway IP Override</label>
-                                    <input type="text" placeholder="192.168.1.1" className="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-4 text-xs font-black text-brand-green focus:border-brand-green outline-none transition-all placeholder:text-slate-900 font-mono" />
+                                    <input type="text" placeholder="192.168.1.1" className="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-4 text-xs font-black text-grafana-accent-blue focus:border-grafana-accent-blue outline-none transition-all placeholder:text-slate-900 font-mono" />
                                 </div>
                                 <div className="space-y-3">
                                     <label className="text-tech-label">Master Node ID</label>
-                                    <input type="text" placeholder="SCADA_NODE_01" className="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-4 text-xs font-black text-white focus:border-brand-green outline-none transition-all placeholder:text-slate-900 font-mono" />
+                                    <input type="text" placeholder="SCADA NODE 01" className="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-4 text-xs font-black text-white focus:border-grafana-accent-blue outline-none transition-all placeholder:text-slate-900 font-mono" />
                                 </div>
                             </div>
                             <div className="space-y-6 border-l border-slate-800/40 pl-10">
-                                <div className="p-5 bg-brand-green/5 border border-brand-green/10 rounded-2xl">
-                                    <p className="text-[10px] font-black text-brand-green mb-2  tracking-widest">Discovery Status</p>
+                                <div className="p-5 bg-grafana-accent-blue/5 border border-grafana-accent-blue/10 rounded-2xl">
+                                    <p className="text-[10px] font-black text-grafana-accent-blue mb-2  tracking-widest">Discovery Status</p>
                                     <p className="text-base font-black text-white italic tracking-tighter">Listening on Port 2404</p>
                                     <div className="mt-4 h-1.5 w-full bg-slate-900 rounded-full overflow-hidden">
-                                        <div className="h-full bg-brand-green w-1/3 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.5)]"></div>
+                                        <div className="h-full bg-grafana-accent-green w-1/3 animate-pulse shadow-[0_0_8px_rgba(115,191,105,0.5)]"></div>
                                     </div>
                                 </div>
-                                <button className="w-full py-4 bg-brand-green text-white rounded-xl text-xs font-black shadow-2xl shadow-brand-green/20 hover:scale-[1.01] transition-all  tracking-[0.2em]">
-                                    Save System Overrides
+                                <button className="w-full py-4 bg-grafana-accent-blue text-white rounded-xl text-xs font-black shadow-2xl shadow-grafana-accent-blue/20 hover:scale-[1.01] transition-all  tracking-[0.2em]">
+                                    SİSTEM AYARLARINI KAYDET
                                 </button>
                             </div>
                         </div>
@@ -208,9 +201,9 @@ export default function SettingsPage() {
                     <section className="card-base bg-slate-950 p-8 border-slate-800">
                         <div className="flex items-center gap-4 mb-8">
                             <div className="p-2 bg-slate-900 border border-slate-800 rounded-lg">
-                                <Shield size={18} className="text-brand-green" />
+                                <Shield size={18} className="text-grafana-accent-blue" />
                             </div>
-                            <span className="text-tech-label">Security Context</span>
+                            <span className="text-tech-label">GÜVENLİK KAPSAMI</span>
                         </div>
                         <div className="space-y-4">
                             <div className="p-5 border border-slate-800 bg-slate-900/20 rounded-xl">
@@ -219,7 +212,7 @@ export default function SettingsPage() {
                             </div>
                             <div className="p-5 border border-slate-800 bg-slate-900/20 rounded-xl">
                                 <p className="text-[9px] text-slate-600 font-black mb-2  tracking-widest leading-none">Identity Token</p>
-                                <p className="text-[10px] text-slate-400 font-mono italic truncate">SCADA_SESSION_EYJ0...</p>
+                                <p className="text-[10px] text-slate-400 font-mono italic truncate">SCADA SESSION EYJ0...</p>
                             </div>
                         </div>
                     </section>
@@ -229,12 +222,12 @@ export default function SettingsPage() {
                             <div className="p-2 bg-slate-900 border border-slate-800 rounded-lg text-slate-500">
                                 <HardDrive size={18} />
                             </div>
-                            <span className="text-tech-label">Storage Nodes</span>
+                            <span className="text-tech-label">DEPOLAMA DÜĞÜMLERİ</span>
                         </div>
                         <div className="space-y-6">
                             {[
-                                { label: 'Prisma DB', state: 'CONNECTED', util: '14%', color: 'text-brand-green' },
-                                { label: 'Redis Cache', state: 'SYNCED', util: '2%', color: 'text-brand-green' },
+                                { label: 'Prisma DB', state: 'CONNECTED', util: '14%', color: 'text-grafana-accent-green' },
+                                { label: 'Redis Cache', state: 'SYNCED', util: '2%', color: 'text-grafana-accent-green' },
                                 { label: 'System FS', state: 'STABLE', util: '82%', color: 'text-warning' },
                             ].map((s) => (
                                 <div key={s.label} className="flex justify-between items-center border-b border-slate-800/40 pb-4 last:border-0 last:pb-0">

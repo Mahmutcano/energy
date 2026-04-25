@@ -5,20 +5,22 @@ import RealtimeCard from '@/components/RealtimeCard';
 import { apiRequest } from '@/lib/api';
 import {
   Activity,
-  BarChart3,
   Zap,
   Database,
   AlertTriangle,
-  Clock,
   Terminal,
   Cpu,
-  Factory,
   Network,
-  Building2
+  ChevronRight,
+  RefreshCcw,
+  Clock,
+  LayoutGrid
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { socket, socketService } from '@/lib/socket';
 import toast from 'react-hot-toast';
+import { cn } from '@/lib/utils';
+import PageHeader from '@/components/PageHeader';
 
 interface DashboardStats {
   companies: number;
@@ -55,7 +57,7 @@ export default function Dashboard() {
 
   const handleReconnect = () => {
     socketService.reconnect();
-    toast.success('Bağlantı yenileme isteği gönderildi / Reconnection requested');
+    toast.success('Sistem senkronizasyonu başlatıldı');
   };
 
   useEffect(() => {
@@ -100,220 +102,172 @@ export default function Dashboard() {
   }, []);
 
   return (
-    <div className="space-y-10 pb-16 animate-in-up font-sans">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-8">
-        <div className="space-y-2">
-          <div className="flex items-center gap-4">
-            <div className="w-1.5 h-8 bg-brand-green rounded-full shadow-[0_0_20px_rgba(16,185,129,0.4)]"></div>
-            <h1 className="text-3xl font-black text-white tracking-tight ">Operations Center</h1>
-          </div>
-          <p className="text-sm text-slate-500 ml-6">Live system overview and telemetry monitoring</p>
-        </div>
-
-        <div className="flex items-center gap-4">
-          {[
-            { label: 'Latency', val: '12ms', icon: Clock, color: 'text-brand-green' },
-            { label: 'Uptime', val: '99.98%', icon: Activity, color: 'text-brand-green' },
-          ].map((stat, i) => (
-            <div key={i} className="flex items-center gap-3 px-5 py-3 bg-slate-950/40 border border-slate-800/60 rounded-xl">
-              <div className="p-2 rounded-lg bg-slate-900/60 border border-slate-800/40">
-                <stat.icon size={14} className={stat.color} />
-              </div>
-              <div className="flex flex-col leading-none">
-                <span className="text-[9px] font-bold text-slate-600  tracking-widest mb-1">{stat.label}</span>
-                <span className="text-sm font-black text-white tabular-nums">{stat.val}</span>
-              </div>
+    <div className="space-y-8 pb-20 font-sans">
+      <PageHeader 
+        title="OPERASYON" 
+        highlightedTitle="PANELİ"
+        subtitle={`${stats.companies} kurumda ${stats.plants} aktif saha izleniyor`}
+        icon={LayoutGrid}
+      >
+        <div className="flex flex-wrap items-center gap-4">
+          <div className="flex items-center gap-4 px-4 py-2 bg-grafana-bg border border-grafana-border rounded-sm">
+            <div className="flex flex-col">
+              <span className="text-[9px] font-bold text-grafana-text-secondary uppercase tracking-widest font-mono">Sistem Yükü</span>
+              <span className="text-sm font-bold text-grafana-accent-green font-mono">Düşük (4.2%)</span>
             </div>
-          ))}
+            <div className="w-[1px] h-6 bg-grafana-border" />
+            <div className="flex flex-col">
+              <span className="text-[9px] font-bold text-grafana-text-secondary uppercase tracking-widest font-mono">Protokol Trafiği</span>
+              <span className="text-sm font-bold text-grafana-accent-blue font-mono">1.2k req/s</span>
+            </div>
+          </div>
 
-          {/* New Reconnect Global Button */}
           <button
             onClick={handleReconnect}
-            className={`flex items-center gap-3 px-5 py-3 bg-slate-950/40 border ${isSocketConnected ? 'border-brand-green/30' : 'border-red-500/30'} rounded-xl hover:bg-slate-900/60 transition-all group`}
-            title="Soket Bağlantısını Yenile (Refresh Socket)"
+            className={cn(
+              "flex items-center gap-3 px-5 py-2.5 rounded-sm border transition-all group font-mono",
+              isSocketConnected 
+                ? "bg-grafana-bg border-grafana-accent-green/20 text-grafana-accent-green hover:bg-grafana-accent-green/10" 
+                : "bg-grafana-accent-red/10 border-grafana-accent-red/30 text-grafana-accent-red animate-pulse"
+            )}
           >
-            <div className={`p-2 rounded-lg bg-slate-900/60 border ${isSocketConnected ? 'border-brand-green/20' : 'border-red-500/20'}`}>
-              <Activity size={14} className={`${isSocketConnected ? 'text-brand-green' : 'text-red-500'} group-hover:rotate-180 transition-transform duration-500`} />
-            </div>
-            <div className="flex flex-col leading-none items-start">
-              <span className="text-[9px] font-bold text-slate-600 tracking-widest mb-1">DATA BRIDGE</span>
-              <span className={`text-[10px] font-black uppercase ${isSocketConnected ? 'text-brand-green' : 'text-red-500'}`}>
-                {isSocketConnected ? 'Online (Refresh)' : 'OFFLINE (RECONNECT)'}
-              </span>
-            </div>
+            <RefreshCcw size={14} className={cn("transition-transform duration-700", isSocketConnected && "group-hover:rotate-180")} />
+            <span className="text-[10px] font-bold uppercase tracking-widest">
+              {isSocketConnected ? 'Senkronize Et' : 'Bağlan'}
+            </span>
           </button>
         </div>
-      </div>
+      </PageHeader>
 
-      {/* System Overview Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+      {/* High-Density Metric Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
         {[
-          { label: 'Total Devices', val: stats.devices, icon: Cpu, color: 'text-brand-green', bg: 'bg-brand-green/5', border: 'border-brand-green/20' },
-          { label: 'Protocols', val: stats.protocols, icon: Network, color: 'text-blue-400', bg: 'bg-blue-400/5', border: 'border-blue-400/20' },
-          { label: 'Active Alarms', val: stats.activeAlarms, icon: AlertTriangle, color: stats.activeAlarms > 0 ? 'text-red-400' : 'text-brand-green', bg: stats.activeAlarms > 0 ? 'bg-red-500/5' : 'bg-brand-green/5', border: stats.activeAlarms > 0 ? 'border-red-500/20' : 'border-brand-green/20' },
-          { label: 'System Status', val: 'OK', icon: Activity, color: 'text-brand-green', bg: 'bg-brand-green/5', border: 'border-brand-green/20' },
+          { label: 'Ağ Varlıkları', val: stats.devices, icon: Cpu, color: 'text-grafana-accent-blue', sub: 'Aktif düğümler' },
+          { label: 'İletişim Kanalları', val: stats.protocols, icon: Network, color: 'text-grafana-accent-blue', sub: 'Protokol örnekleri' },
+          { label: 'Kritik Alarmlar', val: stats.activeAlarms, icon: AlertTriangle, color: stats.activeAlarms > 0 ? 'text-grafana-accent-red' : 'text-grafana-accent-green', sub: 'Müdahale gerekli' },
+          { label: 'Operasyonel Sağlık', val: 'Optimal', icon: Activity, color: 'text-grafana-accent-green', sub: 'Sistem durumu' },
         ].map((stat, i) => (
-          <div key={i} className={`card-base p-6 ${stat.bg} ${stat.border}`}>
-            <div className="flex items-center gap-3 mb-4">
-              <div className={`p-2 rounded-lg bg-slate-950 border border-slate-800 ${stat.color}`}>
+          <div key={i} className="card-base p-5 bg-grafana-panel/50 flex flex-col gap-4">
+            <div className="flex justify-between items-start">
+              <div className="flex flex-col gap-1">
+                <span className="text-[10px] font-bold text-grafana-text-secondary uppercase tracking-widest font-mono">{stat.label}</span>
+                <p className={cn("text-2xl font-bold font-mono tracking-tighter", stat.color)}>
+                  {typeof stat.val === 'number' ? stat.val.toString().padStart(2, '0') : stat.val}
+                </p>
+              </div>
+              <div className={cn("p-2 rounded-sm bg-grafana-bg border border-grafana-border", stat.color)}>
                 <stat.icon size={16} />
               </div>
-              <span className="text-[10px] font-bold text-slate-500  tracking-widest">{stat.label}</span>
             </div>
-            <p className={`text-3xl font-black tabular-nums ${stat.color}`}>{typeof stat.val === 'number' ? stat.val.toString().padStart(2, '0') : stat.val}</p>
+            <div className="flex items-center gap-2 text-[9px] font-bold text-grafana-text-secondary/50 uppercase tracking-widest font-mono">
+              <ChevronRight size={10} />
+              {stat.sub}
+            </div>
           </div>
         ))}
       </div>
 
-      {/* Live Telemetry Section */}
-      <section className="space-y-6">
-        <div className="flex items-center gap-4 px-1">
-          <div className="p-2 rounded-lg bg-brand-green/10 border border-brand-green/20">
-            <Database size={16} className="text-brand-green" />
-          </div>
-          <h3 className="text-xs font-bold text-slate-500  tracking-widest">Live Telemetry Feed</h3>
-          <div className="h-px flex-1 bg-gradient-to-r from-slate-800 to-transparent"></div>
-          <div className="flex items-center gap-2 px-3 py-1 bg-slate-950 border border-slate-800 rounded-lg">
-            <div className="w-2 h-2 rounded-full bg-brand-green animate-pulse"></div>
-            <span className="text-[9px] font-bold text-slate-500 ">Realtime</span>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {protocols.length > 0 ? (
-            protocols.map((proto) => (
-              <RealtimeCard
-                key={proto.id}
-                commProtocolId={proto.id}
-                label={`${proto.device?.deviceName || 'Device'} • ${proto.protocolType}`}
-                unit={proto.protocolType === 'MODBUS' ? 'V' : 'A'}
-              />
-            ))
-          ) : (
-            <>
-              {/* Placeholder cards when no protocols configured */}
-              {[1, 2, 3, 4].map(i => (
-                <div key={i} className="card-base p-6 h-48 flex flex-col items-center justify-center text-center">
-                  <Zap size={24} className="text-slate-800 mb-3" />
-                  <p className="text-xs text-slate-600">No protocol configured</p>
-                  <p className="text-[10px] text-slate-700 mt-1">Add comm protocols to see live data</p>
-                </div>
-              ))}
-            </>
-          )}
-        </div>
-      </section>
-
-      <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 items-start">
-        {/* Analysis Panel Removed */}
-        <div className="xl:col-span-8 space-y-8">
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <div className="card-base p-6 bg-slate-900/20">
-              <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-800/40">
-                <div className="p-2 rounded-lg bg-slate-950 border border-slate-800">
-                  <Zap size={14} className="text-brand-green" />
-                </div>
-                <h3 className="text-xs font-bold text-white  tracking-widest">Quick Stats</h3>
+      {/* Main Telemetry Visualization Grid */}
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
+        {/* Realtime Stream */}
+        <div className="xl:col-span-8 space-y-4">
+          <div className="flex items-center justify-between px-2">
+            <div className="flex items-center gap-3">
+              <div className="p-1.5 rounded-sm bg-grafana-accent-blue/10 text-grafana-accent-blue border border-grafana-accent-blue/20">
+                <Zap size={14} />
               </div>
-              <div className="space-y-1">
-                {[
-                  { label: 'Active Devices', val: stats.devices.toString() },
-                  { label: 'Comm Protocols', val: stats.protocols.toString() },
-                  { label: 'Alarm Events', val: stats.activeAlarms.toString() },
-                ].map((row, i) => (
-                  <div key={i} className="flex justify-between items-center py-3 px-2 hover:bg-slate-800/30 rounded-lg transition-all border-b border-slate-800/30 last:border-none">
-                    <span className="text-[10px] font-bold text-slate-500  tracking-widest">{row.label}</span>
-                    <span className="text-lg font-black text-white tabular-nums">{row.val}</span>
-                  </div>
-                ))}
-              </div>
+              <h3 className="text-xs font-bold text-grafana-text-primary uppercase tracking-[0.2em] font-sans">Gerçek Zamanlı Telemetri</h3>
             </div>
-
-            <div className="card-base p-6 bg-slate-900/20">
-              <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-800/40">
-                <div className="p-2 rounded-lg bg-slate-950 border border-slate-800">
-                  <Network size={14} className="text-brand-green" />
-                </div>
-                <h3 className="text-xs font-bold text-white  tracking-widest">Protocol Summary</h3>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                {[
-                  { label: 'Modbus', status: protocols.filter(p => p.protocolType === 'MODBUS').length > 0 ? 'Active' : 'None', col: protocols.filter(p => p.protocolType === 'MODBUS').length > 0 ? 'text-brand-green' : 'text-slate-600' },
-                  { label: 'IEC 104', status: protocols.filter(p => p.protocolType === 'IEC104').length > 0 ? 'Active' : 'None', col: protocols.filter(p => p.protocolType === 'IEC104').length > 0 ? 'text-brand-green' : 'text-slate-600' },
-                  { label: 'Database', status: 'Connected', col: 'text-brand-green' },
-                  { label: 'WebSocket', status: 'Ready', col: 'text-brand-green' },
-                ].map((hw, i) => (
-                  <div key={i} className="p-3 rounded-xl border border-slate-800 bg-slate-950/60 hover:border-brand-green/30 transition-all">
-                    <p className="text-[9px] font-bold text-slate-600  tracking-widest mb-2">{hw.label}</p>
-                    <div className="flex items-center gap-2">
-                      <div className={`w-1.5 h-1.5 rounded-full ${hw.col === 'text-brand-green' ? 'bg-brand-green shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-slate-700'}`}></div>
-                      <span className={`text-[10px] font-bold ${hw.col} `}>{hw.status}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
+            <div className="flex items-center gap-4 text-[9px] font-bold text-grafana-text-secondary uppercase tracking-widest font-mono">
+              <span className="flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-grafana-accent-blue" /> Modbus</span>
+              <span className="flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-grafana-accent-green" /> IEC104</span>
             </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {protocols.length > 0 ? (
+              protocols.map((proto) => (
+                <RealtimeCard
+                  key={proto.id}
+                  commProtocolId={proto.id}
+                  label={`${proto.device?.deviceName || 'Remote Unit'} / ${proto.protocolType}`}
+                  unit={proto.protocolType === 'MODBUS' ? 'V (RMS)' : 'A (Line)'}
+                />
+              ))
+            ) : (
+              [1, 2, 3, 4].map(i => (
+                <div key={i} className="card-base h-40 flex flex-col items-center justify-center border-dashed border-grafana-border opacity-50">
+                  <Cpu size={24} className="text-grafana-text-secondary/30 mb-2" />
+                  <span className="text-[10px] font-bold text-grafana-text-secondary/50 uppercase tracking-widest font-mono">Protokol Verisi Yok</span>
+                </div>
+              ))
+            )}
           </div>
         </div>
 
-        {/* Event Log Panel */}
-        <div className="xl:col-span-4 h-full">
-          <div className="card-base flex flex-col h-full bg-slate-950 border-slate-800 shadow-2xl relative overflow-hidden">
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(16,185,129,0.03),transparent)] pointer-events-none" />
-
-            <div className="p-6 border-b border-slate-800 flex items-center justify-between bg-slate-900/30">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-slate-950 border border-slate-800">
-                  <Terminal size={16} className="text-brand-green" />
-                </div>
-                <div>
-                  <h3 className="text-xs font-bold text-white  tracking-widest">Event Log</h3>
-                  <p className="text-[8px] font-mono text-slate-600 mt-0.5 ">Recent system events</p>
-                </div>
-              </div>
+        {/* System Terminal / Events */}
+        <div className="xl:col-span-4 space-y-4">
+          <div className="flex items-center gap-3 px-2">
+            <div className="p-1.5 rounded-sm bg-grafana-text-secondary/10 text-grafana-text-secondary border border-grafana-border">
+              <Terminal size={14} />
             </div>
+            <h3 className="text-xs font-bold text-grafana-text-primary uppercase tracking-[0.2em] font-sans">Sistem Olayları</h3>
+          </div>
 
-            <div className="flex-1 overflow-y-auto p-6 space-y-5 max-h-[600px] scrollbar-hide relative z-10">
+          <div className="card-base flex flex-col h-[336px] bg-grafana-bg/80 border-grafana-border relative">
+            <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar font-mono">
               {[
-                { type: 'success', event: 'System Online', desc: 'All core services running normally', time: 'Now' },
-                { type: 'info', event: 'Database Sync', desc: 'PostgreSQL connection established', time: '1m ago' },
-                { type: 'success', event: 'Auth Service', desc: 'JWT authentication system active', time: '2m ago' },
-                { type: 'info', event: 'Protocol Engine', desc: 'Modbus/IEC104 protocol handlers initialized', time: '3m ago' },
-                { type: 'warning', event: 'Telemetry Buffer', desc: 'Buffer utilization at 45% capacity', time: '5m ago' },
+                { type: 'info', event: 'BAŞLATMA', desc: 'SCADA Motoru v1.0.4 Başlatıldı', time: '10:00:01' },
+                { type: 'success', event: 'SENKRON', desc: 'Telemetri köprüsü WebSocket üzerinden kuruldu', time: '10:00:05' },
+                { type: 'info', event: 'VERİTABANI', desc: 'PostgreSQL bağlantı havuzu hazır (10/50)', time: '10:02:12' },
+                { type: 'warning', event: 'GECİKME', desc: 'IEC104 protokol gecikmesi 50ms üzerine çıktı', time: '10:15:33' },
+                { type: 'success', event: 'YETKİ', desc: 'Yönetici oturumu doğrulandı: SİSTEM', time: '10:20:45' },
               ].map((log, i) => (
-                <div key={i} className="group border-b border-slate-900 pb-5 last:border-none">
-                  <div className="flex justify-between items-center mb-2">
-                    <div className="flex items-center gap-2">
-                      <div className={`w-1 h-3 rounded-full ${log.type === 'warning' ? 'bg-orange-500' : log.type === 'danger' ? 'bg-red-500' : 'bg-brand-green'}`} />
-                      <span className={`text-[10px] font-bold  tracking-widest ${log.type === 'warning' ? 'text-orange-500' : log.type === 'danger' ? 'text-red-500' : 'text-brand-green'}`}>
-                        {log.event}
-                      </span>
-                    </div>
-                    <span className="text-[9px] font-mono text-slate-700">{log.time}</span>
+                <div key={i} className="flex gap-3 text-[10px] leading-relaxed group border-l-2 border-transparent hover:border-grafana-accent-blue pl-2 transition-all">
+                  <span className="text-grafana-text-secondary/50 shrink-0">[{log.time}]</span>
+                  <div className="flex flex-col gap-0.5">
+                    <span className={cn(
+                      "font-bold uppercase tracking-widest",
+                      log.type === 'warning' ? 'text-grafana-accent-orange' : log.type === 'success' ? 'text-grafana-accent-green' : 'text-grafana-accent-blue'
+                    )}>
+                      {log.event}
+                    </span>
+                    <span className="text-grafana-text-secondary group-hover:text-grafana-text-primary transition-colors italic">{log.desc}</span>
                   </div>
-                  <p className="text-[11px] text-slate-500 group-hover:text-slate-300 transition-colors leading-relaxed pl-3">{log.desc}</p>
                 </div>
               ))}
+            </div>
+            <div className="p-3 border-t border-grafana-border bg-grafana-panel/50 flex items-center justify-between">
+              <span className="text-[9px] font-bold text-grafana-text-secondary uppercase tracking-[0.2em] font-mono animate-pulse flex items-center gap-2">
+                <div className="w-1 h-1 rounded-full bg-grafana-accent-green" /> Olaylar dinleniyor...
+              </span>
+              <button className="text-[9px] font-bold text-grafana-accent-blue hover:underline uppercase font-mono tracking-widest">Logları Temizle</button>
             </div>
           </div>
         </div>
       </div>
 
-      <footer className="pt-8 border-t border-border/40 flex flex-wrap items-center justify-between gap-6 opacity-60">
-        <div className="flex items-center gap-8">
+      {/* Footer Connectivity Bar */}
+      <footer className="pt-8 border-t border-grafana-border flex flex-col sm:flex-row items-center justify-between gap-4 opacity-70">
+        <div className="flex items-center gap-6">
           <div className="flex items-center gap-2">
-            <Database size={12} className="text-brand-green" />
-            <span className="text-[10px] font-bold text-slate-500  tracking-widest">PostgreSQL Online</span>
+            <Database size={12} className="text-grafana-accent-green" />
+            <span className="text-[10px] font-bold text-grafana-text-secondary uppercase tracking-widest font-mono">VT: Çevrimiçi</span>
           </div>
           <div className="flex items-center gap-2">
-            <AlertTriangle size={12} className={stats.activeAlarms > 0 ? 'text-amber-400' : 'text-brand-green'} />
-            <span className="text-[10px] font-bold text-slate-500  tracking-widest">{stats.activeAlarms} Active Alerts</span>
+            <Network size={12} className="text-grafana-accent-blue" />
+            <span className="text-[10px] font-bold text-grafana-text-secondary uppercase tracking-widest font-mono">REDIS: Aktif</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Clock size={12} className="text-grafana-text-secondary" />
+            <span className="text-[10px] font-bold text-grafana-text-secondary uppercase tracking-widest font-mono">Yerel: 24.04.2024</span>
           </div>
         </div>
-        <p className="text-[9px] font-bold text-slate-400  tracking-widest">X-SCADA Enterprise v1.0</p>
+        <p className="text-[10px] font-bold text-grafana-text-secondary uppercase tracking-[0.4em] font-mono">
+          X-SCADA Enterprise <span className="text-grafana-accent-blue">v2.0.4-LTS</span>
+        </p>
       </footer>
     </div>
   );
 }
+

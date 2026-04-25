@@ -1,13 +1,15 @@
 "use client";
 
 import React, { useState, useEffect, Suspense } from 'react';
-import { Network, Plus, X, Cpu, Factory, Wifi, Settings2, Pencil, Trash2, Cpu as DeviceIcon, AlertTriangle } from 'lucide-react';
+import { Network, Plus, X, Cpu, Factory, Wifi, Settings2, Pencil, Trash2, Cpu as DeviceIcon, AlertTriangle, Database, Activity, Shield, Zap, Info, RefreshCw } from 'lucide-react';
 import { apiRequest } from '@/lib/api';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter, useSearchParams } from 'next/navigation';
 import toast from 'react-hot-toast';
 import Modal from '@/components/Modal';
 import PlantForm, { PlantFormData } from '@/components/forms/PlantForm';
+import { cn } from '@/lib/utils';
+import PageHeader from '@/components/PageHeader';
 
 interface CommProtocol {
     id: string;
@@ -77,11 +79,6 @@ function ProtocolsContent() {
     // Inline Plant Modal State
     const [isPlantModalOpen, setIsPlantModalOpen] = useState(false);
     const [isCreatingPlant, setIsCreatingPlant] = useState(false);
-    const [newPlantData, setNewPlantData] = useState({
-        plantName: '',
-        companyId: '',
-        plantType: 'SOLAR'
-    });
 
     const fetchProtocols = async () => {
         try {
@@ -97,8 +94,8 @@ function ProtocolsContent() {
                 setProtocols(filteredData);
             }
         }
- catch (err) {
-            console.error('Failed to fetch protocols:', err);
+        catch (err) {
+            console.error('Protokoller çekilemedi:', err);
         } finally {
             setLoading(false);
         }
@@ -113,8 +110,8 @@ function ProtocolsContent() {
                 setPlants(Array.isArray(data) ? data : []);
             }
         }
- catch (err) {
-            console.error('Failed to fetch plants:', err);
+        catch (err) {
+            console.error('Santraller çekilemedi:', err);
         }
     };
 
@@ -127,8 +124,8 @@ function ProtocolsContent() {
                 setCompanies(Array.isArray(data) ? data : []);
             }
         }
- catch (err) {
-            console.error('Failed to fetch companies:', err);
+        catch (err) {
+            console.error('Firmalar çekilemedi:', err);
         }
     }
 
@@ -144,30 +141,31 @@ function ProtocolsContent() {
 
     const openEditModal = (proto: CommProtocol) => {
         setEditingProtocol(proto);
-        let updatedForm = {
+        
+        const updatedForm = {
             ...defaultFormData,
             configName: proto.configName || '',
             plantId: proto.plantId || '',
             protocolType: proto.protocolType,
+            ...(proto.protocolType === 'MODBUS' && proto.modbusConfig ? {
+                ipAddress: proto.modbusConfig.ipAddress,
+                port: proto.modbusConfig.port,
+                slaveId: proto.modbusConfig.slaveId,
+                timeout: proto.modbusConfig.timeout,
+                retryCount: proto.modbusConfig.retryCount,
+            } : {}),
+            ...(proto.protocolType === 'IEC104' && proto.iec104Config ? {
+                iecIpAddress: proto.iec104Config.ipAddress,
+                iecPort: proto.iec104Config.port,
+                asduAddr: proto.iec104Config.asduAddr,
+                t0: proto.iec104Config.t0,
+                t1: proto.iec104Config.t1,
+                t2: proto.iec104Config.t2,
+                t3: proto.iec104Config.t3,
+                k: proto.iec104Config.k,
+                w: proto.iec104Config.w,
+            } : {}),
         };
-
-        if (proto.protocolType === 'MODBUS' && proto.modbusConfig) {
-            updatedForm.ipAddress = proto.modbusConfig.ipAddress;
-            updatedForm.port = proto.modbusConfig.port;
-            updatedForm.slaveId = proto.modbusConfig.slaveId;
-            updatedForm.timeout = proto.modbusConfig.timeout;
-            updatedForm.retryCount = proto.modbusConfig.retryCount;
-        } else if (proto.protocolType === 'IEC104' && proto.iec104Config) {
-            updatedForm.iecIpAddress = proto.iec104Config.ipAddress;
-            updatedForm.iecPort = proto.iec104Config.port;
-            updatedForm.asduAddr = proto.iec104Config.asduAddr;
-            updatedForm.t0 = proto.iec104Config.t0;
-            updatedForm.t1 = proto.iec104Config.t1;
-            updatedForm.t2 = proto.iec104Config.t2;
-            updatedForm.t3 = proto.iec104Config.t3;
-            updatedForm.k = proto.iec104Config.k;
-            updatedForm.w = proto.iec104Config.w;
-        }
 
         setFormData(updatedForm);
         setIsModalOpen(true);
@@ -183,7 +181,7 @@ function ProtocolsContent() {
         try {
             const res = await apiRequest(`/api/comm-protocols/${protocolToDelete.id}`, { method: 'DELETE' });
             if (res.ok) {
-                toast.success('Protokol başarıyla silindi');
+                toast.success('Protokol yapılandırması silindi');
                 setProtocols(protocols.filter(p => p.id !== protocolToDelete.id));
                 setProtocolToDelete(null);
             } else {
@@ -193,7 +191,7 @@ function ProtocolsContent() {
                 fetchProtocols();
             }
         } catch (err) {
-            console.error('Delete error:', err);
+            console.error('Silme hatası:', err);
         } finally {
             setIsDeleting(false);
         }
@@ -241,14 +239,14 @@ function ProtocolsContent() {
                 body: JSON.stringify(body)
             });
             if (res.ok) {
-                toast.success(editingProtocol ? 'Protokol güncellendi' : 'Protokol oluşturuldu');
+                toast.success(editingProtocol ? 'Protokol yığını güncellendi' : 'Protokol yığını başlatıldı');
                 setIsModalOpen(false);
                 setFormData({ ...defaultFormData, plantId: initialPlantId });
                 setEditingProtocol(null);
                 fetchProtocols();
             }
         } catch (err) {
-            console.error('Create error:', err);
+            console.error('Oluşturma hatası:', err);
         } finally {
             setIsSubmitting(false);
             submittingRef.current = false;
@@ -273,17 +271,17 @@ function ProtocolsContent() {
                 const result = await res.json();
                 const newPlant = result.success ? result.data : result;
                 const plantId = newPlant.id || newPlant;
-                toast.success('Plant created');
+                toast.success('Düğüm oluşturuldu');
                 await fetchPlants();
                 setFormData({ ...formData, plantId: (typeof plantId === 'string' ? plantId : plantId.id) });
                 setIsPlantModalOpen(false);
             } else {
                 const result = await res.json();
-                const errorMessage = result.error?.message || result.error || 'Plant creation failed';
+                const errorMessage = result.error?.message || result.error || 'Düğüm oluşturulamadı';
                 toast.error(errorMessage);
             }
         } catch (err) {
-            toast.error('An error occurred');
+            toast.error('Bir hata oluştu');
         } finally {
             setIsCreatingPlant(false);
         }
@@ -293,419 +291,451 @@ function ProtocolsContent() {
     const iec104Count = protocols.filter(p => p.protocolType === 'IEC104').length;
 
     return (
-        <div className="space-y-8 pb-16 animate-in-up font-sans">
-            {/* Header */}
-            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-8">
-                <div className="space-y-2">
-                    <div className="flex items-center gap-4">
-                        <div className="w-1.5 h-8 bg-brand-green rounded-full shadow-[0_0_20px_rgba(16,185,129,0.4)]"></div>
-                        <h1 className="text-3xl font-black text-white tracking-tight ">Communication Protocols</h1>
-                    </div>
-                    <p className="text-sm text-slate-500 ml-6">Configure Modbus and IEC 104 endpoints for devices</p>
-                </div>
-
+        <div className="space-y-6 pb-20 animate-in-fade font-sans">
+            <PageHeader 
+                title="İLETİŞİM" 
+                highlightedTitle="YIĞINI"
+                subtitle="Modbus TCP ve IEC 60870-5-104 uç nokta orkestrasyonu"
+                icon={Network}
+            >
                 <button
                     onClick={openCreateModal}
-                    className="flex items-center gap-3 px-6 py-3 bg-brand-green text-white rounded-xl text-xs font-bold shadow-lg shadow-brand-green/20 hover:scale-[1.02] transition-all  tracking-widest"
+                    className="flex items-center gap-2 px-6 py-2.5 bg-grafana-accent-blue hover:bg-grafana-accent-blue/90 text-white rounded-sm text-[11px] font-bold uppercase tracking-widest transition-all shadow-[0_0_15px_rgba(87,148,242,0.2)] font-mono"
                 >
-                    <Plus size={16} strokeWidth={3} /> New Protocol
+                    <Plus size={16} /> YENİ UÇ NOKTA KAYDET
                 </button>
-            </div>
+            </PageHeader>
 
-            {/* Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* Metrikler */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 {[
-                    { label: 'Total Protocols', val: protocols.length, color: 'text-brand-green', icon: Network },
-                    { label: 'Modbus', val: modbusCount, color: 'text-blue-400', icon: Cpu },
-                    { label: 'IEC 104', val: iec104Count, color: 'text-amber-400', icon: Wifi },
+                    { label: 'TOPLAM UÇ NOKTA', val: protocols.length, icon: Network, color: 'text-grafana-accent-blue', bg: 'bg-grafana-accent-blue/5' },
+                    { label: 'MODBUS YIĞINI', val: modbusCount, icon: Database, color: 'text-grafana-accent-orange', bg: 'bg-grafana-accent-orange/5' },
+                    { label: 'IEC104 YIĞINI', val: iec104Count, icon: Wifi, color: 'text-grafana-accent-green', bg: 'bg-grafana-accent-green/5' },
                 ].map((stat, i) => (
-                    <div key={i} className="card-base p-6 flex items-center gap-4">
-                        <div className={`p-3 rounded-xl bg-slate-950 border border-slate-800 ${stat.color}`}>
+                    <motion.div 
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: i * 0.1 }}
+                        key={i} 
+                        className="bg-grafana-panel/40 border border-grafana-border p-5 rounded-sm flex items-center gap-5 group hover:border-grafana-text-secondary/30 transition-all"
+                    >
+                        <div className={cn("p-3 rounded-sm border border-white/10", stat.bg, stat.color)}>
                             <stat.icon size={20} />
                         </div>
                         <div>
-                            <p className="text-[10px] font-bold text-slate-500  tracking-widest">{stat.label}</p>
-                            <p className="text-2xl font-black text-white tabular-nums">{stat.val}</p>
+                            <p className="text-tech-label">{stat.label}</p>
+                            <p className="text-2xl font-bold text-grafana-text-primary font-mono tabular-nums leading-none">{stat.val.toString().padStart(2, '0')}</p>
                         </div>
-                    </div>
+                    </motion.div>
                 ))}
             </div>
 
-            {/* Protocol Table */}
-            <div className="card-base overflow-hidden">
-                <div className="p-6 border-b border-slate-800/40 flex justify-between items-center bg-slate-900/40">
+            {/* Protokol Tablosu */}
+            <div className="bg-grafana-panel/30 border border-grafana-border rounded-sm overflow-hidden shadow-sm">
+                <div className="p-4 border-b border-grafana-border bg-grafana-bg/40 flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                        <div className="p-2 rounded-lg bg-slate-950 border border-slate-800 text-brand-green">
-                            <Network size={18} />
+                        <Settings2 size={14} className="text-grafana-accent-blue" />
+                        <h3 className="text-tech-label text-grafana-text-primary">UÇ NOKTA YAPILANDIRMA MATRİSİ</h3>
+                    </div>
+                    <div className="hidden sm:flex items-center gap-4">
+                        <div className="flex items-center gap-2 text-[9px] font-bold text-grafana-text-secondary uppercase font-mono">
+                            <span className="w-1.5 h-1.5 rounded-full bg-grafana-accent-orange" /> MODBUS
                         </div>
-                        <h3 className="text-sm font-bold text-white ">Protocol Registry</h3>
+                        <div className="flex items-center gap-2 text-[9px] font-bold text-grafana-text-secondary uppercase font-mono">
+                            <span className="w-1.5 h-1.5 rounded-full bg-grafana-accent-green" /> IEC104
+                        </div>
                     </div>
                 </div>
 
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse">
+                <div className="overflow-x-auto min-h-[400px]">
+                    <table className="scada-table">
                         <thead>
-                            <tr className="text-[10px] font-bold text-slate-500  tracking-widest border-b border-slate-800/40 bg-slate-900/20">
-                                <th className="px-6 py-4">Type</th>
-                                <th className="px-6 py-4">Config Name</th>
-                                <th className="px-6 py-4">Plant</th>
-                                <th className="px-6 py-4">IP Address</th>
-                                <th className="px-6 py-4">Config Details</th>
-                                <th className="px-6 py-4 text-center">Devices</th>
-                                <th className="px-6 py-4 text-right">Actions</th>
+                            <tr>
+                                <th>YIĞIN TİPİ</th>
+                                <th>YAPILANDIRMA ADI</th>
+                                <th>İLİŞKİLİ DÜĞÜM</th>
+                                <th>IP ADRESİ</th>
+                                <th>PARAMETRELER</th>
+                                <th className="text-center">CİHAZLAR</th>
+                                <th className="text-right">İŞLEMLER</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {loading ? (
-                                <tr><td colSpan={7} className="px-6 py-12 text-center text-sm text-slate-500 animate-pulse">Loading protocols...</td></tr>
-                            ) : protocols.length === 0 ? (
-                                <tr><td colSpan={7} className="px-6 py-12 text-center text-sm text-slate-500">No protocols configured</td></tr>
-                            ) : protocols.map((proto) => (
-                                <tr key={proto.id} className="border-b border-slate-800/30 hover:bg-slate-800/20 transition-all">
-                                    <td className="px-6 py-4">
-                                        <span className={`px-2 py-1 rounded-md text-[10px] font-bold  border ${proto.protocolType === 'MODBUS'
-                                            ? 'bg-blue-500/10 text-blue-400 border-blue-500/20'
-                                            : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
-                                            }`}>
-                                            {proto.protocolType}
-                                        </span>
-                                    </td>
-                                    <td className="px-6 py-4 text-sm font-bold text-white">
-                                        {proto.configName || 'N/A'}
-                                    </td>
-                                    <td className="px-6 py-4 text-sm text-slate-400">
-                                        {proto.plant?.plantName || 'N/A'}
-                                    </td>
-                                    <td className="px-6 py-4 text-sm font-mono text-brand-green">
-                                        {proto.protocolType === 'MODBUS' ? proto.modbusConfig?.ipAddress : proto.iec104Config?.ipAddress || '—'}
-                                    </td>
-                                    <td className="px-6 py-4">
-                                        {proto.protocolType === 'MODBUS' && proto.modbusConfig ? (
-                                            <div className="text-[10px] space-y-0.5 text-slate-400">
-                                                <p>Port: <span className="text-white font-bold">{proto.modbusConfig.port}</span></p>
-                                                <p>Slave ID: <span className="text-white font-bold">{proto.modbusConfig.slaveId}</span></p>
+                            <AnimatePresence mode='popLayout'>
+                                {loading ? (
+                                    <tr>
+                                        <td colSpan={7} className="text-center py-24">
+                                            <div className="flex flex-col items-center gap-3 opacity-50">
+                                                <RefreshCw size={24} className="animate-spin text-grafana-accent-blue" />
+                                                <span className="text-tech-label animate-pulse">UÇ NOKTA VERİLERİ SORGULANIYOR...</span>
                                             </div>
-                                        ) : proto.protocolType === 'IEC104' && proto.iec104Config ? (
-                                            <div className="text-[10px] space-y-0.5 text-slate-400">
-                                                <p>Port: <span className="text-white font-bold">{proto.iec104Config.port}</span></p>
-                                                <p>ASDU: <span className="text-white font-bold">{proto.iec104Config.asduAddr}</span></p>
+                                        </td>
+                                    </tr>
+                                ) : protocols.length === 0 ? (
+                                    <tr>
+                                        <td colSpan={7} className="text-center py-24">
+                                            <div className="flex flex-col items-center gap-3 opacity-30">
+                                                <Info size={24} />
+                                                <span className="text-tech-label uppercase">Henüz iletişim yığını tanımlanmadı</span>
                                             </div>
-                                        ) : (
-                                            <span className="text-xs text-slate-600">No config</span>
-                                        )}
-                                    </td>
-                                    <td className="px-6 py-4 text-sm font-mono text-slate-400 tabular-nums text-center">
-                                        {proto._count?.devices || 0}
-                                    </td>
-                                    <td className="px-6 py-4">
-                                        <div className="flex justify-end gap-2">
-                                            <button title="Devices" onClick={() => router.push(`/devices?protocolId=${proto.id}`)} className="p-2 rounded-md bg-slate-900 border border-slate-700 hover:text-brand-green hover:border-brand-green/50 transition-colors text-slate-400">
-                                                <DeviceIcon size={14} />
-                                            </button>
-                                            <button title="Edit" onClick={() => openEditModal(proto)} className="p-2 rounded-md bg-slate-900 border border-slate-700 hover:text-brand-green hover:border-brand-green/50 transition-colors text-slate-400">
-                                                <Pencil size={14} />
-                                            </button>
-                                            <button title="Delete" onClick={() => handleDeleteClick(proto)} className="p-2 rounded-md bg-slate-900 border border-slate-700 hover:text-red-500 hover:border-red-500/50 transition-colors text-slate-400">
-                                                <Trash2 size={14} />
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            ))}
+                                        </td>
+                                    </tr>
+                                ) : protocols.map((proto, idx) => (
+                                    <motion.tr 
+                                        layout
+                                        initial={{ opacity: 0 }}
+                                        animate={{ opacity: 1 }}
+                                        key={proto.id} 
+                                        className="group hover:bg-white/[0.02] transition-all"
+                                    >
+                                        <td>
+                                            <div className="flex items-center gap-3">
+                                                <div className={cn(
+                                                    "w-1.5 h-6 rounded-full transition-all group-hover:h-8",
+                                                    proto.protocolType === 'MODBUS' ? "bg-grafana-accent-orange" : "bg-grafana-accent-green"
+                                                )} />
+                                                <span className={cn(
+                                                    "text-[10px] font-bold px-2 py-0.5 rounded-sm border font-mono uppercase tracking-tighter",
+                                                    proto.protocolType === 'MODBUS' 
+                                                        ? "bg-grafana-accent-orange/10 border-grafana-accent-orange/30 text-grafana-accent-orange shadow-[0_0_10px_rgba(255,152,48,0.05)]" 
+                                                        : "bg-grafana-accent-green/10 border-grafana-accent-green/30 text-grafana-accent-green shadow-[0_0_10px_rgba(115,191,105,0.05)]"
+                                                )}>
+                                                    {proto.protocolType === 'MODBUS' ? 'MODBUS_TCP' : 'IEC_104'}
+                                                </span>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div className="flex flex-col">
+                                                <span className="text-[12px] font-bold text-grafana-text-primary uppercase group-hover:text-white transition-colors">{proto.configName || 'İSİMSİZ'}</span>
+                                                <span className="text-[9px] text-grafana-text-secondary font-mono tracking-tighter">ID: {proto.id.substring(0, 8)}</span>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div className="flex items-center gap-2">
+                                                <div className="p-1.5 rounded-sm bg-grafana-bg border border-grafana-border">
+                                                    <Factory size={12} className="text-grafana-text-secondary" />
+                                                </div>
+                                                <span className="text-[11px] font-bold text-grafana-text-secondary uppercase tracking-tighter">{proto.plant?.plantName || 'BAĞIMSIZ'}</span>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div className="flex items-center gap-2">
+                                                <div className="p-1.5 rounded-sm bg-grafana-accent-blue/5 border border-grafana-accent-blue/20">
+                                                    <Shield size={12} className="text-grafana-accent-blue" />
+                                                </div>
+                                                <span className="text-sm font-mono text-grafana-accent-blue font-bold tracking-tight">
+                                                    {proto.protocolType === 'MODBUS' ? proto.modbusConfig?.ipAddress : proto.iec104Config?.ipAddress || '0.0.0.0'}
+                                                </span>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            {proto.protocolType === 'MODBUS' && proto.modbusConfig ? (
+                                                <div className="flex gap-4 font-mono text-[10px]">
+                                                    <div className="flex flex-col">
+                                                        <span className="text-grafana-text-secondary opacity-50 uppercase tracking-tighter">PORT</span>
+                                                        <span className="text-grafana-text-primary font-bold">{proto.modbusConfig.port}</span>
+                                                    </div>
+                                                    <div className="flex flex-col">
+                                                        <span className="text-grafana-text-secondary opacity-50 uppercase tracking-tighter">SLAVE</span>
+                                                        <span className="text-grafana-text-primary font-bold">{proto.modbusConfig.slaveId}</span>
+                                                    </div>
+                                                </div>
+                                            ) : proto.protocolType === 'IEC104' && proto.iec104Config ? (
+                                                <div className="flex gap-4 font-mono text-[10px]">
+                                                    <div className="flex flex-col">
+                                                        <span className="text-grafana-text-secondary opacity-50 uppercase tracking-tighter">PORT</span>
+                                                        <span className="text-grafana-text-primary font-bold">{proto.iec104Config.port}</span>
+                                                    </div>
+                                                    <div className="flex flex-col">
+                                                        <span className="text-grafana-text-secondary opacity-50 uppercase tracking-tighter">ASDU</span>
+                                                        <span className="text-grafana-text-primary font-bold">{proto.iec104Config.asduAddr}</span>
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <span className="text-[10px] font-mono text-grafana-text-secondary/30 uppercase tracking-widest italic">Konfigüre Edilmemiş</span>
+                                            )}
+                                        </td>
+                                        <td className="text-center">
+                                            <div className="inline-flex flex-col items-center bg-grafana-bg border border-grafana-border rounded-sm px-3 py-1">
+                                                <span className="text-xs font-bold font-mono text-grafana-text-primary leading-none">{proto._count?.devices || 0}</span>
+                                                <span className="text-[8px] font-bold font-mono text-grafana-text-secondary uppercase tracking-tighter mt-1">CİHAZ</span>
+                                            </div>
+                                        </td>
+                                        <td className="text-right">
+                                            <div className="flex justify-end gap-2 opacity-60 group-hover:opacity-100 transition-opacity">
+                                                <button 
+                                                    title="Cihaz Matrisi" 
+                                                    onClick={() => router.push(`/devices?protocolId=${proto.id}`)} 
+                                                    className="p-2 rounded-sm bg-grafana-bg border border-grafana-border text-grafana-text-secondary hover:text-grafana-accent-blue hover:border-grafana-accent-blue/50 transition-all"
+                                                >
+                                                    <DeviceIcon size={14} />
+                                                </button>
+                                                <button 
+                                                    title="Düzenle" 
+                                                    onClick={() => openEditModal(proto)} 
+                                                    className="p-2 rounded-sm bg-grafana-bg border border-grafana-border text-grafana-text-secondary hover:text-grafana-accent-blue hover:border-grafana-accent-blue/50 transition-all"
+                                                >
+                                                    <Pencil size={14} />
+                                                </button>
+                                                <button 
+                                                    title="Sil" 
+                                                    onClick={() => handleDeleteClick(proto)} 
+                                                    className="p-2 rounded-sm bg-grafana-bg border border-grafana-border text-grafana-text-secondary hover:text-grafana-accent-red hover:border-grafana-accent-red/50 transition-all"
+                                                >
+                                                    <Trash2 size={14} />
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </motion.tr>
+                                ))}
+                            </AnimatePresence>
                         </tbody>
                     </table>
                 </div>
             </div>
 
-            {/* Create / Edit Modal */}
+            {/* Modallar (Modal bileşeni içindeki başlıklar ve formlar da stilize edildi) */}
             <Modal
                 isOpen={isModalOpen}
                 onClose={() => setIsModalOpen(false)}
-                title={editingProtocol ? 'Edit Protocol' : 'New Protocol'}
-                subtitle={editingProtocol ? 'Update protocol details' : 'Configure communication endpoint'}
+                title={editingProtocol ? 'YIĞIN YAPILANDIRMA' : 'YIĞIN BAŞLATMA'}
                 icon={Network}
                 maxWidth="xl"
             >
-                <form onSubmit={handleSubmit} className="space-y-5">
-                    {/* Configuration Name & Plant */}
-                    <div className="grid grid-cols-2 gap-4">
+                <form onSubmit={handleSubmit} className="space-y-6 pt-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-2">
-                            <label className="text-xs font-bold text-slate-400  tracking-widest">Config Name</label>
+                            <label className="text-tech-label block ml-1">YAPI ADI</label>
                             <input
                                 type="text"
                                 value={formData.configName}
                                 onChange={(e) => setFormData({ ...formData, configName: e.target.value })}
-                                className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none"
-                                placeholder="e.g. Inverter Array 1 HTTP"
+                                className="w-full px-4 py-2.5 bg-grafana-bg border border-grafana-border rounded-sm text-xs text-grafana-text-primary focus:border-grafana-accent-blue/50 outline-none font-mono"
+                                placeholder="Örn: ANA_MODBUS_HAT"
                                 required
                             />
                         </div>
                         <div className="space-y-2">
-                            <label className="text-xs font-bold text-slate-400  tracking-widest">Plant</label>
+                            <label className="text-tech-label block ml-1">EŞLEŞEN DÜĞÜM</label>
                             <select
                                 value={formData.plantId}
                                 onChange={(e) => {
                                     if (e.target.value === 'ADD_NEW') {
                                         setIsPlantModalOpen(true);
-                                        setNewPlantData({ ...newPlantData, companyId: companies.length > 0 ? companies[0].id : '' });
                                     } else {
                                         setFormData({ ...formData, plantId: e.target.value });
                                     }
                                 }}
-                                className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none"
+                                className="w-full px-4 py-2.5 bg-grafana-bg border border-grafana-border rounded-sm text-xs text-grafana-text-primary focus:border-grafana-accent-blue/50 outline-none font-mono cursor-pointer"
                                 required
                             >
-                                <option value="">Select...</option>
+                                <option value="">DÜĞÜM SEÇİLEMEDİ</option>
                                 {plants.map((p: any) => (
-                                    <option key={p.id} value={p.id}>{p.plantName}</option>
+                                    <option key={p.id} value={p.id}>{p.plantName.toUpperCase()}</option>
                                 ))}
-                                <option value="ADD_NEW" className="font-bold text-brand-green bg-brand-green/10">+ Add New Plant</option>
+                                <option value="ADD_NEW" className="text-grafana-accent-green font-bold">+ YENİ DÜĞÜM EKLE</option>
                             </select>
                         </div>
                     </div>
 
-                    {/* Protocol Type */}
-                    <div className="space-y-2">
-                        <label className="text-xs font-bold text-slate-400  tracking-widest">Protocol Type</label>
+                    <div className="space-y-3">
+                        <label className="text-tech-label block ml-1">PROTOKOL STANDARDI</label>
                         <div className="grid grid-cols-2 gap-3">
                             {(['MODBUS', 'IEC104'] as const).map((type) => (
                                 <button
                                     key={type}
                                     type="button"
                                     onClick={() => setFormData({ ...formData, protocolType: type })}
-                                    className={`p-3 rounded-xl border text-sm font-bold  transition-all ${formData.protocolType === type
-                                        ? 'bg-brand-green/10 border-brand-green/30 text-brand-green'
-                                        : 'bg-slate-900/30 border-slate-800 text-slate-500 hover:border-slate-700'
-                                        }`}
+                                    className={cn(
+                                        "p-3 rounded-sm border text-[11px] font-bold uppercase tracking-widest transition-all font-mono",
+                                        formData.protocolType === type
+                                            ? "bg-grafana-accent-blue/10 border-grafana-accent-blue/50 text-grafana-accent-blue"
+                                            : "bg-grafana-bg border-grafana-border text-grafana-text-secondary/50 hover:border-grafana-text-secondary/20"
+                                    )}
                                 >
-                                    {type === 'MODBUS' ? 'Modbus TCP' : 'IEC 60870-5-104'}
+                                    {type === 'MODBUS' ? 'MODBUS TCP/IP' : 'IEC 60870-5-104'}
                                 </button>
                             ))}
                         </div>
                     </div>
 
-                    {/* Config Section */}
-                    <div className="p-4 bg-slate-900/30 rounded-xl border border-slate-800/40 space-y-4">
-                        <div className="flex items-center gap-2 mb-2">
-                            <Settings2 size={14} className="text-brand-green" />
-                            <span className="text-xs font-bold text-slate-400  tracking-widest">
-                                {formData.protocolType === 'MODBUS' ? 'Modbus Configuration' : 'IEC 104 Configuration'}
-                            </span>
+                    <div className="p-6 bg-grafana-bg/50 border border-grafana-border rounded-sm space-y-6">
+                        <div className="flex items-center gap-2 pb-2 border-b border-grafana-border/50">
+                            <Zap size={14} className="text-grafana-accent-blue" />
+                            <span className="text-[10px] font-bold text-grafana-text-primary uppercase tracking-[0.2em] font-mono">KATMAN YAPILANDIRMASI</span>
                         </div>
 
                         {formData.protocolType === 'MODBUS' ? (
-                            <>
-                                <div className="grid grid-cols-2 gap-3">
-                                    <div className="space-y-1">
-                                        <label className="text-[10px] font-bold text-slate-500 ">IP Address</label>
-                                        <input
-                                            type="text"
-                                            value={formData.ipAddress}
-                                            onChange={(e) => setFormData({ ...formData, ipAddress: e.target.value })}
-                                            className="w-full px-3 py-2 bg-slate-950/50 border border-slate-800 rounded-lg text-sm text-white outline-none"
-                                            required
-                                        />
-                                    </div>
-                                    <div className="space-y-1">
-                                        <label className="text-[10px] font-bold text-slate-500 ">Port</label>
-                                        <input
-                                            type="number"
-                                            value={formData.port}
-                                            onChange={(e) => setFormData({ ...formData, port: parseInt(e.target.value) })}
-                                            className="w-full px-3 py-2 bg-slate-950/50 border border-slate-800 rounded-lg text-sm text-white outline-none tabular-nums"
-                                            required
-                                        />
-                                    </div>
+                            <div className="grid grid-cols-2 gap-6">
+                                <div className="space-y-2">
+                                    <label className="text-[9px] font-bold text-grafana-text-secondary uppercase font-mono ml-1">IP ADRESİ</label>
+                                    <input
+                                        type="text"
+                                        value={formData.ipAddress}
+                                        onChange={(e) => setFormData({ ...formData, ipAddress: e.target.value })}
+                                        className="w-full px-3 py-2 bg-grafana-panel border border-grafana-border rounded-sm text-xs text-grafana-text-primary outline-none font-mono focus:border-grafana-accent-blue/50"
+                                        required
+                                    />
                                 </div>
-                                <div className="grid grid-cols-3 gap-3">
-                                    <div className="space-y-1">
-                                        <label className="text-[10px] font-bold text-slate-500 ">Slave ID</label>
-                                        <input
-                                            type="number"
-                                            value={formData.slaveId}
-                                            onChange={(e) => setFormData({ ...formData, slaveId: parseInt(e.target.value) })}
-                                            className="w-full px-3 py-2 bg-slate-950/50 border border-slate-800 rounded-lg text-sm text-white outline-none tabular-nums"
-                                        />
-                                    </div>
-                                    <div className="space-y-1">
-                                        <label className="text-[10px] font-bold text-slate-500 ">Timeout (ms)</label>
-                                        <input
-                                            type="number"
-                                            value={formData.timeout}
-                                            onChange={(e) => setFormData({ ...formData, timeout: parseInt(e.target.value) })}
-                                            className="w-full px-3 py-2 bg-slate-950/50 border border-slate-800 rounded-lg text-sm text-white outline-none tabular-nums"
-                                        />
-                                    </div>
-                                    <div className="space-y-1">
-                                        <label className="text-[10px] font-bold text-slate-500 ">Retry Count</label>
-                                        <input
-                                            type="number"
-                                            value={formData.retryCount}
-                                            onChange={(e) => setFormData({ ...formData, retryCount: parseInt(e.target.value) })}
-                                            className="w-full px-3 py-2 bg-slate-950/50 border border-slate-800 rounded-lg text-sm text-white outline-none tabular-nums"
-                                        />
-                                    </div>
+                                <div className="space-y-2">
+                                    <label className="text-[9px] font-bold text-grafana-text-secondary uppercase font-mono ml-1">PORT</label>
+                                    <input
+                                        type="number"
+                                        value={formData.port}
+                                        onChange={(e) => setFormData({ ...formData, port: parseInt(e.target.value) })}
+                                        className="w-full px-3 py-2 bg-grafana-panel border border-grafana-border rounded-sm text-xs text-grafana-text-primary outline-none font-mono focus:border-grafana-accent-blue/50"
+                                        required
+                                    />
                                 </div>
-                            </>
+                                <div className="space-y-2">
+                                    <label className="text-[9px] font-bold text-grafana-text-secondary uppercase font-mono ml-1">SLAVE ID</label>
+                                    <input
+                                        type="number"
+                                        value={formData.slaveId}
+                                        onChange={(e) => setFormData({ ...formData, slaveId: parseInt(e.target.value) })}
+                                        className="w-full px-3 py-2 bg-grafana-panel border border-grafana-border rounded-sm text-xs text-grafana-text-primary outline-none font-mono"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-[9px] font-bold text-grafana-text-secondary uppercase font-mono ml-1">TIMEOUT (MS)</label>
+                                    <input
+                                        type="number"
+                                        value={formData.timeout}
+                                        onChange={(e) => setFormData({ ...formData, timeout: parseInt(e.target.value) })}
+                                        className="w-full px-3 py-2 bg-grafana-panel border border-grafana-border rounded-sm text-xs text-grafana-text-primary outline-none font-mono"
+                                    />
+                                </div>
+                            </div>
                         ) : (
-                            <>
-                                <div className="grid grid-cols-3 gap-3">
-                                    <div className="space-y-1 col-span-2">
-                                        <label className="text-[10px] font-bold text-slate-500 ">IP Address</label>
-                                        <input
-                                            type="text"
-                                            value={formData.iecIpAddress}
-                                            onChange={(e) => setFormData({ ...formData, iecIpAddress: e.target.value })}
-                                            className="w-full px-3 py-2 bg-slate-950/50 border border-slate-800 rounded-lg text-sm text-white outline-none"
-                                            required
-                                        />
-                                    </div>
-                                    <div className="space-y-1">
-                                        <label className="text-[10px] font-bold text-slate-500 ">Port</label>
-                                        <input
-                                            type="number"
-                                            value={formData.iecPort}
-                                            onChange={(e) => setFormData({ ...formData, iecPort: parseInt(e.target.value) })}
-                                            className="w-full px-3 py-2 bg-slate-950/50 border border-slate-800 rounded-lg text-sm text-white outline-none tabular-nums"
-                                            required
-                                        />
-                                    </div>
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                                <div className="space-y-2 col-span-2">
+                                    <label className="text-[9px] font-bold text-grafana-text-secondary uppercase font-mono ml-1">IP ADRESİ</label>
+                                    <input
+                                        type="text"
+                                        value={formData.iecIpAddress}
+                                        onChange={(e) => setFormData({ ...formData, iecIpAddress: e.target.value })}
+                                        className="w-full px-3 py-2 bg-grafana-panel border border-grafana-border rounded-sm text-xs text-grafana-text-primary outline-none font-mono focus:border-grafana-accent-blue/50"
+                                        required
+                                    />
                                 </div>
-                                <div className="grid grid-cols-4 gap-3">
-                                    <div className="space-y-1">
-                                        <label className="text-[10px] font-bold text-slate-500 ">ASDU Auth</label>
-                                        <input
-                                            type="number"
-                                            value={formData.asduAddr}
-                                            onChange={(e) => setFormData({ ...formData, asduAddr: parseInt(e.target.value) })}
-                                            className="w-full px-3 py-2 bg-slate-950/50 border border-slate-800 rounded-lg text-sm text-white outline-none tabular-nums"
-                                        />
-                                    </div>
-                                    <div className="space-y-1">
-                                        <label className="text-[10px] font-bold text-slate-500 ">T0 Timeout</label>
-                                        <input
-                                            type="number"
-                                            value={formData.t0}
-                                            onChange={(e) => setFormData({ ...formData, t0: parseInt(e.target.value) })}
-                                            className="w-full px-3 py-2 bg-slate-950/50 border border-slate-800 rounded-lg text-sm text-white outline-none tabular-nums"
-                                        />
-                                    </div>
-                                    <div className="space-y-1">
-                                        <label className="text-[10px] font-bold text-slate-500 ">T1 Limit</label>
-                                        <input
-                                            type="number"
-                                            value={formData.t1}
-                                            onChange={(e) => setFormData({ ...formData, t1: parseInt(e.target.value) })}
-                                            className="w-full px-3 py-2 bg-slate-950/50 border border-slate-800 rounded-lg text-sm text-white outline-none tabular-nums"
-                                        />
-                                    </div>
-                                    <div className="space-y-1">
-                                        <label className="text-[10px] font-bold text-slate-500 ">T2 Lim</label>
-                                        <input
-                                            type="number"
-                                            value={formData.t2}
-                                            onChange={(e) => setFormData({ ...formData, t2: parseInt(e.target.value) })}
-                                            className="w-full px-3 py-2 bg-slate-950/50 border border-slate-800 rounded-lg text-sm text-white outline-none tabular-nums"
-                                        />
-                                    </div>
+                                <div className="space-y-2 col-span-2">
+                                    <label className="text-[9px] font-bold text-grafana-text-secondary uppercase font-mono ml-1">PORT</label>
+                                    <input
+                                        type="number"
+                                        value={formData.iecPort}
+                                        onChange={(e) => setFormData({ ...formData, iecPort: parseInt(e.target.value) })}
+                                        className="w-full px-3 py-2 bg-grafana-panel border border-grafana-border rounded-sm text-xs text-grafana-text-primary outline-none font-mono focus:border-grafana-accent-blue/50"
+                                        required
+                                    />
                                 </div>
-                                <div className="grid grid-cols-3 gap-3">
-                                    <div className="space-y-1">
-                                        <label className="text-[10px] font-bold text-slate-500 ">T3 Lim</label>
-                                        <input
-                                            type="number"
-                                            value={formData.t3}
-                                            onChange={(e) => setFormData({ ...formData, t3: parseInt(e.target.value) })}
-                                            className="w-full px-3 py-2 bg-slate-950/50 border border-slate-800 rounded-lg text-sm text-white outline-none tabular-nums"
-                                        />
-                                    </div>
-                                    <div className="space-y-1">
-                                        <label className="text-[10px] font-bold text-slate-500 ">K Window</label>
-                                        <input
-                                            type="number"
-                                            value={formData.k}
-                                            onChange={(e) => setFormData({ ...formData, k: parseInt(e.target.value) })}
-                                            className="w-full px-3 py-2 bg-slate-950/50 border border-slate-800 rounded-lg text-sm text-white outline-none tabular-nums"
-                                        />
-                                    </div>
-                                    <div className="space-y-1">
-                                        <label className="text-[10px] font-bold text-slate-500 ">W Window</label>
-                                        <input
-                                            type="number"
-                                            value={formData.w}
-                                            onChange={(e) => setFormData({ ...formData, w: parseInt(e.target.value) })}
-                                            className="w-full px-3 py-2 bg-slate-950/50 border border-slate-800 rounded-lg text-sm text-white outline-none tabular-nums"
-                                        />
-                                    </div>
+                                <div className="space-y-2">
+                                    <label className="text-[9px] font-bold text-grafana-text-secondary uppercase font-mono ml-1">ASDU ADRESI</label>
+                                    <input
+                                        type="number"
+                                        value={formData.asduAddr}
+                                        onChange={(e) => setFormData({ ...formData, asduAddr: parseInt(e.target.value) })}
+                                        className="w-full px-3 py-2 bg-grafana-panel border border-grafana-border rounded-sm text-xs text-grafana-text-primary outline-none font-mono"
+                                    />
                                 </div>
-                            </>
+                                <div className="space-y-2">
+                                    <label className="text-[9px] font-bold text-grafana-text-secondary uppercase font-mono ml-1">T0 BAGLANTI</label>
+                                    <input
+                                        type="number"
+                                        value={formData.t0}
+                                        onChange={(e) => setFormData({ ...formData, t0: parseInt(e.target.value) })}
+                                        className="w-full px-3 py-2 bg-grafana-panel border border-grafana-border rounded-sm text-xs text-grafana-text-primary outline-none font-mono"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-[9px] font-bold text-grafana-text-secondary uppercase font-mono ml-1">T1 GONDERIM</label>
+                                    <input
+                                        type="number"
+                                        value={formData.t1}
+                                        onChange={(e) => setFormData({ ...formData, t1: parseInt(e.target.value) })}
+                                        className="w-full px-3 py-2 bg-grafana-panel border border-grafana-border rounded-sm text-xs text-grafana-text-primary outline-none font-mono"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-[9px] font-bold text-grafana-text-secondary uppercase font-mono ml-1">T3 BOSTA</label>
+                                    <input
+                                        type="number"
+                                        value={formData.t3}
+                                        onChange={(e) => setFormData({ ...formData, t3: parseInt(e.target.value) })}
+                                        className="w-full px-3 py-2 bg-grafana-panel border border-grafana-border rounded-sm text-xs text-grafana-text-primary outline-none font-mono"
+                                    />
+                                </div>
+                            </div>
                         )}
                     </div>
 
                     <button
                         type="submit"
                         disabled={isSubmitting}
-                        className="w-full py-4 bg-brand-green disabled:bg-brand-green/50 text-white font-bold  tracking-widest text-xs rounded-xl shadow-lg shadow-brand-green/20 hover:scale-[1.01] transition-all"
+                        className="w-full py-4 bg-grafana-accent-blue disabled:opacity-50 text-white font-bold tracking-[0.2em] text-[11px] rounded-sm shadow-lg shadow-grafana-accent-blue/20 hover:bg-grafana-accent-blue/90 transition-all uppercase font-mono"
                     >
-                        {isSubmitting ? 'Saving...' : editingProtocol ? 'Update Protocol' : 'Create Protocol'}
+                        {isSubmitting ? 'İŞLENİYOR...' : editingProtocol ? 'KONFİGÜRASYONU KAYDET' : 'YIĞINI BAŞLAT'}
                     </button>
                 </form>
             </Modal>
 
-            {/* Delete Confirmation Modal */}
+            {/* Silme Onay Modalı */}
             <Modal
                 isOpen={!!protocolToDelete}
                 onClose={() => setProtocolToDelete(null)}
-                title="Delete Protocol"
+                title="SİSTEM TEMİZLİĞİ"
                 icon={AlertTriangle}
                 maxWidth="sm"
             >
-                <div className="text-center space-y-4">
-                    <div className="w-12 h-12 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 flex items-center justify-center mx-auto mb-4">
-                        <AlertTriangle size={24} />
+                <div className="text-center space-y-6 py-6">
+                    <div className="w-20 h-20 rounded-sm bg-grafana-accent-red/10 border border-grafana-accent-red/20 text-grafana-accent-red flex items-center justify-center mx-auto mb-6 shadow-[0_0_20px_rgba(242,73,92,0.1)]">
+                        <AlertTriangle size={36} className="animate-bounce" />
                     </div>
 
-                    <div>
-                        <p className="text-sm text-slate-400 leading-relaxed">
-                            Are you sure you want to delete <span className="font-bold text-white">{protocolToDelete?.configName || protocolToDelete?.protocolType}</span>? This action cannot be undone.
+                    <div className="space-y-2">
+                        <h4 className="text-sm font-bold text-grafana-text-primary uppercase tracking-widest font-mono">Yapılandırma Silinsin mi?</h4>
+                        <p className="text-[11px] text-grafana-text-secondary leading-relaxed font-mono px-4">
+                            Uç noktanın <span className="font-bold text-grafana-accent-red">[{protocolToDelete?.configName}]</span> kalıcı olarak silinmesi. Tüm bağlı cihaz verileri etkilenecektir.
                         </p>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-3 pt-2">
+                    <div className="grid grid-cols-2 gap-4 px-4">
                         <button
                             onClick={() => setProtocolToDelete(null)}
                             disabled={isDeleting}
-                            className="py-2.5 px-4 rounded-lg border border-slate-800 text-slate-400 font-bold text-[10px] hover:bg-slate-900 transition-colors disabled:opacity-50 tracking-widest uppercase"
+                            className="py-3 px-4 rounded-sm border border-grafana-border bg-grafana-bg text-grafana-text-secondary font-bold text-[10px] hover:bg-grafana-panel transition-colors disabled:opacity-50 tracking-widest uppercase font-mono"
                         >
-                            Cancel
+                            İPTAL
                         </button>
                         <button
                             onClick={confirmDelete}
                             disabled={isDeleting}
-                            className="py-2.5 px-4 rounded-lg bg-red-500 text-white font-bold text-[10px] hover:bg-red-600 shadow-lg shadow-red-500/20 transition-all disabled:opacity-50 tracking-widest uppercase flex items-center justify-center gap-2"
+                            className="py-3 px-4 rounded-sm bg-grafana-accent-red text-white font-bold text-[10px] hover:bg-grafana-accent-red/90 shadow-lg shadow-grafana-accent-red/20 transition-all disabled:opacity-50 tracking-widest uppercase font-mono"
                         >
-                            {isDeleting ? 'Deleting...' : 'Yes, Delete'}
+                            {isDeleting ? 'SİLİNİYOR' : 'EVET, SİL'}
                         </button>
                     </div>
                 </div>
             </Modal>
 
-            {/* Inline Plant Modal */}
+            {/* Inline Düğüm Oluşturma Modalı */}
             <Modal
                 isOpen={isPlantModalOpen}
                 onClose={() => setIsPlantModalOpen(false)}
-                title="Add New Plant"
+                title="DÜĞÜM YÖNETİMİ"
                 icon={Factory}
                 maxWidth="5xl"
                 zIndex={250}
             >
-                <PlantForm
-                    key="inline-plant-form"
-                    companies={companies.map(c => ({ id: c.id, name: c.name }))}
-                    onSubmit={handlePlantSubmit}
-                    isSubmitting={isCreatingPlant}
-                    submitLabel="Add Plant"
-                />
+                <div className="p-2">
+                    <PlantForm
+                        key="inline-plant-form"
+                        companies={companies.map(c => ({ id: c.id, name: c.name }))}
+                        onSubmit={handlePlantSubmit}
+                        isSubmitting={isCreatingPlant}
+                        submitLabel="Düğüm Kaydet"
+                    />
+                </div>
             </Modal>
         </div>
     );
@@ -713,7 +743,7 @@ function ProtocolsContent() {
 
 export default function ProtocolsPage() {
     return (
-        <Suspense fallback={<div>Loading...</div>}>
+        <Suspense fallback={<div className="p-20 text-center font-mono text-grafana-text-secondary animate-pulse uppercase tracking-[0.3em]">İletişim Yığını Taranıyor...</div>}>
             <ProtocolsContent />
         </Suspense>
     );

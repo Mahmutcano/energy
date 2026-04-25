@@ -2,6 +2,8 @@
 
 import ReactECharts from 'echarts-for-react';
 import * as echarts from 'echarts';
+import { useTheme } from '@/context/ThemeContext';
+import { useMemo } from 'react';
 
 interface ChartData {
     time: string | number | Date;
@@ -9,24 +11,37 @@ interface ChartData {
 }
 
 export default function HistoricalChart({ data, title, unit = '', color = '#5794f2' }: { data: ChartData[], title: string, unit?: string, color?: string }) {
+    const { theme } = useTheme();
+    const isLight = theme === 'light-pure';
+
+    const colors = useMemo(() => ({
+        bg: isLight ? '#ffffff' : '#141619',
+        border: isLight ? '#cbd5e1' : '#262626',
+        text: isLight ? '#1e293b' : '#d8d9da',
+        textSecondary: isLight ? '#64748b' : '#7b7b7b',
+        grid: isLight ? '#e2e8f0' : '#2c2c2c',
+        tooltipBg: isLight ? '#ffffff' : '#141619',
+        cross: isLight ? '#cbd5e1' : '#2c2c2c'
+    }), [isLight]);
+
     const option = {
         backgroundColor: 'transparent',
         tooltip: {
             trigger: 'axis',
-            backgroundColor: '#141619',
-            borderColor: '#262626',
+            backgroundColor: colors.tooltipBg,
+            borderColor: colors.border,
             borderWidth: 1,
             borderRadius: 2,
             padding: [10, 14],
-            textStyle: { color: '#d8d9da', fontSize: 11, fontFamily: 'Roboto Mono, monospace' },
+            textStyle: { color: colors.text, fontSize: 11, fontFamily: 'Roboto Mono, monospace' },
             axisPointer: {
                 type: 'cross',
-                crossStyle: { color: '#2c2c2c', type: 'dashed', width: 1 },
+                crossStyle: { color: colors.cross, type: 'dashed', width: 1 },
                 label: { 
-                    backgroundColor: '#0b0c0e', 
-                    color: '#5794f2', 
+                    backgroundColor: isLight ? '#f0f4f8' : '#0b0c0e', 
+                    color: color, 
                     fontWeight: 'bold', 
-                    borderColor: '#262626', 
+                    borderColor: colors.border, 
                     borderWidth: 1,
                     fontFamily: 'Roboto Mono'
                 }
@@ -38,10 +53,10 @@ export default function HistoricalChart({ data, title, unit = '', color = '#5794
                 
                 return `
                     <div style="min-width: 140px; display: flex; flex-direction: column; gap: 4px;">
-                        <span style="color: #7b7b7b; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em;">${timeStr}</span>
+                        <span style="color: ${colors.textSecondary}; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em;">${timeStr}</span>
                         <div style="display: flex; align-items: baseline; gap: 8px;">
-                            <span style="font-size: 18px; font-weight: 700; color: #d8d9da; font-family: Roboto Mono;">${Number(p.value[1]).toFixed(3)}</span>
-                            <span style="color: #5794f2; font-size: 10px; font-weight: 700;">${unit}</span>
+                            <span style="font-size: 18px; font-weight: 700; color: ${colors.text}; font-family: Roboto Mono;">${Number(p.value[1]).toFixed(3)}</span>
+                            <span style="color: ${color}; font-size: 10px; font-weight: 700;">${unit}</span>
                         </div>
                     </div>
                 `;
@@ -57,14 +72,14 @@ export default function HistoricalChart({ data, title, unit = '', color = '#5794
         xAxis: {
             type: 'time',
             boundaryGap: false,
-            axisLine: { lineStyle: { color: '#262626' } },
+            axisLine: { lineStyle: { color: colors.border } },
             axisTick: { show: false },
             splitLine: {
                 show: true,
-                lineStyle: { color: '#2c2c2c', type: 'solid', opacity: 0.5 }
+                lineStyle: { color: colors.grid, type: 'solid', opacity: 0.5 }
             },
             axisLabel: {
-                color: '#7b7b7b',
+                color: colors.textSecondary,
                 fontSize: 9,
                 margin: 12,
                 fontFamily: 'Roboto Mono',
@@ -80,11 +95,11 @@ export default function HistoricalChart({ data, title, unit = '', color = '#5794
             scale: true,
             splitLine: {
                 show: true,
-                lineStyle: { color: '#2c2c2c', type: 'solid', opacity: 0.5 }
+                lineStyle: { color: colors.grid, type: 'solid', opacity: 0.5 }
             },
             axisLine: { show: false },
             axisTick: { show: false },
-            axisLabel: { color: '#7b7b7b', fontSize: 9, margin: 12, fontFamily: 'Roboto Mono' }
+            axisLabel: { color: colors.textSecondary, fontSize: 9, margin: 12, fontFamily: 'Roboto Mono' }
         },
         series: [
             {
@@ -103,7 +118,7 @@ export default function HistoricalChart({ data, title, unit = '', color = '#5794
                         { offset: 0, color: color },
                         { offset: 1, color: 'transparent' }
                     ]),
-                    opacity: 0.1 // 10% fill as requested
+                    opacity: 0.1
                 },
                 itemStyle: { color: color }
             }
@@ -111,7 +126,7 @@ export default function HistoricalChart({ data, title, unit = '', color = '#5794
     };
 
     return (
-        <div className="w-full h-full min-h-[400px] bg-grafana-panel/50 p-2 border border-grafana-border rounded-sm">
+        <div className="w-full h-full min-h-[400px] bg-grafana-panel/50 p-2 border border-grafana-border rounded-sm transition-colors duration-300">
             <ReactECharts
                 option={option}
                 style={{ height: '100%', width: '100%' }}
@@ -121,4 +136,3 @@ export default function HistoricalChart({ data, title, unit = '', color = '#5794
         </div>
     );
 }
-

@@ -76,15 +76,15 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
                         {/* Health Indicators */}
                         <div className="hidden md:flex items-center gap-4 px-4 py-1.5 rounded-sm bg-grafana-bg/50 border border-grafana-border/50">
                             <div className="flex items-center gap-2">
-                                <div className="w-2 h-2 rounded-full bg-grafana-accent-green animate-pulse shadow-[0_0_8px_#73bf69]" />
+                                <div className="w-2 h-2 rounded-full bg-grafana-accent-green animate-pulse shadow-[0_0_8px_rgba(115,191,105,0.4)]" />
                                 <span className="text-[9px] font-bold text-grafana-text-secondary uppercase tracking-tighter font-mono">Socket</span>
                             </div>
                             <div className="flex items-center gap-2">
-                                <div className="w-2 h-2 rounded-full bg-grafana-accent-green shadow-[0_0_8px_#73bf69]" />
+                                <div className="w-2 h-2 rounded-full bg-grafana-accent-green shadow-[0_0_8px_rgba(115,191,105,0.4)]" />
                                 <span className="text-[9px] font-bold text-grafana-text-secondary uppercase tracking-tighter font-mono">Redis</span>
                             </div>
                             <div className="flex items-center gap-2">
-                                <div className="w-2 h-2 rounded-full bg-grafana-accent-green shadow-[0_0_8px_#73bf69]" />
+                                <div className="w-2 h-2 rounded-full bg-grafana-accent-green shadow-[0_0_8px_rgba(115,191,105,0.4)]" />
                                 <span className="text-[9px] font-bold text-grafana-text-secondary uppercase tracking-tighter font-mono">DB</span>
                             </div>
                         </div>
@@ -92,7 +92,7 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
                         <div className="flex items-center gap-2 border-l border-grafana-border pl-4">
                             <button className="p-2 text-grafana-text-secondary hover:text-grafana-text-primary hover:bg-grafana-bg transition-all relative rounded-sm">
                                 <Bell size={16} />
-                                <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-grafana-accent-red rounded-full border border-grafana-panel shadow-[0_0_5px_#f2495c]"></span>
+                                <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-grafana-accent-red rounded-full border border-grafana-panel shadow-[0_0_5px_rgba(242,73,92,0.4)]"></span>
                             </button>
                             <Link href="/settings" className="p-2 text-grafana-text-secondary hover:text-grafana-text-primary hover:bg-grafana-bg transition-all rounded-sm">
                                 <Settings size={16} />

@@ -36,9 +36,30 @@
   font-family: var(--font-sans);
 }
 
+[data-theme="light-pure"] {
+  --color-grafana-bg: #f0f4f8;
+  --color-grafana-panel: #ffffff;
+  --color-grafana-border: #cbd5e1;
+  --color-grafana-grid: #e2e8f0;
+  
+  --color-grafana-text-primary: #1e293b;
+  --color-grafana-text-secondary: #64748b;
+  
+  --color-grafana-accent-blue: #2563eb;
+  --color-grafana-accent-green: #16a34a;
+  --color-grafana-accent-red: #dc2626;
+  --color-grafana-accent-orange: #ea580c;
+
+  --background: #f0f4f8;
+  --foreground: #1e293b;
+  --card: #ffffff;
+  --border: #cbd5e1;
+  --muted: #64748b;
+}
+
 @layer base {
   body {
-    @apply bg-background text-foreground antialiased selection:bg-grafana-accent-blue/30;
+    @apply bg-background text-foreground antialiased selection:bg-grafana-accent-blue/30 transition-colors duration-300;
     font-feature-settings: "cv02", "cv05", "cv11";
   }
 

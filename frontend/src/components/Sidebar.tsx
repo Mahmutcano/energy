@@ -52,27 +52,43 @@ const MENU_GROUPS = [
     }
 ];
 
+import { useTheme } from '@/context/ThemeContext';
+import { Sun, Moon } from 'lucide-react';
+
 export default function Sidebar() {
     const pathname = usePathname();
     const { logout, user } = useAuth();
+    const { theme, setTheme } = useTheme();
 
     const isAdmin = user?.role === 'SUPER_ADMIN' || user?.role === 'COMPANY_ADMIN';
 
+    const toggleTheme = () => {
+        setTheme(theme === 'light-pure' ? 'industrial-emerald' : 'light-pure');
+    };
+
     return (
-        <aside className="w-64 h-screen flex flex-col z-[100] bg-grafana-bg border-r border-grafana-border shrink-0">
+        <aside className="w-64 h-screen flex flex-col z-[100] bg-grafana-bg border-r border-grafana-border shrink-0 transition-colors duration-300">
             {/* Brand Logo */}
-            <div className="h-16 flex items-center gap-3 px-6 border-b border-grafana-border bg-grafana-panel/30">
-                <div className="w-9 h-9 rounded bg-grafana-accent-blue flex items-center justify-center shadow-[0_0_15px_rgba(87,148,242,0.3)]">
-                    <Activity size={20} className="text-white" strokeWidth={2.5} />
+            <div className="h-16 flex items-center justify-between px-6 border-b border-grafana-border bg-grafana-panel/30">
+                <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded bg-grafana-accent-blue flex items-center justify-center shadow-[0_0_15px_rgba(87,148,242,0.3)]">
+                        <Activity size={18} className="text-white" strokeWidth={2.5} />
+                    </div>
+                    <div className="flex flex-col">
+                        <h1 className="text-xs font-black tracking-widest text-grafana-text-primary uppercase font-sans">
+                            SCADA<span className="text-grafana-accent-blue">.PRO</span>
+                        </h1>
+                    </div>
                 </div>
-                <div className="flex flex-col">
-                    <h1 className="text-sm font-black tracking-widest text-grafana-text-primary uppercase font-sans">
-                        SCADA<span className="text-grafana-accent-blue">.PRO</span>
-                    </h1>
-                    <span className="text-[9px] font-bold tracking-[0.3em] text-grafana-text-secondary uppercase -mt-0.5 font-mono">
-                        TERMINAL V2
-                    </span>
-                </div>
+                
+                {/* Theme Toggle Button */}
+                <button 
+                    onClick={toggleTheme}
+                    className="p-1.5 rounded-sm bg-grafana-bg border border-grafana-border text-grafana-text-secondary hover:text-grafana-accent-blue transition-all"
+                    title={theme === 'light-pure' ? 'Karanlık Mod' : 'Aydınlık Mod'}
+                >
+                    {theme === 'light-pure' ? <Moon size={14} /> : <Sun size={14} />}
+                </button>
             </div>
 
             {/* Navigation Menu */}

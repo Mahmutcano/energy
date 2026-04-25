@@ -3,7 +3,6 @@ package services
 import (
 	"bytes"
 	"context"
-	"crypto/tls"
 	"encoding/json"
 	"energy-scada-platform/internal/db"
 	"fmt"
@@ -24,15 +23,7 @@ var ytbsInstance *YtbsService
 func GetYtbsService() *YtbsService {
 	if ytbsInstance == nil {
 		ytbsInstance = &YtbsService{
-			client: &http.Client{
-				Timeout: 60 * time.Second,
-				Transport: &http.Transport{
-					TLSHandshakeTimeout: 10 * time.Second,
-					TLSClientConfig: &tls.Config{
-						InsecureSkipVerify: true,
-					},
-				},
-			},
+			client: &http.Client{Timeout: 60 * time.Second},
 		}
 	}
 	return ytbsInstance
@@ -59,7 +50,6 @@ func (s *YtbsService) Login(ctx context.Context, apiKey, username, password stri
 		return "", err
 	}
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
 	req.Header.Set("SERVICE_KEY", apiKey)
 
 	resp, err := s.client.Do(req)
@@ -113,7 +103,6 @@ func (s *YtbsService) QueryExternalPlants(ctx context.Context, cid uuid.UUID) (a
 	if err != nil { return nil, err }
 	
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
 	req.Header.Set("SERVICE_KEY", *apiKey)
 	req.Header.Set("AUTH_TOKEN", token)
 
@@ -176,7 +165,6 @@ func (s *YtbsService) ProcessPendingInstant() {
 			b, _ := json.Marshal(payload)
 			req, _ := http.NewRequest("POST", YtbsBaseURL+"/veritoplama/anliklisanssizsantralarz/ekle", bytes.NewBuffer(b))
 			req.Header.Set("Content-Type", "application/json")
-			req.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
 			req.Header.Set("SERVICE_KEY", apiKey)
 			req.Header.Set("AUTH_TOKEN", token)
 			
@@ -238,7 +226,6 @@ func (s *YtbsService) QueryExternalLogs(ctx context.Context, companyID uuid.UUID
 		if err != nil { continue }
 		
 		req.Header.Set("Content-Type", "application/json")
-		req.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
 		req.Header.Set("SERVICE_KEY", *apiKey)
 		req.Header.Set("AUTH_TOKEN", token)
 

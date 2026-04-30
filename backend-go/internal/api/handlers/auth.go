@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"energy-scada-platform/internal/db"
@@ -81,6 +82,58 @@ func Login(c *gin.Context) {
 		"companyProfile": gin.H{
 			"id":   companyID,
 			"name": companyName,
+		},
+	})
+}
+
+type RegisterRequest struct {
+	Name     string `json:"name" binding:"required"`
+	Email    string `json:"email" binding:"required"`
+	Password string `json:"password" binding:"required"`
+}
+
+func Register(c *gin.Context) {
+	var req RegisterRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+		return
+	}
+
+	id := uuid.New()
+	nameParts := strings.Split(req.Name, " ")
+	firstName := nameParts[0]
+	lastName := "User"
+	if len(nameParts) > 1 {
+		lastName = strings.Join(nameParts[1:], " ")
+	}
+
+	_, err := db.Pool.Exec(context.Background(), `
+		INSERT INTO "AppUser" (id, email, "firstName", "lastName", "adminType", "userCode", "createdAt", "updatedAt")
+		VALUES ($1, $2, $3, $4, 'NORMAL_USER', $5, NOW(), NOW())
+	`, id, req.Email, firstName, lastName, uuid.New().String()[:8])
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Registration failed: " + err.Error()})
+		return
+	}
+
+	// Generate JWT
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"id":    id.String(),
+		"email": req.Email,
+		"role":  "NORMAL_USER",
+		"exp":   time.Now().Add(time.Hour * 24).Unix(),
+	})
+
+	tokenString, _ := token.SignedString(jwtSecret)
+
+	c.JSON(http.StatusCreated, gin.H{
+		"token": tokenString,
+		"user": gin.H{
+			"id":    id,
+			"email": req.Email,
+			"name":  req.Name,
+			"role":  "NORMAL_USER",
 		},
 	})
 }

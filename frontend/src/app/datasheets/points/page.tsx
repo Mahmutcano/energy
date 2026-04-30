@@ -22,7 +22,8 @@ import {
     Cpu,
     Zap,
     ChevronRight,
-    Layout
+    Layout,
+    RefreshCw
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { apiRequest } from '@/lib/api';
@@ -30,6 +31,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter, useSearchParams } from 'next/navigation';
 import toast from 'react-hot-toast';
 import Modal from '@/components/Modal';
+import PageHeader from '@/components/PageHeader';
+import { cn } from '@/lib/utils';
 
 interface DatasheetProfile {
     id: string;
@@ -95,20 +98,9 @@ const defaultFormData = {
 interface FormErrors { [key: string]: string; }
 
 // --- PREMIUM STYLING ---
-const inputClass = "w-full px-6 py-4 bg-slate-900 border border-white/5 rounded-2xl text-sm text-white focus:border-brand-green/50 focus:ring-4 focus:ring-brand-green/5 outline-none transition-all placeholder:text-slate-700";
-const inputErrorClass = "w-full px-6 py-4 bg-slate-900 border border-red-500/50 rounded-2xl text-sm text-white focus:border-red-400 focus:ring-4 focus:ring-red-500/5 outline-none transition-all";
+const inputClass = "w-full px-6 py-4 bg-slate-900 border border-white/5 rounded-2xl text-sm text-white focus:border-grafana-accent-blue/50 focus:ring-4 focus:ring-grafana-accent-blue/5 outline-none transition-all placeholder:text-slate-700 font-mono";
+const inputErrorClass = "w-full px-6 py-4 bg-slate-900 border border-red-500/50 rounded-2xl text-sm text-white focus:border-red-400 focus:ring-4 focus:ring-red-500/5 outline-none transition-all font-mono";
 const labelClass = "text-[10px] font-black text-slate-500 tracking-[0.3em] uppercase mb-2 block";
-
-const MODBUS_DATA_TYPES = [
-    { label: 'BYTE (8 bit)', value: 'BYTE' },
-    { label: 'WORD (16 bit)', value: 'WORD' },
-    { label: 'DWORD (32 bit)', value: 'DWORD' },
-    { label: 'FLOAT32', value: 'FLOAT32' },
-    { label: 'INT16', value: 'INT16' },
-    { label: 'UINT16', value: 'UINT16' },
-    { label: 'INT32', value: 'INT32' },
-    { label: 'UINT32', value: 'UINT32' },
-];
 
 const MEASUREMENT_TYPES = [
     { label: 'Faz Gerilimi', value: 'PHASE_VOLTAGE' },
@@ -123,7 +115,7 @@ const MEASUREMENT_TYPES = [
 
 const InputField = ({ label, name, value, onChange, placeholder, type = 'text', required = false, error, autoFocus = false }: any) => (
     <div className="space-y-1">
-        <label className={labelClass}>{label}{required && <span className="text-brand-green ml-1">*</span>}</label>
+        <label className={labelClass}>{label}{required && <span className="text-grafana-accent-blue ml-1">*</span>}</label>
         <input
             autoFocus={autoFocus}
             type={type}
@@ -235,7 +227,7 @@ function DataSheetsContent() {
         try {
             const res = await apiRequest(`/api/datasheets/${pointToDelete.id}`, { method: 'DELETE' });
             if (res.ok) {
-                toast.success('Point purged from registry');
+                toast.success('Nokta kayıttan silindi');
                 setDataSheets(dataSheets.filter(s => s.id !== pointToDelete.id));
                 setPointToDelete(null);
             }
@@ -255,7 +247,7 @@ function DataSheetsContent() {
 
             const body: any = {
                 profileId,
-                dataName: formData.dataName || formData.signalDescription || 'Point',
+                dataName: formData.dataName || formData.signalDescription || 'Nokta',
                 dataValue: formData.dataValue || null,
                 dataExplanation: formData.dataExplanation || null,
                 registerAddress: int(formData.registerAddress),
@@ -282,7 +274,7 @@ function DataSheetsContent() {
             const res = await apiRequest(url, { method, body: JSON.stringify(body) });
 
             if (res.ok) {
-                toast.success('Registry Sync Successful');
+                toast.success('Kayıt Senkronizasyonu Başarılı');
                 setIsModalOpen(false);
                 const result = await res.json();
                 const newData = result.success ? result.data : result;
@@ -290,7 +282,7 @@ function DataSheetsContent() {
                 else setDataSheets(dataSheets.map(s => s.id === newData.id ? newData : s));
             } else {
                 const err = await res.json();
-                setServerError(err.error?.message || 'Sync Failed');
+                setServerError(err.error?.message || 'Senkronizasyon Başarısız');
             }
         } finally {
             setIsSubmitting(false);
@@ -312,7 +304,7 @@ function DataSheetsContent() {
                     method: 'POST',
                     body: JSON.stringify({ profileId, points: json })
                 });
-                if (res.ok) toast.success('Bulk Migration Finished');
+                if (res.ok) toast.success('Toplu Aktarım Tamamlandı');
             } finally {
                 setIsImporting(false);
             }
@@ -326,189 +318,169 @@ function DataSheetsContent() {
     ).sort((a,b) => (a.registerAddress || 0) - (b.registerAddress || 0));
 
     const cellClass = "px-6 py-5 text-[11px] font-black text-white/70 whitespace-nowrap tabular-nums tracking-widest";
-    const headerCellClass = "px-6 py-4 text-[9px] font-black text-slate-500 tracking-[0.3em] uppercase border-b border-white/5";
+    const headerCellClass = "px-6 py-4 text-[9px] font-black text-slate-500 tracking-[0.3em] uppercase border-b border-white/5 font-mono";
 
     return (
-        <div className="space-y-12 pb-24 font-sans selection:bg-brand-green/30">
-            {/* --- KINETIC HEADER --- */}
-            <div className="flex flex-col md:flex-row items-start md:items-end justify-between gap-10 border-b border-white/5 pb-10">
-                <div className="space-y-4">
-                    <div className="flex items-center gap-4">
-                        <motion.button 
-                            whileHover={{ x: -4 }}
-                            onClick={() => router.back()} 
-                            className="p-3 rounded-2xl bg-[#0f172a]/80 border border-white/10 text-slate-400 hover:text-white transition-all shadow-xl"
-                        >
-                            <ArrowLeft size={20} />
-                        </motion.button>
-                        <div className="space-y-1">
-                            <div className="flex items-center gap-3 text-brand-green font-black text-[11px] tracking-[0.5em] uppercase opacity-80">
-                                <Activity size={14} className="animate-pulse" /> 
-                                {protocolType} Node Mapping
-                            </div>
-                            <h1 className="text-4xl font-black text-white tracking-tighter uppercase leading-none">
-                                {profile?.name} <span className="text-white/20">Schematic</span>
-                            </h1>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="flex items-center gap-3">
+        <div className="space-y-8 pb-24 font-sans selection:bg-grafana-accent-blue/30">
+            {/* --- HEADER --- */}
+            <PageHeader 
+                title={profile?.name || "ŞEMATİK"} 
+                highlightedTitle="DÜĞÜM EŞLEME"
+                subtitle={`${protocolType} katmanı için endüstriyel veri noktası konfigürasyon matrisi`}
+                icon={Layout}
+            >
+                <div className="flex flex-wrap items-center gap-3">
                     <input type="file" ref={fileInputRef} onChange={handleExcelImport} accept=".xlsx" className="hidden" />
-                    <motion.button whileHover={{ y: -2 }} onClick={() => fileInputRef.current?.click()} className="flex items-center gap-2 px-6 py-4 bg-slate-900 border border-white/10 rounded-2xl text-[10px] font-black tracking-widest text-[#00E5FF] shadow-xl hover:bg-[#00E5FF]/10 transition-all">
-                        <Upload size={16} /> BULK INJECT
-                    </motion.button>
-                    <motion.button 
-                        whileHover={{ scale: 1.02, y: -2 }}
-                        onClick={openCreateModal}
-                        className="flex items-center gap-3 px-8 py-4 bg-brand-green text-[#020617] rounded-2xl text-[10px] font-black shadow-[0_0_30px_rgba(16,185,129,0.2)] hover:shadow-brand-green/40 transition-all tracking-[0.2em] uppercase"
+                    <button 
+                        onClick={() => fileInputRef.current?.click()} 
+                        className="flex items-center gap-3 px-5 py-2.5 bg-grafana-bg border border-grafana-border text-grafana-accent-blue rounded-sm text-[10px] font-bold hover:bg-grafana-panel transition-all tracking-widest uppercase font-mono"
                     >
-                        <Plus size={16} strokeWidth={3} /> Register Data Point
-                    </motion.button>
+                        <Upload size={14} /> TOPLU AKTAR
+                    </button>
+                    <button 
+                        onClick={openCreateModal}
+                        className="flex items-center gap-3 px-5 py-2.5 bg-grafana-accent-blue text-white rounded-sm text-[10px] font-bold shadow-lg shadow-grafana-accent-blue/20 hover:bg-grafana-accent-blue/90 transition-all tracking-widest uppercase font-mono"
+                    >
+                        <Plus size={14} strokeWidth={3} /> NOKTA EKLE
+                    </button>
                 </div>
-            </div>
+            </PageHeader>
 
-            {/* --- KINETIC ACTIONS BAR --- */}
-            <div className="flex flex-col md:flex-row items-center gap-6">
+            {/* --- ACTIONS BAR --- */}
+            <div className="flex flex-col md:flex-row items-center gap-4">
                 <div className="relative flex-1 group">
-                    <Search className="absolute left-6 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-600 group-focus-within:text-brand-green transition-colors" />
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-grafana-text-secondary group-focus-within:text-grafana-accent-blue transition-colors" />
                     <input
                         type="text"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        placeholder="FILTER BY SCHEMATIC LABEL OR SIGNAL VECTOR..."
-                        className="w-full pl-16 pr-8 py-5 bg-[#0f172a]/40 border border-white/5 rounded-3xl text-[10px] font-black tracking-widest text-white focus:outline-none focus:border-brand-green/30 focus:ring-8 focus:ring-brand-green/5 transition-all placeholder:text-slate-800 uppercase"
+                        placeholder="SİNYAL VEYA ADRES FİLTRELE..."
+                        className="w-full pl-12 pr-6 py-3 bg-grafana-bg border border-grafana-border rounded-sm text-[10px] font-bold tracking-widest text-white focus:outline-none focus:border-grafana-accent-blue/50 transition-all placeholder:text-grafana-text-secondary/50 uppercase font-mono"
                     />
                 </div>
-                <div className="flex items-center gap-6 px-10 py-5 volt-card border-white/5">
+                <div className="flex items-center gap-4 px-6 py-2.5 bg-grafana-panel/50 border border-grafana-border rounded-sm">
                     <div className="flex flex-col">
-                        <span className="text-[8px] font-black text-slate-600 tracking-widest uppercase">Registry Size</span>
-                        <span className="text-xl font-black text-white tabular-nums">{filteredSheets.length}<span className="text-[10px] text-white/20 ml-2">PTS</span></span>
+                        <span className="text-[8px] font-black text-grafana-text-secondary tracking-widest uppercase font-mono">Toplam</span>
+                        <span className="text-sm font-bold text-white tabular-nums font-mono">{filteredSheets.length}</span>
                     </div>
-                    <div className="w-px h-8 bg-white/5" />
+                    <div className="w-[1px] h-6 bg-grafana-border" />
                     <div className="flex flex-col">
-                        <span className="text-[8px] font-black text-slate-600 tracking-widest uppercase">Protocol Link</span>
-                        <span className="text-xl font-black text-[#CCFF00]">{protocolType}</span>
+                        <span className="text-[8px] font-black text-grafana-text-secondary tracking-widest uppercase font-mono">Mod</span>
+                        <span className="text-sm font-bold text-grafana-accent-blue font-mono">{protocolType}</span>
                     </div>
                 </div>
             </div>
 
-            {/* --- KINETIC DATA TABLE --- */}
-            <div className="volt-card overflow-hidden border-white/5">
+            {/* --- DATA TABLE --- */}
+            <div className="bg-grafana-panel/30 border border-grafana-border rounded-sm overflow-hidden shadow-2xl">
                 <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse">
+                    <table className="scada-table">
                         <thead>
-                            <tr className="bg-white/[0.02]">
+                            <tr>
                                 {isModbus ? (
                                     <>
-                                        <th className={headerCellClass}>IDENTITY</th>
-                                        <th className={headerCellClass}>VECTOR</th>
-                                        <th className={headerCellClass}>ENCODING</th>
-                                        <th className={headerCellClass}>ADDR</th>
-                                        <th className={headerCellClass}>FC</th>
-                                        <th className={headerCellClass}>DELTA</th>
-                                        <th className={headerCellClass}>CAT</th>
+                                        <th>ETİKET</th>
+                                        <th>BİRİM</th>
+                                        <th>TİP</th>
+                                        <th>ADRES</th>
+                                        <th>FC</th>
+                                        <th>ÇARPAN</th>
+                                        <th>KAT</th>
                                     </>
                                 ) : (
                                     <>
-                                        <th className={headerCellClass}>FIDER</th>
-                                        <th className={headerCellClass}>SIGNAL</th>
-                                        <th className={headerCellClass}>DATA TYPE</th>
-                                        <th className={headerCellClass}>IOA OBJ</th>
-                                        <th className={headerCellClass}>SCADA ADDR</th>
-                                        <th className={headerCellClass}>CAT</th>
+                                        <th>FİDER</th>
+                                        <th>AÇIKLAMA</th>
+                                        <th>TİP</th>
+                                        <th>IOA</th>
+                                        <th>SCADA</th>
+                                        <th>KAT</th>
                                     </>
                                 )}
-                                <th className={headerCellClass}>REC</th>
-                                <th className={headerCellClass}>STATE</th>
-                                <th className={`${headerCellClass} text-right`}>ACTIONS</th>
+                                <th>KAYIT</th>
+                                <th>DURUM</th>
+                                <th className="text-right">İŞLEMLER</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-white/[0.03]">
                             {loading ? (
-                                <tr><td colSpan={10} className="px-12 py-24 text-center animate-pulse text-[10px] font-black text-slate-600 tracking-[0.5em] uppercase">Synchronizing with Registry...</td></tr>
+                                <tr><td colSpan={10} className="px-12 py-24 text-center animate-pulse text-[10px] font-bold text-grafana-text-secondary tracking-[0.5em] uppercase font-mono">Senkronize Ediliyor...</td></tr>
                             ) : filteredSheets.length === 0 ? (
-                                <tr><td colSpan={10} className="px-12 py-24 text-center text-[10px] font-black text-slate-700 tracking-[0.5em] uppercase">Zero Points Logged</td></tr>
+                                <tr><td colSpan={10} className="px-12 py-24 text-center text-[10px] font-bold text-grafana-text-secondary tracking-[0.5em] uppercase font-mono">Kayıt Bulunamadı</td></tr>
                             ) : filteredSheets.map((sheet, i) => (
-                                <motion.tr 
-                                    initial={{ opacity: 0, x: -10 }}
-                                    animate={{ opacity: 1, x: 0 }}
-                                    transition={{ delay: i * 0.02 }}
-                                    key={sheet.id} 
-                                    className="group hover:bg-white/[0.02] transition-colors relative"
-                                >
+                                <tr key={sheet.id} className="group hover:bg-white/[0.02] transition-colors">
                                     {isModbus ? (
                                         <>
                                             <td className={cellClass}>
-                                                <div className="flex items-center gap-4">
-                                                    <div className="w-1 h-6 bg-brand-green/20 group-hover:bg-brand-green transition-all" />
-                                                    <span className="text-white font-black group-hover:text-brand-green transition-colors uppercase">{sheet.dataName}</span>
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-1 h-5 bg-grafana-accent-blue/20 group-hover:bg-grafana-accent-blue transition-all" />
+                                                    <span className="text-white font-bold group-hover:text-grafana-accent-blue transition-colors uppercase font-mono">{sheet.dataName}</span>
                                                 </div>
                                             </td>
                                             <td className={cellClass}>
-                                                <span className="text-slate-500 font-bold italic truncate max-w-[150px] block">{sheet.dataValue || 'RAW'}</span>
+                                                <span className="text-grafana-text-secondary font-mono italic">{sheet.dataValue || 'HAM'}</span>
                                             </td>
                                             <td className={cellClass}>
-                                                <span className="px-3 py-1 rounded-lg bg-white/5 border border-white/5 text-[9px] font-black text-purple-400">{sheet.dataType || 'UINT16'}</span>
+                                                <span className="px-2 py-0.5 rounded-sm bg-slate-900 border border-slate-800 text-[9px] font-bold text-purple-400 font-mono">{sheet.dataType || 'UINT16'}</span>
                                             </td>
                                             <td className={cellClass}>
-                                                <span className="text-[#CCFF00] font-black">{sheet.registerAddress}</span>
+                                                <span className="text-grafana-accent-blue font-bold font-mono">{sheet.registerAddress}</span>
                                             </td>
                                             <td className={cellClass}>
-                                                <span className="text-cyan-400 font-black">FC{sheet.functionCode || 3}</span>
+                                                <span className="text-grafana-accent-orange font-bold font-mono">FC{sheet.functionCode || 3}</span>
                                             </td>
                                             <td className={cellClass}>
-                                                <span className="text-slate-600">x{sheet.multiplier || 1}</span>
+                                                <span className="text-grafana-text-secondary font-mono">x{sheet.multiplier || 1}</span>
                                             </td>
                                             <td className={cellClass}>
-                                                <span className="text-[10px] font-black text-slate-400 uppercase opacity-40">{sheet.measurementType || 'SYSTEM'}</span>
+                                                <span className="text-[10px] font-bold text-grafana-text-secondary/50 uppercase font-mono">{sheet.measurementType || 'SİSTEM'}</span>
                                             </td>
                                         </>
                                     ) : (
                                         <>
                                             <td className={cellClass}>
-                                                <div className="flex items-center gap-4">
-                                                    <div className="w-1 h-6 bg-[#00E5FF]/20 group-hover:bg-[#00E5FF] transition-all" />
-                                                    <span className="text-white font-black uppercase">{sheet.feederName || '-'}</span>
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-1 h-5 bg-grafana-accent-blue/20 group-hover:bg-grafana-accent-blue transition-all" />
+                                                    <span className="text-white font-bold uppercase font-mono">{sheet.feederName || '-'}</span>
                                                 </div>
                                             </td>
                                             <td className={cellClass}>
-                                                <span className="text-slate-400 font-bold">{sheet.signalDescription || sheet.dataName}</span>
+                                                <span className="text-grafana-text-secondary font-bold font-mono">{sheet.signalDescription || sheet.dataName}</span>
                                             </td>
                                             <td className={cellClass}>
-                                                <span className="px-3 py-1 rounded-lg bg-white/5 text-[9px] font-black text-purple-400">{sheet.dataType || 'IEC-VAL'}</span>
+                                                <span className="px-2 py-0.5 rounded-sm bg-slate-900 border border-slate-800 text-[9px] font-bold text-purple-400 font-mono">{sheet.dataType || 'IEC-VAL'}</span>
                                             </td>
                                             <td className={cellClass}>
-                                                <span className="text-[#CCFF00] font-black">{sheet.ioa1ObjectAddress}</span>
+                                                <span className="text-grafana-accent-blue font-bold font-mono">{sheet.ioa1ObjectAddress}</span>
                                             </td>
                                             <td className={cellClass}>
-                                                <span className="text-cyan-400 font-black">{sheet.scadaAddress}</span>
+                                                <span className="text-grafana-accent-orange font-bold font-mono">{sheet.scadaAddress}</span>
                                             </td>
                                             <td className={cellClass}>
-                                                <span className="text-[10px] font-black text-slate-400 uppercase opacity-40">{sheet.measurementType || 'TELEMETRY'}</span>
+                                                <span className="text-[10px] font-bold text-grafana-text-secondary/50 uppercase font-mono">{sheet.measurementType || 'TELEMETRİ'}</span>
                                             </td>
                                         </>
                                     )}
                                     <td className={cellClass}>
-                                        <span className="text-slate-600">{sheet.recordingInterval}s</span>
+                                        <span className="text-grafana-text-secondary font-mono">{sheet.recordingInterval}s</span>
                                     </td>
                                     <td className={cellClass}>
                                         <div className="flex items-center gap-2">
-                                            <div className={`w-1.5 h-1.5 rounded-full ${sheet.isActive ? 'bg-brand-green shadow-[0_0_8px_#10B981]' : 'bg-white/10'}`} />
-                                            <span className={`text-[9px] font-black tracking-widest ${sheet.isActive ? 'text-brand-green' : 'text-slate-700'}`}>{sheet.isActive ? 'ONLINE' : 'OFFLINE'}</span>
+                                            <div className={cn("w-1.5 h-1.5 rounded-full", sheet.isActive ? 'bg-grafana-accent-green shadow-[0_0_8px_#73bf69]' : 'bg-slate-800')} />
+                                            <span className={cn("text-[9px] font-bold tracking-widest font-mono", sheet.isActive ? 'text-grafana-accent-green' : 'text-slate-700')}>{sheet.isActive ? 'AKTİF' : 'PASİF'}</span>
                                         </div>
                                     </td>
                                     <td className={cellClass}>
-                                        <div className="flex justify-end gap-3 opacity-0 group-hover:opacity-100 transition-all translate-x-2 group-hover:translate-x-0">
-                                            <button onClick={() => openEditModal(sheet)} className="p-2 rounded-xl bg-white/5 border border-white/5 hover:text-[#00E5FF] hover:bg-[#00E5FF]/10 transition-all text-slate-500">
+                                        <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all">
+                                            <button onClick={() => openEditModal(sheet)} className="p-1.5 rounded-sm bg-slate-900 border border-slate-800 hover:text-grafana-accent-blue hover:border-grafana-accent-blue/50 transition-all text-grafana-text-secondary">
                                                 <Pencil size={12} />
                                             </button>
-                                            <button onClick={() => handleDeleteClick(sheet)} className="p-2 rounded-xl bg-white/5 border border-white/5 hover:text-red-500 hover:bg-red-500/10 transition-all text-slate-500">
+                                            <button onClick={() => handleDeleteClick(sheet)} className="p-1.5 rounded-sm bg-slate-900 border border-slate-800 hover:text-grafana-accent-red hover:border-grafana-accent-red/50 transition-all text-grafana-text-secondary">
                                                 <Trash2 size={12} />
                                             </button>
                                         </div>
                                     </td>
-                                </motion.tr>
+                                </tr>
                             ))}
                         </tbody>
                     </table>
@@ -519,40 +491,40 @@ function DataSheetsContent() {
             <Modal
                 isOpen={isModalOpen}
                 onClose={handleCloseModal}
-                title={editingSheet ? 'Update Schematic' : 'Define Terminal Point'}
-                subtitle={`${protocolType} Protocol Layer — Profile: ${profile?.name}`}
+                title={editingSheet ? 'Nokta Güncelleme' : 'Nokta Tanımlama'}
+                subtitle={`${protocolType} Protokol Katmanı`}
                 icon={Database}
                 maxWidth="5xl"
             >
                 <form onSubmit={handleSubmit} className="space-y-8 p-4">
                     {serverError && (
-                        <div className="flex items-center gap-3 p-5 bg-red-500/10 border border-red-500/20 rounded-2xl text-[11px] font-black text-red-500 tracking-widest uppercase italic">
-                            <AlertCircle size={16} /> {serverError}
+                        <div className="flex items-center gap-3 p-4 bg-red-500/10 border border-red-500/20 rounded-sm text-[10px] font-bold text-red-500 tracking-widest uppercase font-mono">
+                            <AlertCircle size={14} /> {serverError}
                         </div>
                     )}
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {isModbus ? (
                             <>
                                 <div className="lg:col-span-2">
                                     <InputField 
-                                        label="Terminal Label" required autoFocus 
+                                        label="Terminal Etiketi" required autoFocus 
                                         value={formData.dataName} onChange={(val:any) => setFormData({...formData, dataName: val})}
-                                        placeholder="e.g. CORE_SENS_V_L1" 
+                                        placeholder="örn. CORE_SENS_V_L1" 
                                     />
                                 </div>
                                 <InputField 
-                                    label="Vector / Unit" 
+                                    label="Birim / Vektör" 
                                     value={formData.dataValue} onChange={(val:any) => setFormData({...formData, dataValue: val})}
-                                    placeholder="e.g. VAC"
+                                    placeholder="örn. VAC"
                                 />
                                 <InputField 
-                                    label="Register Address" type="number" required
+                                    label="Register Adresi" type="number" required
                                     value={formData.registerAddress} onChange={(val:any) => setFormData({...formData, registerAddress: val})}
                                     placeholder="40001"
                                 />
                                 <div className="space-y-2">
-                                    <label className={labelClass}>Function Map</label>
+                                    <label className={labelClass}>Fonksiyon Haritası</label>
                                     <select value={formData.functionCode} onChange={(e) => setFormData({...formData, functionCode: e.target.value})} className={inputClass}>
                                         <option value="3">03 - READ HOLDING</option>
                                         <option value="4">04 - READ INPUT</option>
@@ -560,47 +532,47 @@ function DataSheetsContent() {
                                     </select>
                                 </div>
                                 <div className="space-y-2">
-                                    <label className={labelClass}>Multiplier</label>
+                                    <label className={labelClass}>Çarpan</label>
                                     <select value={formData.multiplier} onChange={(e) => setFormData({...formData, multiplier: e.target.value})} className={inputClass}>
-                                        <option value="1">1.00 - NATIVE</option>
-                                        <option value="0.1">0.10 - DECI</option>
-                                        <option value="0.01">0.01 - CENTI</option>
-                                        <option value="10">10.00 - DECA</option>
+                                        <option value="1">1.00 - HAM</option>
+                                        <option value="0.1">0.10 - DESİ</option>
+                                        <option value="0.01">0.01 - SANTİ</option>
+                                        <option value="10">10.00 - DEKA</option>
                                     </select>
                                 </div>
                             </>
                         ) : (
                             <>
-                                <InputField label="Feeder Tag" value={formData.feederName} onChange={(val:any) => setFormData({...formData, feederName: val})} placeholder="H1" />
+                                <InputField label="Fider Etiketi" value={formData.feederName} onChange={(val:any) => setFormData({...formData, feederName: val})} placeholder="H1" />
                                 <div className="lg:col-span-2">
-                                    <InputField label="Signal Description" required value={formData.signalDescription} onChange={(val:any) => setFormData({...formData, signalDescription: val})} placeholder="Phase L1 Voltage" />
+                                    <InputField label="Sinyal Açıklaması" required value={formData.signalDescription} onChange={(val:any) => setFormData({...formData, signalDescription: val})} placeholder="Faz L1 Gerilimi" />
                                 </div>
-                                <InputField label="IOA Object Addr" type="number" required value={formData.ioa1ObjectAddress} onChange={(val:any) => setFormData({...formData, ioa1ObjectAddress: val})} placeholder="1000" />
-                                <InputField label="Scada Address" type="number" value={formData.scadaAddress} onChange={(val:any) => setFormData({...formData, scadaAddress: val})} placeholder="200021" />
+                                <InputField label="IOA Nesne Adresi" type="number" required value={formData.ioa1ObjectAddress} onChange={(val:any) => setFormData({...formData, ioa1ObjectAddress: val})} placeholder="1000" />
+                                <InputField label="Scada Adresi" type="number" value={formData.scadaAddress} onChange={(val:any) => setFormData({...formData, scadaAddress: val})} placeholder="200021" />
                             </>
                         )}
                         <div className="space-y-2">
-                            <label className={labelClass}>Measurement Cat</label>
+                            <label className={labelClass}>Ölçüm Kategorisi</label>
                             <select value={formData.measurementType} onChange={(e) => setFormData({...formData, measurementType: e.target.value})} className={inputClass}>
-                                <option value="">SELECT TYPE...</option>
+                                <option value="">TİP SEÇ...</option>
                                 {MEASUREMENT_TYPES.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
                             </select>
                         </div>
-                        <InputField label="Rec Interval (S)" type="number" value={formData.recordingInterval} onChange={(val:any) => setFormData({...formData, recordingInterval: val})} />
+                        <InputField label="Kayıt Aralığı (S)" type="number" value={formData.recordingInterval} onChange={(val:any) => setFormData({...formData, recordingInterval: val})} />
                     </div>
 
-                    <div className="pt-8 border-t border-white/5 flex items-center justify-between">
+                    <div className="pt-6 border-t border-grafana-border flex items-center justify-between">
                         <button type="button" onClick={() => setFormData({...formData, isActive: !formData.isActive})} className="flex items-center gap-4 group">
-                             <div className={`w-12 h-6 rounded-full border transition-all relative ${formData.isActive ? 'bg-brand-green/20 border-brand-green' : 'bg-slate-900 border-white/10'}`}>
-                                <motion.div animate={{ x: formData.isActive ? 24 : 4 }} className={`w-4 h-4 rounded-full mt-[3px] ${formData.isActive ? 'bg-brand-green' : 'bg-slate-700'}`} />
+                             <div className={`w-10 h-5 rounded-full border transition-all relative ${formData.isActive ? 'bg-grafana-accent-green/20 border-grafana-accent-green' : 'bg-slate-900 border-slate-800'}`}>
+                                <motion.div animate={{ x: formData.isActive ? 20 : 2 }} className={`w-3 h-3 rounded-full mt-[3px] ${formData.isActive ? 'bg-grafana-accent-green' : 'bg-slate-700'}`} />
                              </div>
-                             <span className="text-[10px] font-black text-slate-500 tracking-[0.2em] group-hover:text-white transition-colors">ACTIVE STATE</span>
+                             <span className="text-[9px] font-bold text-grafana-text-secondary uppercase tracking-widest font-mono">AKTİF DURUM</span>
                         </button>
                         <button
                             type="submit" disabled={isSubmitting}
-                            className="px-12 py-5 bg-brand-green text-[#020617] font-black tracking-[0.3em] text-[10px] rounded-2xl hover:scale-[1.02] shadow-2xl shadow-brand-green/30 uppercase"
+                            className="px-8 py-3 bg-grafana-accent-blue text-white font-bold tracking-widest text-[10px] rounded-sm hover:bg-grafana-accent-blue/90 transition-all uppercase shadow-lg shadow-grafana-accent-blue/20 font-mono"
                         >
-                            {isSubmitting ? 'SYNCHRONIZING...' : editingSheet ? 'UPDATE POINT' : 'REGISTER POINT'}
+                            {isSubmitting ? 'SENKRONİZE EDİLİYOR...' : editingSheet ? 'GÜNCELLE' : 'KAYDET'}
                         </button>
                     </div>
                 </form>
@@ -609,21 +581,21 @@ function DataSheetsContent() {
             <Modal
                 isOpen={!!pointToDelete}
                 onClose={() => setPointToDelete(null)}
-                title="Purge Point" icon={AlertTriangle} maxWidth="sm"
+                title="Noktayı Sil" icon={AlertTriangle} maxWidth="sm"
             >
                 <div className="text-center space-y-6 pt-4">
-                    <div className="w-16 h-16 rounded-3xl bg-red-500/10 border border-red-500/20 text-red-500 flex items-center justify-center mx-auto mb-6">
+                    <div className="w-16 h-16 rounded-sm bg-red-500/10 border border-red-500/20 text-red-500 flex items-center justify-center mx-auto mb-6">
                         <AlertTriangle size={32} />
                     </div>
-                    <div>
-                        <p className="text-lg font-black text-white tracking-tight uppercase">Purge Terminal Point?</p>
-                        <p className="text-[11px] text-slate-500 leading-relaxed font-medium mt-2">
-                             Point <span className="text-white font-bold">{pointToDelete?.dataName}</span> will be permanently removed from node schematic.
+                    <div className="space-y-2">
+                        <p className="text-lg font-bold text-white tracking-tight uppercase">Terminal Noktası Silinsin mi?</p>
+                        <p className="text-[11px] text-grafana-text-secondary leading-relaxed font-medium">
+                             <span className="text-white font-bold">{pointToDelete?.dataName}</span> kalıcı olarak kaldırılacaktır.
                         </p>
                     </div>
-                    <div className="grid grid-cols-2 gap-4 pt-4">
-                        <button onClick={() => setPointToDelete(null)} className="py-4 rounded-2xl border border-white/5 text-slate-500 font-black text-[9px] tracking-[0.3em] uppercase">Abort</button>
-                        <button onClick={confirmDelete} className="py-4 rounded-2xl bg-red-500 text-white font-black text-[9px] tracking-[0.3em] uppercase shadow-2xl shadow-red-500/30">Confirm Purge</button>
+                    <div className="grid grid-cols-2 gap-3 pt-4">
+                        <button onClick={() => setPointToDelete(null)} className="py-3 rounded-sm border border-grafana-border text-grafana-text-secondary font-bold text-[9px] tracking-widest uppercase font-mono">VAZGEÇ</button>
+                        <button onClick={confirmDelete} className="py-3 rounded-sm bg-grafana-accent-red text-white font-bold text-[9px] tracking-widest uppercase shadow-lg shadow-grafana-accent-red/20 font-mono">SİLMEYİ ONAYLA</button>
                     </div>
                 </div>
             </Modal>
@@ -633,7 +605,7 @@ function DataSheetsContent() {
 
 export default function DataSheetsPage() {
     return (
-        <Suspense fallback={<div className="p-8 text-white">Initialising Schema View...</div>}>
+        <Suspense fallback={<div className="p-8 text-white">Şema Görünümü Başlatılıyor...</div>}>
             <DataSheetsContent />
         </Suspense>
     );

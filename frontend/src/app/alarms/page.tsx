@@ -1,8 +1,11 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { AlertTriangle, Bell, Clock, CheckCircle, Search, ShieldAlert, Cpu, WifiOff } from 'lucide-react';
+import { AlertTriangle, Bell, Clock, CheckCircle, Search, ShieldAlert, Cpu, WifiOff, Activity, AlertCircle, RefreshCw, Filter, ListFilter, Terminal, Database } from 'lucide-react';
 import { apiRequest } from '@/lib/api';
+import { cn } from '@/lib/utils';
+import { motion, AnimatePresence } from 'framer-motion';
+import PageHeader from '@/components/PageHeader';
 
 interface Device {
     id: string;
@@ -24,8 +27,10 @@ export default function AlarmsPage() {
     const [alarms, setAlarms] = useState<CommunicationAlarm[]>([]);
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState<'ALL' | 'ACTIVE' | 'RESOLVED'>('ALL');
+    const [isRefreshing, setIsRefreshing] = useState(false);
 
-    const fetchAlarms = async () => {
+    const fetchAlarms = async (showRefresh = false) => {
+        if (showRefresh) setIsRefreshing(true);
         try {
             const res = await apiRequest('/api/alarms');
             if (res.ok) {
@@ -33,16 +38,16 @@ export default function AlarmsPage() {
                 setAlarms(data);
             }
         } catch (err) {
-            console.error('Failed to fetch alarms:', err);
+            console.error('Alarmlar çekilemedi:', err);
         } finally {
             setLoading(false);
+            if (showRefresh) setTimeout(() => setIsRefreshing(false), 500);
         }
     };
 
     useEffect(() => {
         fetchAlarms();
-        // Refresh every 30s
-        const interval = setInterval(fetchAlarms, 30000);
+        const interval = setInterval(() => fetchAlarms(), 30000);
         return () => clearInterval(interval);
     }, []);
 
@@ -55,115 +60,205 @@ export default function AlarmsPage() {
     const activeCount = alarms.filter(a => a.status === 'ACTIVE').length;
 
     return (
-        <div className="space-y-8 pb-16 animate-in-up font-sans">
-            {/* Header */}
-            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-8">
-                <div className="space-y-2">
-                    <div className="flex items-center gap-4">
-                        <div className="w-1.5 h-8 bg-amber-500 rounded-full shadow-[0_0_20px_rgba(245,158,11,0.4)]"></div>
-                        <h1 className="text-3xl font-black text-white tracking-tight ">Communication Monitoring</h1>
-                    </div>
-                    <p className="text-sm text-slate-500 ml-6">Monitor real-time device connectivity and data flow interruptions</p>
-                </div>
-
+        <div className="space-y-8 pb-16 font-sans">
+            <PageHeader 
+                title="OLAY" 
+                highlightedTitle="UFKU"
+                subtitle="Bağlantı bütünlüğü izleyici ve sistem geneli alarm yönetimi"
+                icon={ShieldAlert}
+                iconColor={activeCount > 0 ? "text-grafana-accent-red" : "text-grafana-accent-green"}
+                iconBgColor={activeCount > 0 ? "bg-grafana-accent-red/10" : "bg-grafana-accent-green/10"}
+            >
+                <button 
+                    onClick={() => fetchAlarms(true)}
+                    className="p-2.5 rounded-sm bg-grafana-bg border border-grafana-border text-grafana-text-secondary hover:text-grafana-accent-blue hover:border-grafana-accent-blue/50 transition-all"
+                >
+                    <RefreshCw size={14} className={cn(isRefreshing && "animate-spin text-grafana-accent-blue")} />
+                </button>
                 {activeCount > 0 && (
-                    <div className="flex items-center gap-3 px-4 py-3 bg-amber-500/5 rounded-xl border border-amber-500/20">
-                        <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse shadow-[0_0_10px_rgba(245,158,11,0.6)]"></div>
-                        <span className="text-xs font-bold text-amber-400  tracking-widest">{activeCount} Communication Losses</span>
+                    <div className="flex items-center gap-3 px-4 py-2 bg-grafana-accent-red/10 border border-grafana-accent-red/30 rounded-sm">
+                        <div className="w-2 h-2 rounded-full bg-grafana-accent-red animate-pulse shadow-[0_0_10px_rgba(242,73,92,0.6)]"></div>
+                        <span className="text-[10px] font-bold text-grafana-accent-red tracking-widest uppercase font-mono">
+                            {activeCount} ONAYLANMAMIŞ HATA
+                        </span>
                     </div>
                 )}
-            </div>
+            </PageHeader>
 
-            {/* Stats */}
+            {/* Performans Göstergeleri */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {[
-                    { label: 'Active Loss', val: activeCount.toString(), icon: WifiOff, color: 'text-amber-400', bg: 'bg-amber-500/5', border: 'border-amber-500/20' },
-                    { label: 'Total Events', val: alarms.length.toString(), icon: Clock, color: 'text-brand-green', bg: 'bg-brand-green/5', border: 'border-brand-green/20' },
-                    { label: 'System Status', val: activeCount > 0 ? 'WARNING' : 'HEALTHY', icon: ShieldAlert, color: activeCount > 0 ? 'text-amber-400' : 'text-brand-green', bg: activeCount > 0 ? 'bg-amber-500/5' : 'bg-brand-green/5', border: activeCount > 0 ? 'border-amber-500/20' : 'border-brand-green/20' },
-                ].map((stat, i) => (
-                    <div key={i} className={`card-base p-6 ${stat.bg} ${stat.border} flex items-center gap-4`}>
-                        <div className={`p-3 rounded-xl bg-slate-950 border border-slate-800 ${stat.color}`}>
-                            <stat.icon size={20} />
-                        </div>
-                        <div>
-                            <p className="text-[10px] font-bold text-slate-500  tracking-widest">{stat.label}</p>
-                            <p className={`text-2xl font-black tabular-nums ${stat.color}`}>{stat.val}</p>
-                        </div>
+                <div className="bg-grafana-panel/40 border border-grafana-border p-5 rounded-sm flex items-center gap-5 group hover:border-grafana-accent-red/30 transition-all">
+                    <div className="p-3.5 rounded-sm bg-grafana-bg border border-grafana-border text-grafana-accent-red group-hover:shadow-[0_0_15px_rgba(242,73,92,0.1)] transition-all">
+                        <WifiOff size={22} />
                     </div>
-                ))}
+                    <div className="space-y-0.5">
+                        <p className="text-[9px] font-bold text-grafana-text-secondary uppercase tracking-[0.2em] font-mono">Bağlantı Kesintileri</p>
+                        <p className="text-2xl font-bold text-grafana-accent-red tabular-nums font-mono">{activeCount}</p>
+                    </div>
+                </div>
+                
+                <div className="bg-grafana-panel/40 border border-grafana-border p-5 rounded-sm flex items-center gap-5 group hover:border-grafana-accent-blue/30 transition-all">
+                    <div className="p-3.5 rounded-sm bg-grafana-bg border border-grafana-border text-grafana-accent-blue group-hover:shadow-[0_0_15px_rgba(87,148,242,0.1)] transition-all">
+                        <Activity size={22} />
+                    </div>
+                    <div className="space-y-0.5">
+                        <p className="text-[9px] font-bold text-grafana-text-secondary uppercase tracking-[0.2em] font-mono">Kayıt Log Derinliği</p>
+                        <p className="text-2xl font-bold text-grafana-text-primary tabular-nums font-mono">{alarms.length}</p>
+                    </div>
+                </div>
+
+                <div className={cn(
+                    "bg-grafana-panel/40 border p-5 rounded-sm flex items-center gap-5 transition-all",
+                    activeCount > 0 ? "border-grafana-accent-red/20" : "border-grafana-border"
+                )}>
+                    <div className={cn(
+                        "p-3.5 rounded-sm bg-grafana-bg border",
+                        activeCount > 0 ? "text-grafana-accent-red border-grafana-accent-red/20" : "text-grafana-accent-green border-grafana-border"
+                    )}>
+                        <Terminal size={22} />
+                    </div>
+                    <div className="space-y-0.5">
+                        <p className="text-[9px] font-bold text-grafana-text-secondary uppercase tracking-[0.2em] font-mono">Bütünlük Durumu</p>
+                        <p className={cn(
+                            "text-2xl font-bold tabular-nums font-mono",
+                            activeCount > 0 ? "text-grafana-accent-red" : "text-grafana-accent-green"
+                        )}>
+                            {activeCount > 0 ? 'KRİTİK' : 'OPTİMAL'}
+                        </p>
+                    </div>
+                </div>
             </div>
 
-            {/* Alarm Table */}
-            <div className="card-base overflow-hidden">
-                <div className="p-6 border-b border-slate-800/40 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-slate-900/40">
+            {/* Alarm Kaydı */}
+            <div className="bg-grafana-panel/50 border border-grafana-border rounded-sm overflow-hidden shadow-2xl">
+                <div className="p-4 border-b border-grafana-border bg-grafana-bg/50 flex flex-col md:flex-row justify-between items-center gap-4">
                     <div className="flex items-center gap-3">
-                        <div className="p-2 rounded-lg bg-slate-950 border border-slate-800 text-amber-400">
-                            <AlertTriangle size={18} />
-                        </div>
-                        <h3 className="text-sm font-bold text-white ">Connectivity Logs</h3>
+                        <ListFilter size={14} className="text-grafana-text-secondary" />
+                        <h3 className="text-[11px] font-bold text-grafana-text-primary uppercase tracking-[0.2em] font-mono">Bağlantı Bütünlüğü Logları</h3>
                     </div>
-                    <div className="flex gap-2">
+                    
+                    <div className="flex p-0.5 bg-grafana-bg border border-grafana-border rounded-sm">
                         {(['ALL', 'ACTIVE', 'RESOLVED'] as const).map(f => (
                             <button
                                 key={f}
                                 onClick={() => setFilter(f)}
-                                className={`px-4 py-2 rounded-lg text-[10px] font-bold  tracking-widest border transition-all ${filter === f
-                                    ? 'border-brand-green/30 bg-brand-green/10 text-brand-green'
-                                    : 'border-slate-800 bg-slate-900/60 text-slate-600 hover:text-white'
-                                    }`}
+                                className={cn(
+                                    "px-4 py-1.5 rounded-sm text-[10px] font-bold tracking-widest uppercase transition-all font-mono",
+                                    filter === f
+                                        ? "bg-grafana-panel text-white shadow-inner"
+                                        : "text-grafana-text-secondary hover:text-grafana-text-primary"
+                                )}
                             >
-                                {f}
+                                {f === 'ALL' ? 'TÜMÜ' : f === 'ACTIVE' ? 'AKTİF' : 'ÇÖZÜLDÜ'}
                             </button>
                         ))}
                     </div>
                 </div>
 
                 <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse">
+                    <table className="scada-table">
                         <thead>
-                            <tr className="text-[10px] font-bold text-slate-500  tracking-widest border-b border-slate-800/40 bg-slate-900/20">
-                                <th className="px-6 py-4">Status</th>
-                                <th className="px-6 py-4">Device</th>
-                                <th className="px-6 py-4">Message</th>
-                                <th className="px-6 py-4">Failure Start</th>
-                                <th className="px-6 py-4">Resolution End</th>
-                                <th className="px-6 py-4">Last Seen Data</th>
+                            <tr>
+                                <th>BAĞLANTI DURUMU</th>
+                                <th>VARLIK TANIMLAYICI</th>
+                                <th>OLAY TELEMETRİSİ</th>
+                                <th>HATA BAŞLANGICI</th>
+                                <th>ÇÖZÜM ZAMANI</th>
+                                <th>SON VERİ PAKETİ</th>
                             </tr>
                         </thead>
                         <tbody>
                             {loading ? (
-                                <tr><td colSpan={6} className="px-6 py-12 text-center text-sm text-slate-500 animate-pulse">Checking communication logs...</td></tr>
+                                <tr>
+                                    <td colSpan={6} className="text-center py-20 font-mono text-grafana-text-secondary animate-pulse uppercase tracking-widest">Alarm kaydı sorgulanıyor...</td>
+                                </tr>
                             ) : filteredAlarms.length === 0 ? (
-                                <tr><td colSpan={6} className="px-6 py-12 text-center text-sm text-slate-500">No communication events found</td></tr>
+                                <tr>
+                                    <td colSpan={6} className="text-center py-20 font-mono text-grafana-text-secondary uppercase tracking-widest">Aktif bütünlük ihlali saptanmadı</td>
+                                </tr>
                             ) : filteredAlarms.map((alarm) => {
+                                const isActive = alarm.status === 'ACTIVE';
                                 return (
-                                    <tr key={alarm.id} className="border-b border-slate-800/30 hover:bg-slate-800/20 transition-all group">
-                                        <td className="px-6 py-4">
-                                            <div className="flex items-center gap-2">
-                                                <div className={`w-2 h-2 rounded-full ${alarm.status === 'RESOLVED' ? 'bg-brand-green' : `bg-amber-500 animate-pulse`}`} />
-                                                <span className={`text-[10px] font-bold  ${alarm.status === 'RESOLVED' ? 'text-brand-green' : 'text-amber-400'}`}>
-                                                    {alarm.status}
+                                    <motion.tr 
+                                        key={alarm.id}
+                                        initial={{ opacity: 0 }}
+                                        animate={{ opacity: 1 }}
+                                        className={cn(
+                                            "group border-b border-grafana-border/30",
+                                            isActive && "bg-grafana-accent-red/[0.03]"
+                                        )}
+                                    >
+                                        <td>
+                                            <div className="flex items-center gap-3">
+                                                <div className={cn(
+                                                    "w-2 h-2 rounded-full",
+                                                    isActive 
+                                                        ? "bg-grafana-accent-red animate-pulse shadow-[0_0_8px_rgba(242,73,92,0.4)]" 
+                                                        : "bg-grafana-accent-green"
+                                                )} />
+                                                <span className={cn(
+                                                    "text-[10px] font-bold font-mono tracking-widest uppercase",
+                                                    isActive ? "text-grafana-accent-red" : "text-grafana-accent-green"
+                                                )}>
+                                                    {isActive ? 'AKTİF' : 'ÇÖZÜLDÜ'}
                                                 </span>
                                             </div>
                                         </td>
-                                        <td className="px-6 py-4">
-                                            <div className="flex items-center gap-2">
-                                                <Cpu size={12} className="text-slate-500" />
-                                                <span className="text-xs font-bold text-white">{alarm.device?.deviceName || 'Unknown Device'}</span>
+                                        <td>
+                                            <div className="flex items-center gap-3">
+                                                <div className="p-2 rounded-sm bg-grafana-bg border border-grafana-border text-grafana-text-secondary group-hover:text-grafana-accent-blue transition-colors">
+                                                    <Cpu size={14} />
+                                                </div>
+                                                <div className="flex flex-col">
+                                                    <span className="text-[11px] font-bold text-grafana-text-primary uppercase group-hover:text-white transition-colors">{alarm.device?.deviceName || 'BİLİNMEYEN DÜĞÜM'}</span>
+                                                    <span className="text-[9px] text-grafana-text-secondary font-mono tracking-tighter">ID: {alarm.deviceId.substring(0, 8)}</span>
+                                                </div>
                                             </div>
-                                            <span className="text-[9px] text-slate-600 font-mono block">{alarm.deviceId}</span>
                                         </td>
-                                        <td className="px-6 py-4 text-xs text-slate-400">{alarm.message}</td>
-                                        <td className="px-6 py-4 text-xs font-mono text-slate-400 tabular-nums">
-                                            {new Date(alarm.startTime).toLocaleString()}
+                                        <td>
+                                            <div className="flex items-start gap-2 max-w-xs">
+                                                <AlertCircle size={12} className={cn("mt-0.5 shrink-0", isActive ? "text-grafana-accent-red" : "text-grafana-text-secondary")} />
+                                                <span className="text-[11px] text-grafana-text-secondary group-hover:text-grafana-text-primary transition-colors leading-relaxed uppercase font-mono">
+                                                    {alarm.message}
+                                                </span>
+                                            </div>
                                         </td>
-                                        <td className="px-6 py-4 text-xs font-mono text-slate-400 tabular-nums">
-                                            {alarm.endTime ? new Date(alarm.endTime).toLocaleString() : <span className="text-amber-500/50">Ongoing...</span>}
+                                        <td>
+                                            <div className="flex flex-col font-mono">
+                                                <span className="text-[10px] font-bold text-grafana-text-primary tabular-nums">
+                                                    {new Date(alarm.startTime).toLocaleDateString('tr-TR')}
+                                                </span>
+                                                <span className="text-[9px] text-grafana-text-secondary uppercase tracking-tighter">
+                                                    {new Date(alarm.startTime).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                                                </span>
+                                            </div>
                                         </td>
-                                        <td className="px-6 py-4 text-xs font-mono text-slate-500 tabular-nums">
-                                            {alarm.lastSeenAt ? new Date(alarm.lastSeenAt).toLocaleString() : 'N/A'}
+                                        <td>
+                                            <div className="flex flex-col font-mono">
+                                                {alarm.endTime ? (
+                                                    <>
+                                                        <span className="text-[10px] font-bold text-grafana-accent-green tabular-nums">
+                                                            {new Date(alarm.endTime).toLocaleDateString('tr-TR')}
+                                                        </span>
+                                                        <span className="text-[9px] text-grafana-text-secondary uppercase tracking-tighter">
+                                                            {new Date(alarm.endTime).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                                                        </span>
+                                                    </>
+                                                ) : (
+                                                    <div className="flex items-center gap-1.5">
+                                                        <Clock size={10} className="text-grafana-accent-red animate-spin-slow" />
+                                                        <span className="text-[10px] font-bold text-grafana-accent-red uppercase tracking-widest">BEKLİYOR</span>
+                                                    </div>
+                                                )}
+                                            </div>
                                         </td>
-                                    </tr>
+                                        <td>
+                                            <div className="flex items-center gap-2 font-mono text-[10px] text-grafana-text-secondary tabular-nums">
+                                                <Database size={10} className="text-grafana-accent-blue/50" />
+                                                {alarm.lastSeenAt ? new Date(alarm.lastSeenAt).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }) : 'YOK'}
+                                            </div>
+                                        </td>
+                                    </motion.tr>
                                 );
                             })}
                         </tbody>

@@ -1,13 +1,15 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { Building2, Plus, X, Users, Factory, ToggleLeft, ToggleRight, Pencil, Trash2, Settings, AlertTriangle } from 'lucide-react';
+import { Building2, Plus, X, Users, Factory, ToggleLeft, ToggleRight, Pencil, Trash2, Settings, AlertTriangle, Shield, Globe, Mail, Phone, ExternalLink } from 'lucide-react';
 import { apiRequest } from '@/lib/api';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { useRouter } from 'next/navigation';
 import Modal from '@/components/Modal';
 import CompanyForm, { CompanyFormData } from '@/components/forms/CompanyForm';
+import { cn } from '@/lib/utils';
+import PageHeader from '@/components/PageHeader';
 
 interface CompanyProfile {
     id: string;
@@ -31,10 +33,6 @@ interface CompanyProfile {
     userCount?: number;
 }
 
-const defaultFormData = {
-    isActive: true,
-};
-
 export default function CompaniesPage() {
     const router = useRouter();
     const [companies, setCompanies] = useState<CompanyProfile[]>([]);
@@ -55,7 +53,7 @@ export default function CompaniesPage() {
                 setCompanies(Array.isArray(data) ? data : []);
             }
         } catch (err) {
-            console.error('Failed to fetch companies:', err);
+            console.error('Kurumlar getirilemedi:', err);
         } finally {
             setLoading(false);
         }
@@ -85,17 +83,17 @@ export default function CompaniesPage() {
         try {
             const res = await apiRequest(`/api/companies/${companyToDelete.id}`, { method: 'DELETE' });
             if (res.ok) {
-                toast.success('Firma başarıyla silindi');
+                toast.success('Kurum kayıtlardan temizlendi');
                 setCompanies(companies.filter(c => c.id !== companyToDelete.id));
                 setCompanyToDelete(null);
             } else {
                 const result = await res.json();
-                const errorMessage = result.error?.message || result.error || 'Firma silinemedi';
+                const errorMessage = result.error?.message || result.error || 'Silme işlemi başarısız';
                 toast.error(errorMessage);
                 fetchCompanies();
             }
         } catch (err) {
-            console.error('Delete error:', err);
+            console.error('Silme hatası:', err);
         } finally {
             setIsDeleting(false);
         }
@@ -120,13 +118,13 @@ export default function CompaniesPage() {
             });
 
             if (res.ok) {
-                toast.success(editingCompany ? 'Firma güncellendi' : 'Firma oluşturuldu');
+                toast.success(editingCompany ? 'Kurum güncellendi' : 'Kurum kaydedildi');
                 setIsModalOpen(false);
                 setEditingCompany(null);
                 fetchCompanies();
             }
         } catch (err) {
-            console.error('Submit error:', err);
+            console.error('Gönderim hatası:', err);
         } finally {
             setIsSubmitting(false);
             submittingRef.current = false;
@@ -134,174 +132,217 @@ export default function CompaniesPage() {
     };
 
     return (
-        <div className="space-y-8 pb-16 animate-in-up font-sans">
-            {/* Header */}
-            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-8">
-                <div className="space-y-2">
-                    <div className="flex items-center gap-4">
-                        <div className="w-1.5 h-8 bg-brand-green rounded-full shadow-[0_0_20px_rgba(16,185,129,0.4)]"></div>
-                        <h1 className="text-3xl font-black text-white tracking-tight ">Company Profiles</h1>
-                    </div>
-                    <p className="text-sm text-slate-500 ml-6">Manage company profiles and their associated plants and users</p>
-                </div>
-
+        <div className="space-y-8 pb-16 font-sans">
+            <PageHeader 
+                title="KURUMSAL" 
+                highlightedTitle="KAYITLAR"
+                subtitle="Kurumsal varlıkların ve düğüm sahipliklerinin yönetimi"
+                icon={Building2}
+            >
                 <button
                     onClick={openCreateModal}
-                    className="flex items-center gap-3 px-6 py-3 bg-brand-green text-white rounded-xl text-xs font-bold shadow-lg shadow-brand-green/20 hover:scale-[1.02] transition-all  tracking-widest"
+                    className="flex items-center gap-3 px-6 py-2.5 bg-grafana-accent-blue hover:bg-grafana-accent-blue/90 text-white rounded-sm text-[11px] font-bold uppercase tracking-[0.2em] transition-all shadow-[0_0_15px_rgba(87,148,242,0.2)] font-mono whitespace-nowrap"
                 >
-                    <Plus size={16} strokeWidth={3} /> New Company
+                    <Plus size={14} /> KURUM KAYDET
                 </button>
-            </div>
+            </PageHeader>
 
-            {/* Company Cards */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Kurumlar Izgarası */}
+            <div className="grid grid-cols-1 2xl:grid-cols-2 gap-6">
                 {loading ? (
-                    <div className="col-span-full card-base p-12 text-center">
-                        <span className="text-sm text-slate-500 animate-pulse">Loading companies...</span>
+                    <div className="col-span-full py-20 text-center font-mono text-grafana-text-secondary animate-pulse uppercase tracking-widest bg-grafana-panel/20 border border-grafana-border/50 rounded-sm">
+                        Kurumsal kayıtlar taranıyor...
                     </div>
                 ) : companies.length === 0 ? (
-                    <div className="col-span-full card-base p-12 text-center">
-                        <Building2 size={48} className="text-slate-800 mx-auto mb-4" />
-                        <p className="text-sm text-slate-500">No companies registered</p>
+                    <div className="col-span-full py-20 text-center font-mono text-grafana-text-secondary uppercase tracking-widest bg-grafana-panel/20 border border-grafana-border/50 rounded-sm">
+                        <Building2 size={48} className="text-grafana-text-secondary/20 mx-auto mb-4" />
+                        <p>Kayıtlı kurum bulunamadı</p>
                     </div>
                 ) : companies.map((company) => (
-                    <div key={company.id} className="card-base p-6 hover:border-brand-green/30 transition-all group">
-                        <div className="flex items-start justify-between mb-4">
+                    <motion.div 
+                        key={company.id}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="bg-grafana-panel/50 border border-grafana-border rounded-sm overflow-hidden group hover:border-grafana-accent-blue/30 transition-all shadow-xl"
+                    >
+                        <div className="p-5 border-b border-grafana-border bg-grafana-bg/50 flex items-start justify-between">
                             <div className="flex items-center gap-4">
-                                <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 text-brand-green group-hover:bg-brand-green/10 transition-colors">
-                                    <Building2 size={22} />
+                                <div className="p-3 rounded-sm bg-grafana-bg border border-grafana-border text-grafana-accent-blue shadow-inner group-hover:shadow-grafana-accent-blue/5 transition-all">
+                                    <Building2 size={24} />
                                 </div>
-                                <div>
-                                    <h3 className="text-lg font-bold text-white">{company.name}</h3>
-                                    {(company.taxOffice || company.taxNumber) && (
-                                        <p className="text-xs text-slate-500 mt-0.5 max-w-xs">{company.taxOffice} - {company.taxNumber}</p>
-                                    )}
-                                </div>
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <div className={`w-2 h-2 rounded-full ${company.isActive ? 'bg-brand-green' : 'bg-slate-700'}`} />
-                                <span className={`text-[10px] font-bold  ${company.isActive ? 'text-brand-green' : 'text-slate-600'}`}>
-                                    {company.isActive ? 'Active' : 'Inactive'}
-                                </span>
-                            </div>
-                        </div>
-                        
-                        <div className="flex flex-col gap-2 mb-4 px-1">
-                            <div className="flex items-center justify-between text-[10px] text-slate-600 font-bold uppercase tracking-tighter">
-                                <div className="flex flex-col">
-                                    <span>Created At</span>
-                                    {company.createdBy && <span className="text-[8px] text-slate-700 font-medium lowercase">by: {company.createdBy.substring(0, 8)}</span>}
-                                </div>
-                                <span className="text-slate-500 tabular-nums text-right">
-                                    {company.createdAt ? new Date(company.createdAt).toLocaleDateString('tr-TR') + ' ' + new Date(company.createdAt).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }) : '—'}
-                                </span>
-                            </div>
-                            <div className="flex items-center justify-between text-[10px] text-slate-600 font-bold uppercase tracking-tighter">
-                                <div className="flex flex-col">
-                                    <span>Last Update</span>
-                                    {company.updatedBy && <span className="text-[8px] text-slate-700 font-medium lowercase">by: {company.updatedBy.substring(0, 8)}</span>}
-                                </div>
-                                <span className="text-amber-500/80 tabular-nums text-right">
-                                    {company.updatedAt ? new Date(company.updatedAt).toLocaleDateString('tr-TR') + ' ' + new Date(company.updatedAt).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }) : '—'}
-                                </span>
-                            </div>
-                        </div>
-
-                        <div className="grid grid-cols-3 gap-4 mt-4 pt-4 border-t border-slate-800/40">
-                            <div className="flex items-center gap-2">
-                                <Factory size={14} className="text-slate-600" />
-                                <div>
-                                    <p className="text-[10px] font-bold text-slate-600 ">Plants</p>
-                                    <p className="text-sm font-bold text-white tabular-nums">{company.plantCount || 0}</p>
+                                <div className="space-y-1">
+                                    <h3 className="text-lg font-bold text-grafana-text-primary uppercase tracking-tight group-hover:text-white transition-colors">{company.name}</h3>
+                                    <div className="flex items-center gap-2">
+                                        <div className={cn(
+                                            "w-2 h-2 rounded-full",
+                                            company.isActive ? "bg-grafana-accent-green shadow-[0_0_8px_rgba(115,191,105,0.4)]" : "bg-grafana-text-secondary/20"
+                                        )} />
+                                        <span className={cn(
+                                            "text-[10px] font-bold font-mono uppercase tracking-widest",
+                                            company.isActive ? "text-grafana-accent-green" : "text-grafana-text-secondary/40"
+                                        )}>
+                                            {company.isActive ? 'AKTİF' : 'DEVRE DIŞI'}
+                                        </span>
+                                    </div>
                                 </div>
                             </div>
-                            <div className="flex items-center gap-2">
-                                <Users size={14} className="text-slate-600" />
-                                <div>
-                                    <p className="text-[10px] font-bold text-slate-600 ">Users</p>
-                                    <p className="text-sm font-bold text-white tabular-nums">{company.userCount || 0}</p>
-                                </div>
-                            </div>
-                            <div className="flex justify-end gap-2">
-                                <button title="Plants" onClick={() => router.push(`/plants?companyId=${company.id}`)} className="p-2 rounded-lg bg-slate-950 border border-slate-800 text-slate-600 hover:text-brand-green hover:border-brand-green/30 transition-all">
-                                    <Factory size={14} />
+                            
+                            <div className="flex gap-2 opacity-40 group-hover:opacity-100 transition-opacity">
+                                <button 
+                                    title="Düğümleri Görüntüle" 
+                                    onClick={() => router.push(`/plants?companyId=${company.id}`)}
+                                    className="p-2 rounded-sm bg-grafana-bg border border-grafana-border text-grafana-text-secondary hover:text-grafana-accent-blue hover:border-grafana-accent-blue/50 transition-all"
+                                >
+                                    <ExternalLink size={14} />
                                 </button>
-                                <button title="Edit" onClick={() => openEditModal(company)} className="p-2 rounded-lg bg-slate-950 border border-slate-800 text-slate-600 hover:text-brand-green hover:border-brand-green/30 transition-all">
+                                <button 
+                                    title="Yapılandır" 
+                                    onClick={() => openEditModal(company)}
+                                    className="p-2 rounded-sm bg-grafana-bg border border-grafana-border text-grafana-text-secondary hover:text-grafana-accent-blue hover:border-grafana-accent-blue/50 transition-all"
+                                >
                                     <Pencil size={14} />
                                 </button>
-                                <button title="Delete" onClick={() => handleDeleteClick(company)} className="p-2 rounded-lg bg-slate-950 border border-slate-800 text-slate-600 hover:text-red-500 hover:border-red-500/30 transition-all">
+                                <button 
+                                    title="Sil" 
+                                    onClick={() => handleDeleteClick(company)}
+                                    className="p-2 rounded-sm bg-grafana-bg border border-grafana-border text-grafana-text-secondary hover:text-grafana-accent-red hover:border-grafana-accent-red/50 transition-all"
+                                >
                                     <Trash2 size={14} />
                                 </button>
                             </div>
                         </div>
-                    </div>
+
+                        <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-6 bg-grafana-panel/30">
+                            {/* İletişim Bilgileri */}
+                            <div className="space-y-4">
+                                <div className="flex items-center gap-3">
+                                    <Globe size={14} className="text-grafana-text-secondary" />
+                                    <div className="flex flex-col">
+                                        <span className="text-[9px] font-bold text-grafana-text-secondary uppercase tracking-widest font-mono">Vergi Bilgileri</span>
+                                        <span className="text-[11px] font-mono text-grafana-text-primary uppercase">
+                                            {company.taxOffice || 'BİLİNMİYOR'} {company.taxNumber ? `// ${company.taxNumber}` : ''}
+                                        </span>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                    <Mail size={14} className="text-grafana-text-secondary" />
+                                    <div className="flex flex-col">
+                                        <span className="text-[9px] font-bold text-grafana-text-secondary uppercase tracking-widest font-mono">E-Posta Geçidi</span>
+                                        <span className="text-[11px] font-mono text-grafana-text-primary">
+                                            {company.email || 'E-POSTA YAPILANDIRILMADI'}
+                                        </span>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                    <Phone size={14} className="text-grafana-text-secondary" />
+                                    <div className="flex flex-col">
+                                        <span className="text-[9px] font-bold text-grafana-text-secondary uppercase tracking-widest font-mono">İletişim Kanalı</span>
+                                        <span className="text-[11px] font-mono text-grafana-text-primary">
+                                            {company.phone || 'TELEFON KAYDI YOK'}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Düğüm İstatistikleri */}
+                            <div className="flex flex-col justify-between p-4 bg-grafana-bg border border-grafana-border/50 rounded-sm">
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-1">
+                                        <div className="flex items-center gap-2 text-grafana-accent-blue">
+                                            <Factory size={14} />
+                                            <span className="text-[10px] font-bold uppercase tracking-widest font-mono">Düğümler</span>
+                                        </div>
+                                        <div className="text-2xl font-bold text-grafana-text-primary tabular-nums font-mono">
+                                            {company.plantCount || 0}
+                                        </div>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <div className="flex items-center gap-2 text-grafana-accent-green">
+                                            <Users size={14} />
+                                            <span className="text-[10px] font-bold uppercase tracking-widest font-mono">Personel</span>
+                                        </div>
+                                        <div className="text-2xl font-bold text-grafana-text-primary tabular-nums font-mono">
+                                            {company.userCount || 0}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="mt-4 pt-4 border-t border-grafana-border/30 flex items-center justify-between font-mono text-[9px] text-grafana-text-secondary uppercase">
+                                    <span>Sektör Girişi: {company.createdAt ? new Date(company.createdAt).toLocaleDateString('tr-TR') : 'BİLİNMİYOR'}</span>
+                                    <span className="text-grafana-accent-blue/50">ID: {company.id.substring(0, 8)}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </motion.div>
                 ))}
             </div>
 
-            {/* Create / Edit Modal */}
+            {/* Oluştur / Düzenle Modalı */}
             <Modal
                 isOpen={isModalOpen}
                 onClose={() => setIsModalOpen(false)}
-                title={editingCompany ? 'Edit Company' : 'New Company'}
-                subtitle={editingCompany ? 'Update company details' : 'Register a new company profile'}
+                title={editingCompany ? 'KURUM YAPILANDIRMA' : 'KURUM KAYDI'}
                 icon={Building2}
                 maxWidth="xl"
             >
-                <CompanyForm
-                    key={editingCompany?.id || 'new'}
-                    initialData={editingCompany ? {
-                        name: editingCompany.name,
-                        address: editingCompany.address,
-                        phone: editingCompany.phone,
-                        email: editingCompany.email,
-                        representative: editingCompany.representative,
-                        taxOffice: editingCompany.taxOffice,
-                        taxNumber: editingCompany.taxNumber ? editingCompany.taxNumber.toString() : '',
-                        ytbsUsername: editingCompany.ytbsUsername,
-                        ytbsPassword: editingCompany.ytbsPassword,
-                        ytbsApiKey: editingCompany.ytbsApiKey,
-                        baglantiAnlasmasiSirketiLisansNo: editingCompany.baglantiAnlasmasiSirketiLisansNo,
-                        isActive: editingCompany.isActive
-                    } : undefined}
-                    onSubmit={handleFormSubmit}
-                    isSubmitting={isSubmitting}
-                    submitLabel={editingCompany ? 'Update Company' : 'Create Company'}
-                />
+                <div className="pt-4">
+                    <CompanyForm
+                        key={editingCompany?.id || 'new'}
+                        initialData={editingCompany ? {
+                            name: editingCompany.name,
+                            address: editingCompany.address,
+                            phone: editingCompany.phone,
+                            email: editingCompany.email,
+                            representative: editingCompany.representative,
+                            taxOffice: editingCompany.taxOffice,
+                            taxNumber: editingCompany.taxNumber ? editingCompany.taxNumber.toString() : '',
+                            ytbsUsername: editingCompany.ytbsUsername,
+                            ytbsPassword: editingCompany.ytbsPassword,
+                            ytbsApiKey: editingCompany.ytbsApiKey,
+                            baglantiAnlasmasiSirketiLisansNo: editingCompany.baglantiAnlasmasiSirketiLisansNo,
+                            isActive: editingCompany.isActive
+                        } : undefined}
+                        onSubmit={handleFormSubmit}
+                        isSubmitting={isSubmitting}
+                        submitLabel={editingCompany ? 'YAPILANDIRMAYI UYGULA' : 'KAYDI TAMAMLA'}
+                    />
+                </div>
             </Modal>
 
-            {/* Delete Confirmation Modal */}
+            {/* Silme Onay Modalı */}
             <Modal
                 isOpen={!!companyToDelete}
                 onClose={() => setCompanyToDelete(null)}
-                title="Delete Company"
+                title="KURUMU SİL"
                 icon={AlertTriangle}
                 maxWidth="sm"
             >
-                <div className="text-center space-y-4">
-                    <div className="w-12 h-12 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 flex items-center justify-center mx-auto mb-4">
-                        <AlertTriangle size={24} />
+                <div className="text-center space-y-6 py-4 font-mono">
+                    <div className="w-16 h-16 rounded-sm bg-grafana-accent-red/10 border border-grafana-accent-red/20 text-grafana-accent-red flex items-center justify-center mx-auto mb-6">
+                        <AlertTriangle size={32} />
                     </div>
 
-                    <div>
-                        <p className="text-sm text-slate-400 leading-relaxed">
-                            Are you sure you want to delete <span className="font-bold text-white">{companyToDelete?.name}</span>? This action cannot be undone.
+                    <div className="space-y-2">
+                        <h4 className="text-sm font-bold text-grafana-text-primary uppercase tracking-widest">Silme Protokolünü Çalıştır</h4>
+                        <p className="text-[11px] text-grafana-text-secondary leading-relaxed">
+                            <span className="font-bold text-grafana-accent-red">[{companyToDelete?.name}]</span> kurumunu kayıtlardan siliyorsunuz. Bu işlem tüm ilişkili düğüm ve personeli ayıracaktır.
                         </p>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-3 pt-2">
+                    <div className="grid grid-cols-2 gap-3">
                         <button
                             onClick={() => setCompanyToDelete(null)}
                             disabled={isDeleting}
-                            className="py-2.5 px-4 rounded-lg border border-slate-800 text-slate-400 font-bold text-[10px] hover:bg-slate-900 transition-colors disabled:opacity-50 tracking-widest uppercase"
+                            className="py-2.5 px-4 rounded-sm border border-grafana-border bg-grafana-bg text-grafana-text-secondary font-bold text-[10px] hover:bg-grafana-panel transition-colors disabled:opacity-50 tracking-widest uppercase"
                         >
-                            Cancel
+                            İptal
                         </button>
                         <button
                             onClick={confirmDelete}
                             disabled={isDeleting}
-                            className="py-2.5 px-4 rounded-lg bg-red-500 text-white font-bold text-[10px] hover:bg-red-600 shadow-lg shadow-red-500/20 transition-all disabled:opacity-50 tracking-widest uppercase flex items-center justify-center gap-2"
+                            className="py-2.5 px-4 rounded-sm bg-grafana-accent-red text-white font-bold text-[10px] hover:bg-grafana-accent-red/90 shadow-lg shadow-grafana-accent-red/20 transition-all disabled:opacity-50 tracking-widest uppercase flex items-center justify-center gap-2"
                         >
-                            {isDeleting ? 'Deleting...' : 'Yes, Delete'}
+                            {isDeleting ? 'SİLİNİYOR...' : 'Silmeyi Onayla'}
                         </button>
                     </div>
                 </div>

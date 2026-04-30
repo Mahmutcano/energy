@@ -66,7 +66,11 @@ func main() {
 	go broadcasterSvc.Start(ctx)
 
 	// Initialize API
-	r := gin.New()
+	// Start YTBS Background Worker
+	services.GetYtbsService().StartWorker()
+
+	r := gin.Default()
+	r.Use(gin.Logger())
 	r.Use(gin.Recovery())
 
 	// CORS Setup
@@ -85,16 +89,25 @@ func main() {
 	apiGroup := r.Group("/api")
 	{
 		apiGroup.POST("/auth/login", handlers.Login)
+		apiGroup.POST("/auth/register", handlers.Register)
 
 		// Protected routes
 		protected := apiGroup.Group("/")
 		protected.Use(middleware.AuthMiddleware())
 		{
+			// Public/Protected GET routes for all authenticated users
+			protected.GET("/plants", handlers.GetPlants)
+			protected.GET("/devices", handlers.GetDevices)
+			protected.GET("/datasheets", handlers.GetDatasheetPoints)
+			protected.GET("/datasheets/:profileId", handlers.GetDatasheetPoints)
+			protected.GET("/telemetry/history", handlers.GetTelemetryHistory)
+			protected.GET("/telemetry/:deviceId", handlers.GetTelemetry)
+			protected.GET("/alarms", handlers.GetAlarms)
+
 			// Management routes (ADMIN ONLY)
 			mgmt := protected.Group("/")
-			mgmt.Use(middleware.RoleMiddleware("ADMIN"))
+			mgmt.Use(middleware.RoleMiddleware("SUPER_ADMIN", "COMPANY_ADMIN"))
 			{
-				mgmt.GET("/plants", handlers.GetPlants)
 				mgmt.POST("/plants", handlers.CreatePlant)
 				mgmt.PATCH("/plants/:id", handlers.UpdatePlant)
 				mgmt.DELETE("/plants/:id", handlers.DeletePlant)
@@ -106,7 +119,6 @@ func main() {
 				mgmt.POST("/users", handlers.CreateUser)
 				mgmt.PATCH("/users/:id", handlers.UpdateUser)
 				mgmt.DELETE("/users/:id", handlers.DeleteUser)
-				mgmt.GET("/devices", handlers.GetDevices)
 				mgmt.POST("/devices", handlers.CreateDevice)
 				mgmt.PATCH("/devices/:id", handlers.UpdateDevice)
 				mgmt.DELETE("/devices/:id", handlers.DeleteDevice)
@@ -119,25 +131,18 @@ func main() {
 				mgmt.POST("/datasheet-profiles", handlers.CreateDatasheetProfile)
 				mgmt.PATCH("/datasheet-profiles/:id", handlers.UpdateDatasheetProfile)
 				mgmt.DELETE("/datasheet-profiles/:id", handlers.DeleteDatasheetProfile)
-				mgmt.GET("/datasheets", handlers.GetDatasheetPoints)
-				mgmt.GET("/datasheets/:profileId", handlers.GetDatasheetPoints)
 				mgmt.POST("/datasheets", handlers.CreateDatasheetPoint)
 				mgmt.POST("/datasheets/bulk", handlers.BulkCreateDatasheetPoints)
 				mgmt.PATCH("/datasheets/:id", handlers.UpdateDatasheetPoint)
 				mgmt.DELETE("/datasheets/:id", handlers.DeleteDatasheetPoint)
-			}
 
-			protected.GET("/telemetry/history", handlers.GetTelemetryHistory)
-			protected.GET("/telemetry/:deviceId", handlers.GetTelemetry)
-
-			protected.GET("/alarms", handlers.GetAlarms)
-
-			// Admin routes (ADMIN ONLY)
-			admin := mgmt.Group("/admin")
-			{
-				admin.POST("/modbus-test", handlers.ModbusTest)
-				admin.POST("/iec104-test", handlers.IEC104Test)
-				admin.POST("/iec104-gi", handlers.IEC104GI)
+				// Admin-specific operations
+				admin := mgmt.Group("/admin")
+				{
+					admin.POST("/modbus-test", handlers.ModbusTest)
+					admin.POST("/iec104-test", handlers.IEC104Test)
+					admin.POST("/iec104-gi", handlers.IEC104GI)
+				}
 			}
 
 			// System routes (ADMIN ONLY)

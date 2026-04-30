@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { apiRequest } from '@/lib/api';
 import { socket } from '@/lib/socket';
-import { AnimatePresence } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 
 // Separate Components
 import TickerBar from '@/components/customer/TickerBar';
@@ -14,8 +14,9 @@ import TerminalToolbelt from '@/components/customer/TerminalToolbelt';
 import TerminalCard from '@/components/customer/TerminalCard';
 import AppleSparkCard from '@/components/customer/AppleSparkCard';
 import MobileBottomNav from '@/components/customer/MobileBottomNav';
-import { Menu, Bell, User, Activity } from 'lucide-react';
+import { Menu, Bell, User, Activity, Shield, Zap, Database, Terminal, Clock, RefreshCw, LayoutGrid, LogOut } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import { cn } from '@/lib/utils';
 
 /** API / socket telemetry point (customer dashboard) */
 interface TelemetryPoint {
@@ -66,16 +67,17 @@ interface DashboardState {
 }
 
 export default function TradingViewCustomerDashboard() {
-    const { user } = useAuth();
+    const { user, logout } = useAuth();
     const searchParams = useSearchParams();
     const activeTab = (searchParams?.get('cat') || 'dashboard').toLowerCase(); 
     
-    const [status, setStatus] = useState<string>("CONNECTING");
+    const [status, setStatus] = useState<string>("BAĞLANIYOR");
     const [liveData, setLiveData] = useState<Record<string, TelemetryPoint>>({});
     const [historyData, setHistoryData] = useState<Record<string, TelemetryPoint>>({});
     const [isHistoricalMode, setIsHistoricalMode] = useState(false);
     const [range, setRange] = useState('1g');
     const [sidebarOpen, setSidebarOpen] = useState(true);
+    const [isRefreshing, setIsRefreshing] = useState(false);
 
     const rangeMap: Record<string, number> = {
         '1g': 24,
@@ -115,7 +117,7 @@ export default function TradingViewCustomerDashboard() {
                         if (data.length > 0 && !selectedPlantId) setSelectedPlantId(data[0].id);
                     }
                 }
-            } catch (err) { console.error("Fetch plants error:", err); }
+            } catch (err) { console.error("Tesis getirme hatası:", err); }
         };
 
         const fetchAlarms = async () => {
@@ -125,7 +127,7 @@ export default function TradingViewCustomerDashboard() {
                     const data = await res.json();
                     setPersistentAlarms(data);
                 }
-            } catch (err) { console.error("Fetch alarms error:", err); }
+            } catch (err) { console.error("Alarm getirme hatası:", err); }
         };
 
         fetchInitial();
@@ -145,7 +147,7 @@ export default function TradingViewCustomerDashboard() {
                     if (filtered.length > 0) setSelectedDeviceId(filtered[0].id);
                     else setSelectedDeviceId('');
                 }
-            } catch (err) { console.error("Fetch devices error:", err); }
+            } catch (err) { console.error("Cihaz getirme hatası:", err); }
         };
         fetchDevices();
     }, [selectedPlantId]);
@@ -153,7 +155,15 @@ export default function TradingViewCustomerDashboard() {
     const setupSocket = (pId: string) => {
         socket.emit('join:protocol', { protocolId: pId });
         socket.on('protocol:status', (data: any) => {
-            if (data.status) setStatus(data.status);
+            if (data.status) {
+                const statusMap: Record<string, string> = {
+                    'CONNECTED': 'BAĞLI',
+                    'DISCONNECTED': 'BAĞLANTI KESİLDİ',
+                    'ERROR': 'HATA',
+                    'CONNECTING': 'BAĞLANIYOR'
+                };
+                setStatus(statusMap[data.status] || data.status);
+            }
         });
         const handleUpdate = (data: any) => {
             if (historicalModeRef.current) return;
@@ -161,7 +171,7 @@ export default function TradingViewCustomerDashboard() {
                 const pointId = data.pointId;
                 if (!pointId || !prev[pointId]) return prev;
                 const history = prev[pointId]?.history ?? [];
-                const t = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                const t = new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
                 
                 return {
                     ...prev,
@@ -213,7 +223,6 @@ export default function TradingViewCustomerDashboard() {
                             const pointsData = (result.success ? result.data : result) as any[];
                             const initialData: Record<string, TelemetryPoint> = {};
                             
-                            // 1. Initialize keys FIRST to allow socket to bind
                             pointsData.forEach(p => {
                                 initialData[p.id] = {
                                     pointId: p.id,
@@ -228,7 +237,6 @@ export default function TradingViewCustomerDashboard() {
                             });
                             setLiveData(initialData);
 
-                            // 2. Fetch history in parallel for speed
                             Promise.all(pointsData.map(async (p) => {
                                 try {
                                     const hRes = await apiRequest(`/api/telemetry/history?pointId=${p.id}&deviceId=${device.id}&limit=50`);
@@ -242,14 +250,14 @@ export default function TradingViewCustomerDashboard() {
                                             }
                                             const dateObj = new Date(raw || new Date());
                                             if (isNaN(dateObj.getTime())) {
-                                                return { t: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }), value: hp.value };
+                                                return { t: new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }), value: hp.value };
                                             }
 
                                             const now = new Date();
                                             const isToday = dateObj.toDateString() === now.toDateString();
                                             const timeStr = isToday 
-                                                ? dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                                                : dateObj.toLocaleDateString([], { day: '2-digit', month: '2-digit' }) + ' ' + dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                                                ? dateObj.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })
+                                                : dateObj.toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit' }) + ' ' + dateObj.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
 
                                             return { t: timeStr, value: hp.value };
                                         }).reverse();
@@ -266,7 +274,7 @@ export default function TradingViewCustomerDashboard() {
                                             };
                                         });
                                     }
-                                } catch (e) { console.warn("Seed history failed for", p.id); }
+                                } catch (e) { console.warn("Geçmiş veri yüklenemedi:", p.id); }
                             }));
 
                             setHistoryData({});
@@ -274,7 +282,7 @@ export default function TradingViewCustomerDashboard() {
                         }
                     }
                 }
-            } catch (err) { console.error("Init device error:", err); }
+            } catch (err) { console.error("Cihaz başlatma hatası:", err); }
         };
         initDevice();
 
@@ -313,21 +321,21 @@ export default function TradingViewCustomerDashboard() {
                                 }
                                 const dateObj = new Date(raw || new Date());
                                 if (isNaN(dateObj.getTime())) {
-                                    return { t: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), value: hp.value };
+                                    return { t: new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }), value: hp.value };
                                 }
 
                                 const now = new Date();
                                 const isToday = dateObj.toDateString() === now.toDateString();
                                 const timeStr = isToday 
-                                    ? dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                                    : dateObj.toLocaleDateString([], { day: '2-digit', month: '2-digit' }) + ' ' + dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                                    ? dateObj.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })
+                                    : dateObj.toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit' }) + ' ' + dateObj.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
 
                                 return { t: timeStr, value: hp.value };
                             }).reverse(),
                             value: historyPoints[0]?.value ?? null
                         };
                     }
-                } catch (err) { console.error("Fetch history error:", err); }
+                } catch (err) { console.error("Geçmiş veri hatası:", err); }
             }
             setHistoryData(historyObj);
         };
@@ -359,14 +367,10 @@ export default function TradingViewCustomerDashboard() {
 
         const groupPhase = (s: string[], t: string[], m: string[]) => {
             const res: TelemetryPoint[] = [];
-            
-            // Strictly match each phase mark once
             m.forEach(mark => {
                 const found = dataArr.find(item => {
                     if (!testMatch(item, s, t)) return false;
                     const combined = `${item.name} ${item.signalDescription} ${item.measurementType}`.toLowerCase();
-                    
-                    // Simple regex to match exact phase markers like 'L1' or 'A Faz' specifically
                     const regex = new RegExp(`\\b${mark.toLowerCase()}\\b`, 'i');
                     return regex.test(combined);
                 });
@@ -374,7 +378,6 @@ export default function TradingViewCustomerDashboard() {
                     res.push(found);
                 }
             });
-
             return res.length > 0 ? res : dataArr.filter(p => testMatch(p, s, t)).slice(0, 3);
         };
 
@@ -396,7 +399,6 @@ export default function TradingViewCustomerDashboard() {
             allRaw: dataArr,
             status: status,
             activeAlarms: [
-                // 1. Backend Persistent Alarms (Only show relevant for selected device or global ones if needed)
                 ...persistentAlarms
                     .filter(a => a.status === 'ACTIVE')
                     .map(a => ({
@@ -404,19 +406,17 @@ export default function TradingViewCustomerDashboard() {
                         severity: 'critical',
                         type: 'SİSTEM',
                         message: a.message,
-                        time: new Date(a.startTime).toLocaleTimeString(),
+                        time: new Date(a.startTime).toLocaleTimeString('tr-TR'),
                         area: 'HABERLEŞME'
                     })),
-
-                // 2. Local threshold based (keep these for UI responsiveness)
                 ...dataArr.filter(p => {
                     const val = p.value || 0;
                     const name = (p.name || "").toLowerCase();
                     if (name.includes('gerilim') || name.includes('voltage')) {
-                        return (val > 255 || (val > 10 && val < 170)); // Adjusted range
+                        return (val > 255 || (val > 10 && val < 170));
                     }
                     if (name.includes('akım') || name.includes('current')) {
-                        return val > 2000; // Adjusted for CT ratios if they are not normalized
+                        return val > 2000;
                     }
                     return false;
                 }).map(p => ({
@@ -424,7 +424,7 @@ export default function TradingViewCustomerDashboard() {
                     severity: 'warning',
                     type: 'EŞİK',
                     message: `${p.name} limit dışı: ${p.value?.toFixed(1)} ${p.unit}`,
-                    time: new Date().toLocaleTimeString(),
+                    time: new Date().toLocaleTimeString('tr-TR'),
                     area: 'LİMİT'
                 }))
             ]
@@ -432,46 +432,53 @@ export default function TradingViewCustomerDashboard() {
     }, [liveData, historyData, isHistoricalMode, status, persistentAlarms]);
 
     const titleMap: Record<string, string> = { 
-        dashboard: 'GENEL BAKIŞ',
-        alarms: 'ALARMLAR',
-        voltage: 'GERİLİM', 
-        current: 'AKIM', 
-        power: 'GÜÇ', 
-        energy: 'ENERJİ', 
-        quality: 'KALİTE', 
-        system: 'SİSTEM' 
+        dashboard: 'SİSTEM ÖZETİ',
+        alarms: 'OLAY KAYITLARI',
+        voltage: 'GERİLİM MATRİSİ', 
+        current: 'AKIM TELEMETRİSİ', 
+        power: 'GÜÇ DİNAMİKLERİ', 
+        energy: 'ENERJİ DENETİMİ', 
+        quality: 'SPEKTRAL ANALİZ', 
+        system: 'SİSTEM TANILAMA' 
     };
 
     return (
-        <div className="h-screen w-full bg-[#f8f9fb] flex flex-col font-sans overflow-hidden text-[#131722] selection:bg-blue-100">
-            {/* Mobile Header (Hidden on Desktop) */}
-            <div className="lg:hidden h-20 bg-white border-b border-[#dfe2e7] flex items-center justify-between px-4 sticky top-0 z-[1000] shadow-sm">
+        <div className="h-screen w-full bg-grafana-bg flex flex-col font-sans overflow-hidden text-grafana-text-primary antialiased selection:bg-grafana-accent-blue/20">
+            {/* Mobil Header */}
+            <div className="lg:hidden h-20 bg-grafana-panel/50 border-b border-grafana-border flex items-center justify-between px-6 sticky top-0 z-[1000] backdrop-blur-md">
                 <div className="flex-1 flex flex-col min-w-0">
-                    <button className="flex flex-col items-start group">
-                        <div className="text-[15px] font-black tracking-tight leading-tight text-[#131722] truncate w-full text-left">
-                            {plants.find(p => p.id === selectedPlantId)?.plantName || 'TESİS SEÇİLMEMİŞ'}
+                    <button className="flex flex-col items-start">
+                        <div className="text-[14px] font-bold tracking-tight text-white truncate w-full text-left uppercase font-mono">
+                            {plants.find(p => p.id === selectedPlantId)?.plantName || 'TESİS SEÇİLMEDİ'}
                         </div>
-                        <div className="text-[11px] font-bold text-[#2962ff] truncate w-full text-left">
-                            {devices.find(d => d.id === selectedDeviceId)?.deviceName || 'CİHAZ SEÇİLMEMİŞ'}
+                        <div className="text-[10px] font-bold text-grafana-accent-blue truncate w-full text-left uppercase font-mono tracking-widest">
+                            {devices.find(d => d.id === selectedDeviceId)?.deviceName || 'CİHAZ AKTİF DEĞİL'}
                         </div>
                     </button>
                 </div>
 
-                <div className="flex items-center gap-2 shrink-0 ml-3">
-                    <button className="w-10 h-10 flex items-center justify-center text-[#787b86] bg-gray-50 rounded-xl relative">
-                        <Bell size={20} />
-                        {dashboardState.activeAlarms.length > 0 && <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white" />}
+                <div className="flex items-center gap-3 shrink-0 ml-4">
+                    <button className="w-10 h-10 flex items-center justify-center text-grafana-text-secondary bg-grafana-bg border border-grafana-border rounded-sm relative">
+                        <Bell size={18} />
+                        {dashboardState.activeAlarms.length > 0 && (
+                            <span className="absolute top-2 right-2 w-2 h-2 bg-grafana-accent-red rounded-full animate-pulse shadow-[0_0_8px_rgba(242,73,92,0.6)]" />
+                        )}
                     </button>
-                    <div className="w-10 h-10 rounded-xl bg-[#131722] border border-[#131722] flex items-center justify-center text-[11px] font-black text-white shadow-lg">
-                        {user?.name?.substring(0, 1).toUpperCase() || 'O'}
+                    <button 
+                        onClick={logout}
+                        className="w-10 h-10 rounded-sm bg-grafana-accent-red/10 border border-grafana-accent-red/20 flex items-center justify-center text-grafana-accent-red"
+                    >
+                        <LogOut size={18} />
+                    </button>
+                    <div className="w-10 h-10 rounded-sm bg-grafana-accent-blue border border-grafana-accent-blue/20 flex items-center justify-center text-[11px] font-bold text-white uppercase font-mono">
+                        {user?.name?.substring(0, 1).toUpperCase() || 'U'}
                     </div>
                 </div>
             </div>
 
-            {/* Main Layout Row */}
-            <div className="flex-1 flex flex-col min-h-0 bg-white">
-                {/* Desktop Header Row (Hidden on Mobile) */}
-                <div className="hidden lg:block">
+            {/* Masaüstü Entegrasyonu */}
+            <div className="flex-1 flex flex-col min-h-0 bg-grafana-bg">
+                <div className="hidden lg:block border-b border-grafana-border bg-grafana-panel/30">
                     <TradingViewHeader 
                         plants={plants}
                         devices={devices}
@@ -484,31 +491,69 @@ export default function TradingViewCustomerDashboard() {
                         titleMap={titleMap}
                         sidebarOpen={sidebarOpen}
                         setSidebarOpen={setSidebarOpen}
+                        logout={logout}
                     />
                 </div>
 
-                {/* Sub-body (Sidebar + Toolbelt + Content) */}
                 <div className="flex-1 flex overflow-hidden">
-                    <div className="hidden lg:block">
+                    <div className="hidden lg:block border-r border-grafana-border bg-grafana-panel/20">
                         <TerminalToolbelt activeTab={activeTab} setActiveTab={setActiveTab} />
                     </div>
-                    <main className="flex-1 overflow-auto bg-[#f8fafc] p-3 lg:p-4 relative pb-28 lg:pb-2">
-                        <div className="max-w-[1800px] mx-auto h-full flex flex-col gap-4">
-                            {/* Mobile Welcome (Hidden on Desktop) */}
-                            <div className="lg:hidden bg-[#131722] rounded-3xl p-6 text-white shadow-xl shadow-gray-200 relative overflow-hidden">
-                                <div className="absolute top-0 right-0 w-32 h-32 bg-blue-600/20 blur-3xl -mr-16 -mt-16 rounded-full" />
-                                <div className="relative z-10">
-                                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-400">Hoş Geldiniz</span>
-                                    <h2 className="text-2xl font-black tracking-tighter mt-1">{user?.fullName || user?.name || 'Operatör'}</h2>
-                                    <p className="text-[10px] font-medium text-gray-400 mt-2 flex items-center gap-2">
-                                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                                        Sistem durumu optimize edildi.
-                                    </p>
+                    
+                    <main className="flex-1 overflow-auto bg-grafana-bg p-4 lg:p-6 relative pb-28 lg:pb-6 custom-scroll">
+                        <div className="max-w-[1920px] mx-auto h-full flex flex-col gap-6">
+                            
+                            {/* Teknik Karşılama */}
+                            <div className="hidden xl:flex items-center justify-between bg-grafana-panel/40 border border-grafana-border p-6 rounded-sm relative overflow-hidden group">
+                                <div className="absolute top-0 right-0 w-64 h-64 bg-grafana-accent-blue/5 blur-[100px] -mr-32 -mt-32 rounded-full transition-all group-hover:bg-grafana-accent-blue/10" />
+                                <div className="relative z-10 flex items-center gap-6">
+                                    <div className="p-4 bg-grafana-bg border border-grafana-border rounded-sm shadow-inner text-grafana-accent-blue">
+                                        <Shield size={32} />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <p className="text-[10px] font-bold text-grafana-text-secondary uppercase tracking-[0.3em] font-mono">Operatör Kimliği Doğrulandı</p>
+                                        <h2 className="text-3xl font-black tracking-tighter text-white uppercase font-mono">{user?.fullName || user?.name || 'KÖK OPERATÖR'}</h2>
+                                        <div className="flex items-center gap-4 pt-1">
+                                            <div className="flex items-center gap-2 text-[10px] font-bold text-grafana-accent-green uppercase tracking-widest font-mono">
+                                                <div className="w-1.5 h-1.5 rounded-full bg-grafana-accent-green animate-pulse" />
+                                                Bütünlük Kararlı
+                                            </div>
+                                            <div className="flex items-center gap-2 text-[10px] font-bold text-grafana-text-secondary uppercase tracking-widest font-mono">
+                                                <Clock size={12} />
+                                                Son Tarama: {new Date().toLocaleTimeString('tr-TR')}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div className="flex items-center gap-4 relative z-10">
+                                    <div className="flex flex-col items-end px-6 border-r border-grafana-border/50">
+                                        <span className="text-[9px] font-bold text-grafana-text-secondary uppercase tracking-widest font-mono">Bağlantı Durumu</span>
+                                        <span className="text-sm font-bold text-grafana-accent-green uppercase font-mono">MÜKEMMEL</span>
+                                    </div>
+                                    <div className="flex flex-col items-end px-6">
+                                        <span className="text-[9px] font-bold text-grafana-text-secondary uppercase tracking-widest font-mono">Aktif İhlaller</span>
+                                        <span className={cn("text-sm font-bold uppercase font-mono", dashboardState.activeAlarms.length > 0 ? "text-grafana-accent-red" : "text-grafana-text-primary")}>
+                                            {dashboardState.activeAlarms.length} OLAY
+                                        </span>
+                                    </div>
                                 </div>
                             </div>
 
-                            <div className="flex items-center justify-between shrink-0 px-1 mt-2 lg:mt-0">
-                                <h1 className="text-lg lg:text-xl font-black tracking-tighter uppercase text-[#131722]">{titleMap[activeTab]}</h1>
+                            <div className="flex items-center justify-between shrink-0 px-1">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-1.5 h-6 bg-grafana-accent-blue rounded-full" />
+                                    <h1 className="text-xl font-bold tracking-tight uppercase text-white font-mono">{titleMap[activeTab]}</h1>
+                                </div>
+                                <div className="flex items-center gap-4">
+                                    <button 
+                                        onClick={() => setIsRefreshing(true)} 
+                                        className="p-2 text-grafana-text-secondary hover:text-white transition-colors"
+                                    >
+                                        <RefreshCw size={16} className={cn(isRefreshing && "animate-spin text-grafana-accent-blue")} />
+                                    </button>
+                                    <LayoutGrid size={16} className="text-grafana-text-secondary cursor-pointer hover:text-white transition-colors" />
+                                </div>
                             </div>
 
                             <div className="flex-1 min-h-0">
@@ -522,7 +567,7 @@ export default function TradingViewCustomerDashboard() {
                         </div>
                     </main>
 
-                    <div className="hidden lg:block">
+                    <div className="hidden lg:block border-l border-grafana-border bg-grafana-panel/30">
                         <AnimatePresence>
                             {sidebarOpen && (
                                 <SidebarInfo 
@@ -537,7 +582,6 @@ export default function TradingViewCustomerDashboard() {
                 </div>
             </div>
 
-            {/* Mobile Bottom Nav (Hidden on Desktop) */}
             <MobileBottomNav 
                 activeTab={activeTab} 
                 setActiveTab={setActiveTab} 
@@ -545,162 +589,176 @@ export default function TradingViewCustomerDashboard() {
             />
 
             <style jsx global>{`
-                ::selection { background: rgba(41, 98, 255, 0.15); color: #2962ff; }
-                .no-scrollbar::-webkit-scrollbar { display: none; }
-                .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+                .custom-scroll::-webkit-scrollbar { width: 4px; height: 4px; }
+                .custom-scroll::-webkit-scrollbar-track { background: rgba(0,0,0,0.1); }
+                .custom-scroll::-webkit-scrollbar-thumb { background: #262626; border-radius: 4px; }
+                .custom-scroll::-webkit-scrollbar-thumb:hover { background: #333333; }
             `}</style>
         </div>
     );
 }
 
 function TradingViewContentGrid({ tab, data, range, setRange }: { tab: string, data: DashboardState, range: string, setRange: (r: string) => void }) {
-    const gridStyle = "grid grid-cols-1 gap-4 xl:grid-cols-2 h-auto pb-10 custom-scroll";
     return (
-        <div className="h-auto space-y-8 pb-10">
+        <div className="h-full space-y-10 pb-20">
             {tab === 'alarms' && (
-                <div className="flex flex-col gap-4">
-                    <div className="bg-white border border-[#dfe2e7] rounded-xl overflow-hidden">
-                        <div className="px-4 py-3 border-b border-[#f0f3fa] flex items-center justify-between bg-[#fcfcfd]">
-                            <h3 className="text-[11px] font-black uppercase tracking-widest text-[#131722]">Aktif Alarmlar ({data.activeAlarms.length})</h3>
-                            <div className="flex gap-2">
-                                <span className="flex items-center gap-1.5 text-[9px] font-black py-1 px-2 bg-red-50 text-[#f23645] rounded-full uppercase">Kritik</span>
-                                <span className="flex items-center gap-1.5 text-[9px] font-black py-1 px-2 bg-amber-50 text-[#f0a500] rounded-full uppercase">Uyarı</span>
-                            </div>
+                <div className="bg-grafana-panel/50 border border-grafana-border rounded-sm overflow-hidden shadow-2xl">
+                    <div className="px-6 py-4 border-b border-grafana-border flex items-center justify-between bg-grafana-bg/50">
+                        <div className="flex items-center gap-3">
+                            <Terminal size={14} className="text-grafana-accent-red" />
+                            <h3 className="text-[11px] font-bold uppercase tracking-[0.2em] text-white font-mono">Olay Kayıtları ({data.activeAlarms.length})</h3>
                         </div>
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-left border-collapse">
-                                <thead className="bg-[#f8f9fb] text-[#787b86] text-[9px] font-black uppercase tracking-widest border-b border-[#dfe2e7]">
+                        <div className="flex gap-4">
+                            <span className="flex items-center gap-2 text-[9px] font-bold py-1 px-3 bg-grafana-accent-red/10 border border-grafana-accent-red/30 text-grafana-accent-red rounded-sm uppercase font-mono tracking-widest">Kritik Yük</span>
+                            <span className="flex items-center gap-2 text-[9px] font-bold py-1 px-3 bg-grafana-accent-orange/10 border border-grafana-accent-orange/30 text-grafana-accent-orange rounded-sm uppercase font-mono tracking-widest">Uyarı Sinyali</span>
+                        </div>
+                    </div>
+                    <div className="overflow-x-auto">
+                        <table className="scada-table">
+                            <thead>
+                                <tr>
+                                    <th>CİDDİYET</th>
+                                    <th>ZAMAN DAMGASI</th>
+                                    <th>ALAN</th>
+                                    <th>OLAY TELEMETRİSİ</th>
+                                    <th className="text-right">TİP KODU</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {data.activeAlarms.length === 0 ? (
                                     <tr>
-                                        <th className="px-4 py-2.5">DURUM</th>
-                                        <th className="px-4 py-2.5">ZAMAN</th>
-                                        <th className="px-4 py-2.5">ALAN</th>
-                                        <th className="px-4 py-2.5">MESAJ</th>
-                                        <th className="px-4 py-2.5 text-right">TİP</th>
+                                        <td colSpan={5} className="py-32 text-center">
+                                            <div className="flex flex-col items-center gap-4 opacity-20">
+                                                 <Shield size={48} />
+                                                 <span className="text-[12px] font-bold uppercase tracking-[0.5em] font-mono">TÜM SİSTEMLER NORMAL</span>
+                                            </div>
+                                        </td>
                                     </tr>
-                                </thead>
-                                <tbody className="divide-y divide-[#f0f3fa]">
-                                    {data.activeAlarms.length === 0 ? (
-                                        <tr>
-                                            <td colSpan={5} className="px-4 py-20 text-center">
-                                                <div className="flex flex-col items-center gap-2 opacity-30">
-                                                     <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600">
-                                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
-                                                     </div>
-                                                     <span className="text-[10px] font-black uppercase tracking-tighter">Sistem Normal - Aktif Alarm Yok</span>
-                                                </div>
+                                ) : (
+                                    data.activeAlarms.map((alarm) => (
+                                        <tr key={alarm.id} className="group border-b border-grafana-border/30 hover:bg-grafana-accent-red/[0.02] transition-colors">
+                                            <td>
+                                                <div className={cn(
+                                                    "w-2 h-2 rounded-full",
+                                                    alarm.severity === 'critical' ? "bg-grafana-accent-red animate-pulse shadow-[0_0_8px_rgba(242,73,92,0.4)]" : "bg-grafana-accent-orange"
+                                                )} />
+                                            </td>
+                                            <td className="text-[10px] font-bold text-grafana-text-secondary tabular-nums font-mono">{alarm.time}</td>
+                                            <td>
+                                                <span className="text-[9px] font-bold text-white px-2 py-0.5 rounded-sm bg-grafana-bg border border-grafana-border uppercase font-mono tracking-tighter">{alarm.area}</span>
+                                            </td>
+                                            <td className="text-[11px] font-bold text-grafana-text-primary uppercase font-mono group-hover:text-white transition-colors">{alarm.message}</td>
+                                            <td className="text-right">
+                                                <span className={cn(
+                                                    "text-[9px] font-bold uppercase tracking-widest font-mono",
+                                                    alarm.severity === 'critical' ? "text-grafana-accent-red" : "text-grafana-accent-orange"
+                                                )}>{alarm.type}</span>
                                             </td>
                                         </tr>
-                                    ) : (
-                                        data.activeAlarms.map((alarm, idx) => (
-                                            <tr key={alarm.id} className="hover:bg-gray-50/50 transition-colors group">
-                                                <td className="px-4 py-3">
-                                                    <div className={`w-2 h-2 rounded-full animate-pulse ${alarm.severity === 'critical' ? 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]' : 'bg-amber-500'}`} />
-                                                </td>
-                                                <td className="px-4 py-3 text-[10px] font-bold text-[#787b86] tabular-nums whitespace-nowrap">{alarm.time}</td>
-                                                <td className="px-4 py-3">
-                                                    <span className="text-[9px] font-black text-white px-1.5 py-0.5 rounded bg-[#131722] uppercase">{alarm.area}</span>
-                                                </td>
-                                                <td className="px-4 py-3 text-[11px] font-black text-[#131722]">{alarm.message}</td>
-                                                <td className="px-4 py-3 text-right">
-                                                    <span className={`text-[9px] font-bold uppercase tracking-tighter ${alarm.severity === 'critical' ? 'text-red-600' : 'text-amber-600'}`}>{alarm.type}</span>
-                                                </td>
-                                            </tr>
-                                        ))
-                                    )}
-                                </tbody>
-                            </table>
-                        </div>
+                                    ))
+                                )}
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             )}
+            
             {tab === 'dashboard' && (
-                <div className="space-y-6">
-                    {/* Voltage Group */}
-                    <div className="space-y-3">
-                        <div className="flex items-center gap-2 px-2">
-                            <div className="w-1 h-4 bg-[#2962ff] rounded-full" />
-                            <h2 className="text-[11px] font-black uppercase tracking-widest text-[#787b86]">Gerilim Analizi (V)</h2>
+                <div className="space-y-10">
+                    <div className="space-y-4">
+                        <div className="flex items-center gap-3 px-2">
+                            <Activity size={16} className="text-grafana-accent-blue" />
+                            <h2 className="text-[11px] font-bold uppercase tracking-[0.2em] text-grafana-text-secondary font-mono">Gerilim Matrisi (V)</h2>
                         </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 pr-2 custom-scroll">
-                            {data.voltage.ln.map((p) => <AppleSparkCard key={p.pointId} title={p.name || ''} value={p.value} unit={p.unit || 'V'} history={p.history} color="#2962ff" />)}
-                            {data.voltage.ll.map((p) => <AppleSparkCard key={p.pointId} title={p.name || ''} value={p.value} unit={p.unit || 'V'} history={p.history} color="#2962ff" />)}
-                        </div>
-                    </div>
-
-                    {/* Current Group */}
-                    <div className="space-y-3">
-                        <div className="flex items-center gap-2 px-2">
-                            <div className="w-1 h-4 bg-[#089981] rounded-full" />
-                            <h2 className="text-[11px] font-black uppercase tracking-widest text-[#787b86]">Akım Takibi (A)</h2>
-                        </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 pr-2 custom-scroll">
-                            {data.current.l.map((p) => <AppleSparkCard key={p.pointId} title={p.name || ''} value={p.value} unit={p.unit || 'A'} history={p.history} color="#089981" />)}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pr-2">
+                            {data.voltage.ln.map((p) => <AppleSparkCard key={p.pointId} title={p.name || ''} value={p.value} unit={p.unit || 'V'} history={p.history} color="#5794f2" />)}
+                            {data.voltage.ll.map((p) => <AppleSparkCard key={p.pointId} title={p.name || ''} value={p.value} unit={p.unit || 'V'} history={p.history} color="#5794f2" />)}
                         </div>
                     </div>
 
-                    {/* Power Group */}
-                    <div className="space-y-3">
-                        <div className="flex items-center gap-2 px-2">
-                            <div className="w-1 h-4 bg-[#fb8c00] rounded-full" />
-                            <h2 className="text-[11px] font-black uppercase tracking-widest text-[#787b86]">Güç ve Enerji</h2>
+                    <div className="space-y-4">
+                        <div className="flex items-center gap-3 px-2">
+                            <Zap size={16} className="text-grafana-accent-green" />
+                            <h2 className="text-[11px] font-bold uppercase tracking-[0.2em] text-grafana-text-secondary font-mono">Akım Telemetrisi (A)</h2>
                         </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 pr-2 custom-scroll">
-                            {data.power.active.slice(0, 3).map((p) => <AppleSparkCard key={p.pointId} title={p.name || ''} value={p.value} unit={p.unit || 'kW'} history={p.history} color="#fb8c00" />)}
-                            {data.energy.active.slice(0, 1).map((p) => <AppleSparkCard key={p.pointId} title="TOPLAM ENERJİ" value={p.value} unit={p.unit || 'kWh'} history={p.history} color="#2962ff" />)}
-                            {data.system.metrics.map((p) => <AppleSparkCard key={p.pointId} title={p.name || ''} value={p.value} unit={p.unit || ''} history={p.history} color="#787b86" />)}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pr-2">
+                            {data.current.l.map((p) => <AppleSparkCard key={p.pointId} title={p.name || ''} value={p.value} unit={p.unit || 'A'} history={p.history} color="#73bf69" />)}
+                        </div>
+                    </div>
+
+                    <div className="space-y-4">
+                        <div className="flex items-center gap-3 px-2">
+                            <Database size={16} className="text-grafana-accent-orange" />
+                            <h2 className="text-[11px] font-bold uppercase tracking-[0.2em] text-grafana-text-secondary font-mono">Yük Dinamikleri ve Denetim</h2>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pr-2">
+                            {data.power.active.slice(0, 3).map((p) => <AppleSparkCard key={p.pointId} title={p.name || ''} value={p.value} unit={p.unit || 'kW'} history={p.history} color="#ff9830" />)}
+                            {data.energy.active.slice(0, 1).map((p) => <AppleSparkCard key={p.pointId} title="TOPLAM BİRİKİM" value={p.value} unit={p.unit || 'kWh'} history={p.history} color="#5794f2" />)}
                         </div>
                     </div>
                 </div>
             )}
+
             {tab === 'voltage' && (
-                <div className={gridStyle}>
-                    <TerminalCard title="FAZ-NÖTR GERİLİM ANALİZİ" points={data.voltage.ln} unit="V" range={range} setRange={setRange} />
-                    <TerminalCard title="FAZ-FAZ GERİLİM ANALİZİ" points={data.voltage.ll} unit="V" range={range} setRange={setRange} />
+                <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+                    <TerminalCard title="FAZ-NÖTR GERİLİM POTANSİYELİ" points={data.voltage.ln} unit="V" range={range} setRange={setRange} />
+                    <TerminalCard title="FAZ-FAZ GERİLİM POTANSİYELİ" points={data.voltage.ll} unit="V" range={range} setRange={setRange} />
                 </div>
             )}
-            {tab === 'current' && <div className={gridStyle}><TerminalCard title="AKIM ŞİDDETİ TAKİBİ" points={data.current.l} unit="A" range={range} setRange={setRange} /></div>}
+
+            {tab === 'current' && (
+                <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+                    <TerminalCard title="AMPERAJ AKIŞ VEKTÖRLERİ" points={data.current.l} unit="A" range={range} setRange={setRange} />
+                </div>
+            )}
+
             {tab === 'power' && (
-                <div className="flex flex-col gap-4 h-full overflow-y-auto pr-2 custom-scroll">
-                    <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-                        <TerminalCard title="AKTİF GÜÇ ANALİTİĞİ" points={data.power.active} unit="kW" category="area" range={range} setRange={setRange} />
-                        <TerminalCard title="GÖRÜNÜR GÜÇ DİNAMİĞİ" points={data.power.apparent} unit="kVA" range={range} setRange={setRange} />
+                <div className="space-y-6">
+                    <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+                        <TerminalCard title="AKTİF YÜK ANALİTİĞİ" points={data.power.active} unit="kW" category="area" range={range} setRange={setRange} />
+                        <TerminalCard title="GÖRÜNÜR YÜK DİNAMİKLERİ" points={data.power.apparent} unit="kVA" range={range} setRange={setRange} />
                     </div>
-                    <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-                         <TerminalCard title="REAKTİF GÜÇ ANALİZİ" points={data.power.reactive} unit="kVAr" range={range} setRange={setRange} />
-                         <TerminalCard title="SİSTEM TOPLAMLARI" points={data.power.totals} unit="units" category="bar" range={range} setRange={setRange} />
+                    <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+                         <TerminalCard title="REAKTİF FAZ VEKTÖRLERİ" points={data.power.reactive} unit="kVAr" range={range} setRange={setRange} />
+                         <TerminalCard title="SİSTEM TOPLAMLARI AGREGASYONU" points={data.power.totals} unit="birim" category="bar" range={range} setRange={setRange} />
                     </div>
                 </div>
             )}
+
             {tab === 'energy' && (
-                <div className={gridStyle}>
-                    <TerminalCard title="AKTİF ENERJİ SAYACI" points={data.energy.active} unit="kWh" category="area" range={range} setRange={setRange} />
-                    <TerminalCard title="REAKTİF ENERJİ SAYACI" points={data.energy.reactive} unit="kVArh" category="area" range={range} setRange={setRange} />
+                <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+                    <TerminalCard title="AKTİF BİRİKİM DENETİMİ" points={data.energy.active} unit="kWh" category="area" range={range} setRange={setRange} />
+                    <TerminalCard title="REAKTİF BİRİKİM DENETİMİ" points={data.energy.reactive} unit="kVArh" category="area" range={range} setRange={setRange} />
                 </div>
             )}
+
             {tab === 'quality' && (
-                <div className={gridStyle}>
-                    <TerminalCard title="GERİLİM HARMONİKLERİ (THD)" points={data.quality.thd_v} unit="%" category="bar" range={range} setRange={setRange} />
-                    <TerminalCard title="AKIM HARMONİKLERİ (THD)" points={data.quality.thd_i} unit="%" category="bar" range={range} setRange={setRange} />
+                <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+                    <TerminalCard title="GERİLİM SPEKTRAL BOZULMA" points={data.quality.thd_v} unit="%" category="bar" range={range} setRange={setRange} />
+                    <TerminalCard title="AKIM SPEKTRAL BOZULMA" points={data.quality.thd_i} unit="%" category="bar" range={range} setRange={setRange} />
                 </div>
             )}
+
             {tab === 'system' && (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 overflow-y-auto pr-2 custom-scroll">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pr-2">
                     {data.system.metrics.map((p, i) => (
-                        <div key={i} className="bg-white border border-[#dfe2e7] rounded-2xl p-6 shadow-sm hover:shadow-xl hover:border-[#2962ff33] transition-all duration-500 group">
-                            <span className="text-[10px] font-black text-[#787b86] uppercase tracking-[0.2em] mb-4 block">{p.name}</span>
-                            <div className="flex items-baseline gap-2">
-                                <span className="text-4xl font-black tracking-tighter tabular-nums text-[#131722] group-hover:text-[#2962ff] transition-colors">{p.value?.toFixed(3)}</span>
-                                <span className="text-[10px] font-black text-[#2962ff] uppercase ml-1">{p.unit}</span>
+                        <div key={i} className="bg-grafana-panel/40 border border-grafana-border rounded-sm p-6 shadow-2xl hover:border-grafana-accent-blue/30 transition-all group relative overflow-hidden">
+                            <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-30 transition-opacity">
+                                <Terminal size={32} />
+                            </div>
+                            <span className="text-[10px] font-bold text-grafana-text-secondary uppercase tracking-[0.3em] mb-6 block font-mono">{p.name}</span>
+                            <div className="flex items-baseline gap-3">
+                                <span className="text-5xl font-black tracking-tighter tabular-nums text-white group-hover:text-grafana-accent-blue transition-colors font-mono">{p.value?.toFixed(3)}</span>
+                                <span className="text-[11px] font-bold text-grafana-accent-blue uppercase font-mono tracking-widest">{p.unit}</span>
+                            </div>
+                            <div className="mt-4 pt-4 border-t border-grafana-border/30 flex justify-between items-center">
+                                <span className="text-[9px] font-bold text-grafana-text-secondary uppercase font-mono">Durum: Kilitli</span>
+                                <span className="text-[9px] font-bold text-grafana-accent-green uppercase font-mono">Mükemmel</span>
                             </div>
                         </div>
                     ))}
                 </div>
             )}
-            <style jsx>{`
-                .custom-scroll::-webkit-scrollbar { width: 3px; }
-                .custom-scroll::-webkit-scrollbar-track { background: transparent; }
-                .custom-scroll::-webkit-scrollbar-thumb { background: #dfe2e7; border-radius: 10px; }
-            `}</style>
         </div>
     );
 }

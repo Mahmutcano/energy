@@ -19,17 +19,20 @@ import {
     Database,
     Lock,
     Zap,
-    Box
+    Box,
+    HardDrive
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { apiRequest } from '@/lib/api';
 import { motion, AnimatePresence } from 'framer-motion';
+import { cn } from '@/lib/utils';
+import PageHeader from '@/components/PageHeader';
 
 export default function ModbusTestPage() {
     const { user, loading, isAuthenticated } = useAuth();
     const router = useRouter();
 
-    // Modbus Parameters
+    // Modbus Parametreleri
     const [ip, setIp] = useState('178.242.103.255');
     const [port, setPort] = useState('502');
     const [slaveId, setSlaveId] = useState('255');
@@ -37,12 +40,12 @@ export default function ModbusTestPage() {
     const [address, setAddress] = useState('29');
     const [dataType, setDataType] = useState('WORD');
 
-    // UI State
+    // UI Durumu
     const [isTesting, setIsTesting] = useState(false);
     const [logs, setLogs] = useState<{ id: number, time: string, message: string, type: 'info' | 'success' | 'error' | 'data' }[]>([]);
     const [results, setResults] = useState<any>(null);
 
-    // Load saved settings
+    // Kayıtlı ayarları yükle
     useEffect(() => {
         const saved = localStorage.getItem('modbus_test_config');
         if (saved) {
@@ -53,7 +56,7 @@ export default function ModbusTestPage() {
                 setSlaveId(config.slaveId || '255');
                 setAddress(config.address || '29');
             } catch (e) {
-                console.error("Failed to parse saved config", e);
+                console.error("Kayıtlı yapılandırma ayrıştırılamadı", e);
             }
         }
     }, []);
@@ -61,7 +64,7 @@ export default function ModbusTestPage() {
     const saveSettings = () => {
         const config = { ip, port, slaveId, address };
         localStorage.setItem('modbus_test_config', JSON.stringify(config));
-        addLog('CONFIGURATION_SYNC: SUCCESS', 'success');
+        addLog('YAPILANDIRMA SENKRONU: BAŞARILI', 'success');
     };
 
     useEffect(() => {
@@ -85,7 +88,7 @@ export default function ModbusTestPage() {
 
     const handleRunTest = async () => {
         setIsTesting(true);
-        addLog(`INIT_PROCEDURE: CONNECTING TO REMOTE NODE ${ip}:${port}`, 'info');
+        addLog(`BAŞLATMA PROSEDÜRÜ: UZAK DÜĞÜME BAĞLANILIYOR ${ip}:${port}`, 'info');
 
         try {
             const res = await apiRequest('/api/admin/modbus-test', {
@@ -102,14 +105,14 @@ export default function ModbusTestPage() {
             const data = await res.json();
 
             if (res.ok && data.success) {
-                addLog(`UPLINK_ESTABLISHED: REGISTER ${address} READ_BYTE_ARRAY_VALID`, 'success');
-                addLog(`PAYLOAD_RECEIVED: ${JSON.stringify(data.values)}`, 'data');
+                addLog(`UPLINK KURULDU: ADRES ${address} OKUMA GEÇERLİ`, 'success');
+                addLog(`VERİ ALINDI: ${JSON.stringify(data.values)}`, 'data');
                 setResults(data);
             } else {
-                addLog(`IO_EXCEPTION: ${data.message || 'NODE_UNREACHABLE'}`, 'error');
+                addLog(`IO İSTİSNASI: ${data.message || 'DÜĞÜME ERİŞİLEMEDİ'}`, 'error');
             }
         } catch (err: any) {
-            addLog(`SYSTEM_CRITICAL_ERR: ${err.message}`, 'error');
+            addLog(`SİSTEM KRİTİK HATA: ${err.message}`, 'error');
         } finally {
             setIsTesting(false);
         }
@@ -118,306 +121,213 @@ export default function ModbusTestPage() {
     if (loading || !user || user.role !== 'SUPER_ADMIN') {
         return (
             <div className="min-h-screen bg-black flex items-center justify-center font-mono">
-                <div className="text-blue-500 animate-pulse text-xs font-black tracking-[0.5em]">SYSTEM_BOOT_INIT...</div>
+                <div className="text-grafana-accent-blue animate-pulse text-[10px] font-black tracking-[0.5em] uppercase">SİSTEM BAŞLATILIYOR...</div>
             </div>
         );
     }
 
     return (
-        <div className="min-h-screen bg-slate-950 font-sans selection:bg-brand-green/20 relative overflow-hidden pb-20">
-            {/* Ambient Technical Background */}
-            <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_20%_20%,rgba(16,185,129,0.05),transparent_40%)] pointer-events-none"></div>
-            <div className="absolute inset-0 dot-bg opacity-30 pointer-events-none"></div>
+        <div className="space-y-8 pb-20 font-sans">
+            <PageHeader 
+                title="PROTOKOL" 
+                highlightedTitle="ARAYÜZÜ"
+                subtitle="Modbus TCP / RTU haberleşme katmanı için interaktif interogasyon kabuğu"
+                icon={Terminal}
+            >
+                <div className="flex items-center gap-4">
+                    <div className="px-4 py-2 bg-grafana-bg border border-grafana-border rounded-sm hidden md:flex items-center gap-3">
+                        <div className="w-2 h-2 rounded-full bg-grafana-accent-green shadow-[0_0_8px_#73bf69] animate-pulse"></div>
+                        <span className="text-[10px] font-bold text-grafana-text-secondary tracking-widest uppercase font-mono">Uplink Stabil</span>
+                    </div>
+                    <button 
+                        onClick={saveSettings}
+                        className="p-2.5 rounded-sm bg-grafana-bg border border-grafana-border text-grafana-text-secondary hover:text-white hover:border-grafana-accent-blue transition-all"
+                    >
+                        <Save size={16} />
+                    </button>
+                </div>
+            </PageHeader>
 
-            <div className="max-w-7xl mx-auto space-y-8 pt-12 relative z-10">
-                {/* 1. Protocol Nexus Header */}
-                <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-8 relative">
-                    <div className="space-y-2">
-                        <div className="flex items-center gap-4">
-                            <div className="w-1.5 h-8 bg-brand-green rounded-full shadow-[0_0_20px_rgba(16,185,129,0.4)]"></div>
-                            <h1 className="text-4xl font-black text-white tracking-tighter  italic">Protocol Interface</h1>
+            <div className="grid grid-cols-1 xl:grid-cols-12 gap-8">
+                {/* Controls */}
+                <div className="xl:col-span-4 space-y-6">
+                    <div className="card-base p-6 bg-grafana-panel/50 space-y-6">
+                        <div className="flex items-center gap-2 text-grafana-accent-blue mb-2">
+                            <Wifi size={14} />
+                            <h3 className="text-[10px] font-black tracking-widest uppercase font-mono">01 UPLINK MATRİSİ</h3>
                         </div>
-                        <div className="flex items-center gap-3">
-                            <span className="text-tech-label text-brand-green/80 tracking-[0.4em]">Modbus TCP / RTU Shell</span>
-                            <div className="h-px w-12 bg-slate-800"></div>
-                            <span className="text-[10px] font-mono text-slate-600">ID_REF: SYS_ADMIN_BETA</span>
+
+                        <div className="space-y-4">
+                            <div className="space-y-1">
+                                <label className="text-[9px] font-bold text-grafana-text-secondary uppercase tracking-widest ml-1">Hedef IP</label>
+                                <input
+                                    type="text"
+                                    value={ip}
+                                    onChange={(e) => setIp(e.target.value)}
+                                    className="w-full bg-grafana-bg border border-grafana-border rounded-sm p-3 text-xs font-bold text-white outline-none focus:border-grafana-accent-blue transition-all font-mono"
+                                />
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-1">
+                                    <label className="text-[9px] font-bold text-grafana-text-secondary uppercase tracking-widest ml-1">Port</label>
+                                    <input
+                                        type="text"
+                                        value={port}
+                                        onChange={(e) => setPort(e.target.value)}
+                                        className="w-full bg-grafana-bg border border-grafana-border rounded-sm p-3 text-xs font-bold text-white outline-none focus:border-grafana-accent-blue transition-all font-mono"
+                                    />
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-[9px] font-bold text-grafana-text-secondary uppercase tracking-widest ml-1">Slave ID</label>
+                                    <input
+                                        type="text"
+                                        value={slaveId}
+                                        onChange={(e) => setSlaveId(e.target.value)}
+                                        className="w-full bg-grafana-bg border border-grafana-border rounded-sm p-3 text-xs font-bold text-white outline-none focus:border-grafana-accent-blue transition-all font-mono"
+                                    />
+                                </div>
+                            </div>
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-6">
-                        <div className="px-4 py-2 bg-slate-900 border border-slate-800 rounded-xl hidden md:block group">
+                    <div className="card-base p-6 bg-grafana-panel/50 space-y-6">
+                        <div className="flex items-center gap-2 text-grafana-accent-orange mb-2">
+                            <Database size={14} />
+                            <h3 className="text-[10px] font-black tracking-widest uppercase font-mono">02 VERİ EŞLEŞMESİ</h3>
+                        </div>
+
+                        <div className="space-y-4">
+                            <div className="space-y-1">
+                                <label className="text-[9px] font-bold text-grafana-text-secondary uppercase tracking-widest ml-1">Fonksiyon Kodu</label>
+                                <select
+                                    value={functionCode}
+                                    onChange={(e) => setFunctionCode(e.target.value)}
+                                    className="w-full bg-grafana-bg border border-grafana-border rounded-sm p-3 text-xs font-bold text-white outline-none focus:border-grafana-accent-blue transition-all font-mono appearance-none"
+                                >
+                                    <option value="03">03 HOLDING REGS</option>
+                                    <option value="04">04 INPUT REGS</option>
+                                </select>
+                            </div>
+                            <div className="space-y-1">
+                                <label className="text-[9px] font-bold text-grafana-text-secondary uppercase tracking-widest ml-1">Başlangıç Adresi</label>
+                                <input
+                                    type="text"
+                                    value={address}
+                                    onChange={(e) => setAddress(e.target.value)}
+                                    className="w-full bg-grafana-bg border border-grafana-border rounded-sm p-3 text-xs font-bold text-grafana-accent-orange outline-none focus:border-grafana-accent-blue transition-all font-mono"
+                                />
+                            </div>
+
+                            <button
+                                onClick={handleRunTest}
+                                disabled={isTesting}
+                                className={cn(
+                                    "w-full py-4 rounded-sm flex items-center justify-center gap-3 transition-all font-bold text-[11px] tracking-widest uppercase font-mono shadow-lg",
+                                    isTesting 
+                                        ? "bg-grafana-bg text-grafana-text-secondary border border-grafana-border cursor-not-allowed" 
+                                        : "bg-grafana-accent-blue text-white shadow-grafana-accent-blue/20 hover:bg-grafana-accent-blue/90"
+                                )}
+                            >
+                                {isTesting ? <RefreshCw size={16} className="animate-spin" /> : <Play size={16} fill="white" />}
+                                {isTesting ? 'SORGULANIYOR...' : 'Sorguyu Çalıştır'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Terminal */}
+                <div className="xl:col-span-8 space-y-6">
+                    <div className="card-base bg-black/40 border border-grafana-border flex flex-col h-[600px] overflow-hidden">
+                        <div className="bg-grafana-panel/50 px-6 py-3 border-b border-grafana-border flex justify-between items-center">
                             <div className="flex items-center gap-3">
-                                <div className="w-2 h-2 rounded-full bg-brand-green shadow-[0_0_8px_rgba(16,185,129,0.5)] animate-pulse"></div>
-                                <span className="text-[10px] font-black text-slate-500  tracking-widest group-hover:text-brand-green transition-colors">Uplink Stable</span>
+                                <Terminal size={14} className="text-grafana-accent-blue" />
+                                <span className="text-[9px] font-bold text-grafana-text-primary tracking-widest uppercase font-mono">SİSTEM LOGLARI</span>
                             </div>
+                            <button 
+                                onClick={() => setLogs([])}
+                                className="text-grafana-text-secondary hover:text-grafana-accent-red transition-all"
+                            >
+                                <Trash2 size={14} />
+                            </button>
                         </div>
-                        <div className="p-4 bg-brand-green/10 border border-brand-green/20 rounded-xl">
-                            <Terminal size={20} className="text-brand-green" />
-                        </div>
-                    </div>
-                </div>
 
-                <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 items-start">
-                    {/* 2. Control Matrix (Left) */}
-                    <div className="xl:col-span-4 space-y-6">
-                        {/* Module 01: Uplink Parameters */}
-                        <section className="card-base p-8 bg-slate-900/40 border-slate-800/60 overflow-hidden relative group">
-                            <div className="absolute top-0 right-0 p-4 opacity-[0.03] group-hover:opacity-[0.08] transition-opacity">
-                                <Wifi size={48} />
-                            </div>
-                            <h2 className="text-tech-label mb-8 text-brand-green tracking-[0.3em]">01_Uplink_Matrix</h2>
-
-                            <div className="space-y-6">
-                                <div className="space-y-3 group">
-                                    <label className="text-[9px] font-black text-slate-600  tracking-widest ml-1 group-focus-within:text-brand-green transition-colors">Target Endpoint IP</label>
-                                    <input
-                                        type="text"
-                                        value={ip}
-                                        onChange={(e) => setIp(e.target.value)}
-                                        className="w-full h-12 bg-slate-950/50 border border-slate-800 rounded-xl px-4 text-xs font-black text-white outline-none focus:border-brand-green/30 focus:shadow-[0_0_15px_rgba(16,185,129,0.05)] transition-all placeholder:text-slate-900 tracking-wider tabular-nums italic"
-                                    />
-                                </div>
-
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="space-y-3 group">
-                                        <label className="text-[9px] font-black text-slate-600  tracking-widest ml-1 group-focus-within:text-brand-green transition-colors">Port</label>
-                                        <input
-                                            type="text"
-                                            value={port}
-                                            onChange={(e) => setPort(e.target.value)}
-                                            className="w-full h-12 bg-slate-950/50 border border-slate-800 rounded-xl px-4 text-xs font-black text-white outline-none focus:border-brand-green/30 transition-all font-mono"
-                                        />
+                        <div className="flex-1 p-6 overflow-y-auto space-y-2 font-mono scrollbar-hide">
+                            <AnimatePresence initial={false}>
+                                {logs.length === 0 ? (
+                                    <div className="h-full flex flex-col items-center justify-center opacity-20">
+                                        <p className="text-[9px] tracking-[0.5em] font-bold italic uppercase">Bekleme Modu</p>
                                     </div>
-                                    <div className="space-y-3 group">
-                                        <label className="text-[9px] font-black text-slate-600  tracking-widest ml-1 group-focus-within:text-brand-green transition-colors">Slave ID</label>
-                                        <input
-                                            type="text"
-                                            value={slaveId}
-                                            onChange={(e) => setSlaveId(e.target.value)}
-                                            className="w-full h-12 bg-slate-950/50 border border-slate-800 rounded-xl px-4 text-xs font-black text-white outline-none focus:border-brand-green/30 transition-all font-mono"
-                                        />
-                                    </div>
-                                </div>
-                            </div>
-                        </section>
-
-                        {/* Module 02: Data Mapping */}
-                        <section className="card-base p-8 bg-slate-900/40 border-slate-800/60 overflow-hidden relative group">
-                            <div className="absolute top-0 right-0 p-4 opacity-[0.03] group-hover:opacity-[0.08] transition-opacity">
-                                <Database size={48} />
-                            </div>
-                            <h2 className="text-tech-label mb-8 text-brand-green tracking-[0.3em]">02_Data_Mapping</h2>
-
-                            <div className="space-y-6">
-                                <div className="space-y-3 group">
-                                    <label className="text-[9px] font-black text-slate-600  tracking-widest ml-1 group-focus-within:text-brand-green transition-colors">Function_Code</label>
-                                    <div className="relative">
-                                        <select
-                                            value={functionCode}
-                                            onChange={(e) => setFunctionCode(e.target.value)}
-                                            className="w-full h-12 bg-slate-950/50 border border-slate-800 rounded-xl px-4 text-xs font-black text-white outline-none focus:border-brand-green/30 transition-all appearance-none italic"
-                                        >
-                                            <option value="03">03_READ_HOLDING_REGS</option>
-                                            <option value="04">04_READ_INPUT_REGS</option>
-                                        </select>
-                                        <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-700">
-                                            <ArrowRight size={14} className="rotate-90" />
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div className="space-y-3 group">
-                                    <label className="text-[9px] font-black text-slate-600  tracking-widest ml-1 group-focus-within:text-brand-green transition-colors">Start Address</label>
-                                    <input
-                                        type="text"
-                                        value={address}
-                                        onChange={(e) => setAddress(e.target.value)}
-                                        className="w-full h-12 bg-slate-950/50 border border-slate-800 rounded-xl px-4 text-xs font-black text-amber-500 outline-none focus:border-brand-green/30 transition-all font-mono"
-                                    />
-                                </div>
-
-                                <div className="space-y-3 group">
-                                    <label className="text-[9px] font-black text-slate-600  tracking-widest ml-1 group-focus-within:text-brand-green transition-colors">Data Type</label>
-                                    <select
-                                        value={dataType}
-                                        onChange={(e) => setDataType(e.target.value)}
-                                        className="w-full h-12 bg-slate-950/50 border border-slate-800 rounded-xl px-4 text-xs font-black text-white outline-none focus:border-brand-green/30 transition-all"
-                                    >
-                                        <option value="BYTE">BYTE</option>
-                                        <option value="WORD">WORD</option>
-                                        <option value="DWORD">DWORD</option>
-                                        <option value="FLOAT32">FLOAT32</option>
-                                        <option value="DOUBLE64">DOUBLE64</option>
-                                        <option value="INT">INT</option>
-                                        <option value="UINT">UINT</option>
-                                        <option value="DINT">DINT</option>
-                                        <option value="UDINT">UDINT</option>
-                                    </select>
-                                </div>
-
-                                <div className="pt-4 flex gap-3">
-                                    <button
-                                        onClick={handleRunTest}
-                                        disabled={isTesting}
-                                        className={`flex-1 h-14 rounded-xl flex items-center justify-center gap-3 transition-all font-black text-[11px]  tracking-widest ${isTesting
-                                            ? 'bg-slate-800 text-slate-600 cursor-not-allowed'
-                                            : 'bg-brand-green text-white shadow-2xl shadow-brand-green/20 hover:scale-[1.02] active:scale-[0.98]'
-                                            }`}
-                                    >
-                                        {isTesting ? <RefreshCw size={16} className="animate-spin" /> : <Play size={16} fill="white" />}
-                                        Execute Probe
-                                    </button>
-                                    <button
-                                        onClick={saveSettings}
-                                        className="w-14 h-14 rounded-xl bg-slate-900 border border-slate-800 text-slate-600 flex items-center justify-center hover:text-white hover:border-slate-700 transition-all active:scale-95"
-                                    >
-                                        <Save size={18} />
-                                    </button>
-                                </div>
-                            </div>
-                        </section>
-                    </div>
-
-                    {/* 3. Identity Shell (Console Log - Right) */}
-                    <div className="xl:col-span-8 flex flex-col xl:h-[720px]">
-                        <section className="flex-1 card-base bg-slate-950/40 border-slate-800/60 overflow-hidden flex flex-col shadow-2xl backdrop-blur-3xl relative">
-                            {/* Terminal Header */}
-                            <div className="bg-slate-900/60 px-6 py-4 border-b border-slate-800/80 flex justify-between items-center relative z-20">
-                                <div className="flex items-center gap-4">
-                                    <div className="p-2 bg-slate-950 rounded-lg border border-slate-800">
-                                        <Terminal size={14} className="text-brand-green" />
-                                    </div>
-                                    <div className="space-y-0.5">
-                                        <span className="text-[10px] font-black text-white tracking-[0.3em]  block leading-none">System Identity Logs</span>
-                                        <span className="text-[8px] font-mono text-slate-700 ">Interactive Terminal _v1.0.4</span>
-                                    </div>
-                                </div>
-                                <button
-                                    onClick={() => setLogs([])}
-                                    className="p-2.5 rounded-xl bg-slate-950 border border-slate-800 text-slate-700 hover:text-danger hover:border-danger/30 transition-all active:scale-90"
-                                >
-                                    <Trash2 size={14} />
-                                </button>
-                            </div>
-
-                            {/* Log Stream Area */}
-                            <div className="flex-1 p-8 overflow-y-auto space-y-3 font-mono relative z-10 scrollbar-hide">
-                                <AnimatePresence initial={false}>
-                                    {logs.length === 0 ? (
+                                ) : (
+                                    logs.map((log) => (
                                         <motion.div
-                                            initial={{ opacity: 0 }}
-                                            animate={{ opacity: 1 }}
-                                            className="h-full flex flex-col items-center justify-center space-y-6 opacity-20"
+                                            key={log.id}
+                                            initial={{ opacity: 0, x: -5 }}
+                                            animate={{ opacity: 1, x: 0 }}
+                                            className={cn(
+                                                "text-[10px] flex gap-4 py-1 border-l-2 pl-4",
+                                                log.type === 'error' ? 'text-grafana-accent-red border-grafana-accent-red bg-grafana-accent-red/5' :
+                                                log.type === 'success' ? 'text-grafana-accent-green border-grafana-accent-green bg-grafana-accent-green/5' :
+                                                log.type === 'data' ? 'text-grafana-accent-blue border-grafana-accent-blue bg-grafana-accent-blue/5' : 
+                                                'text-grafana-text-secondary border-grafana-border bg-grafana-bg/5'
+                                            )}
                                         >
-                                            <div className="w-16 h-px bg-slate-700 animate-pulse"></div>
-                                            <p className="text-[9px] tracking-[0.8em] font-black italic text-slate-600">Standby Mode</p>
+                                            <span className="opacity-40 shrink-0 tabular-nums">[{log.time}]</span>
+                                            <span className="font-bold tracking-wide italic">{log.message}</span>
                                         </motion.div>
-                                    ) : (
-                                        logs.map((log) => (
-                                            <motion.div
-                                                key={log.id}
-                                                initial={{ opacity: 0, x: -10 }}
-                                                animate={{ opacity: 1, x: 0 }}
-                                                className={`text-[10px] flex gap-4 border-l-2 pl-5 py-0.5 ${log.type === 'error' ? 'text-danger border-danger bg-danger/5' :
-                                                    log.type === 'success' ? 'text-brand-green border-brand-green bg-brand-green/5' :
-                                                        log.type === 'data' ? 'text-blue-400 border-blue-400 bg-blue-400/5' : 'text-slate-500 border-slate-800 bg-slate-800/5'
-                                                    }`}
-                                            >
-                                                <span className="opacity-30 shrink-0 select-none tracking-tighter tabular-nums">[{log.time}]</span>
-                                                <span className="font-bold tracking-widest leading-none truncate whitespace-pre italic">
-                                                    {log.message}
-                                                </span>
-                                            </motion.div>
-                                        ))
-                                    )}
-                                </AnimatePresence>
+                                    ))
+                                )}
+                            </AnimatePresence>
+                        </div>
+
+                        {results && (
+                            <div className="p-8 bg-grafana-panel/80 border-t border-grafana-border">
+                                <div className="flex flex-col md:flex-row items-center justify-between gap-8">
+                                    <div className="flex items-center gap-8">
+                                        <div className="p-6 bg-grafana-bg border border-grafana-accent-blue/30 rounded-sm shadow-[0_0_30px_rgba(87,148,242,0.1)]">
+                                            <span className="text-[9px] text-grafana-accent-blue font-bold tracking-widest block mb-2 uppercase font-mono">REG VALUE</span>
+                                            <span className="text-4xl font-bold text-white tabular-nums font-mono">
+                                                {results?.values?.[0] ?? 'N/A'}
+                                            </span>
+                                        </div>
+                                        <div className="space-y-3">
+                                            <div className="flex gap-1.5">
+                                                {[...Array(8)].map((_, i) => (
+                                                    <div key={i} className={cn("h-1 w-3 rounded-full", i < 3 ? "bg-grafana-accent-green" : "bg-grafana-border")} />
+                                                ))}
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-1.5 h-1.5 bg-grafana-accent-green rounded-full animate-pulse" />
+                                                <span className="text-[9px] font-bold text-grafana-accent-green tracking-widest uppercase font-mono">VERİ BÜTÜNLÜĞÜ: STABİL</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="text-right hidden md:block">
+                                        <span className="text-[10px] font-bold text-grafana-text-secondary tracking-widest uppercase block font-mono">BAĞLANTI</span>
+                                        <span className="text-xl font-bold text-white font-mono">{ip}</span>
+                                    </div>
+                                </div>
                             </div>
-
-                            {/* Payload Status Panel */}
-                            {results && (
-                                <motion.div
-                                    initial={{ y: 20, opacity: 0 }}
-                                    animate={{ y: 0, opacity: 1 }}
-                                    className="border-t border-slate-800/80 bg-slate-900 shadow-[0_-20px_50px_rgba(0,0,0,0.5)] p-0 relative z-20"
-                                >
-                                    <div className="px-8 py-8 flex flex-col md:flex-row items-center justify-between gap-10">
-                                        <div className="flex items-center gap-10 w-full md:w-auto">
-                                            <div className="relative group">
-                                                <div className="absolute inset-0 bg-brand-green/20 blur-2xl rounded-full opacity-50 group-hover:opacity-100 transition-opacity"></div>
-                                                <div className="p-5 bg-slate-950 border border-brand-green/30 rounded-2xl flex flex-col items-center justify-center min-w-[120px] relative z-10">
-                                                    <span className="text-[9px] text-brand-green font-black tracking-[0.2em] mb-2 ">Reg_Hex</span>
-                                                    <span className="text-4xl font-black text-white italic tracking-tighter tabular-nums">
-                                                        {results?.values?.[0] ?? 'N/A'}
-                                                    </span>
-                                                </div>
-                                            </div>
-
-                                            <div className="space-y-4 flex-1">
-                                                <div className="flex gap-2">
-                                                    {[...Array(12)].map((_, i) => (
-                                                        <div key={i} className={`h-1.5 w-4 rounded-full transition-all duration-700 ${i < 4 ? 'bg-brand-green shadow-[0_0_10px_rgba(16,185,129,0.5)]' : 'bg-slate-800'}`}></div>
-                                                    ))}
-                                                </div>
-                                                <div className="space-y-1">
-                                                    <p className="text-xs font-black text-brand-green italic tracking-widest ">Payload Integrity: Compliant</p>
-                                                    <div className="flex items-center gap-3">
-                                                        <div className="w-2 h-2 bg-brand-green rounded-full animate-ping"></div>
-                                                        <span className="text-[10px] font-mono text-slate-700  tracking-widest">Realtime Stream Bitrate_0.4kbps</span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <div className="text-right flex flex-col items-end gap-2 w-full md:w-auto">
-                                            <span className="px-3 py-1 bg-slate-950 border border-slate-800 rounded-lg text-[8px] font-black text-slate-600 tracking-[0.3em] ">Protocol Shell v2.4</span>
-                                            <span className="text-2xl font-black text-white italic tracking-tighter tabular-nums">{ip}</span>
-                                            <div className="h-px w-20 bg-slate-800 my-1"></div>
-                                            <span className="text-tech-label text-slate-800">AES_256 NODE ENCRYPTION ACTIVE</span>
-                                        </div>
-                                    </div>
-
-                                    {/* Oscilloscope Decorator */}
-                                    <div className="h-1 w-full bg-slate-900 relative overflow-hidden">
-                                        <div className="absolute inset-0 w-[200%] h-full flex">
-                                            {[...Array(40)].map((_, i) => (
-                                                <div key={i} className="flex-1 border-r border-slate-800/10"></div>
-                                            ))}
-                                        </div>
-                                        <motion.div
-                                            animate={{ x: ['-100%', '100%'] }}
-                                            transition={{ duration: 3, repeat: Infinity, ease: 'linear' }}
-                                            className="absolute top-0 w-1/4 h-full bg-gradient-to-r from-transparent via-brand-green/40 to-transparent shadow-[0_0_20px_rgba(16,185,129,0.5)]"
-                                        ></motion.div>
-                                    </div>
-                                </motion.div>
-                            )}
-                        </section>
+                        )}
                     </div>
                 </div>
+            </div>
 
-                {/* 4. Infrastructure Status Footer */}
-                <div className="flex flex-col md:flex-row items-center justify-between gap-6 px-4 pt-10 border-t border-slate-900">
-                    <div className="flex items-center gap-10">
-                        <div className="flex items-center gap-3">
-                            <Server size={14} className="text-brand-green/40" />
-                            <span className="text-[9px] font-black text-slate-700 tracking-[0.2em] ">Core Srv Reachable</span>
-                        </div>
-                        <div className="flex items-center gap-3">
-                            <Database size={14} className="text-brand-green/40" />
-                            <span className="text-[9px] font-black text-slate-700 tracking-[0.2em] ">Redis Sync Stable</span>
-                        </div>
+            {/* Footer Stats */}
+            <div className="flex flex-wrap items-center justify-between gap-6 pt-10 border-t border-grafana-border/50">
+                <div className="flex items-center gap-8">
+                    <div className="flex items-center gap-2 opacity-50">
+                        <Server size={14} />
+                        <span className="text-[9px] font-bold tracking-widest uppercase font-mono">MASTER CORE: AKTİF</span>
                     </div>
-                    <div className="flex flex-wrap justify-center items-center gap-8">
-                        <div className="space-y-1 text-right">
-                            <p className="text-[8px] font-black text-slate-800  tracking-widest leading-none">CPU_LOAD</p>
-                            <p className="text-[12px] font-black text-slate-600 italic tracking-tighter tabular-nums leading-none">12.4%</p>
-                        </div>
-                        <div className="space-y-1 text-right">
-                            <p className="text-[8px] font-black text-slate-800  tracking-widest leading-none">MEM_USAGE</p>
-                            <p className="text-[12px] font-black text-slate-600 italic tracking-tighter tabular-nums leading-none">256MB</p>
-                        </div>
-                        <div className="h-8 w-px bg-slate-900/50 hidden md:block"></div>
-                        <span className="text-[10px] font-black italic tracking-[0.4em] text-brand-green shadow-brand-green/20 ">Encryption Active</span>
+                    <div className="flex items-center gap-2 opacity-50">
+                        <HardDrive size={14} />
+                        <span className="text-[9px] font-bold tracking-widest uppercase font-mono">REDIS CACHE: SENKRON</span>
+                    </div>
+                </div>
+                <div className="flex items-center gap-6">
+                    <div className="flex items-center gap-2 text-grafana-accent-green">
+                        <ShieldAlert size={14} />
+                        <span className="text-[9px] font-bold tracking-[0.2em] uppercase font-mono">AES-256 ŞİFRELEME AKTİF</span>
                     </div>
                 </div>
             </div>

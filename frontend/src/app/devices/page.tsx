@@ -1,12 +1,15 @@
 "use client";
 
 import React, { useState, useEffect, Suspense } from 'react';
-import { Cpu, Plus, Search, X, HardDrive, Tag, ToggleLeft, ToggleRight, Network, Pencil, Trash2, FileText, FileJson, AlertTriangle } from 'lucide-react';
+import { Cpu, Plus, Search, X, HardDrive, Tag, ToggleLeft, ToggleRight, Network, Pencil, Trash2, FileText, FileJson, AlertTriangle, Activity, Database, Shield, Layout } from 'lucide-react';
 import { apiRequest } from '@/lib/api';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter, useSearchParams } from 'next/navigation';
 import toast from 'react-hot-toast';
 import Modal from '@/components/Modal';
+import { cn } from '@/lib/utils';
+import PageHeader from '@/components/PageHeader';
+import { useAuth } from '@/context/AuthContext';
 
 interface ProtocolConfig {
     id: string;
@@ -81,6 +84,8 @@ function DevicesContent() {
     });
 
     const submittingRef = React.useRef(false);
+    const { user } = useAuth();
+    const isAdmin = user?.role === 'SUPER_ADMIN' || user?.role === 'COMPANY_ADMIN';
 
     const fetchDevices = async () => {
         try {
@@ -97,7 +102,7 @@ function DevicesContent() {
             }
         }
         catch (err) {
-            console.error('Failed to fetch devices:', err);
+            console.error('Cihazlar çekilemedi:', err);
         } finally {
             setLoading(false);
         }
@@ -113,7 +118,7 @@ function DevicesContent() {
             }
         }
         catch (err) {
-            console.error('Failed to fetch protocols:', err);
+            console.error('Protokoller çekilemedi:', err);
         }
     };
 
@@ -127,7 +132,7 @@ function DevicesContent() {
             }
         }
         catch (err) {
-            console.error('Failed to fetch profiles:', err);
+            console.error('Profiller çekilemedi:', err);
         }
     };
 
@@ -141,13 +146,18 @@ function DevicesContent() {
             }
         }
         catch (err) {
-            console.error('Failed to fetch plants:', err);
+            console.error('Santraller çekilemedi:', err);
         }
     };
 
     useEffect(() => {
-        Promise.all([fetchDevices(), fetchProtocols(), fetchProfiles(), fetchPlants()]);
-    }, [initialProtocolId]);
+        fetchDevices();
+        fetchPlants();
+        if (isAdmin) {
+            fetchProtocols();
+            fetchProfiles();
+        }
+    }, [initialProtocolId, isAdmin]);
 
 
     const openCreateModal = () => {
@@ -186,17 +196,17 @@ function DevicesContent() {
         try {
             const res = await apiRequest(`/api/devices/${deviceToDelete.id}`, { method: 'DELETE' });
             if (res.ok) {
-                toast.success('Device deleted successfully');
+                toast.success('Cihaz devreden çıkarıldı');
                 setDeviceToDelete(null);
                 fetchDevices();
             } else {
                 const result = await res.json();
-                const errorMessage = result.error?.message || result.error || 'Delete failed';
+                const errorMessage = result.error?.message || result.error || 'Silme hatası';
                 toast.error(errorMessage);
             }
         } catch (err) {
-            console.error('Delete error:', err);
-            toast.error('An error occurred');
+            console.error('Silme hatası:', err);
+            toast.error('Bir hata oluştu');
         } finally {
             setIsDeleting(false);
         }
@@ -209,7 +219,7 @@ function DevicesContent() {
         setIsSubmitting(true);
         try {
             if (!formData.protocolConfigId || !formData.datasheetProfileId || !formData.deviceName) {
-                toast.error('Protocol, Datasheet and Name are required');
+                toast.error('Protokol, Profil ve İsim gereklidir');
                 setIsSubmitting(false);
                 submittingRef.current = false;
                 return;
@@ -234,7 +244,7 @@ function DevicesContent() {
                 body: JSON.stringify(body)
             });
             if (res.ok) {
-                toast.success(editingDevice ? 'Device updated' : 'Device created');
+                toast.success(editingDevice ? 'Cihaz güncellendi' : 'Cihaz devreye alındı');
                 setIsModalOpen(false);
                 setFormData({
                     protocolConfigId: initialProtocolId,
@@ -247,17 +257,15 @@ function DevicesContent() {
                 setEditingDevice(null);
                 fetchDevices();
             } else {
-                let errorMessage = 'Operation failed';
+                let errorMessage = 'İşlem başarısız';
                 try {
                     const result = await res.json();
                     errorMessage = result.error?.message || result.error || result.message || errorMessage;
-                } catch (e) {
-                    // JSON parse failed, apiRequest should have already toasted a generic error
-                }
+                } catch (e) { }
                 toast.error(errorMessage);
             }
         } catch (err) {
-            console.error('Create/Update error:', err);
+            console.error('Oluşturma/Güncelleme hatası:', err);
         } finally {
             setIsSubmitting(false);
             submittingRef.current = false;
@@ -293,17 +301,17 @@ function DevicesContent() {
             if (res.ok) {
                 const result = await res.json();
                 const newProto = result.success ? result.data : result;
-                toast.success('Protocol created');
+                toast.success('Protokol oluşturuldu');
                 await fetchProtocols();
                 setFormData({ ...formData, protocolConfigId: newProto.id });
                 setIsProtocolModalOpen(false);
             } else {
                 const result = await res.json();
-                const errorMessage = result.error?.message || result.error || 'Protocol creation failed';
+                const errorMessage = result.error?.message || result.error || 'Protokol oluşturulamadı';
                 toast.error(errorMessage);
             }
         } catch (err) {
-            toast.error('An error occurred');
+            toast.error('Bir hata oluştu');
         } finally {
             setIsCreatingProtocol(false);
         }
@@ -320,18 +328,18 @@ function DevicesContent() {
             if (res.ok) {
                 const result = await res.json();
                 const newProf = result.success ? result.data : result;
-                toast.success('Datasheet profile created');
+                toast.success('Profil oluşturuldu');
                 await fetchProfiles();
                 setFormData({ ...formData, datasheetProfileId: newProf.id });
                 setIsProfileModalOpen(false);
                 setNewProfileData({ name: '', protocolType: 'MODBUS' });
             } else {
                 const result = await res.json();
-                const errorMessage = result.error?.message || result.error || 'Profile creation failed';
+                const errorMessage = result.error?.message || result.error || 'Profil oluşturulamadı';
                 toast.error(errorMessage);
             }
         } catch (err) {
-            toast.error('An error occurred');
+            toast.error('Bir hata oluştu');
         } finally {
             setIsCreatingProfile(false);
         }
@@ -344,143 +352,159 @@ function DevicesContent() {
     );
 
     return (
-        <div className="space-y-8 pb-16 animate-in-up font-sans">
-            {/* Header */}
-            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-8">
-                <div className="space-y-2">
-                    <div className="flex items-center gap-4">
-                        <div className="w-1.5 h-8 bg-brand-green rounded-full shadow-[0_0_20px_rgba(16,185,129,0.4)]"></div>
-                        <h1 className="text-3xl font-black text-white tracking-tight ">Devices</h1>
-                    </div>
-                    <p className="text-sm text-slate-500 ml-6">Manage device inventory and assignments</p>
-                </div>
-
-                <button
-                    onClick={openCreateModal}
-                    className="flex items-center gap-3 px-6 py-3 bg-brand-green text-white rounded-xl text-xs font-bold shadow-lg shadow-brand-green/20 hover:scale-[1.02] transition-all  tracking-widest"
-                >
-                    <Plus size={16} strokeWidth={3} /> New Device
-                </button>
-            </div>
-
-            {/* Search */}
-            <div className="card-base p-2 bg-slate-900/40">
-                <div className="relative">
-                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+        <div className="space-y-8 pb-16 font-sans">
+            <PageHeader 
+                title="CİHAZ" 
+                highlightedTitle="ENVANTERİ"
+                subtitle="Operasyonel varlık yönetimi ve ağ devreye alma"
+                icon={Cpu}
+            >
+                <div className="relative flex-1 md:w-80 group">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-grafana-text-secondary group-focus-within:text-grafana-accent-blue transition-colors" />
                     <input
                         type="text"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        placeholder="Search by device name, type or protocol..."
-                        className="w-full pl-12 pr-4 py-3 bg-transparent border-none text-sm text-white focus:outline-none placeholder:text-slate-700"
+                        placeholder="VARLIK ARA..."
+                        className="w-full pl-10 pr-4 py-2 bg-grafana-bg border border-grafana-border rounded-sm text-[11px] text-grafana-text-primary focus:border-grafana-accent-blue/50 outline-none font-mono placeholder:text-grafana-text-secondary/30 transition-all uppercase"
                     />
                 </div>
-            </div>
+                {isAdmin && (
+                    <button
+                        onClick={openCreateModal}
+                        className="flex items-center gap-3 px-6 py-2.5 bg-grafana-accent-blue hover:bg-grafana-accent-blue/90 text-white rounded-sm text-[11px] font-bold uppercase tracking-[0.2em] transition-all shadow-[0_0_15px_rgba(87,148,242,0.2)] font-mono whitespace-nowrap"
+                    >
+                        <Plus size={14} /> CİHAZI DEVREYE AL
+                    </button>
+                )}
+            </PageHeader>
 
-            {/* Device Table */}
-            <div className="card-base overflow-hidden">
-                <div className="p-6 border-b border-slate-800/40 flex justify-between items-center bg-slate-900/40">
+            {/* Cihaz Tablosu */}
+            <div className="bg-grafana-panel/50 border border-grafana-border rounded-sm overflow-hidden">
+                <div className="p-4 border-b border-grafana-border bg-grafana-bg/50 flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                        <div className="p-2 rounded-lg bg-slate-950 border border-slate-800 text-brand-green">
-                            <Cpu size={18} />
-                        </div>
-                        <div>
-                            <h3 className="text-sm font-bold text-white ">Device Registry</h3>
-                            <p className="text-[10px] text-slate-500">{filteredDevices.length} devices found</p>
-                        </div>
+                        <h3 className="text-[11px] font-bold text-grafana-text-primary uppercase tracking-[0.2em] font-mono">Kayıt Matrisi</h3>
+                        <span className="text-[9px] px-2 py-0.5 rounded-sm bg-grafana-accent-blue/10 border border-grafana-accent-blue/20 text-grafana-accent-blue font-mono font-bold">
+                            {filteredDevices.length} DÜĞÜM ÇEVRİMİÇİ
+                        </span>
                     </div>
                 </div>
 
                 <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse">
+                    <table className="scada-table">
                         <thead>
-                            <tr className="text-[10px] font-bold text-slate-500  tracking-widest border-b border-slate-800/40 bg-slate-900/20">
-                                <th className="px-6 py-4">Device Name</th>
-                                <th className="px-6 py-4">Type</th>
-                                <th className="px-6 py-4">Protocol Config</th>
-                                <th className="px-6 py-4">Datasheet Profile</th>
-                                <th className="px-6 py-4">Created At/By</th>
-                                <th className="px-6 py-4">Updated At/By</th>
-                                <th className="px-6 py-4">Status</th>
-                                <th className="px-6 py-4 text-right">Actions</th>
+                            <tr>
+                                <th>CİHAZ TANIMLAYICI</th>
+                                <th>SINIF</th>
+                                <th>İLETİŞİM YIĞINI</th>
+                                <th>PROFİL</th>
+                                <th>ZAMAN DAMGALARI</th>
+                                <th className="text-center">DURUM</th>
+                                <th className="text-right">İŞLEMLER</th>
                             </tr>
                         </thead>
                         <tbody>
                             {loading ? (
-                                <tr><td colSpan={8} className="px-6 py-12 text-center text-sm text-slate-500 animate-pulse">Loading devices...</td></tr>
+                                <tr>
+                                    <td colSpan={7} className="text-center py-20 font-mono text-grafana-text-secondary animate-pulse uppercase tracking-widest">Varlık kaydı sorgulanıyor...</td>
+                                </tr>
                             ) : filteredDevices.length === 0 ? (
-                                <tr><td colSpan={8} className="px-6 py-12 text-center text-sm text-slate-500">No devices found</td></tr>
+                                <tr>
+                                    <td colSpan={7} className="text-center py-20 font-mono text-grafana-text-secondary uppercase tracking-widest">Mevcut sektörde devreye alınmış varlık bulunamadı</td>
+                                </tr>
                             ) : filteredDevices.map((device) => (
-                                <tr key={device.id} className="border-b border-slate-800/30 hover:bg-slate-800/20 transition-all">
-                                    <td className="px-6 py-4">
+                                <tr key={device.id} className="group">
+                                    <td>
                                         <div className="flex items-center gap-3">
-                                            <HardDrive size={16} className="text-slate-600" />
-                                            <span className="text-sm font-bold text-white">{device.deviceName}</span>
+                                            <div className="p-2 rounded-sm bg-grafana-bg border border-grafana-border text-grafana-text-secondary/50 group-hover:text-grafana-accent-blue transition-colors">
+                                                <HardDrive size={14} />
+                                            </div>
+                                            <div className="flex flex-col">
+                                                <span className="text-[11px] font-bold text-grafana-text-primary uppercase tracking-wide">{device.deviceName}</span>
+                                                <span className="text-[9px] font-mono text-grafana-text-secondary uppercase tracking-tighter">ID: {device.id.substring(0, 8)}</span>
+                                            </div>
                                         </div>
                                     </td>
-                                    <td className="px-6 py-4">
-                                        <span className={`px-2 py-1 rounded-md text-[10px] font-bold bg-slate-950 border border-slate-800 text-slate-400`}>
-                                            {device.deviceType}
+                                    <td>
+                                        <span className={cn(
+                                            "text-[10px] font-bold px-2 py-0.5 rounded-sm border font-mono uppercase tracking-widest",
+                                            device.deviceType === 'INVERTER' ? "bg-grafana-accent-orange/10 border-grafana-accent-orange/30 text-grafana-accent-orange" :
+                                            device.deviceType === 'ANALYZER' ? "bg-grafana-accent-blue/10 border-grafana-accent-blue/30 text-grafana-accent-blue" :
+                                            "bg-grafana-accent-green/10 border-grafana-accent-green/30 text-grafana-accent-green"
+                                        )}>
+                                            {device.deviceType === 'INVERTER' ? 'EVİRİCİ' : device.deviceType === 'ANALYZER' ? 'ANALİZÖR' : 'RÖLE'}
                                         </span>
                                     </td>
-                                    <td className="px-6 py-4 text-sm font-mono text-slate-400 tabular-nums">
+                                    <td>
                                         {device.protocol ? (
-                                            <div className="text-[10px] space-y-0.5 text-slate-400">
-                                                <p><span className="text-white font-bold">{device.protocol.configName}</span></p>
-                                                <p className="text-[8px] tracking-[0.05em]">{device.protocol.plant?.plantName} / {device.protocol.protocolType}</p>
-                                            </div>
-                                        ) : 'N/A'}
-                                    </td>
-                                    <td className="px-6 py-4 text-sm font-mono text-slate-400 tabular-nums">
-                                        {device.datasheetProfile ? (
-                                            <div className="flex items-center gap-2">
-                                                <div className="p-1 rounded bg-slate-950 border border-slate-800">
-                                                    <FileJson size={14} className="text-brand-green" />
+                                            <div className="flex flex-col">
+                                                <div className="flex items-center gap-1.5 text-grafana-text-primary">
+                                                    <Shield size={10} className="text-grafana-accent-blue" />
+                                                    <span className="text-[11px] font-bold uppercase tracking-tight">{device.protocol.configName}</span>
                                                 </div>
-                                                <span className="text-sm font-bold text-white">{device.datasheetProfile.name}</span>
+                                                <span className="text-[9px] font-mono text-grafana-text-secondary uppercase tracking-tighter ml-4">
+                                                    {device.protocol.plant?.plantName} / {device.protocol.protocolType}
+                                                </span>
                                             </div>
                                         ) : (
-                                            <span className="text-xs text-slate-600 italic">No Profile Assigned</span>
+                                            <span className="text-[10px] font-mono text-grafana-text-secondary/30 uppercase tracking-widest italic">Yığın Atanmadı</span>
                                         )}
                                     </td>
-                                    <td className="px-6 py-4">
-                                        <div className="flex flex-col">
-                                            <span className="text-[10px] font-bold text-slate-300 tabular-nums">
+                                    <td>
+                                        {device.datasheetProfile ? (
+                                            <div className="flex items-center gap-2">
+                                                <FileJson size={12} className="text-grafana-accent-green/50" />
+                                                <span className="text-[11px] font-mono text-grafana-text-primary uppercase tracking-tight">{device.datasheetProfile.name}</span>
+                                            </div>
+                                        ) : (
+                                            <span className="text-[10px] font-mono text-grafana-accent-red/30 uppercase tracking-widest italic">Profil Eksik</span>
+                                        )}
+                                    </td>
+                                    <td>
+                                        <div className="flex flex-col font-mono">
+                                            <div className="flex items-center gap-1.5 text-[10px] font-bold text-grafana-text-primary tabular-nums">
+                                                <Activity size={10} className="text-grafana-accent-blue" />
                                                 {device.createdAt ? new Date(device.createdAt).toLocaleDateString('tr-TR') : '-'}
-                                            </span>
-                                            <span className="text-[9px] text-slate-600 font-medium tabular-nums">
+                                            </div>
+                                            <span className="text-[9px] text-grafana-text-secondary uppercase tracking-tighter ml-4">
                                                 {device.createdAt ? new Date(device.createdAt).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }) : '-'}
                                             </span>
-                                            {device.createdBy && <span className="text-[8px] text-slate-700 mt-1 truncate max-w-[80px]" title={device.createdBy}>BY: {device.createdBy.substring(0, 8)}</span>}
                                         </div>
                                     </td>
-                                    <td className="px-6 py-4">
-                                        <div className="flex flex-col">
-                                            <span className="text-[10px] font-bold text-amber-500/80 tabular-nums">
-                                                {device.updatedAt ? new Date(device.updatedAt).toLocaleDateString('tr-TR') : '-'}
-                                            </span>
-                                            <span className="text-[9px] text-slate-600 font-medium tabular-nums">
-                                                {device.updatedAt ? new Date(device.updatedAt).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }) : '-'}
-                                            </span>
-                                            {device.updatedBy && <span className="text-[8px] text-slate-700 mt-1 truncate max-w-[80px]" title={device.updatedBy}>BY: {device.updatedBy.substring(0, 8)}</span>}
-                                        </div>
-                                    </td>
-                                    <td className="px-6 py-4">
-                                        <div className="flex items-center gap-2">
-                                            <div className={`w-2 h-2 rounded-full ${device.isActive ? 'bg-brand-green shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-slate-700'}`} />
-                                            <span className={`text-[10px] font-bold  ${device.isActive ? 'text-brand-green' : 'text-slate-600'}`}>
-                                                {device.isActive ? 'Active' : 'Inactive'}
+                                    <td className="text-center">
+                                        <div className="flex flex-col items-center gap-1">
+                                            <div className={cn(
+                                                "w-2 h-2 rounded-full",
+                                                device.isActive ? "bg-grafana-accent-green shadow-[0_0_8px_rgba(115,191,105,0.4)]" : "bg-grafana-text-secondary/20"
+                                            )} />
+                                            <span className={cn(
+                                                "text-[9px] font-bold font-mono uppercase tracking-tighter",
+                                                device.isActive ? "text-grafana-accent-green" : "text-grafana-text-secondary/40"
+                                            )}>
+                                                {device.isActive ? 'AKTİF' : 'ÇEVRİMDIŞI'}
                                             </span>
                                         </div>
                                     </td>
-                                    <td className="px-6 py-4">
+                                    <td className="text-right">
                                         <div className="flex justify-end gap-2">
-                                            <button title="Edit" onClick={() => openEditModal(device)} className="p-2 rounded-md bg-slate-900 border border-slate-700 hover:text-brand-green hover:border-brand-green/50 transition-colors text-slate-400">
-                                                <Pencil size={14} />
-                                            </button>
-                                            <button title="Delete" onClick={() => handleDeleteClick(device)} className="p-2 rounded-md bg-slate-900 border border-slate-700 hover:text-red-500 hover:border-red-500/50 transition-colors text-slate-400">
-                                                <Trash2 size={14} />
-                                            </button>
+                                            {isAdmin && (
+                                                <>
+                                                    <button 
+                                                        title="Yapılandır" 
+                                                        onClick={() => openEditModal(device)} 
+                                                        className="p-2 rounded-sm bg-grafana-bg border border-grafana-border text-grafana-text-secondary hover:text-grafana-accent-blue hover:border-grafana-accent-blue/50 transition-all"
+                                                    >
+                                                        <Pencil size={14} />
+                                                    </button>
+                                                    <button 
+                                                        title="Devreden Çıkar" 
+                                                        onClick={() => handleDeleteClick(device)} 
+                                                        className="p-2 rounded-sm bg-grafana-bg border border-grafana-border text-grafana-text-secondary hover:text-grafana-accent-red hover:border-grafana-accent-red/50 transition-all"
+                                                    >
+                                                        <Trash2 size={14} />
+                                                    </button>
+                                                </>
+                                            )}
                                         </div>
                                     </td>
                                 </tr>
@@ -490,40 +514,55 @@ function DevicesContent() {
                 </div>
             </div>
 
-            {/* Create / Edit Modal */}
+            {/* Oluştur / Düzenle Modal */}
             <Modal
                 isOpen={isModalOpen}
                 onClose={() => setIsModalOpen(false)}
-                title={editingDevice ? 'Edit Device' : 'New Device'}
-                subtitle={editingDevice ? 'Update device details' : 'Register a new device'}
+                title={editingDevice ? 'CİHAZ YAPILANDIRMA' : 'CİHAZ DEVREYE ALMA'}
                 icon={Cpu}
                 maxWidth="lg"
             >
-                <form onSubmit={handleSubmit} className="space-y-5">
-                    <div className="space-y-2">
-                        <label className="text-xs font-bold text-slate-400  tracking-widest uppercase">Protocol Configuration</label>
-                        <select
-                            value={formData.protocolConfigId}
-                            onChange={(e) => {
-                                if (e.target.value === 'ADD_NEW') {
-                                    setIsProtocolModalOpen(true);
-                                    setNewProtocolData({ ...newProtocolData, plantId: plants.length > 0 ? plants[0].id : '' });
-                                } else {
-                                    setFormData({ ...formData, protocolConfigId: e.target.value });
-                                }
-                            }}
-                            className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none appearance-none"
-                            required
-                        >
-                            <option value="" disabled>Select Protocol Config...</option>
-                            {protocols.map(p => (
-                                <option key={p.id} value={p.id}>{p.configName} ({p.plant?.plantName})</option>
-                            ))}
-                            <option value="ADD_NEW" className="font-bold text-brand-green bg-brand-green/10">+ Add New Protocol</option>
-                        </select>
+                <form onSubmit={handleSubmit} className="space-y-6 pt-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                            <label className="text-[10px] font-bold text-grafana-text-secondary uppercase tracking-widest font-mono ml-1">İletişim Standardı</label>
+                            <select
+                                value={formData.protocolConfigId}
+                                onChange={(e) => {
+                                    if (e.target.value === 'ADD_NEW') {
+                                        setIsProtocolModalOpen(true);
+                                        setNewProtocolData({ ...newProtocolData, plantId: plants.length > 0 ? plants[0].id : '' });
+                                    } else {
+                                        setFormData({ ...formData, protocolConfigId: e.target.value });
+                                    }
+                                }}
+                                className="w-full px-4 py-2.5 bg-grafana-bg border border-grafana-border rounded-sm text-xs text-grafana-text-primary focus:border-grafana-accent-blue/50 outline-none font-mono appearance-none"
+                                required
+                            >
+                                <option value="" disabled>YIĞIN SEÇ</option>
+                                {protocols.map(p => (
+                                    <option key={p.id} value={p.id}>{p.configName.toUpperCase()} ({p.plant?.plantName.toUpperCase()})</option>
+                                ))}
+                                <option value="ADD_NEW" className="font-bold text-grafana-accent-green">+ YENİ YIĞIN BAŞLAT</option>
+                            </select>
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-[10px] font-bold text-grafana-text-secondary uppercase tracking-widest font-mono ml-1">Varlık Sınıfı</label>
+                            <select
+                                value={formData.deviceType}
+                                onChange={(e) => setFormData({ ...formData, deviceType: e.target.value as any })}
+                                className="w-full px-4 py-2.5 bg-grafana-bg border border-grafana-border rounded-sm text-xs text-grafana-text-primary focus:border-grafana-accent-blue/50 outline-none font-mono appearance-none"
+                                required
+                            >
+                                <option value="INVERTER">EVİRİCİ</option>
+                                <option value="ANALYZER">ANALİZÖR</option>
+                                <option value="RELAY">RÖLE</option>
+                            </select>
+                        </div>
                     </div>
+
                     <div className="space-y-2">
-                        <label className="text-xs font-bold text-slate-400  tracking-widest uppercase">Datasheet Profile</label>
+                        <label className="text-[10px] font-bold text-grafana-text-secondary uppercase tracking-widest font-mono ml-1">Veri Modeli Profili</label>
                         <select
                             value={formData.datasheetProfileId}
                             onChange={(e) => {
@@ -533,220 +572,211 @@ function DevicesContent() {
                                     setFormData({ ...formData, datasheetProfileId: e.target.value });
                                 }
                             }}
-                            className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none appearance-none"
-                        >
-                            <option value="" disabled>Select Datasheet Profile...</option>
-                            {profiles.map(p => (
-                                <option key={p.id} value={p.id}>{p.name} ({p.protocolType})</option>
-                            ))}
-                            <option value="ADD_NEW" className="font-bold text-brand-green bg-brand-green/10">+ Add New Profile</option>
-                        </select>
-                    </div>
-                    <div className="space-y-2">
-                        <label className="text-xs font-bold text-slate-400  tracking-widest uppercase">Device Type</label>
-                        <select
-                            value={formData.deviceType}
-                            onChange={(e) => setFormData({ ...formData, deviceType: e.target.value as any })}
-                            className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none appearance-none"
+                            className="w-full px-4 py-2.5 bg-grafana-bg border border-grafana-border rounded-sm text-xs text-grafana-text-primary focus:border-grafana-accent-blue/50 outline-none font-mono appearance-none"
                             required
                         >
-                            <option value="INVERTER">Inverter</option>
-                            <option value="ANALYZER">Analyzer</option>
-                            <option value="RELAY">Relay</option>
+                            <option value="" disabled>PROFİL SEÇ</option>
+                            {profiles.map(p => (
+                                <option key={p.id} value={p.id}>{p.name.toUpperCase()} ({p.protocolType})</option>
+                            ))}
+                            <option value="ADD_NEW" className="font-bold text-grafana-accent-green">+ YENİ PROFİL OLUŞTUR</option>
                         </select>
                     </div>
+
                     <div className="space-y-2">
-                        <label className="text-xs font-bold text-slate-400  tracking-widest uppercase">Device Name</label>
+                        <label className="text-[10px] font-bold text-grafana-text-secondary uppercase tracking-widest font-mono ml-1">Operasyonel Kimlik</label>
                         <input
                             type="text"
                             value={formData.deviceName}
                             onChange={(e) => setFormData({ ...formData, deviceName: e.target.value })}
-                            className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none"
-                            placeholder="e.g. Transformer TR-01"
+                            className="w-full px-4 py-2.5 bg-grafana-bg border border-grafana-border rounded-sm text-xs text-grafana-text-primary focus:border-grafana-accent-blue/50 outline-none font-mono uppercase placeholder:opacity-20"
+                            placeholder="DÜĞÜM TR 01"
                             required
                         />
                     </div>
 
-                    <div className="flex items-center justify-between p-4 bg-slate-900/30 rounded-xl border border-slate-800/40">
-                        <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Active Status</span>
+                    <div className="flex items-center justify-between p-4 bg-grafana-bg border border-grafana-border rounded-sm">
+                        <div className="flex items-center gap-3">
+                            <Activity size={16} className="text-grafana-text-secondary" />
+                            <span className="text-[10px] font-bold text-grafana-text-primary uppercase tracking-[0.2em] font-mono">Operasyonel Durum</span>
+                        </div>
                         <button
                             type="button"
                             onClick={() => setFormData({ ...formData, isActive: !formData.isActive })}
-                            className="text-brand-green"
+                            className="transition-all hover:scale-110 active:scale-95"
                         >
-                            {formData.isActive ? <ToggleRight size={28} /> : <ToggleLeft size={28} className="text-slate-600" />}
+                            {formData.isActive ? 
+                                <ToggleRight size={32} className="text-grafana-accent-green" /> : 
+                                <ToggleLeft size={32} className="text-grafana-text-secondary/20" />
+                            }
                         </button>
                     </div>
+
                     <button
                         type="submit"
                         disabled={isSubmitting}
-                        className="w-full py-4 bg-brand-green disabled:bg-brand-green/50 text-white font-bold  tracking-widest text-[10px] uppercase rounded-xl shadow-lg shadow-brand-green/20 hover:scale-[1.01] transition-all"
+                        className="w-full py-3.5 bg-grafana-accent-blue disabled:opacity-50 text-white font-bold tracking-[0.2em] text-[11px] rounded-sm shadow-lg shadow-grafana-accent-blue/20 hover:bg-grafana-accent-blue/90 transition-all uppercase font-mono"
                     >
-                        {isSubmitting ? 'Saving...' : editingDevice ? 'Update Device' : 'Create Device'}
+                        {isSubmitting ? 'DEVREYE ALINIYOR...' : editingDevice ? 'YAPILANDIRMAYI UYGULA' : 'VARLIK GİRİŞİNİ ONAYLA'}
                     </button>
                 </form>
             </Modal>
 
-            {/* Delete Confirmation Modal */}
+            {/* Silme Onay Modalı */}
             <Modal
                 isOpen={!!deviceToDelete}
                 onClose={() => setDeviceToDelete(null)}
-                title="Delete Device"
+                title="VARLIĞI SİL"
                 icon={AlertTriangle}
                 maxWidth="sm"
             >
-                <div className="text-center space-y-4">
-                    <div className="w-12 h-12 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 flex items-center justify-center mx-auto mb-4">
-                        <AlertTriangle size={24} />
+                <div className="text-center space-y-6 py-4">
+                    <div className="w-16 h-16 rounded-sm bg-grafana-accent-red/10 border border-grafana-accent-red/20 text-grafana-accent-red flex items-center justify-center mx-auto mb-6">
+                        <AlertTriangle size={32} />
                     </div>
 
-                    <div>
-                        <p className="text-sm text-slate-400 leading-relaxed">
-                            Are you sure you want to delete <span className="font-bold text-white">{deviceToDelete?.deviceName}</span>? This action cannot be undone.
+                    <div className="space-y-2">
+                        <h4 className="text-sm font-bold text-grafana-text-primary uppercase tracking-widest font-mono">Cihazı Devreden Çıkar</h4>
+                        <p className="text-[11px] text-grafana-text-secondary leading-relaxed font-mono">
+                            <span className="font-bold text-grafana-accent-red">[{deviceToDelete?.deviceName}]</span> için silme protokolü başlatılıyor. Geçmiş telemetri verileri kalacaktır ancak aktif sorgulama duracaktır.
                         </p>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-3 pt-2">
+                    <div className="grid grid-cols-2 gap-3">
                         <button
                             onClick={() => setDeviceToDelete(null)}
                             disabled={isDeleting}
-                            className="py-2.5 px-4 rounded-lg border border-slate-800 text-slate-400 font-bold text-[10px] hover:bg-slate-900 transition-colors disabled:opacity-50 tracking-widest uppercase"
+                            className="py-2.5 px-4 rounded-sm border border-grafana-border bg-grafana-bg text-grafana-text-secondary font-bold text-[10px] hover:bg-grafana-panel transition-colors disabled:opacity-50 tracking-widest uppercase font-mono"
                         >
-                            Cancel
+                            Vazgeç
                         </button>
                         <button
                             onClick={confirmDelete}
                             disabled={isDeleting}
-                            className="py-2.5 px-4 rounded-lg bg-red-500 text-white font-bold text-[10px] hover:bg-red-600 shadow-lg shadow-red-500/20 transition-all disabled:opacity-50 tracking-widest uppercase flex items-center justify-center gap-2"
+                            className="py-2.5 px-4 rounded-sm bg-grafana-accent-red text-white font-bold text-[10px] hover:bg-grafana-accent-red/90 shadow-lg shadow-grafana-accent-red/20 transition-all disabled:opacity-50 tracking-widest uppercase flex items-center justify-center gap-2 font-mono"
                         >
-                            {isDeleting ? 'Deleting...' : 'Yes, Delete'}
+                            {isDeleting ? 'SİLİNİYOR...' : 'Silmeyi Onayla'}
                         </button>
                     </div>
                 </div>
             </Modal>
 
-            {/* Inline Protocol Create Modal */}
+            {/* Inline Protokol Oluşturma Modalı */}
             <Modal
                 isOpen={isProtocolModalOpen}
                 onClose={() => setIsProtocolModalOpen(false)}
-                title="Add New Protocol"
+                title="YIĞIN BAŞLATMA"
                 icon={Network}
                 maxWidth="lg"
                 zIndex={250}
             >
-                <form onSubmit={handleCreateProtocol} className="space-y-4">
+                <form onSubmit={handleCreateProtocol} className="space-y-4 pt-4">
                     <div className="space-y-2">
-                        <label className="text-xs font-bold text-slate-400 tracking-widest uppercase">Plant</label>
+                        <label className="text-[10px] font-bold text-grafana-text-secondary uppercase tracking-widest font-mono ml-1">Üst Düğüm</label>
                         <select
                             value={newProtocolData.plantId}
                             onChange={(e) => setNewProtocolData({ ...newProtocolData, plantId: e.target.value })}
-                            className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none appearance-none"
+                            className="w-full px-4 py-2.5 bg-grafana-bg border border-grafana-border rounded-sm text-xs text-grafana-text-primary focus:border-grafana-accent-blue/50 outline-none font-mono appearance-none"
                             required
                         >
-                            {plants.length === 0 && <option value="">Add a Plant First</option>}
-                            {plants.map(p => <option key={p.id} value={p.id}>{p.plantName}</option>)}
+                            {plants.length === 0 && <option value="">ÖNCE DÜĞÜM EKLE</option>}
+                            {plants.map(p => <option key={p.id} value={p.id}>{p.plantName.toUpperCase()}</option>)}
                         </select>
                     </div>
                     <div className="space-y-2">
-                        <label className="text-xs font-bold text-slate-400 tracking-widest uppercase">Config Name</label>
+                        <label className="text-[10px] font-bold text-grafana-text-secondary uppercase tracking-widest font-mono ml-1">Yığın Etiketi</label>
                         <input
                             type="text"
                             value={newProtocolData.configName}
                             onChange={(e) => setNewProtocolData({ ...newProtocolData, configName: e.target.value })}
-                            className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none"
+                            className="w-full px-4 py-2.5 bg-grafana-bg border border-grafana-border rounded-sm text-xs text-grafana-text-primary focus:border-grafana-accent-blue/50 outline-none font-mono uppercase"
+                            placeholder="OPERASYONEL ETİKET"
                             required
                         />
                     </div>
                     <div className="space-y-2">
-                        <label className="text-xs font-bold text-slate-400 tracking-widest uppercase">Protocol Type</label>
+                        <label className="text-[10px] font-bold text-grafana-text-secondary uppercase tracking-widest font-mono ml-1">Standart</label>
                         <select
                             value={newProtocolData.protocolType}
                             onChange={(e) => setNewProtocolData({ ...newProtocolData, protocolType: e.target.value })}
-                            className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none appearance-none"
+                            className="w-full px-4 py-2.5 bg-grafana-bg border border-grafana-border rounded-sm text-xs text-grafana-text-primary focus:border-grafana-accent-blue/50 outline-none font-mono appearance-none"
                         >
-                            <option value="MODBUS">MODBUS</option>
-                            <option value="IEC104">IEC104</option>
+                            <option value="MODBUS">MODBUS TCP</option>
+                            <option value="IEC104">IEC 60870-5-104</option>
                         </select>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
-                            <label className="text-xs font-bold text-slate-400 tracking-widest uppercase">IP Address</label>
+                            <label className="text-[10px] font-bold text-grafana-text-secondary uppercase tracking-widest font-mono ml-1">Ağ IP</label>
                             <input
                                 type="text"
                                 value={newProtocolData.ipAddress}
                                 onChange={(e) => setNewProtocolData({ ...newProtocolData, ipAddress: e.target.value })}
-                                className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none"
+                                className="w-full px-4 py-2.5 bg-grafana-bg border border-grafana-border rounded-sm text-xs text-grafana-text-primary focus:border-grafana-accent-blue/50 outline-none font-mono"
+                                placeholder="0.0.0.0"
                                 required
                             />
                         </div>
                         <div className="space-y-2">
-                            <label className="text-xs font-bold text-slate-400 tracking-widest uppercase">Port</label>
+                            <label className="text-[10px] font-bold text-grafana-text-secondary uppercase tracking-widest font-mono ml-1">Port</label>
                             <input
                                 type="number"
                                 value={newProtocolData.port}
                                 onChange={(e) => setNewProtocolData({ ...newProtocolData, port: Number(e.target.value) })}
-                                className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none"
+                                className="w-full px-4 py-2.5 bg-grafana-bg border border-grafana-border rounded-sm text-xs text-grafana-text-primary focus:border-grafana-accent-blue/50 outline-none font-mono tabular-nums"
+                                placeholder="502"
                                 required
                             />
                         </div>
                     </div>
-                    <div className="space-y-2">
-                        <label className="text-xs font-bold text-slate-400 tracking-widest uppercase">{newProtocolData.protocolType === 'MODBUS' ? 'Slave ID' : 'ASDU Address'}</label>
-                        <input
-                            type="number"
-                            value={newProtocolData.slaveId}
-                            onChange={(e) => setNewProtocolData({ ...newProtocolData, slaveId: Number(e.target.value) })}
-                            className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none"
-                            required
-                        />
-                    </div>
                     <button
                         type="submit"
                         disabled={iscreatingProtocol}
-                        className="w-full py-4 bg-brand-green disabled:bg-brand-green/50 text-white font-bold tracking-widest text-[10px] uppercase rounded-xl shadow-lg shadow-brand-green/20 hover:scale-[1.01] transition-all"
+                        className="w-full py-3.5 bg-grafana-accent-blue disabled:opacity-50 text-white font-bold tracking-[0.2em] text-[11px] rounded-sm shadow-lg shadow-grafana-accent-blue/20 hover:bg-grafana-accent-blue/90 transition-all uppercase font-mono"
                     >
-                        {iscreatingProtocol ? 'Saving...' : 'Save'}
+                        {iscreatingProtocol ? 'KOMUT ÇALIŞTIRILIYOR...' : 'YIĞINI BAŞLAT'}
                     </button>
                 </form>
             </Modal>
 
-            {/* Inline Profile Create Modal */}
+            {/* Inline Profil Oluşturma Modalı */}
             <Modal
                 isOpen={isProfileModalOpen}
                 onClose={() => setIsProfileModalOpen(false)}
-                title="Add New Profile"
+                title="PROFİL BAŞLATMA"
                 icon={FileJson}
                 maxWidth="sm"
                 zIndex={250}
             >
-                <form onSubmit={handleCreateProfile} className="space-y-4">
+                <form onSubmit={handleCreateProfile} className="space-y-6 pt-4">
                     <div className="space-y-2">
-                        <label className="text-xs font-bold text-slate-400 tracking-widest uppercase">Profile Name</label>
+                        <label className="text-[10px] font-bold text-grafana-text-secondary uppercase tracking-widest font-mono ml-1">Profil Tanımlayıcı</label>
                         <input
                             type="text"
                             value={newProfileData.name}
                             onChange={(e) => setNewProfileData({ ...newProfileData, name: e.target.value })}
-                            className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none"
+                            className="w-full px-4 py-2.5 bg-grafana-bg border border-grafana-border rounded-sm text-xs text-grafana-text-primary focus:border-grafana-accent-blue/50 outline-none font-mono uppercase"
+                            placeholder="PROFİL ADI"
                             required
                         />
                     </div>
                     <div className="space-y-2">
-                        <label className="text-xs font-bold text-slate-400 tracking-widest uppercase">Protocol Type</label>
+                        <label className="text-[10px] font-bold text-grafana-text-secondary uppercase tracking-widest font-mono ml-1">İletişim Protokolü</label>
                         <select
                             value={newProfileData.protocolType}
                             onChange={(e) => setNewProfileData({ ...newProfileData, protocolType: e.target.value })}
-                            className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none appearance-none"
+                            className="w-full px-4 py-2.5 bg-grafana-bg border border-grafana-border rounded-sm text-xs text-grafana-text-primary focus:border-grafana-accent-blue/50 outline-none font-mono appearance-none"
                         >
-                            <option value="MODBUS">MODBUS</option>
-                            <option value="IEC104">IEC104</option>
+                            <option value="MODBUS">MODBUS TCP</option>
+                            <option value="IEC104">IEC 60870-5-104</option>
                         </select>
                     </div>
                     <button
                         type="submit"
                         disabled={isCreatingProfile}
-                        className="w-full py-4 bg-brand-green disabled:bg-brand-green/50 text-white font-bold tracking-widest text-[10px] uppercase rounded-xl shadow-lg shadow-brand-green/20 hover:scale-[1.01] transition-all"
+                        className="w-full py-3.5 bg-grafana-accent-blue disabled:opacity-50 text-white font-bold tracking-[0.2em] text-[11px] rounded-sm shadow-lg shadow-grafana-accent-blue/20 hover:bg-grafana-accent-blue/90 transition-all uppercase font-mono"
                     >
-                        {isCreatingProfile ? 'Saving...' : 'Save'}
+                        {isCreatingProfile ? 'KOMUT ÇALIŞTIRILIYOR...' : 'PROFİLİ BAŞLAT'}
                     </button>
                 </form>
             </Modal>
@@ -756,7 +786,7 @@ function DevicesContent() {
 
 export default function DevicesPage() {
     return (
-        <Suspense fallback={<div className="p-8 text-white">Loading...</div>}>
+        <Suspense fallback={<div className="p-10 font-mono text-grafana-text-secondary animate-pulse">Cihaz Deposu Başlatılıyor...</div>}>
             <DevicesContent />
         </Suspense>
     );

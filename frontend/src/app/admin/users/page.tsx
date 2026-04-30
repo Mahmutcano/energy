@@ -1,11 +1,13 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { Users, Plus, X, ShieldCheck, Mail, Building2, Trash2, AlertTriangle, Pencil } from 'lucide-react';
+import { Users, Plus, X, ShieldCheck, Mail, Building2, Trash2, AlertTriangle, Pencil, Key, Shield, UserPlus, Activity, Database, Clock } from 'lucide-react';
 import { apiRequest } from '@/lib/api';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 import Modal from '@/components/Modal';
+import { cn } from '@/lib/utils';
+import PageHeader from '@/components/PageHeader';
 
 interface User {
     id: string;
@@ -47,7 +49,7 @@ export default function UsersPage() {
                 setUsers(Array.isArray(data) ? data : []);
             }
         } catch (err) {
-            console.error('Failed to fetch users:', err);
+            console.error('Kullanıcılar getirilemedi:', err);
         } finally {
             setLoading(false);
         }
@@ -62,7 +64,7 @@ export default function UsersPage() {
                 setCompanies(Array.isArray(data) ? data : []);
             }
         } catch (err) {
-            console.error('Failed to fetch companies:', err);
+            console.error('Kurumlar getirilemedi:', err);
         }
     };
 
@@ -99,17 +101,17 @@ export default function UsersPage() {
         try {
             const res = await apiRequest(`/api/users/${userToDelete.id}`, { method: 'DELETE' });
             if (res.ok) {
-                toast.success('Kullanıcı başarıyla silindi');
+                toast.success('Personel dizinden temizlendi');
                 setUserToDelete(null);
                 fetchUsers();
             } else {
                 const result = await res.json();
-                const errorMessage = result.error?.message || result.error || 'Kullanıcı silinemedi';
+                const errorMessage = result.error?.message || result.error || 'İptal işlemi başarısız';
                 toast.error(errorMessage);
                 fetchUsers();
             }
         } catch (err) {
-            console.error('Delete error:', err);
+            console.error('Silme hatası:', err);
         } finally {
             setIsDeleting(false);
         }
@@ -122,7 +124,6 @@ export default function UsersPage() {
         setIsSubmitting(true);
         try {
             if (editingUser) {
-                // UPDATE
                 const res = await apiRequest(`/api/users/${editingUser.id}`, {
                     method: 'PATCH',
                     body: JSON.stringify({
@@ -133,7 +134,7 @@ export default function UsersPage() {
                     })
                 });
                 if (res.ok) {
-                    toast.success('Kullanıcı güncellendi');
+                    toast.success('Kimlik bilgileri güncellendi');
                     setIsModalOpen(false);
                     fetchUsers();
                 } else {
@@ -141,7 +142,6 @@ export default function UsersPage() {
                     toast.error(result.error?.message || result.error || 'Güncelleme başarısız');
                 }
             } else {
-                // CREATE
                 const res = await apiRequest('/api/users', {
                     method: 'POST',
                     body: JSON.stringify({
@@ -153,128 +153,142 @@ export default function UsersPage() {
                     })
                 });
                 if (res.ok) {
-                    toast.success('Kullanıcı başarıyla oluşturuldu');
+                    toast.success('Personel kaydedildi');
                     setIsModalOpen(false);
                     setFormData({ email: '', password: '', name: '', role: 'NORMAL_USER', companyProfileId: '' });
                     fetchUsers();
                 } else {
                     const result = await res.json();
-                    toast.error(result.error?.message || result.error || 'Oluşturma başarısız');
+                    toast.error(result.error?.message || result.error || 'Kayıt başarısız');
                 }
             }
         } catch (err) {
-            console.error('Submit error:', err);
+            console.error('Gönderim hatası:', err);
         } finally {
             setIsSubmitting(false);
             submittingRef.current = false;
         }
     };
 
-    const roleColors: Record<string, string> = {
-        SUPER_ADMIN: 'text-red-400 bg-red-500/10 border-red-500/20',
-        COMPANY_ADMIN: 'text-amber-400 bg-amber-500/10 border-amber-500/20',
-        NORMAL_USER: 'text-brand-green bg-brand-green/10 border-brand-green/20',
+    const getRoleBadgeStyles = (role: string) => {
+        switch (role) {
+            case 'SUPER_ADMIN':
+                return 'bg-grafana-accent-red/10 border-grafana-accent-red/30 text-grafana-accent-red';
+            case 'COMPANY_ADMIN':
+                return 'bg-grafana-accent-orange/10 border-grafana-accent-orange/30 text-grafana-accent-orange';
+            default:
+                return 'bg-grafana-accent-blue/10 border-grafana-accent-blue/30 text-grafana-accent-blue';
+        }
     };
 
     return (
-        <div className="space-y-8 pb-16 animate-in-up font-sans">
-            {/* Header */}
-            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-8">
-                <div className="space-y-2">
-                    <div className="flex items-center gap-4">
-                        <div className="w-1.5 h-8 bg-brand-green rounded-full shadow-[0_0_20px_rgba(16,185,129,0.4)]"></div>
-                        <h1 className="text-3xl font-black text-white tracking-tight ">User Management</h1>
-                    </div>
-                    <p className="text-sm text-slate-500 ml-6">Manage system users and role assignments</p>
-                </div>
-
+        <div className="space-y-8 pb-16 font-sans">
+            <PageHeader 
+                title="PERSONEL" 
+                highlightedTitle="DİZİNİ"
+                subtitle="Kimlik yönetimi ve erişim yetki seviyeleri"
+                icon={Users}
+            >
                 <button
                     onClick={openCreateModal}
-                    className="flex items-center gap-3 px-6 py-3 bg-brand-green text-white rounded-xl text-xs font-bold shadow-lg shadow-brand-green/20 hover:scale-[1.02] transition-all  tracking-widest"
+                    className="flex items-center gap-3 px-6 py-2.5 bg-grafana-accent-blue hover:bg-grafana-accent-blue/90 text-white rounded-sm text-[11px] font-bold uppercase tracking-[0.2em] transition-all shadow-[0_0_15px_rgba(87,148,242,0.2)] font-mono whitespace-nowrap"
                 >
-                    <Plus size={16} strokeWidth={3} /> New User
+                    <UserPlus size={14} /> PERSONEL KAYDET
                 </button>
-            </div>
+            </PageHeader>
 
-            {/* User Table */}
-            <div className="card-base overflow-hidden">
-                <div className="p-6 border-b border-slate-800/40 flex justify-between items-center bg-slate-900/40">
+            {/* Personel Kaydı */}
+            <div className="bg-grafana-panel/50 border border-grafana-border rounded-sm overflow-hidden">
+                <div className="p-4 border-b border-grafana-border bg-grafana-bg/50 flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                        <div className="p-2 rounded-lg bg-slate-950 border border-slate-800 text-brand-green">
-                            <Users size={18} />
-                        </div>
-                        <div>
-                            <h3 className="text-sm font-bold text-white ">User Registry</h3>
-                            <p className="text-[10px] text-slate-500">{users.length} users</p>
-                        </div>
+                        <h3 className="text-[11px] font-bold text-grafana-text-primary uppercase tracking-[0.2em] font-mono">Erişim Matrisi</h3>
+                        <span className="text-[9px] px-2 py-0.5 rounded-sm bg-grafana-accent-blue/10 border border-grafana-accent-blue/20 text-grafana-accent-blue font-mono font-bold">
+                            {users.length} KİMLİK EŞLEŞTİ
+                        </span>
                     </div>
                 </div>
 
                 <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse">
+                    <table className="scada-table">
                         <thead>
-                            <tr className="text-[10px] font-bold text-slate-500  tracking-widest border-b border-slate-800/40 bg-slate-900/20">
-                                <th className="px-6 py-4">Name</th>
-                                <th className="px-6 py-4">Email</th>
-                                <th className="px-6 py-4">Role</th>
-                                <th className="px-6 py-4">Company</th>
-                                <th className="px-6 py-4">Created At/By</th>
-                                <th className="px-6 py-4">Updated At/By</th>
-                                <th className="px-6 py-4 text-center">Actions</th>
+                            <tr>
+                                <th>TANIMLAYICI</th>
+                                <th>E-POSTA GEÇİDİ</th>
+                                <th>YETKİ</th>
+                                <th>KURUM</th>
+                                <th>ZAMAN DAMGASI</th>
+                                <th className="text-right">İŞLEMLER</th>
                             </tr>
                         </thead>
                         <tbody>
                             {loading ? (
-                                <tr><td colSpan={7} className="px-6 py-12 text-center text-sm text-slate-500 animate-pulse">Loading users...</td></tr>
+                                <tr>
+                                    <td colSpan={6} className="text-center py-20 font-mono text-grafana-text-secondary animate-pulse uppercase tracking-widest">Kimlik sunucusu taranıyor...</td>
+                                </tr>
                             ) : users.length === 0 ? (
-                                <tr><td colSpan={7} className="px-6 py-12 text-center text-sm text-slate-500">No users found</td></tr>
+                                <tr>
+                                    <td colSpan={6} className="text-center py-20 font-mono text-grafana-text-secondary uppercase tracking-widest">Yerel sektörde personel kaydı bulunamadı</td>
+                                </tr>
                             ) : users.map((user) => (
-                                <tr key={user.id} className="border-b border-slate-800/30 hover:bg-slate-800/20 transition-all">
-                                    <td className="px-6 py-4">
+                                <tr key={user.id} className="group">
+                                    <td>
                                         <div className="flex items-center gap-3">
-                                            <div className="w-8 h-8 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center text-[10px] font-bold text-white ">
-                                                {user.name?.substring(0, 2) || 'N/A'}
+                                            <div className="w-8 h-8 rounded-sm bg-grafana-bg border border-grafana-border flex items-center justify-center text-[10px] font-bold text-grafana-accent-blue font-mono group-hover:border-grafana-accent-blue/50 transition-colors">
+                                                {user.name?.substring(0, 2).toUpperCase() || '??'}
                                             </div>
-                                            <span className="text-sm font-bold text-white">{user.name || 'Unnamed'}</span>
+                                            <div className="flex flex-col">
+                                                <span className="text-[11px] font-bold text-grafana-text-primary uppercase tracking-wide">{user.name || 'ANONİM PERSONEL'}</span>
+                                                <span className="text-[9px] font-mono text-grafana-text-secondary uppercase tracking-tighter">UID: {user.id.substring(0, 8)}</span>
+                                            </div>
                                         </div>
                                     </td>
-                                    <td className="px-6 py-4 text-sm text-slate-400">{user.email}</td>
-                                    <td className="px-6 py-4">
-                                        <span className={`px-2 py-1 rounded-md text-[10px] font-bold  border ${roleColors[user.role]}`}>
-                                            {user.role}
+                                    <td>
+                                        <div className="flex items-center gap-2">
+                                            <Mail size={12} className="text-grafana-text-secondary/50" />
+                                            <span className="text-[11px] font-mono text-grafana-text-secondary group-hover:text-grafana-text-primary transition-colors">{user.email}</span>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span className={cn(
+                                            "text-[10px] font-bold px-2 py-0.5 rounded-sm border font-mono uppercase tracking-widest",
+                                            getRoleBadgeStyles(user.role)
+                                        )}>
+                                            {user.role === 'SUPER_ADMIN' ? 'KÖK ADMİN' : user.role === 'COMPANY_ADMIN' ? 'KURUM ADMİNİ' : 'KULLANICI'}
                                         </span>
                                     </td>
-                                    <td className="px-6 py-4 text-sm text-slate-400">
-                                        {user.companyProfile?.name || '—'}
-                                    </td>
-                                    <td className="px-6 py-4">
-                                        <div className="flex flex-col">
-                                            <span className="text-[10px] font-bold text-slate-300 tabular-nums">
-                                                {user.createdAt ? new Date(user.createdAt).toLocaleDateString('tr-TR') : '—'}
+                                    <td>
+                                        <div className="flex items-center gap-2">
+                                            <Building2 size={12} className="text-grafana-text-secondary/50" />
+                                            <span className="text-[11px] font-mono text-grafana-text-primary uppercase">
+                                                {user.companyProfile?.name || '---'}
                                             </span>
-                                            <span className="text-[9px] text-slate-600 font-medium tabular-nums">
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div className="flex flex-col font-mono">
+                                            <div className="flex items-center gap-1.5 text-[10px] font-bold text-grafana-text-primary tabular-nums">
+                                                <Clock size={10} className="text-grafana-accent-blue" />
+                                                {user.createdAt ? new Date(user.createdAt).toLocaleDateString('tr-TR') : '---'}
+                                            </div>
+                                            <span className="text-[9px] text-grafana-text-secondary uppercase tracking-tighter ml-4">
                                                 {user.createdAt ? new Date(user.createdAt).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }) : ''}
                                             </span>
-                                            {user.createdBy && <span className="text-[8px] text-slate-700 mt-1 truncate max-w-[80px]" title={user.createdBy}>BY: {user.createdBy.substring(0, 8)}</span>}
                                         </div>
                                     </td>
-                                    <td className="px-6 py-4">
-                                        <div className="flex flex-col">
-                                            <span className="text-[10px] font-bold text-amber-500/80 tabular-nums">
-                                                {user.updatedAt ? new Date(user.updatedAt).toLocaleDateString('tr-TR') : '—'}
-                                            </span>
-                                            <span className="text-[9px] text-slate-600 font-medium tabular-nums">
-                                                {user.updatedAt ? new Date(user.updatedAt).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }) : ''}
-                                            </span>
-                                            {user.updatedBy && <span className="text-[8px] text-slate-700 mt-1 truncate max-w-[80px]" title={user.updatedBy}>BY: {user.updatedBy.substring(0, 8)}</span>}
-                                        </div>
-                                    </td>
-                                    <td className="px-6 py-4 text-center">
-                                        <div className="flex justify-center gap-2">
-                                            <button title="Edit" onClick={() => openEditModal(user)} className="p-2 rounded-md bg-slate-900 border border-slate-700 hover:text-brand-green hover:border-brand-green/50 transition-colors text-slate-400">
+                                    <td className="text-right">
+                                        <div className="flex justify-end gap-2">
+                                            <button 
+                                                title="Yetkiyi Düzenle" 
+                                                onClick={() => openEditModal(user)} 
+                                                className="p-2 rounded-sm bg-grafana-bg border border-grafana-border text-grafana-text-secondary hover:text-grafana-accent-blue hover:border-grafana-accent-blue/50 transition-all"
+                                            >
                                                 <Pencil size={14} />
                                             </button>
-                                            <button title="Delete" onClick={() => handleDeleteClick(user)} className="p-2 rounded-md bg-slate-900 border border-slate-700 hover:text-red-500 hover:border-red-500/50 transition-colors text-slate-400">
+                                            <button 
+                                                title="Erişimi İptal Et" 
+                                                onClick={() => handleDeleteClick(user)} 
+                                                className="p-2 rounded-sm bg-grafana-bg border border-grafana-border text-grafana-text-secondary hover:text-grafana-accent-red hover:border-grafana-accent-red/50 transition-all"
+                                            >
                                                 <Trash2 size={14} />
                                             </button>
                                         </div>
@@ -286,121 +300,134 @@ export default function UsersPage() {
                 </div>
             </div>
 
-            {/* Create / Edit Modal */}
+            {/* Oluştur / Düzenle Modalı */}
             <Modal
                 isOpen={isModalOpen}
                 onClose={() => setIsModalOpen(false)}
-                title={editingUser ? 'Edit User' : 'New User'}
-                subtitle={editingUser ? 'Update user details' : 'Create user account'}
+                title={editingUser ? 'KİMLİK YAPILANDIRMA' : 'PERSONEL KAYDI'}
                 icon={ShieldCheck}
                 maxWidth="lg"
             >
-                <form onSubmit={handleSubmit} className="space-y-4">
+                <form onSubmit={handleSubmit} className="space-y-6 pt-4">
                     <div className="space-y-2">
-                        <label className="text-xs font-bold text-slate-400  tracking-widest uppercase">Name</label>
+                        <label className="text-[10px] font-bold text-grafana-text-secondary uppercase tracking-widest font-mono ml-1">Resmi Ad</label>
                         <input
                             type="text"
                             value={formData.name}
                             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                            className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none"
-                            placeholder="Full name"
+                            className="w-full px-4 py-2.5 bg-grafana-bg border border-grafana-border rounded-sm text-xs text-grafana-text-primary focus:border-grafana-accent-blue/50 outline-none font-mono uppercase"
+                            placeholder="PERSONEL ADI"
                             required
                         />
                     </div>
+                    
                     <div className="space-y-2">
-                        <label className="text-xs font-bold text-slate-400  tracking-widest uppercase">Email</label>
+                        <label className="text-[10px] font-bold text-grafana-text-secondary uppercase tracking-widest font-mono ml-1">Ağ Kimliği (E-Posta)</label>
                         <input
                             type="email"
                             value={formData.email}
                             onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                            className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none"
-                            placeholder="user@example.com"
+                            className="w-full px-4 py-2.5 bg-grafana-bg border border-grafana-border rounded-sm text-xs text-grafana-text-primary focus:border-grafana-accent-blue/50 outline-none font-mono lowercase"
+                            placeholder="gecit@sektor.net"
                             required
                         />
                     </div>
+
                     {!editingUser && (
                         <div className="space-y-2">
-                            <label className="text-xs font-bold text-slate-400  tracking-widest uppercase">Password</label>
-                            <input
-                                type="password"
-                                value={formData.password}
-                                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                                className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none"
-                                placeholder="••••••••"
-                                required
-                            />
+                            <label className="text-[10px] font-bold text-grafana-text-secondary uppercase tracking-widest font-mono ml-1">Erişim Anahtarı (Parola)</label>
+                            <div className="relative group">
+                                <Key className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-grafana-text-secondary group-focus-within:text-grafana-accent-blue transition-colors" />
+                                <input
+                                    type="password"
+                                    value={formData.password}
+                                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                                    className="w-full pl-10 pr-4 py-2.5 bg-grafana-bg border border-grafana-border rounded-sm text-xs text-grafana-text-primary focus:border-grafana-accent-blue/50 outline-none font-mono"
+                                    placeholder="••••••••"
+                                    required
+                                />
+                            </div>
                         </div>
                     )}
-                    <div className="grid grid-cols-2 gap-4">
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-2">
-                            <label className="text-xs font-bold text-slate-400  tracking-widest uppercase">Role</label>
-                            <select
-                                value={formData.role}
-                                onChange={(e) => setFormData({ ...formData, role: e.target.value as any })}
-                                className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none appearance-none"
-                            >
-                                <option value="NORMAL_USER">Customer / User</option>
-                                <option value="COMPANY_ADMIN">Company Admin</option>
-                                <option value="SUPER_ADMIN">Super Admin</option>
-                            </select>
+                            <label className="text-[10px] font-bold text-grafana-text-secondary uppercase tracking-widest font-mono ml-1">Yetki Seviyesi</label>
+                            <div className="relative group">
+                                <Shield className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-grafana-text-secondary group-focus-within:text-grafana-accent-blue transition-colors pointer-events-none" />
+                                <select
+                                    value={formData.role}
+                                    onChange={(e) => setFormData({ ...formData, role: e.target.value as any })}
+                                    className="w-full pl-10 pr-4 py-2.5 bg-grafana-bg border border-grafana-border rounded-sm text-xs text-grafana-text-primary focus:border-grafana-accent-blue/50 outline-none font-mono appearance-none uppercase"
+                                >
+                                    <option value="NORMAL_USER">KULLANICI SEVİYESİ</option>
+                                    <option value="COMPANY_ADMIN">KURUM ADMİNİ</option>
+                                    <option value="SUPER_ADMIN">KÖK ADMİN</option>
+                                </select>
+                            </div>
                         </div>
                         <div className="space-y-2">
-                            <label className="text-xs font-bold text-slate-400  tracking-widest uppercase">Company</label>
-                            <select
-                                value={formData.companyProfileId}
-                                onChange={(e) => setFormData({ ...formData, companyProfileId: e.target.value })}
-                                className="w-full px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl text-sm text-white focus:border-brand-green/50 outline-none appearance-none"
-                            >
-                                <option value="">None</option>
-                                {companies.map((c: any) => (
-                                    <option key={c.id} value={c.id}>{c.name}</option>
-                                ))}
-                            </select>
+                            <label className="text-[10px] font-bold text-grafana-text-secondary uppercase tracking-widest font-mono ml-1">Kurum Ataması</label>
+                            <div className="relative group">
+                                <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-grafana-text-secondary group-focus-within:text-grafana-accent-blue transition-colors pointer-events-none" />
+                                <select
+                                    value={formData.companyProfileId}
+                                    onChange={(e) => setFormData({ ...formData, companyProfileId: e.target.value })}
+                                    className="w-full pl-10 pr-4 py-2.5 bg-grafana-bg border border-grafana-border rounded-sm text-xs text-grafana-text-primary focus:border-grafana-accent-blue/50 outline-none font-mono appearance-none uppercase"
+                                >
+                                    <option value="">ATAMA YOK</option>
+                                    {companies.map((c: any) => (
+                                        <option key={c.id} value={c.id}>{c.name.toUpperCase()}</option>
+                                    ))}
+                                </select>
+                            </div>
                         </div>
                     </div>
+
                     <button
                         type="submit"
                         disabled={isSubmitting}
-                        className="w-full py-4 bg-brand-green disabled:bg-brand-green/50 text-white font-bold  tracking-widest text-[10px] uppercase rounded-xl shadow-lg shadow-brand-green/20 hover:scale-[1.01] transition-all"
+                        className="w-full py-3.5 bg-grafana-accent-blue disabled:opacity-50 text-white font-bold tracking-[0.2em] text-[11px] rounded-sm shadow-lg shadow-grafana-accent-blue/20 hover:bg-grafana-accent-blue/90 transition-all uppercase font-mono"
                     >
-                        {isSubmitting ? 'Saving...' : editingUser ? 'UPDATE USER' : 'CREATE USER'}
+                        {isSubmitting ? 'KOMUT ÇALIŞTIRILIYOR...' : editingUser ? 'YAPILANDIRMAYI UYGULA' : 'KAYDI TAMAMLA'}
                     </button>
                 </form>
             </Modal>
 
-            {/* Delete Confirmation Modal */}
+            {/* Silme Onay Modalı */}
             <Modal
                 isOpen={!!userToDelete}
                 onClose={() => setUserToDelete(null)}
-                title="Delete User"
+                title="ERİŞİMİ İPTAL ET"
                 icon={AlertTriangle}
                 maxWidth="sm"
             >
-                <div className="text-center space-y-4">
-                    <div className="w-12 h-12 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 flex items-center justify-center mx-auto mb-4">
-                        <AlertTriangle size={24} />
+                <div className="text-center space-y-6 py-4 font-mono">
+                    <div className="w-16 h-16 rounded-sm bg-grafana-accent-red/10 border border-grafana-accent-red/20 text-grafana-accent-red flex items-center justify-center mx-auto mb-6">
+                        <AlertTriangle size={32} />
                     </div>
 
-                    <div>
-                        <p className="text-sm text-slate-400 leading-relaxed">
-                            Are you sure you want to delete <span className="font-bold text-white">{userToDelete?.name || userToDelete?.email}</span>? This action cannot be undone.
+                    <div className="space-y-2">
+                        <h4 className="text-sm font-bold text-grafana-text-primary uppercase tracking-widest">Personel Erişimini İptal Et</h4>
+                        <p className="text-[11px] text-grafana-text-secondary leading-relaxed">
+                            <span className="font-bold text-grafana-accent-red">[{userToDelete?.name || userToDelete?.email}]</span> kimliğini kayıtlardan temizlemek istediğinize emin misiniz? Erişim derhal kesilecektir.
                         </p>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-3 pt-2">
+                    <div className="grid grid-cols-2 gap-3">
                         <button
                             onClick={() => setUserToDelete(null)}
                             disabled={isDeleting}
-                            className="py-2.5 px-4 rounded-lg border border-slate-800 text-slate-400 font-bold text-[10px] hover:bg-slate-900 transition-colors disabled:opacity-50 tracking-widest uppercase"
+                            className="py-2.5 px-4 rounded-sm border border-grafana-border bg-grafana-bg text-grafana-text-secondary font-bold text-[10px] hover:bg-grafana-panel transition-colors disabled:opacity-50 tracking-widest uppercase"
                         >
-                            Cancel
+                            İptal
                         </button>
                         <button
                             onClick={confirmDelete}
                             disabled={isDeleting}
-                            className="py-2.5 px-4 rounded-lg bg-red-500 text-white font-bold text-[10px] hover:bg-red-600 shadow-lg shadow-red-500/20 transition-all disabled:opacity-50 tracking-widest uppercase flex items-center justify-center gap-2"
+                            className="py-2.5 px-4 rounded-sm bg-grafana-accent-red text-white font-bold text-[10px] hover:bg-grafana-accent-red/90 shadow-lg shadow-grafana-accent-red/20 transition-all disabled:opacity-50 tracking-widest uppercase flex items-center justify-center gap-2"
                         >
-                            {isDeleting ? 'Deleting...' : 'Yes, Delete'}
+                            {isDeleting ? 'İPTAL EDİLİYOR...' : 'İptali Onayla'}
                         </button>
                     </div>
                 </div>

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"energy-scada-platform/internal/db"
 	"fmt"
+	"log"
 	"net/http"
 	"time"
 
@@ -126,15 +127,21 @@ func (s *YtbsService) QueryExternalPlants(ctx context.Context, cid uuid.UUID) (a
 func (s *YtbsService) ProcessPendingInstant() {
 	ctx := context.Background()
 	rows, err := db.Pool.Query(ctx, `
-		SELECT p.id, yp.id, yp.license_no, cp.id, cp."ytbsApiKey", cp."ytbsUsername", cp."ytbsPassword",
-		       p."readingDate", p."readingTime", p."valueMw", p.id
-		FROM "YtbsInstantProduction" p
-		JOIN "YtbsPlant" yp ON p."ytbsPlantId" = yp.id
-		JOIN "Plant" lp ON yp."plantId" = lp.id
-		JOIN "CompanyProfile" cp ON lp."companyId" = cp.id
-		WHERE p."isSent" = false AND p."retryCount" < 10
-		LIMIT 100
-	`)
+		SELECT 
+			COALESCE(p.id, '00000000-0000-0000-0000-000000000000'::uuid), 
+			COALESCE(yp.id, '00000000-0000-0000-0000-000000000000'::uuid), 
+			COALESCE(yp.license_no, i."licenseNo", ''), 
+			cp.id, cp."ytbsApiKey", cp."ytbsUsername", cp."ytbsPassword",
+			i.id, i."externalPlantId", i."readingDate", i."readingTime", i."valueMw"
+		FROM "YtbsInstantProduction" i
+		LEFT JOIN "YtbsPlant" yp ON i."ytbsPlantId" = yp.id
+		LEFT JOIN "Plant" p ON yp."plantId" = p.id
+		JOIN "CompanyProfile" cp ON (p."companyId" = cp.id OR i."companyId" = cp.id)
+		WHERE i."isSent" = false
+		AND (i."lastAttemptAt" IS NULL OR i."lastAttemptAt" < $1)
+		AND i."retryCount" < 5
+		LIMIT 50
+	`, time.Now().Add(-5*time.Minute))
 	if err != nil {
 		return
 	}
@@ -171,11 +178,82 @@ func (s *YtbsService) ProcessPendingInstant() {
 			resp, _ := s.client.Do(req)
 			if resp != nil && resp.StatusCode == http.StatusOK {
 				db.Pool.Exec(ctx, `UPDATE "YtbsInstantProduction" SET "isSent" = true, "lastAttemptAt" = NOW() WHERE id = $1`, prodID)
+				log.Printf("[YTBS] Successfully sent INSTANT log for license %s", license)
 			} else {
 				db.Pool.Exec(ctx, `UPDATE "YtbsInstantProduction" SET "retryCount" = "retryCount" + 1, "lastAttemptAt" = NOW() WHERE id = $1`, prodID)
+				log.Printf("[YTBS] Failed to send INSTANT log for license %s", license)
 			}
 		}
 	}
+}
+
+func (s *YtbsService) ProcessPendingHourly() {
+	ctx := context.Background()
+	rows, err := db.Pool.Query(ctx, `
+		SELECT p.id, yp.id, yp.license_no, cp.id, cp."ytbsApiKey", cp."ytbsUsername", cp."ytbsPassword",
+		       p."readingDate", p."readingHour", p."valueMwh", p.id
+		FROM "YtbsHourlyProduction" p
+		JOIN "YtbsPlant" yp ON p."ytbsPlantId" = yp.id
+		JOIN "Plant" lp ON yp."plantId" = lp.id
+		JOIN "CompanyProfile" cp ON lp."companyId" = cp.id
+		WHERE p."isSent" = false AND p."retryCount" < 10
+		LIMIT 100
+	`)
+	if err != nil {
+		return
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var id, ypID, cpID, prodID uuid.UUID
+		var license, apiKey, username, password, date, hourStr string
+		var val float64
+		
+		if err := rows.Scan(&id, &ypID, &license, &cpID, &apiKey, &username, &password, &date, &hourStr, &val, &prodID); err == nil {
+			token, err := s.Login(ctx, apiKey, username, password)
+			if err != nil { continue }
+			
+			payload := map[string]interface{}{
+				"baglantiAnlasmasiSirketiLisansNo": license,
+				"veri": []map[string]interface{}{
+					{
+						"tarih": date,
+						"saat":  hourStr,
+						"lisanssizSantralId": ypID,
+						"veriDeger": val,
+					},
+				},
+			}
+			b, _ := json.Marshal(payload)
+			req, _ := http.NewRequest("POST", YtbsBaseURL+"/veritoplama/saatliklisanssizsantraluretim/ekle", bytes.NewBuffer(b))
+			req.Header.Set("Content-Type", "application/json")
+			req.Header.Set("SERVICE_KEY", apiKey)
+			req.Header.Set("AUTH_TOKEN", token)
+			
+			resp, _ := s.client.Do(req)
+			if resp != nil && resp.StatusCode == http.StatusOK {
+				db.Pool.Exec(ctx, `UPDATE "YtbsHourlyProduction" SET "isSent" = true, "lastAttemptAt" = NOW() WHERE id = $1`, prodID)
+				log.Printf("[YTBS] Successfully sent HOURLY log for license %s", license)
+			} else {
+				db.Pool.Exec(ctx, `UPDATE "YtbsHourlyProduction" SET "retryCount" = "retryCount" + 1, "lastAttemptAt" = NOW() WHERE id = $1`, prodID)
+				log.Printf("[YTBS] Failed to send HOURLY log for license %s", license)
+			}
+		}
+	}
+}
+
+func (s *YtbsService) StartWorker() {
+	go func() {
+		log.Printf("[YTBS] Background worker started")
+		ticker := time.NewTicker(5 * time.Minute)
+		for {
+			select {
+			case <-ticker.C:
+				s.ProcessPendingInstant()
+				s.ProcessPendingHourly()
+			}
+		}
+	}()
 }
 
 func (s *YtbsService) QueryExternalLogs(ctx context.Context, companyID uuid.UUID, logType string) ([]any, error) {

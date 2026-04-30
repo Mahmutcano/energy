@@ -3,9 +3,10 @@
 import React, { useState, useMemo } from 'react';
 import ReactECharts from 'echarts-for-react';
 import * as echarts from 'echarts';
-import { CircleDashed } from 'lucide-react';
+import { CircleDashed, Terminal, Table as TableIcon, LineChart, TrendingUp, TrendingDown } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
-const CHART_COLORS = ['#089981', '#2962ff', '#fb8c00', '#f23645'];
+const CHART_COLORS = ['#5794f2', '#73bf69', '#ff9830', '#f2495c'];
 
 interface TerminalCardProps {
     title: string;
@@ -27,21 +28,21 @@ export default function TerminalCard({ title, points, unit = '', category = 'lin
             backgroundColor: 'transparent',
             tooltip: {
                 trigger: 'axis',
-                backgroundColor: '#ffffff',
-                borderColor: '#dfe2e7',
+                backgroundColor: '#141619',
+                borderColor: '#262626',
                 borderWidth: 1,
                 padding: [8, 12],
-                textStyle: { color: '#131722', fontSize: 10, fontWeight: '700' },
-                axisPointer: { type: 'cross', lineStyle: { color: '#787b86', type: 'dotted' } },
-                extraCssText: 'box-shadow: 0 4px 12px rgba(0,0,0,0.08);'
+                textStyle: { color: '#d8d9da', fontSize: 10, fontWeight: '700' },
+                axisPointer: { type: 'cross', lineStyle: { color: '#5794f2', type: 'dotted' } },
+                extraCssText: 'box-shadow: 0 4px 12px rgba(0,0,0,0.5); border-radius: 2px;'
             },
-            grid: { left: 10, right: 45, top: 10, bottom: 25, containLabel: false },
+            grid: { left: 10, right: 50, top: 20, bottom: 25, containLabel: false },
             xAxis: {
                 type: 'category',
                 data: categories,
                 axisLine: { show: false },
-                axisLabel: { color: '#787b86', fontSize: 9, margin: 8, fontWeight: '500' },
-                splitLine: { show: true, lineStyle: { color: '#f0f3fa', type: 'solid' } },
+                axisLabel: { color: '#7b7b7b', fontSize: 9, margin: 12, fontWeight: '700', fontFamily: 'monospace' },
+                splitLine: { show: true, lineStyle: { color: '#1e1e1e', type: 'solid' } },
                 axisTick: { show: false }
             },
             yAxis: {
@@ -50,27 +51,30 @@ export default function TerminalCard({ title, points, unit = '', category = 'lin
                 position: 'right',
                 axisLine: { show: false },
                 axisLabel: { 
-                    color: '#787b86', 
+                    color: '#7b7b7b', 
                     fontSize: 9, 
                     margin: 8, 
-                    fontWeight: '500', 
+                    fontWeight: '700', 
+                    fontFamily: 'monospace',
                     formatter: (v: number) => v >= 1000 ? (v / 1000).toFixed(1) + 'k' : v.toFixed(1) 
                 },
-                splitLine: { show: true, lineStyle: { color: '#f0f3fa', type: 'solid' } }
+                splitLine: { show: true, lineStyle: { color: '#1e1e1e', type: 'solid' } }
             },
             series: points.map((p, i) => ({
                 name: p.name,
                 type: category === 'bar' ? 'bar' : 'line',
-                symbol: 'none',
-                smooth: 0.2,
+                symbol: 'circle',
+                symbolSize: 4,
+                showSymbol: false,
+                smooth: 0.1,
                 lineStyle: { width: 2, color: CHART_COLORS[i % 4] },
                 itemStyle: { color: CHART_COLORS[i % 4] },
-                areaStyle: {
+                areaStyle: category === 'area' ? {
                     color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-                        { offset: 0, color: `${CHART_COLORS[i % 4]}10` },
+                        { offset: 0, color: `${CHART_COLORS[i % 4]}33` },
                         { offset: 1, color: 'transparent' }
                     ])
-                },
+                } : null,
                 data: p.history?.map((h: any) => h.value) || []
             }))
         };
@@ -78,54 +82,65 @@ export default function TerminalCard({ title, points, unit = '', category = 'lin
 
     if (points.length === 0) {
         return (
-            <div className="flex h-full min-h-[250px] flex-col items-center justify-center border border-[#dfe2e7] rounded-lg bg-[#f8f9fb] text-[#787b86] border-dashed">
-                <CircleDashed className="animate-spin mb-2 opacity-20" size={20} />
-                <span className="text-[8px] font-black uppercase tracking-tight">VERİ BEKLENİYOR...</span>
+            <div className="flex h-full min-h-[300px] flex-col items-center justify-center border border-grafana-border rounded-sm bg-grafana-panel/20 text-grafana-text-secondary border-dashed">
+                <CircleDashed className="animate-spin mb-3 opacity-30" size={24} />
+                <span className="text-[10px] font-bold uppercase tracking-[0.4em] font-mono">VERİ BAĞLANTISI KURULUYOR...</span>
             </div>
         );
     }
 
     return (
-        <div className="border border-[#dfe2e7] rounded-lg bg-white flex flex-col overflow-hidden transition-all duration-300">
-            <div className="h-10 flex items-center justify-between px-3 border-b border-[#f0f3fa] bg-white">
-                <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-black uppercase tracking-tight text-[#131722]">{title} ›</span>
-                    <button onClick={() => setView(view === 'chart' ? 'table' : 'chart')} className="text-[8px] font-bold text-[#2962ff] opacity-40 hover:opacity-100 transition-opacity">
-                        {view === 'chart' ? '[TABLE]' : '[CHART]'}
+        <div className="border border-grafana-border rounded-sm bg-grafana-panel/40 flex flex-col overflow-hidden transition-all duration-500 hover:border-grafana-accent-blue/30 group shadow-xl">
+            {/* Card Header */}
+            <div className="h-12 flex items-center justify-between px-4 border-b border-grafana-border bg-grafana-bg/50">
+                <div className="flex items-center gap-3">
+                    <div className="w-1.5 h-4 bg-grafana-accent-blue rounded-full" />
+                    <span className="text-[11px] font-bold uppercase tracking-widest text-white font-mono group-hover:text-grafana-accent-blue transition-colors">{title}</span>
+                    <button 
+                        onClick={() => setView(view === 'chart' ? 'table' : 'chart')} 
+                        className="ml-2 p-1.5 rounded-sm bg-grafana-bg border border-grafana-border text-grafana-text-secondary hover:text-white transition-colors"
+                    >
+                        {view === 'chart' ? <TableIcon size={12} /> : <LineChart size={12} />}
                     </button>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-4">
                     {points.slice(0, 1).map((p, i) => (
-                        <div key={i} className="flex items-baseline gap-1.5">
-                            <span className="text-[14px] font-bold tabular-nums text-[#131722]">
-                                {p.value?.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                        <div key={i} className="flex items-center gap-3">
+                            <span className="text-lg font-bold tabular-nums text-white font-mono">
+                                {p.value?.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 3 })}
+                                <span className="text-[10px] text-grafana-accent-blue ml-1">{unit}</span>
                             </span>
-                            <span className="text-[8px] font-black text-[#089981] px-1 py-0.5 bg-emerald-50 rounded">
+                            <div className="flex items-center gap-1 text-[9px] font-bold text-grafana-accent-green bg-grafana-accent-green/10 px-2 py-0.5 rounded-sm border border-grafana-accent-green/20 font-mono">
+                                <TrendingUp size={10} />
                                 +0.45%
-                            </span>
+                            </div>
                         </div>
                     ))}
                 </div>
             </div>
             
-            <div className="flex-1 p-1 relative">
+            <div className="flex-1 p-2 relative bg-grafana-panel/20">
                 {view === 'chart' ? (
-                    <ReactECharts option={chartOption} style={{ height: '160px', width: '100%' }} notMerge />
+                    <div className="relative group/chart">
+                         {/* Subtle background grid effect */}
+                         <div className="absolute inset-0 pointer-events-none opacity-[0.03]" style={{ backgroundImage: 'radial-gradient(#5794f2 1px, transparent 0)', backgroundSize: '20px 20px' }} />
+                        <ReactECharts option={chartOption} style={{ height: '220px', width: '100%' }} notMerge />
+                    </div>
                 ) : (
-                    <div className="h-[160px] overflow-auto custom-scrollbar">
-                        <table className="w-full text-[9px] text-left">
-                            <thead className="sticky top-0 bg-[#f8f9fb] text-[#787b86] font-black uppercase border-b border-[#dfe2e7]">
+                    <div className="h-[220px] overflow-auto custom-scroll">
+                        <table className="scada-table">
+                            <thead className="sticky top-0 z-10 bg-grafana-bg">
                                 <tr>
-                                    <th className="p-2">ZAMAN</th>
-                                    {points.map(p => <th key={p.pointId} className="p-2">{p.name}</th>)}
+                                    <th>ZAMAN</th>
+                                    {points.map(p => <th key={p.pointId}>{p.name}</th>)}
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-[#f0f3fa]">
+                            <tbody>
                                 {points[0].history.map((h: any, i: number) => (
-                                    <tr key={i} className="hover:bg-blue-50/10 transition-colors">
-                                        <td className="p-2 font-bold text-[#787b86]">{h.t}</td>
+                                    <tr key={i} className="hover:bg-grafana-accent-blue/[0.05] border-b border-grafana-border/30">
+                                        <td className="font-bold text-grafana-text-secondary font-mono">{h.t}</td>
                                         {points.map(p => (
-                                            <td key={p.pointId} className="p-2 font-black tabular-nums text-[#131722]">
+                                            <td key={p.pointId} className="font-bold tabular-nums text-white font-mono">
                                                 {p.history[i]?.value?.toFixed(3)}
                                             </td>
                                         ))}
@@ -137,24 +152,34 @@ export default function TerminalCard({ title, points, unit = '', category = 'lin
                 )}
             </div>
 
-            <div className="h-10 flex items-center justify-between px-3 border-t border-[#f0f3fa]">
-                <div className="flex gap-1">
+            {/* Range Controls */}
+            <div className="h-10 flex items-center justify-between px-4 border-t border-grafana-border bg-grafana-bg/30">
+                <div className="flex gap-1.5">
                     {['1g', '1h', '1a', '6a', '1y', 'Tüm'].map((r) => (
                         <button
                             key={r}
                             onClick={() => setRange(r)}
-                            className={`px-2 py-1 text-[9px] font-black rounded transition-all ${range === r ? 'bg-[#f0f3fa] text-[#2962ff]' : 'text-[#787b86] hover:text-[#131722]'}`}
+                            className={cn(
+                                "px-3 py-1 text-[9px] font-bold rounded-sm transition-all font-mono tracking-widest border border-transparent",
+                                range === r 
+                                    ? "bg-grafana-accent-blue/10 text-grafana-accent-blue border-grafana-accent-blue/30 shadow-inner" 
+                                    : "text-grafana-text-secondary hover:text-white hover:border-grafana-border"
+                            )}
                         >
-                            {r}
+                            {r.toUpperCase()}
                         </button>
                     ))}
+                </div>
+                <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-grafana-accent-green shadow-[0_0_8px_rgba(115,191,105,0.4)]" />
+                    <span className="text-[9px] font-bold text-grafana-text-secondary uppercase font-mono tracking-widest">CANLI VERİ AKIŞI</span>
                 </div>
             </div>
 
             <style jsx>{`
-                .custom-scrollbar::-webkit-scrollbar { width: 2px; }
-                .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-                .custom-scrollbar::-webkit-scrollbar-thumb { background: #dfe2e7; border-radius: 4px; }
+                .custom-scroll::-webkit-scrollbar { width: 3px; }
+                .custom-scroll::-webkit-scrollbar-track { background: rgba(0,0,0,0.1); }
+                .custom-scroll::-webkit-scrollbar-thumb { background: #262626; border-radius: 4px; }
             `}</style>
         </div>
     );

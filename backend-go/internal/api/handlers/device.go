@@ -49,11 +49,11 @@ type DeviceInfo struct {
 }
 
 func GetDevices(c *gin.Context) {
-	companyID, role := getUserCompanyID(c)
+	ctx := getAccessContext(c)
 	var rows pgx.Rows
 	var err error
 
-	if role == "SUPER_ADMIN" {
+	if ctx.Role == "SUPER_ADMIN" {
 		rows, err = db.Pool.Query(context.Background(), `
 			SELECT 
 				d.id, d."deviceName", d."deviceType", d."isActive", d."isRecording", d."protocolConfigId", d."datasheetProfileId",
@@ -66,7 +66,38 @@ func GetDevices(c *gin.Context) {
 			LEFT JOIN "DatasheetProfile" dp ON d."datasheetProfileId" = dp.id
 			ORDER BY d."createdAt" DESC
 		`)
-	} else if companyID != nil {
+	} else if len(ctx.DeviceIDs) > 0 {
+		// Explicit device links
+		rows, err = db.Pool.Query(context.Background(), `
+			SELECT 
+				d.id, d."deviceName", d."deviceType", d."isActive", d."isRecording", d."protocolConfigId", d."datasheetProfileId",
+				pc."configName", pc."protocolType", pc."plantId", p."plantName",
+				dp.name as profile_name, dp."protocolType" as profile_proto,
+				d."createdAt", d."updatedAt", d."createdBy", d."updatedBy"
+			FROM "Device" d
+			JOIN "ProtocolConfig" pc ON d."protocolConfigId" = pc.id
+			JOIN "Plant" p ON pc."plantId" = p.id
+			LEFT JOIN "DatasheetProfile" dp ON d."datasheetProfileId" = dp.id
+			WHERE d.id = ANY($1)
+			ORDER BY d."createdAt" DESC
+		`, ctx.DeviceIDs)
+	} else if len(ctx.PlantIDs) > 0 {
+		// Linked via plants
+		rows, err = db.Pool.Query(context.Background(), `
+			SELECT 
+				d.id, d."deviceName", d."deviceType", d."isActive", d."isRecording", d."protocolConfigId", d."datasheetProfileId",
+				pc."configName", pc."protocolType", pc."plantId", p."plantName",
+				dp.name as profile_name, dp."protocolType" as profile_proto,
+				d."createdAt", d."updatedAt", d."createdBy", d."updatedBy"
+			FROM "Device" d
+			JOIN "ProtocolConfig" pc ON d."protocolConfigId" = pc.id
+			JOIN "Plant" p ON pc."plantId" = p.id
+			LEFT JOIN "DatasheetProfile" dp ON d."datasheetProfileId" = dp.id
+			WHERE p.id = ANY($1)
+			ORDER BY d."createdAt" DESC
+		`, ctx.PlantIDs)
+	} else if ctx.CompanyID != nil {
+		// Company-wide access (fallback)
 		rows, err = db.Pool.Query(context.Background(), `
 			SELECT 
 				d.id, d."deviceName", d."deviceType", d."isActive", d."isRecording", d."protocolConfigId", d."datasheetProfileId",
@@ -79,8 +110,9 @@ func GetDevices(c *gin.Context) {
 			LEFT JOIN "DatasheetProfile" dp ON d."datasheetProfileId" = dp.id
 			WHERE p."companyId" = $1
 			ORDER BY d."createdAt" DESC
-		`, *companyID)
+		`, *ctx.CompanyID)
 	} else {
+		log.Printf("[DEVICE] No access for user %v (Role: %s)", ctx.UserID, ctx.Role)
 		response.Success(c, http.StatusOK, []any{})
 		return
 	}

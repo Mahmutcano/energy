@@ -85,6 +85,9 @@ func (b *TelemetryBroadcaster) handlePayload(payload string) {
 		// Emit to protocol-specific room
 		b.socketServer.Sockets().To(socket.Room(roomName)).Emit("telemetry:update", telemetry)
 
+		// Protocol-specific raw event (For Customer Dashboard compatibility)
+		b.socketServer.Sockets().To(socket.Room(roomName)).Emit(fmt.Sprintf("telemetry:raw:%s", pID), telemetry)
+
 		// Admin Raw feed
 		b.socketServer.Sockets().To(socket.Room("admin:telemetry")).Emit("telemetry:raw", telemetry)
 	}

@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"encoding/json"
 	"energy-scada-platform/internal/api/response"
 	"energy-scada-platform/internal/db"
 	"time"
@@ -28,27 +29,33 @@ type User struct {
 }
 
 func GetUsers(c *gin.Context) {
-	companyID, role := getUserCompanyID(c)
+	ctx := getAccessContext(c)
 	var rows pgx.Rows
 	var err error
 
-	if role == "SUPER_ADMIN" {
+	if ctx.Role == "SUPER_ADMIN" {
 		rows, err = db.Pool.Query(context.Background(), `
-			SELECT u.id, u.email, u."firstName", u."lastName", u."adminType", up."companyId", cp.name,
-			       u."createdAt", u."updatedAt", u."createdBy", u."updatedBy"
+			SELECT 
+				u.id, u.email, u."firstName", u."lastName", u."adminType",
+				u."createdAt", u."updatedAt", u."createdBy", u."updatedBy",
+				json_agg(json_build_object('id', up."companyId", 'name', cp.name)) FILTER (WHERE up."companyId" IS NOT NULL) as profiles
 			FROM "AppUser" u
 			LEFT JOIN "AppUserProfile" up ON u.id = up."userId"
 			LEFT JOIN "CompanyProfile" cp ON up."companyId" = cp.id
+			GROUP BY u.id
 		`)
-	} else if companyID != nil {
+	} else if ctx.CompanyID != nil {
 		rows, err = db.Pool.Query(context.Background(), `
-			SELECT u.id, u.email, u."firstName", u."lastName", u."adminType", up."companyId", cp.name,
-			       u."createdAt", u."updatedAt", u."createdBy", u."updatedBy"
+			SELECT 
+				u.id, u.email, u."firstName", u."lastName", u."adminType",
+				u."createdAt", u."updatedAt", u."createdBy", u."updatedBy",
+				json_agg(json_build_object('id', up."companyId", 'name', cp.name)) as profiles
 			FROM "AppUser" u
 			JOIN "AppUserProfile" up ON u.id = up."userId"
 			JOIN "CompanyProfile" cp ON up."companyId" = cp.id
 			WHERE up."companyId" = $1
-		`, *companyID)
+			GROUP BY u.id
+		`, *ctx.CompanyID)
 	} else {
 		response.Success(c, http.StatusOK, []any{})
 		return
@@ -63,20 +70,35 @@ func GetUsers(c *gin.Context) {
 	for rows.Next() {
 		var u User
 		var firstName, lastName string
-		var companyName *string
-		if err := rows.Scan(&u.ID, &u.Email, &firstName, &lastName, &u.Role, &u.CompanyProfileId, &companyName, &u.CreatedAt, &u.UpdatedAt, &u.CreatedBy, &u.UpdatedBy); err != nil {
+		var profiles []byte
+		if err := rows.Scan(
+			&u.ID, &u.Email, &firstName, &lastName, &u.Role, 
+			&u.CreatedAt, &u.UpdatedAt, &u.CreatedBy, &u.UpdatedBy,
+			&profiles,
+		); err != nil {
 			log.Printf("[DB] Error scanning user: %v", err)
 			continue
 		}
 		u.Name = strings.TrimSpace(firstName + " " + lastName)
-		if companyName != nil {
-			u.CompanyProfile = &gin.H{"id": u.CompanyProfileId, "name": *companyName}
+		
+		// Map the first profile to CompanyProfile for frontend compatibility
+		if profiles != nil && string(profiles) != "null" {
+			var profileList []struct {
+				ID   *uuid.UUID `json:"id"`
+				Name *string    `json:"name"`
+			}
+			if err := json.Unmarshal(profiles, &profileList); err == nil && len(profileList) > 0 {
+				if profileList[0].ID != nil {
+					u.CompanyProfileId = profileList[0].ID
+					u.CompanyProfile = &gin.H{
+						"id":   profileList[0].ID,
+						"name": profileList[0].Name,
+					}
+				}
+			}
 		}
-		users = append(users, u)
-	}
 
-	if users == nil {
-		users = []User{}
+		users = append(users, u)
 	}
 
 	response.Success(c, http.StatusOK, users)

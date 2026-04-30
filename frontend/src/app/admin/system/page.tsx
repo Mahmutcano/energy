@@ -3,13 +3,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
     Activity, Cpu, Power, Database, Layers,
-    XOctagon, RefreshCw, Search,
-    Heart, Clock, HardDrive, Server, Wifi, WifiOff, Zap, Settings, Trash2, Timer, Shield
+    RefreshCw, Search, Zap, Settings, Trash2, Shield,
+    Server, Clock, HardDrive, AlertTriangle, CheckCircle2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { apiRequest } from '@/lib/api';
 import toast from 'react-hot-toast';
-import { clsx } from 'clsx';
+import { cn } from '@/lib/utils';
+import PageHeader from '@/components/PageHeader';
 
 interface Device {
     id: string;
@@ -61,13 +62,33 @@ interface HealthData {
     };
 }
 
+interface RecordingSettings {
+    sampleIntervalSec: number;
+    retentionHours: number;
+    isRecording: boolean;
+    maxRecordsTotal: number;
+    db: {
+        tableSize: string;
+        totalRecords: number;
+    };
+}
+
+interface SchemaStat {
+    id: string;
+    name: string;
+    count: number;
+    icon: string;
+    color: string;
+    relations: string[];
+}
+
 export default function SystemControl() {
     const [devices, setDevices] = useState<Device[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
     const [health, setHealth] = useState<HealthData | null>(null);
     const [healthLoading, setHealthLoading] = useState(false);
-    const [recSettings, setRecSettings] = useState<any>(null);
+    const [recSettings, setRecSettings] = useState<RecordingSettings | null>(null);
     const [stats, setStats] = useState({ total: 0, active: 0, passive: 0, totalMeasurements: 0 });
 
     const fetchData = async () => {
@@ -77,21 +98,21 @@ export default function SystemControl() {
             if (res.ok) {
                 const result = await res.json();
                 const data = (result && result.success) ? result.data : result;
-                const deviceList = Array.isArray(data) ? data : [];
+                const deviceList: Device[] = Array.isArray(data) ? data : [];
                 setDevices(deviceList);
-                const active = deviceList.filter((d: any) => d.isActive).length;
-                setStats({ total: deviceList.length, active, passive: deviceList.length - active, totalMeasurements: 0 });
+                const active = deviceList.filter((d: Device) => d.isActive).length;
+                setStats(prev => ({ ...prev, total: deviceList.length, active, passive: deviceList.length - active }));
             }
             const statRes = await apiRequest('/api/system/schema-stats');
             if (statRes.ok) {
                 const result = await statRes.json();
-                const schema = (result && result.success) ? result.data : result;
+                const schema = (result && result.success) ? (result.data as SchemaStat[]) : (result as SchemaStat[]);
                 if (Array.isArray(schema)) {
-                    const telStat = schema.find((s: any) => s.id === 'TelemetryValue');
+                    const telStat = schema.find((s) => s.id === 'TelemetryValue');
                     if (telStat) setStats(prev => ({ ...prev, totalMeasurements: telStat.count }));
                 }
             }
-        } catch { toast.error("Failed to load"); }
+        } catch { toast.error("Veriler yüklenemedi"); }
         finally { setLoading(false); }
     };
 
@@ -117,33 +138,32 @@ export default function SystemControl() {
         } catch { }
     }, []);
 
-    const updateRecSetting = async (key: string, value: any) => {
+    const updateRecSetting = async (key: keyof RecordingSettings, value: any) => {
         try {
             const res = await apiRequest('/api/system/recording-settings', { method: 'PATCH', body: JSON.stringify({ [key]: value }) });
             if (res.ok) {
                 const result = await res.json();
                 const data = (result && result.success) ? result.data : result;
-                // Backwards compatibility with either {settings: ...} or direct object
                 const settings = data.settings || data;
-                setRecSettings((p: any) => ({ ...p, ...settings }));
-                toast.success('Updated');
+                setRecSettings((p) => p ? ({ ...p, ...settings }) : null);
+                toast.success('Ayarlar güncellendi');
             }
-        } catch { toast.error('Failed'); }
+        } catch { toast.error('Güncellenemedi'); }
     };
 
     const runRetention = async () => {
-        if (!window.confirm('Run cleanup now?')) return;
-        const t = toast.loading('Cleaning...');
+        if (!window.confirm('Veri temizleme (retention) işlemi başlatılsın mı? Bu işlem geri alınamaz.')) return;
+        const t = toast.loading('Veriler temizleniyor...');
         try {
             const res = await apiRequest('/api/system/run-retention', { method: 'POST' });
             if (res.ok) {
                 const result = await res.json();
                 const data = (result && result.success) ? result.data : result;
                 const deletedCount = data?.deleted || data?.count || 0;
-                toast.success(`Cleaned ${deletedCount} records`, { id: t });
+                toast.success(`${deletedCount} kayıt başarıyla temizlendi`, { id: t });
                 fetchRecSettings();
             }
-        } catch { toast.error('Failed', { id: t }); }
+        } catch { toast.error('İşlem başarısız', { id: t }); }
     };
 
     useEffect(() => {
@@ -155,28 +175,28 @@ export default function SystemControl() {
 
     const toggleDeviceField = async (device: Device, field: 'isActive' | 'isRecording') => {
         const next = !device[field];
-        const label = field === 'isActive' ? 'Communication' : 'Recording';
-        const t = toast.loading(`Toggling ${label}...`);
+        const label = field === 'isActive' ? 'İletişim' : 'Kayıt';
+        const t = toast.loading(`${label} durumu güncelleniyor...`);
         try {
             const res = await apiRequest(`/api/devices/${device.id}`, { method: 'PATCH', body: JSON.stringify({ [field]: next }) });
             if (res.ok) {
-                toast.success(`${device.deviceName} ${label} ${next ? 'ON' : 'OFF'}`, { id: t });
+                toast.success(`${device.deviceName} ${label} ${next ? 'AÇIK' : 'KAPALI'}`, { id: t });
                 setDevices(p => p.map(d => d.id === device.id ? { ...d, [field]: next } : d));
                 if (field === 'isActive') {
                     setStats(p => ({ ...p, active: next ? p.active + 1 : p.active - 1, passive: next ? p.passive - 1 : p.passive + 1 }));
                 }
-            } else toast.error("Failed", { id: t });
-        } catch { toast.error("Error", { id: t }); }
+            } else toast.error("İşlem başarısız", { id: t });
+        } catch { toast.error("Hata oluştu", { id: t }); }
     };
 
     const bulkAction = async (action: 'START' | 'STOP') => {
-        if (!window.confirm(`${action} all devices?`)) return;
-        const t = toast.loading(`${action}ing all...`);
+        if (!window.confirm(`Tüm cihazlar ${action === 'START' ? 'başlatılsın' : 'durdurulsun'} mı?`)) return;
+        const t = toast.loading(`İşlem gerçekleştiriliyor...`);
         try {
             const targets = devices.filter(d => action === 'START' ? !d.isActive : d.isActive);
             for (const d of targets) await apiRequest(`/api/devices/${d.id}`, { method: 'PATCH', body: JSON.stringify({ isActive: action === 'START' }) });
-            toast.success("Done", { id: t }); fetchData();
-        } catch { toast.error("Error", { id: t }); }
+            toast.success("Tüm cihazlar güncellendi", { id: t }); fetchData();
+        } catch { toast.error("Hata oluştu", { id: t }); }
     };
 
     const filtered = devices.filter(d =>
@@ -185,309 +205,356 @@ export default function SystemControl() {
         d.protocol.plant.plantName.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
-    const S = (props: { label: string; val: string | number; color?: string }) => (
-        <div className="flex justify-between items-center">
-            <span className="text-[9px] font-semibold text-slate-500 uppercase tracking-wider">{props.label}</span>
-            <span className={clsx("text-[9px] font-bold tabular-nums", props.color || 'text-white')}>{props.val}</span>
-        </div>
-    );
-
     return (
-        <div className="space-y-4 pb-10 animate-in-up font-sans selection:bg-brand-green/30">
-            {/* Header Row */}
-            <div className="flex items-center justify-between gap-4 px-1">
-                <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-lg bg-slate-900 border border-slate-800">
-                        <Layers size={16} className="text-brand-green" />
-                    </div>
-                    <div>
-                        <h1 className="text-lg font-black text-white tracking-tight uppercase">System <span className="text-brand-green">Control</span></h1>
-                        <div className="flex items-center gap-2 mt-0.5">
-                            <Activity size={8} className="text-brand-green animate-pulse" />
-                            <span className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">{stats.total} Devices • {stats.active} Active</span>
-                        </div>
-                    </div>
-                </div>
-                <div className="flex items-center gap-2">
-                    <button onClick={() => bulkAction('STOP')} className="flex items-center gap-1.5 px-3 py-1.5 bg-red-500/10 border border-red-500/20 text-red-500 rounded-lg text-[9px] font-bold hover:bg-red-500 hover:text-white transition-all uppercase tracking-wider">
-                        <XOctagon size={11} /> Stop All
-                    </button>
-                    <button onClick={() => bulkAction('START')} className="flex items-center gap-1.5 px-3 py-1.5 bg-brand-green/10 border border-brand-green/20 text-brand-green rounded-lg text-[9px] font-bold hover:bg-brand-green hover:text-white transition-all uppercase tracking-wider">
-                        <Power size={11} /> Start All
-                    </button>
-                </div>
-            </div>
+        <div className="space-y-6 pb-20 animate-in-fade">
+            <PageHeader 
+                title="SİSTEM" 
+                highlightedTitle="DENETİMİ"
+                subtitle="Çekirdek servis sağlığı ve veri hattı yönetimi"
+                icon={Layers}
+            >
+                <button 
+                    onClick={() => bulkAction('STOP')}
+                    className="group flex items-center gap-2 px-4 py-2 bg-grafana-accent-red/5 border border-grafana-accent-red/20 text-grafana-accent-red rounded-sm text-[11px] font-bold hover:bg-grafana-accent-red hover:text-white transition-all uppercase tracking-widest font-mono"
+                >
+                    <Power size={14} className="group-hover:scale-110 transition-transform" />
+                    Tümünü Durdur
+                </button>
+                <button 
+                    onClick={() => bulkAction('START')}
+                    className="group flex items-center gap-2 px-4 py-2 bg-grafana-accent-green/5 border border-grafana-accent-green/20 text-grafana-accent-green rounded-sm text-[11px] font-bold hover:bg-grafana-accent-green hover:text-white transition-all uppercase tracking-widest font-mono"
+                >
+                    <Zap size={14} className="group-hover:scale-110 transition-transform" />
+                    Tümünü Başlat
+                </button>
+            </PageHeader>
 
-            {/* Stats Row */}
-            <div className="grid grid-cols-4 gap-3 px-1">
+            {/* Performans Metrikleri */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 {[
-                    { label: 'Nodes', val: stats.total, icon: Cpu, color: 'text-brand-green' },
-                    { label: 'Recording', val: stats.active, icon: Activity, color: 'text-emerald-400' },
-                    { label: 'Paused', val: stats.passive, icon: Power, color: 'text-slate-500' },
-                    { label: 'Data Pts', val: (stats.totalMeasurements / 1000).toFixed(1) + 'K', icon: Database, color: 'text-brand-green' },
-                ].map(s => (
-                    <div key={s.label} className="card-base p-3 flex items-center gap-3">
-                        <s.icon size={14} className={s.color} />
-                        <div>
-                            <span className="text-lg font-black text-white tabular-nums leading-none">{s.val}</span>
-                            <span className="text-[8px] font-bold text-slate-600 uppercase tracking-wider block mt-0.5">{s.label}</span>
+                    { label: 'TOPLAM DÜĞÜM', val: stats.total, icon: Cpu, color: 'text-grafana-accent-blue', bg: 'bg-grafana-accent-blue/5' },
+                    { label: 'AKTİF İLETİŞİM', val: stats.active, icon: Activity, color: 'text-grafana-accent-green', bg: 'bg-grafana-accent-green/5' },
+                    { label: 'PASİF / HATA', val: stats.passive, icon: AlertTriangle, color: stats.passive > 0 ? 'text-grafana-accent-orange' : 'text-grafana-text-secondary', bg: 'bg-white/5' },
+                    { label: 'TOPLAM VERİ SETİ', val: (stats.totalMeasurements / 1000).toFixed(1) + 'K', icon: Database, color: 'text-grafana-accent-orange', bg: 'bg-grafana-accent-orange/5' },
+                ].map((s, idx) => (
+                    <motion.div 
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: idx * 0.1 }}
+                        key={s.label} 
+                        className="bg-grafana-panel/40 border border-grafana-border p-5 rounded-sm flex items-center gap-5 group hover:border-grafana-text-secondary/30 transition-all"
+                    >
+                        <div className={cn("p-3 rounded-sm border border-white/10 group-hover:shadow-[0_0_20px_rgba(255,255,255,0.05)] transition-all", s.bg, s.color)}>
+                            <s.icon size={20} />
                         </div>
-                    </div>
+                        <div className="space-y-0.5">
+                            <p className="text-tech-label">{s.label}</p>
+                            <p className="text-2xl font-bold text-grafana-text-primary tabular-nums font-mono">{s.val}</p>
+                        </div>
+                    </motion.div>
                 ))}
             </div>
 
-            {/* Main Grid: Devices + Health */}
-            <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 px-1">
-                {/* Device Table */}
-                <div className="xl:col-span-2 card-base overflow-hidden relative">
-                    <div className="px-4 py-2.5 border-b border-white/[0.03] flex items-center justify-between bg-slate-900/20">
-                        <div className="flex items-center gap-3">
-                            <span className="text-[10px] font-black text-white uppercase tracking-wider">Device Registry</span>
-                            <span className="text-[8px] font-bold text-slate-600">{filtered.length} items</span>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Sol Taraf: Cihaz İletişim Tablosu */}
+                <div className="lg:col-span-2 space-y-4">
+                    <div className="bg-grafana-panel/30 border border-grafana-border rounded-sm overflow-hidden shadow-sm flex flex-col">
+                        <div className="p-4 border-b border-grafana-border bg-grafana-bg/40 flex flex-col sm:flex-row justify-between items-center gap-4">
+                            <div className="flex items-center gap-3">
+                                <Server size={14} className="text-grafana-accent-blue" />
+                                <h3 className="text-tech-label text-grafana-text-primary">İLETİŞİM KATMANI DURUMU</h3>
+                            </div>
+                            <div className="relative w-full sm:w-64">
+                                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-grafana-text-secondary" />
+                                <input 
+                                    type="text" 
+                                    placeholder="CİHAZ VEYA PROTOKOL ARA..." 
+                                    value={searchQuery} 
+                                    onChange={e => setSearchQuery(e.target.value)}
+                                    className="w-full bg-grafana-bg border border-grafana-border rounded-sm py-2 pl-9 pr-4 text-[11px] font-bold text-white placeholder:text-grafana-text-secondary/50 outline-none focus:border-grafana-accent-blue/50 transition-all font-mono" 
+                                />
+                            </div>
                         </div>
-                        <div className="relative w-48">
-                            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-600" size={11} />
-                            <input type="text" placeholder="Search..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
-                                className="w-full bg-slate-900/50 border border-slate-800 rounded-lg py-1.5 pl-8 pr-3 text-[10px] font-medium text-white placeholder:text-slate-700 outline-none focus:border-brand-green/30 transition-all" />
-                        </div>
-                    </div>
-                    <div className="overflow-y-auto max-h-[340px]">
-                        <table className="w-full text-left">
-                            <thead className="sticky top-0 z-10 bg-slate-950">
-                                <tr>
-                                    <th className="px-4 py-2 text-[8px] font-bold text-slate-500 uppercase tracking-widest border-b border-white/[0.03]">Device</th>
-                                    <th className="px-4 py-2 text-[8px] font-bold text-slate-500 uppercase tracking-widest border-b border-white/[0.03] text-center">Protocol</th>
-                                    <th className="px-4 py-2 text-[8px] font-bold text-slate-500 uppercase tracking-widest border-b border-white/[0.03] text-center whitespace-nowrap">COM / REC</th>
-                                    <th className="px-4 py-2 text-[8px] font-bold text-slate-500 uppercase tracking-widest border-b border-white/[0.03] text-right">Controls</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-white/[0.02]">
-                                <AnimatePresence>
-                                    {filtered.map((device, idx) => (
-                                        <motion.tr key={device.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: idx * 0.02 }} className="hover:bg-white/[0.01] transition-all">
-                                            <td className="px-4 py-2">
-                                                <div className="flex items-center gap-2.5">
-                                                    <div className={clsx("w-6 h-6 rounded-md flex items-center justify-center border text-[10px]",
-                                                        device.isActive ? "bg-brand-green/10 border-brand-green/20 text-brand-green" : "bg-slate-900 border-slate-800 text-slate-700")}>
-                                                        <Cpu size={11} className={device.isActive ? 'animate-pulse' : ''} />
+                        
+                        <div className="overflow-x-auto min-h-[400px]">
+                            <table className="scada-table">
+                                <thead>
+                                    <tr>
+                                        <th>CİHAZ VARLIĞI</th>
+                                        <th>BAĞLANTI YAPISI</th>
+                                        <th className="text-center">OPERASYONEL DURUM</th>
+                                        <th className="text-right">KONTROL</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <AnimatePresence mode='popLayout'>
+                                        {filtered.map((device) => (
+                                            <motion.tr 
+                                                layout
+                                                initial={{ opacity: 0 }}
+                                                animate={{ opacity: 1 }}
+                                                exit={{ opacity: 0 }}
+                                                key={device.id} 
+                                                className="group hover:bg-white/[0.02] transition-all"
+                                            >
+                                                <td>
+                                                    <div className="flex items-center gap-3">
+                                                        <div className={cn(
+                                                            "w-8 h-8 rounded-sm flex items-center justify-center border transition-all",
+                                                            device.isActive 
+                                                                ? "bg-grafana-accent-green/10 border-grafana-accent-green/30 text-grafana-accent-green shadow-[0_0_10px_rgba(115,191,105,0.1)]" 
+                                                                : "bg-grafana-bg border-grafana-border text-grafana-text-secondary"
+                                                        )}>
+                                                            <Cpu size={14} className={device.isActive ? "animate-pulse" : ""} />
+                                                        </div>
+                                                        <div className="flex flex-col">
+                                                            <span className="text-[11px] font-bold text-grafana-text-primary uppercase group-hover:text-white transition-colors">{device.deviceName}</span>
+                                                            <span className="text-[9px] text-grafana-text-secondary font-mono tracking-tighter">UID: {device.id.substring(0, 8)}</span>
+                                                        </div>
                                                     </div>
-                                                    <div>
-                                                        <span className="text-[10px] font-bold text-white block leading-tight">{device.deviceName}</span>
-                                                        <span className="text-[7px] font-medium text-slate-600 font-mono">{device.id.substring(0, 8)}</span>
+                                                </td>
+                                                <td>
+                                                    <div className="flex flex-col">
+                                                        <span className="text-[10px] font-bold text-grafana-accent-blue/80 uppercase">{device.protocol.plant.plantName}</span>
+                                                        <span className="text-[9px] text-grafana-text-secondary font-mono uppercase tracking-tighter">
+                                                            {device.protocol.protocolType} <span className="opacity-30 px-1">|</span> {device.protocol.configName}
+                                                        </span>
                                                     </div>
-                                                </div>
-                                            </td>
-                                            <td className="px-4 py-2">
-                                                <span className="text-[9px] font-medium text-slate-400 block leading-tight">{device.protocol.plant.plantName}</span>
-                                                <span className="text-[8px] font-medium text-slate-600">{device.protocol.protocolType} • {device.protocol.configName}</span>
-                                            </td>
-                                            <td className="px-4 py-2">
-                                                <div className="flex justify-center gap-1">
-                                                    <span className={clsx("flex items-center gap-1 px-1.5 py-0.5 rounded text-[7px] font-bold uppercase",
-                                                        device.isActive ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" : "bg-slate-900 text-slate-600 border border-slate-800")}>
-                                                        {device.isActive ? <Timer size={7} className="animate-pulse" /> : <WifiOff size={7} />} {device.isActive ? 'Active' : 'Idle'}
-                                                    </span>
-                                                    <span className={clsx("flex items-center gap-1 px-1.5 py-0.5 rounded text-[7px] font-bold uppercase",
-                                                        device.isRecording ? "bg-blue-500/10 text-blue-400 border border-blue-500/20" : "bg-slate-900 text-slate-600 border border-slate-800")}>
-                                                        <Database size={7} /> {device.isRecording ? 'Record' : 'Skip'}
-                                                    </span>
-                                                </div>
-                                            </td>
-                                            <td className="px-4 py-2">
-                                                <div className="flex justify-end gap-3">
-                                                    {/* COM Toggle */}
-                                                    <div className="flex flex-col items-center gap-1">
-                                                        <button onClick={() => toggleDeviceField(device, 'isActive')}
-                                                            title="Toggle Communication"
-                                                            className={clsx("relative w-8 h-4 rounded-full transition-all duration-300 flex items-center p-0.5 border",
-                                                                device.isActive ? "bg-brand-green/20 border-brand-green/40" : "bg-slate-900 border-slate-800")}>
-                                                            <div className={clsx("w-3 h-3 rounded-full transition-all duration-500 shadow",
-                                                                device.isActive ? "translate-x-4 bg-brand-green" : "translate-x-0 bg-slate-700")}></div>
+                                                </td>
+                                                <td className="text-center">
+                                                    <div className="flex justify-center gap-2">
+                                                        <div className={cn(
+                                                            "px-2 py-0.5 rounded-sm text-[8px] font-bold uppercase tracking-widest font-mono border flex items-center gap-1.5",
+                                                            device.isActive 
+                                                                ? "bg-grafana-accent-green/10 text-grafana-accent-green border-grafana-accent-green/20" 
+                                                                : "bg-grafana-bg text-grafana-text-secondary border-grafana-border"
+                                                        )}>
+                                                            <div className={cn("w-1 h-1 rounded-full", device.isActive ? "bg-grafana-accent-green animate-pulse" : "bg-grafana-text-secondary")}></div>
+                                                            {device.isActive ? 'AKTİF' : 'KAPALI'}
+                                                        </div>
+                                                        <div className={cn(
+                                                            "px-2 py-0.5 rounded-sm text-[8px] font-bold uppercase tracking-widest font-mono border flex items-center gap-1.5",
+                                                            device.isRecording 
+                                                                ? "bg-grafana-accent-blue/10 text-grafana-accent-blue border-grafana-accent-blue/20" 
+                                                                : "bg-grafana-bg text-grafana-text-secondary border-grafana-border"
+                                                        )}>
+                                                            <div className={cn("w-1 h-1 rounded-full", device.isRecording ? "bg-grafana-accent-blue animate-pulse" : "bg-grafana-text-secondary")}></div>
+                                                            {device.isRecording ? 'KAYIT' : 'İZLEME'}
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td className="text-right">
+                                                    <div className="flex justify-end gap-3">
+                                                        <button 
+                                                            onClick={() => toggleDeviceField(device, 'isActive')}
+                                                            title={device.isActive ? 'İletişimi Kapat' : 'İletişimi Aç'}
+                                                            className={cn(
+                                                                "p-1.5 rounded-sm border transition-all",
+                                                                device.isActive ? "bg-grafana-accent-green/20 border-grafana-accent-green/40 text-grafana-accent-green" : "bg-grafana-bg border-grafana-border text-grafana-text-secondary hover:border-grafana-text-secondary/50"
+                                                            )}
+                                                        >
+                                                            <Zap size={14} />
                                                         </button>
-                                                        <span className="text-[6px] font-bold text-slate-600 uppercase">COM</span>
-                                                    </div>
-                                                    {/* REC Toggle */}
-                                                    <div className="flex flex-col items-center gap-1">
-                                                        <button onClick={() => toggleDeviceField(device, 'isRecording')}
-                                                            title="Toggle Recording"
-                                                            className={clsx("relative w-8 h-4 rounded-full transition-all duration-300 flex items-center p-0.5 border",
-                                                                device.isRecording ? "bg-blue-500/20 border-blue-500/40" : "bg-slate-900 border-slate-800")}>
-                                                            <div className={clsx("w-3 h-3 rounded-full transition-all duration-500 shadow",
-                                                                device.isRecording ? "translate-x-4 bg-blue-500" : "translate-x-0 bg-slate-700")}></div>
+                                                        <button 
+                                                            onClick={() => toggleDeviceField(device, 'isRecording')}
+                                                            title={device.isRecording ? 'Kaydı Durdur' : 'Kaydı Başlat'}
+                                                            className={cn(
+                                                                "p-1.5 rounded-sm border transition-all",
+                                                                device.isRecording ? "bg-grafana-accent-blue/20 border-grafana-accent-blue/40 text-grafana-accent-blue" : "bg-grafana-bg border-grafana-border text-grafana-text-secondary hover:border-grafana-text-secondary/50"
+                                                            )}
+                                                        >
+                                                            <HardDrive size={14} />
                                                         </button>
-                                                        <span className="text-[6px] font-bold text-slate-600 uppercase">REC</span>
                                                     </div>
-                                                </div>
-                                            </td>
-                                        </motion.tr>
-                                    ))}
-                                </AnimatePresence>
-                            </tbody>
-                        </table>
-                    </div>
-                    {loading && (
-                        <div className="absolute inset-0 bg-slate-950/50 backdrop-blur-sm z-20 flex items-center justify-center gap-2">
-                            <RefreshCw size={16} className="text-brand-green animate-spin" />
-                            <span className="text-[9px] font-bold text-brand-green uppercase tracking-widest">Syncing...</span>
+                                                </td>
+                                            </motion.tr>
+                                        ))}
+                                    </AnimatePresence>
+                                </tbody>
+                            </table>
                         </div>
-                    )}
+                        {loading && (
+                            <div className="absolute inset-0 bg-grafana-bg/60 backdrop-blur-sm z-20 flex flex-col items-center justify-center gap-3">
+                                <RefreshCw size={24} className="text-grafana-accent-blue animate-spin" />
+                                <span className="text-tech-label text-grafana-accent-blue animate-pulse">SENKRONİZASYON</span>
+                            </div>
+                        )}
+                    </div>
                 </div>
 
-                {/* Health Sidebar */}
-                <div className="space-y-3">
-                    {/* Overall */}
-                    <div className={clsx("card-base p-4 relative overflow-hidden", health?.status === 'OPERATIONAL' ? 'bg-brand-green/5 border-brand-green/20' : 'bg-red-500/5 border-red-500/20')}>
-                        <div className={clsx("absolute top-0 right-0 w-20 h-20 blur-2xl rounded-full animate-pulse -mr-10 -mt-10", health?.status === 'OPERATIONAL' ? 'bg-brand-green/10' : 'bg-red-500/10')}></div>
-                        <div className="relative z-10 flex items-center justify-between">
-                            <div>
-                                <span className={clsx("text-[8px] font-bold uppercase tracking-[0.2em]", health?.status === 'OPERATIONAL' ? 'text-brand-green' : 'text-red-500')}>System Status</span>
-                                <h4 className="text-xl font-black text-white italic tracking-tight leading-none mt-0.5">{health?.status === 'OPERATIONAL' ? 'ALL GO' : health?.status || '...'}</h4>
+                {/* Sağ Taraf: Sistem Sağlığı ve Kaynaklar */}
+                <div className="space-y-6">
+                    {/* Kritik Sistem Durumu */}
+                    <div className={cn(
+                        "bg-grafana-panel/30 border p-6 rounded-sm relative overflow-hidden group",
+                        health?.status === 'OPERATIONAL' ? 'border-grafana-accent-green/20' : 'border-grafana-accent-red/20'
+                    )}>
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 blur-3xl -mr-16 -mt-16 rounded-full group-hover:bg-white/10 transition-all"></div>
+                        
+                        <div className="flex items-center justify-between mb-8 relative z-10">
+                            <div className="space-y-1">
+                                <p className="text-tech-label">SİSTEM SAĞLIĞI</p>
+                                <div className="flex items-center gap-2">
+                                    <h4 className={cn(
+                                        "text-3xl font-black tracking-tighter italic",
+                                        health?.status === 'OPERATIONAL' ? 'text-grafana-accent-green' : 'text-grafana-accent-red'
+                                    )}>
+                                        {health?.status === 'OPERATIONAL' ? 'SORUNSUZ' : 'KRİTİK'}
+                                    </h4>
+                                    {health?.status === 'OPERATIONAL' ? <CheckCircle2 size={24} className="text-grafana-accent-green" /> : <AlertTriangle size={24} className="text-grafana-accent-red" />}
+                                </div>
                             </div>
-                            <button onClick={fetchHealth} disabled={healthLoading}
-                                className={clsx("px-3 py-1.5 rounded-lg text-[8px] font-bold uppercase tracking-wider transition-all",
-                                    health?.status === 'OPERATIONAL' ? 'bg-brand-green text-white hover:bg-emerald-500' : 'bg-red-500 text-white')}>
-                                {healthLoading ? <RefreshCw size={10} className="animate-spin" /> : 'Check'}
+                            <button onClick={fetchHealth} disabled={healthLoading} className="p-2.5 rounded-sm bg-grafana-bg border border-grafana-border text-grafana-text-secondary hover:text-grafana-accent-blue hover:border-grafana-accent-blue/40 transition-all">
+                                <RefreshCw size={14} className={healthLoading ? "animate-spin" : ""} />
                             </button>
                         </div>
-                        <div className="w-full h-1 bg-slate-900 rounded-full mt-2 overflow-hidden">
-                            <div className={clsx("h-full rounded-full transition-all duration-700", health?.status === 'OPERATIONAL' ? 'w-full bg-brand-green' : 'w-3/4 bg-red-500')}></div>
-                        </div>
-                        <div className="grid grid-cols-3 gap-2 mt-3 relative z-10">
-                            <div className="text-center">
-                                <span className={clsx("text-sm font-black tabular-nums", (health?.responseTime ?? 0) < 100 ? 'text-brand-green' : 'text-yellow-500')}>{health?.responseTime ?? '--'}</span>
-                                <span className="text-[7px] font-bold text-slate-500 uppercase block">ms API</span>
+                        
+                        <div className="grid grid-cols-3 gap-6 relative z-10">
+                            <div className="space-y-1">
+                                <p className="text-[9px] font-bold text-grafana-text-secondary uppercase font-mono tracking-tighter">GECİKME MS</p>
                             </div>
-                            <div className="text-center">
-                                <span className="text-sm font-black text-purple-400 tabular-nums">{health?.checks.uptime.formatted?.split(' ')[0] || '--'}</span>
-                                <span className="text-[7px] font-bold text-slate-500 uppercase block">Uptime</span>
+                            <div className="space-y-1">
+                                <span className="text-2xl font-bold text-grafana-accent-blue tabular-nums font-mono">{health?.checks.uptime.formatted?.split(' ')[0] || '--'}</span>
+                                <p className="text-[9px] font-bold text-grafana-text-secondary uppercase font-mono tracking-tighter">ÇALIŞMA SÜRESİ</p>
                             </div>
-                            <div className="text-center">
-                                <span className="text-sm font-black text-white tabular-nums">{health?.checks.memory.heapUsed ?? '--'}</span>
-                                <span className="text-[7px] font-bold text-slate-500 uppercase block">MB Heap</span>
+                            <div className="space-y-1">
+                                <span className="text-2xl font-bold text-grafana-accent-orange tabular-nums font-mono">{health?.checks.memory.heapUsed ?? '--'}</span>
+                                <p className="text-[9px] font-bold text-grafana-text-secondary uppercase font-mono tracking-tighter">MB YIĞIN</p>
                             </div>
                         </div>
                     </div>
 
-                    {/* PostgreSQL */}
-                    <div className={clsx("card-base p-3 border-l-2", health?.checks.postgresql.status === 'HEALTHY' ? 'border-l-brand-green' : 'border-l-red-500')}>
-                        <div className="flex items-center justify-between mb-2">
-                            <div className="flex items-center gap-1.5">
-                                <Database size={11} className={health?.checks.postgresql.status === 'HEALTHY' ? 'text-brand-green' : 'text-red-500'} />
-                                <span className="text-[9px] font-bold text-white uppercase">PostgreSQL</span>
-                            </div>
-                            <span className={clsx("text-[7px] font-bold uppercase px-1.5 py-0.5 rounded", health?.checks.postgresql.status === 'HEALTHY' ? 'text-brand-green bg-brand-green/10' : 'text-red-500 bg-red-500/10')}>{health?.checks.postgresql.status || '...'}</span>
+                    {/* Veri Depolama Servisleri */}
+                    <div className="bg-grafana-panel/30 border border-grafana-border p-6 rounded-sm space-y-5">
+                        <div className="flex items-center gap-2 mb-2">
+                            <Database size={14} className="text-grafana-accent-blue" />
+                            <h3 className="text-tech-label text-grafana-text-primary">VERİ DEPOLAMA KATMANI</h3>
                         </div>
-                        <div className="space-y-1.5">
-                            <S label="Latency" val={`${health?.checks.postgresql.latency ?? '--'}ms`} color={(health?.checks.postgresql.latency ?? 0) < 50 ? 'text-brand-green' : 'text-yellow-500'} />
-                            <S label="Records" val={health?.checks.postgresql.totalRecords?.toLocaleString() ?? '--'} />
-                            <S label="Last Record" val={health?.checks.postgresql.lastRecordAge != null ? `${health.checks.postgresql.lastRecordAge}s ago` : 'N/A'} color={health?.checks.postgresql.recording ? 'text-brand-green' : 'text-orange-400'} />
-                            <S label="Stream" val={health?.checks.postgresql.recording ? '● LIVE' : '○ Idle'} color={health?.checks.postgresql.recording ? 'text-brand-green' : 'text-slate-600'} />
-                        </div>
-                    </div>
-
-                    {/* Redis */}
-                    <div className={clsx("card-base p-3 border-l-2", health?.checks.redis.status === 'HEALTHY' ? 'border-l-blue-500' : 'border-l-yellow-500')}>
-                        <div className="flex items-center justify-between mb-2">
-                            <div className="flex items-center gap-1.5">
-                                <Zap size={11} className={health?.checks.redis.status === 'HEALTHY' ? 'text-blue-400' : 'text-yellow-500'} />
-                                <span className="text-[9px] font-bold text-white uppercase">Redis</span>
-                            </div>
-                            <span className={clsx("text-[7px] font-bold uppercase px-1.5 py-0.5 rounded", health?.checks.redis.status === 'HEALTHY' ? 'text-blue-400 bg-blue-400/10' : 'text-yellow-500 bg-yellow-500/10')}>{health?.checks.redis.status || '...'}</span>
-                        </div>
-                        <div className="space-y-1.5">
-                            <S label="Mode" val={health?.checks.redis.mode || '--'} color={health?.checks.redis.mode === 'REDIS' ? 'text-blue-400' : 'text-yellow-500'} />
-                            <S label="Queue" val={`${health?.checks.redis.queueLength ?? '--'} pending`} color={(health?.checks.redis.queueLength ?? 0) > 100 ? 'text-red-500' : 'text-brand-green'} />
-                            <S label="Link" val={health?.checks.redis.status === 'HEALTHY' ? 'Connected' : 'Fallback'} color={health?.checks.redis.status === 'HEALTHY' ? 'text-blue-400' : 'text-yellow-500'} />
+                        
+                        <div className="space-y-3">
+                            {[
+                                { name: 'PostgreSQL', status: health?.checks.postgresql.status, icon: Database, color: 'green' },
+                                { name: 'Redis Cache', status: health?.checks.redis.status, icon: Zap, color: 'blue' }
+                            ].map(srv => (
+                                <div key={srv.name} className="flex justify-between items-center bg-grafana-bg/40 p-3 rounded-sm border border-grafana-border/50 group hover:border-grafana-text-secondary/20 transition-all">
+                                    <div className="flex items-center gap-3">
+                                        <srv.icon size={14} className="text-grafana-text-secondary group-hover:text-grafana-text-primary transition-colors" />
+                                        <span className="text-[11px] font-bold text-grafana-text-secondary uppercase font-mono">{srv.name}</span>
+                                    </div>
+                                    <span className={cn(
+                                        "text-[9px] font-bold px-2 py-0.5 rounded-sm uppercase font-mono border",
+                                        srv.status === 'HEALTHY' 
+                                            ? "text-grafana-accent-green bg-grafana-accent-green/5 border-grafana-accent-green/20" 
+                                            : "text-grafana-accent-red bg-grafana-accent-red/5 border-grafana-accent-red/20"
+                                    )}>
+                                        {srv.status || 'OFFLINE'}
+                                    </span>
+                                </div>
+                            ))}
                         </div>
                     </div>
 
-                    {/* Worker + Memory */}
-                    <div className="grid grid-cols-2 gap-3">
-                        <div className={clsx("card-base p-3 border-l-2", health?.checks.worker.status === 'ACTIVE' ? 'border-l-emerald-400' : 'border-l-slate-700')}>
-                            <div className="flex items-center gap-1.5 mb-2">
-                                <Server size={11} className={health?.checks.worker.status === 'ACTIVE' ? 'text-emerald-400' : 'text-slate-600'} />
-                                <span className="text-[9px] font-bold text-white uppercase">Worker</span>
-                            </div>
-                            <div className="space-y-1.5">
-                                <S label="Status" val={health?.checks.worker.status || '--'} color={health?.checks.worker.status === 'ACTIVE' ? 'text-emerald-400' : 'text-slate-500'} />
-                                <S label="Devices" val={`${health?.checks.postgresql.activeDevices ?? '-'}/${health?.checks.postgresql.totalDevices ?? '-'}`} color="text-brand-green" />
-                            </div>
+                    {/* Sistem Kaynak Kullanımı */}
+                    <div className="bg-grafana-panel/30 border border-grafana-border p-6 rounded-sm space-y-5">
+                        <div className="flex items-center gap-2 mb-2">
+                            <Settings size={14} className="text-grafana-accent-orange" />
+                            <h3 className="text-tech-label text-grafana-text-primary">KAYNAK TÜKETİMİ</h3>
                         </div>
-                        <div className="card-base p-3 border-l-2 border-l-purple-500">
-                            <div className="flex items-center gap-1.5 mb-2">
-                                <HardDrive size={11} className="text-purple-400" />
-                                <span className="text-[9px] font-bold text-white uppercase">Memory</span>
+                        
+                        <div className="space-y-5">
+                            <div className="space-y-2">
+                                <div className="flex justify-between text-[10px] font-bold font-mono">
+                                    <span className="text-grafana-text-secondary">RAM KULLANIMI</span>
+                                    <span className="text-white">{health?.checks.memory.heapUsed} / {health?.checks.memory.heapTotal} MB</span>
+                                </div>
+                                <div className="h-1.5 bg-grafana-bg rounded-full overflow-hidden border border-white/5">
+                                    <motion.div 
+                                        initial={{ width: 0 }}
+                                        animate={{ width: `${health ? Math.min((health.checks.memory.heapUsed / health.checks.memory.heapTotal) * 100, 100) : 0}%` }}
+                                        className="h-full bg-grafana-accent-orange transition-all duration-1000 shadow-[0_0_10px_rgba(255,152,48,0.3)]"
+                                    />
+                                </div>
                             </div>
-                            <div className="space-y-1.5">
-                                <S label="Heap" val={`${health?.checks.memory.heapUsed ?? '--'}MB`} />
-                                <S label="RSS" val={`${health?.checks.memory.rss ?? '--'}MB`} />
-                            </div>
-                            <div className="w-full h-1 bg-slate-900 rounded-full mt-2 overflow-hidden">
-                                <div className="h-full bg-purple-500 rounded-full transition-all duration-500" style={{ width: `${health ? Math.min((health.checks.memory.heapUsed / health.checks.memory.heapTotal) * 100, 100) : 0}%` }}></div>
+                            
+                            <div className="flex justify-between items-center pt-2 border-t border-grafana-border/50">
+                                <div className="flex items-center gap-2">
+                                    <Clock size={12} className="text-grafana-text-secondary" />
+                                    <span className="text-[11px] font-bold text-grafana-text-secondary uppercase font-mono">İŞLEYİCİ MODU</span>
+                                </div>
+                                <span className="text-grafana-accent-green text-[11px] font-bold font-mono">{health?.checks.worker.status || 'AKTİF'}</span>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            {/* Data Governance - Compact */}
-            <div className="card-base px-4 py-3 mx-1">
-                <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-2">
-                        <Shield size={12} className="text-orange-500" />
-                        <span className="text-[9px] font-black text-white uppercase tracking-wider">Data Governance</span>
-                        {recSettings && (
-                            <span className="text-[8px] font-medium text-slate-500 ml-2">
-                                {recSettings.db?.tableSize || '--'} • {recSettings.db?.totalRecords?.toLocaleString() || '--'} records
-                            </span>
-                        )}
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <button onClick={runRetention} className="flex items-center gap-1 px-2 py-1 bg-red-500/10 border border-red-500/20 text-red-400 rounded text-[8px] font-bold hover:bg-red-500 hover:text-white transition-all uppercase">
-                            <Trash2 size={9} /> Cleanup
-                        </button>
-                    </div>
-                </div>
-                <div className="grid grid-cols-2 md:grid-cols-5 gap-3 items-end">
-                    {/* Interval */}
-                    <div>
-                        <label className="text-[8px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1 mb-1"><Timer size={9} className="text-blue-400" /> Interval</label>
-                        <select value={recSettings?.sampleIntervalSec || 10} onChange={e => updateRecSetting('sampleIntervalSec', Number(e.target.value))}
-                            className="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-[10px] font-bold text-white outline-none focus:border-blue-500/50 transition-all">
-                            <option value={5}>5s</option><option value={10}>10s</option><option value={15}>15s</option><option value={30}>30s</option><option value={60}>60s</option>
-                        </select>
-                    </div>
-                    {/* Retention */}
-                    <div>
-                        <label className="text-[8px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1 mb-1"><Clock size={9} className="text-orange-400" /> Retention</label>
-                        <select value={recSettings?.retentionHours || 72} onChange={e => updateRecSetting('retentionHours', Number(e.target.value))}
-                            className="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-[10px] font-bold text-white outline-none focus:border-orange-500/50 transition-all">
-                            <option value={12}>12h</option><option value={24}>24h</option><option value={48}>48h</option><option value={72}>3 days</option><option value={168}>7 days</option><option value={720}>30 days</option>
-                        </select>
-                    </div>
-                    {/* Max Records */}
-                    <div>
-                        <label className="text-[8px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1 mb-1"><Database size={9} className="text-purple-400" /> Max Rec</label>
-                        <select value={recSettings?.maxRecordsTotal || 500000} onChange={e => updateRecSetting('maxRecordsTotal', Number(e.target.value))}
-                            className="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-[10px] font-bold text-white outline-none focus:border-purple-500/50 transition-all">
-                            <option value={100000}>100K</option><option value={250000}>250K</option><option value={500000}>500K</option><option value={1000000}>1M</option><option value={5000000}>5M</option>
-                        </select>
-                    </div>
-                    {/* Recording Toggle */}
-                    <div className="col-span-2 md:col-span-2">
-                        <div className="flex items-center justify-between p-2 bg-white/[0.02] border border-white/[0.03] rounded-lg">
-                            <div className="flex items-center gap-2">
-                                <Settings size={11} className={recSettings?.isRecording ? 'text-brand-green animate-spin' : 'text-slate-600'} style={{ animationDuration: '3s' }} />
-                                <div>
-                                    <span className="text-[9px] font-bold text-white uppercase block leading-none">Global Recording</span>
-                                    <span className="text-[7px] text-slate-500">{recSettings?.isRecording ? 'Active' : 'Paused'}</span>
-                                </div>
+            {/* Alt Panel: Veri Yönetişimi */}
+            <div className="bg-grafana-panel/40 border border-grafana-border p-8 rounded-sm shadow-xl dot-bg overflow-hidden relative group">
+                <div className="absolute top-0 left-0 w-1 h-full bg-grafana-accent-orange/50 group-hover:bg-grafana-accent-orange transition-all"></div>
+                
+                <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-8 mb-10">
+                    <div className="flex items-center gap-4">
+                        <div className="p-3 bg-grafana-accent-orange/10 rounded-sm border border-grafana-accent-orange/20">
+                            <Shield size={22} className="text-grafana-accent-orange" />
+                        </div>
+                        <div className="space-y-1">
+                            <h3 className="text-lg font-bold text-grafana-text-primary uppercase tracking-wider font-mono">VERİ YÖNETİŞİM PANELİ</h3>
+                            <div className="flex items-center gap-4 text-tech-label">
+                                <span className="flex items-center gap-1.5"><Database size={10} /> {recSettings?.db?.tableSize || '--'}</span>
+                                <span className="opacity-20">|</span>
+                                <span className="flex items-center gap-1.5"><Layers size={10} /> {recSettings?.db?.totalRecords?.toLocaleString() || '--'} Kayıt</span>
                             </div>
-                            <button onClick={() => updateRecSetting('isRecording', !recSettings?.isRecording)}
-                                className={clsx("relative w-10 h-5 rounded-full transition-all duration-300 flex items-center p-0.5 border",
-                                    recSettings?.isRecording ? "bg-brand-green/20 border-brand-green/40" : "bg-slate-900 border-slate-800")}>
-                                <div className={clsx("w-4 h-4 rounded-full transition-all duration-500 shadow",
-                                    recSettings?.isRecording ? "translate-x-5 bg-brand-green" : "translate-x-0 bg-slate-700")}></div>
+                        </div>
+                    </div>
+                    <button 
+                        onClick={runRetention} 
+                        className="group flex items-center gap-2 px-6 py-3 bg-grafana-accent-red/5 border border-grafana-accent-red/20 text-grafana-accent-red rounded-sm text-[12px] font-bold hover:bg-grafana-accent-red hover:text-white transition-all uppercase tracking-widest font-mono"
+                    >
+                        <Trash2 size={16} className="group-hover:rotate-12 transition-transform" /> 
+                        ARŞİVİ TEMİZLE
+                    </button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+                    {[
+                        { label: 'ÖRNEKLEME SIKLIĞI', key: 'sampleIntervalSec', options: [5, 10, 30, 60], suffix: 'SANİYE' },
+                        { label: 'VERİ TUTMA SÜRESİ', key: 'retentionHours', options: [24, 72, 168, 720], suffix: 'SAAT' },
+                        { label: 'MAKSİMUM KAPASİTE', key: 'maxRecordsTotal', options: [100000, 500000, 1000000], suffix: 'KAYIT' },
+                    ].map(field => (
+                        <div key={field.key} className="space-y-3">
+                            <label className="text-tech-label block">{field.label}</label>
+                            <select 
+                                value={recSettings?.[field.key as keyof RecordingSettings] as number || field.options[0]} 
+                                onChange={e => updateRecSetting(field.key as keyof RecordingSettings, Number(e.target.value))}
+                                className="w-full bg-grafana-bg border border-grafana-border rounded-sm px-4 py-3 text-[12px] font-bold text-white outline-none focus:border-grafana-accent-blue/50 focus:ring-1 focus:ring-grafana-accent-blue/20 transition-all font-mono appearance-none cursor-pointer hover:border-grafana-text-secondary/50"
+                            >
+                                {field.options.map(opt => (
+                                    <option key={opt} value={opt}>{opt.toLocaleString()} {field.suffix}</option>
+                                ))}
+                            </select>
+                        </div>
+                    ))}
+
+                    <div className="flex flex-col justify-end">
+                        <div className="flex items-center justify-between p-4 bg-grafana-bg/60 border border-grafana-border rounded-sm hover:border-grafana-accent-green/30 transition-all">
+                            <div className="flex items-center gap-3">
+                                <Activity size={16} className={cn("transition-colors", recSettings?.isRecording ? "text-grafana-accent-green" : "text-grafana-text-secondary")} />
+                                <span className="text-[11px] font-bold text-white uppercase font-mono">GLOBAL KAYIT</span>
+                            </div>
+                            <button 
+                                onClick={() => updateRecSetting('isRecording', !recSettings?.isRecording)}
+                                className={cn(
+                                    "relative w-12 h-6 rounded-full transition-all duration-300 flex items-center p-1 border shadow-inner",
+                                    recSettings?.isRecording ? "bg-grafana-accent-green/20 border-grafana-accent-green/40" : "bg-grafana-panel border-grafana-border"
+                                )}
+                            >
+                                <motion.div 
+                                    animate={{ x: recSettings?.isRecording ? 24 : 0 }}
+                                    className={cn(
+                                        "w-4 h-4 rounded-full shadow-lg",
+                                        recSettings?.isRecording ? "bg-grafana-accent-green" : "bg-grafana-text-secondary"
+                                    )}
+                                />
                             </button>
                         </div>
                     </div>

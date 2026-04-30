@@ -2,132 +2,123 @@
 
 import ReactECharts from 'echarts-for-react';
 import * as echarts from 'echarts';
+import { useTheme } from '@/context/ThemeContext';
+import { useMemo } from 'react';
 
 interface ChartData {
     time: string | number | Date;
     value: number;
 }
 
-export default function HistoricalChart({ data, title, unit = '', color = '#3b82f6' }: { data: ChartData[], title: string, unit?: string, color?: string }) {
-    const isDark = typeof document !== 'undefined' && document.documentElement.classList.contains('dark');
+export default function HistoricalChart({ data, title, unit = '', color = '#5794f2' }: { data: ChartData[], title: string, unit?: string, color?: string }) {
+    const { theme } = useTheme();
+    const isLight = theme === 'light-pure';
+
+    const colors = useMemo(() => ({
+        bg: isLight ? '#ffffff' : '#141619',
+        border: isLight ? '#cbd5e1' : '#262626',
+        text: isLight ? '#1e293b' : '#d8d9da',
+        textSecondary: isLight ? '#64748b' : '#7b7b7b',
+        grid: isLight ? '#e2e8f0' : '#2c2c2c',
+        tooltipBg: isLight ? '#ffffff' : '#141619',
+        cross: isLight ? '#cbd5e1' : '#2c2c2c'
+    }), [isLight]);
 
     const option = {
         backgroundColor: 'transparent',
         tooltip: {
             trigger: 'axis',
-            backgroundColor: 'rgba(15, 23, 42, 0.95)',
-            borderColor: 'rgba(16, 185, 129, 0.2)',
+            backgroundColor: colors.tooltipBg,
+            borderColor: colors.border,
             borderWidth: 1,
-            borderRadius: 8,
-            padding: [12, 16],
-            shadowBlur: 20,
-            shadowColor: 'rgba(0, 0, 0, 0.8)',
-            textStyle: { color: '#f8fafc', fontSize: 12, fontFamily: 'Inter, sans-serif' },
+            borderRadius: 2,
+            padding: [10, 14],
+            textStyle: { color: colors.text, fontSize: 11, fontFamily: 'Roboto Mono, monospace' },
             axisPointer: {
                 type: 'cross',
-                crossStyle: { color: 'rgba(16, 185, 129, 0.5)', type: 'dashed', width: 1 },
-                label: { backgroundColor: '#0f172a', color: '#10b981', fontWeight: 'bold', borderColor: 'rgba(16, 185, 129, 0.5)', borderWidth: 1 }
+                crossStyle: { color: colors.cross, type: 'dashed', width: 1 },
+                label: { 
+                    backgroundColor: isLight ? '#f0f4f8' : '#0b0c0e', 
+                    color: color, 
+                    fontWeight: 'bold', 
+                    borderColor: colors.border, 
+                    borderWidth: 1,
+                    fontFamily: 'Roboto Mono'
+                }
             },
             formatter: (params: any) => {
                 const p = params[0];
                 const date = new Date(p.value[0]);
-                const timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-                const dateStr = date.toLocaleDateString([], { day: '2-digit', month: 'short', year: 'numeric' });
-
+                const timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+                
                 return `
-                    <div style="min-width: 140px; display: flex; flex-direction: column; gap: 8px;">
-                        <span style="color: #64748b; font-size: 10px; font-weight: 700; text-transform: uppercase;">${dateStr} ${timeStr}</span>
-                        <div style="display: flex; align-items: baseline; gap: 6px;">
-                            <span style="font-size: 20px; font-weight: 900; color: ${p.color};">${Number(p.value[1]).toFixed(2)}</span>
-                            <span style="color: #64748b; font-size: 11px; font-weight: 700;">${unit}</span>
+                    <div style="min-width: 140px; display: flex; flex-direction: column; gap: 4px;">
+                        <span style="color: ${colors.textSecondary}; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em;">${timeStr}</span>
+                        <div style="display: flex; align-items: baseline; gap: 8px;">
+                            <span style="font-size: 18px; font-weight: 700; color: ${colors.text}; font-family: Roboto Mono;">${Number(p.value[1]).toFixed(3)}</span>
+                            <span style="color: ${color}; font-size: 10px; font-weight: 700;">${unit}</span>
                         </div>
                     </div>
                 `;
             }
         },
-        dataZoom: [
-            {
-                type: 'inside',
-                start: 0,
-                end: 100
-            },
-            {
-                type: 'slider',
-                bottom: 0,
-                height: 20,
-                borderColor: 'rgba(16, 185, 129, 0.1)',
-                backgroundColor: 'rgba(15, 23, 42, 0.5)',
-                fillerColor: 'rgba(16, 185, 129, 0.1)',
-                handleStyle: {
-                    color: '#10b981',
-                    borderWidth: 0
-                },
-                textStyle: { color: 'transparent' },
-                moveHandleSize: 0,
-                showDetail: false
-            }
-        ],
         grid: {
             left: '10px',
-            right: '50px',
-            bottom: '40px',
-            top: '20px',
+            right: '40px',
+            bottom: '10px',
+            top: '30px',
             containLabel: true
         },
         xAxis: {
             type: 'time',
             boundaryGap: false,
-            axisLine: { show: false },
+            axisLine: { lineStyle: { color: colors.border } },
             axisTick: { show: false },
             splitLine: {
                 show: true,
-                lineStyle: { color: 'rgba(255,255,255,0.03)', type: 'dashed' }
+                lineStyle: { color: colors.grid, type: 'solid', opacity: 0.5 }
             },
             axisLabel: {
-                color: '#64748b',
-                fontSize: 10,
+                color: colors.textSecondary,
+                fontSize: 9,
                 margin: 12,
+                fontFamily: 'Roboto Mono',
                 formatter: (value: number) => {
                     const date = new Date(value);
-                    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
                 }
             }
         },
         yAxis: {
             type: 'value',
-            position: 'right', // Crypto style
-            scale: true, // Auto scaling instead of starting from 0
+            position: 'right',
+            scale: true,
             splitLine: {
-                lineStyle: {
-                    color: 'rgba(255,255,255,0.04)',
-                    type: 'dashed',
-                    width: 1
-                }
+                show: true,
+                lineStyle: { color: colors.grid, type: 'solid', opacity: 0.5 }
             },
             axisLine: { show: false },
             axisTick: { show: false },
-            axisLabel: { color: '#64748b', fontSize: 10, margin: 12 }
+            axisLabel: { color: colors.textSecondary, fontSize: 9, margin: 12, fontFamily: 'Roboto Mono' }
         },
         series: [
             {
                 name: title,
                 type: 'line',
-                smooth: false, // Crypto is typically rigid/sharp
+                smooth: false,
                 showSymbol: false,
                 sampling: 'lttb',
                 data: data.map(d => [d.time, d.value]),
                 lineStyle: {
                     width: 1.5,
-                    color: color,
-                    shadowColor: 'rgba(0, 0, 0, 0.5)',
-                    shadowBlur: 5,
-                    shadowOffsetY: 2
+                    color: color
                 },
                 areaStyle: {
                     color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-                        { offset: 0, color: 'rgba(16, 185, 129, 0.15)' },
-                        { offset: 1, color: 'rgba(16, 185, 129, 0.0)' }
-                    ])
+                        { offset: 0, color: color },
+                        { offset: 1, color: 'transparent' }
+                    ]),
+                    opacity: 0.1
                 },
                 itemStyle: { color: color }
             }
@@ -135,7 +126,7 @@ export default function HistoricalChart({ data, title, unit = '', color = '#3b82
     };
 
     return (
-        <div className="w-full h-full min-h-[450px]">
+        <div className="w-full h-full min-h-[400px] bg-grafana-panel/50 p-2 border border-grafana-border rounded-sm transition-colors duration-300">
             <ReactECharts
                 option={option}
                 style={{ height: '100%', width: '100%' }}

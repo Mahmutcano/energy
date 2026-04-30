@@ -11,7 +11,7 @@ import {
     Play,
     Trash2,
     Save,
-    Terminal,
+    Terminal as TerminalIcon,
     Wifi,
     ArrowRight,
     Search,
@@ -20,31 +20,35 @@ import {
     Lock,
     Zap,
     Box,
-    Network
+    Network,
+    Info,
+    AlertCircle
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { apiRequest } from '@/lib/api';
 import { motion, AnimatePresence } from 'framer-motion';
+import PageHeader from '@/components/PageHeader';
+import { cn } from '@/lib/utils';
 
 export default function IEC104TestPage() {
     const { user, loading, isAuthenticated } = useAuth();
     const router = useRouter();
 
-    // IEC 104 Parameters
+    // IEC 104 Parametreleri
     const [ip, setIp] = useState('178.242.103.255');
     const [port, setPort] = useState('2404');
     const [asduAddr, setAsduAddr] = useState('15644');
 
-    // Communication Protocols
+    // İletişim Protokolleri
     const [protocols, setProtocols] = useState<any[]>([]);
     const [selectedProtocolId, setSelectedProtocolId] = useState<string>('');
 
-    // UI State
+    // UI Durumu
     const [isTesting, setIsTesting] = useState(false);
     const [logs, setLogs] = useState<{ id: string, time: string, message: string, type: 'info' | 'success' | 'error' | 'data' }[]>([]);
     const [results, setResults] = useState<any[] | null>(null);
 
-    // Fetch Protocols
+    // Protokolleri Çek
     useEffect(() => {
         const fetchProtocols = async () => {
             try {
@@ -54,13 +58,13 @@ export default function IEC104TestPage() {
                     setProtocols(data.filter((p: any) => p.protocolType === 'IEC104'));
                 }
             } catch (err) {
-                console.error("Failed to fetch protocols", err);
+                console.error("Protokoller çekilemedi", err);
             }
         };
         fetchProtocols();
     }, []);
 
-    // Load saved settings
+    // Kayıtlı ayarları yükle
     useEffect(() => {
         const saved = localStorage.getItem('iec104_test_config');
         if (saved) {
@@ -70,7 +74,7 @@ export default function IEC104TestPage() {
                 setPort(config.port || '2404');
                 setAsduAddr(config.asduAddr || '15644');
             } catch (e) {
-                console.error("Failed to parse saved config", e);
+                console.error("Kayıtlı yapılandırma ayrıştırılamadı", e);
             }
         }
     }, []);
@@ -78,7 +82,7 @@ export default function IEC104TestPage() {
     const saveSettings = () => {
         const config = { ip, port, asduAddr };
         localStorage.setItem('iec104_test_config', JSON.stringify(config));
-        addLog('CONFIGURATION_SYNC: SUCCESS', 'success');
+        addLog('YAPILANDIRMA_SENKRONU: BAŞARILI', 'success');
     };
 
     useEffect(() => {
@@ -94,7 +98,7 @@ export default function IEC104TestPage() {
     const addLog = (message: string, type: 'info' | 'success' | 'error' | 'data' = 'info') => {
         setLogs(prev => [{
             id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-            time: new Date().toLocaleTimeString(),
+            time: new Date().toLocaleTimeString('tr-TR'),
             message: message.toUpperCase(),
             type
         }, ...prev].slice(0, 100));
@@ -103,8 +107,8 @@ export default function IEC104TestPage() {
     const handleRunTest = async () => {
         setIsTesting(true);
         setResults(null);
-        addLog(`INIT_PROCEDURE: CONNECTING TO IEC104 NODE ${ip}:${port}`, 'info');
-        addLog(`ASDU_ADDRESS: ${asduAddr}`, 'info');
+        addLog(`BAŞLATMA_PROSEDÜRÜ: IEC104 DÜĞÜMÜNE BAĞLANILIYOR ${ip}:${port}`, 'info');
+        addLog(`ASDU_ADRESİ: ${asduAddr}`, 'info');
 
         try {
             const res = await apiRequest('/api/admin/iec104-test', {
@@ -119,17 +123,17 @@ export default function IEC104TestPage() {
             const data = await res.json();
 
             if (res.ok && data.success) {
-                addLog(`UPLINK_ESTABLISHED: DATA RECEIVED FROM NODE`, 'success');
-                addLog(`PAYLOAD_COUNT: ${data.data.length} PDUs`, 'data');
+                addLog(`UPLINK_KURULDU: DÜĞÜMDEN VERİ ALINDI`, 'success');
+                addLog(`VERİ_SAYISI: ${data.data.length} PDU`, 'data');
                 setResults(data.data);
             } else {
-                addLog(`IO_EXCEPTION: ${data.message || 'NODE_UNREACHABLE'}`, 'error');
+                addLog(`IO_İSTİSNASI: ${data.message || 'DÜĞÜME_ERİŞİLEMEDİ'}`, 'error');
                 if (res.status === 408) {
-                    addLog(`TIMEOUT: NO DATA WITHIN 15s`, 'error');
+                    addLog(`ZAMAN_AŞIMI: 15SN İÇİNDE VERİ ALINAMADI`, 'error');
                 }
             }
         } catch (err: any) {
-            addLog(`SYSTEM_CRITICAL_ERR: ${err.message}`, 'error');
+            addLog(`SİSTEM_KRİTİK_HATA: ${err.message}`, 'error');
         } finally {
             setIsTesting(false);
         }
@@ -137,252 +141,240 @@ export default function IEC104TestPage() {
 
     if (loading || !user || user.role !== 'SUPER_ADMIN') {
         return (
-            <div className="min-h-screen bg-black flex items-center justify-center font-mono">
-                <div className="text-blue-500 animate-pulse text-xs font-black tracking-[0.5em]">SYSTEM_BOOT_INIT...</div>
+            <div className="min-h-screen bg-grafana-bg flex items-center justify-center font-mono">
+                <div className="text-grafana-accent-blue animate-pulse text-xs font-black tracking-[0.5em]">SİSTEM BAŞLATILIYOR...</div>
             </div>
         );
     }
 
     return (
-        <div className="min-h-screen bg-slate-950 font-sans selection:bg-brand-green/20 relative overflow-hidden pb-20">
-            {/* Ambient Technical Background */}
-            <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_20%_20%,rgba(16,185,129,0.05),transparent_40%)] pointer-events-none"></div>
-            <div className="absolute inset-0 dot-bg opacity-30 pointer-events-none"></div>
-
-            <div className="max-w-7xl mx-auto space-y-8 pt-12 relative z-10">
-                {/* 1. Protocol Nexus Header */}
-                <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-8 relative">
-                    <div className="space-y-2">
-                        <div className="flex items-center gap-4">
-                            <div className="w-1.5 h-8 bg-brand-green rounded-full shadow-[0_0_20px_rgba(16,185,129,0.4)]"></div>
-                            <h1 className="text-4xl font-black text-white tracking-tighter italic">IEC 104 Interface</h1>
-                        </div>
+        <div className="space-y-8 pb-20 font-sans">
+            <PageHeader
+                title="IEC 104"
+                highlightedTitle="ARAYÜZÜ"
+                subtitle="IEC 60870-5-104 protokol katmanı ve telemetri analiz kabuğu"
+                icon={Network}
+            >
+                <div className="flex items-center gap-4">
+                    <div className="px-4 py-2 bg-grafana-panel/50 border border-grafana-border rounded-sm hidden md:block group">
                         <div className="flex items-center gap-3">
-                            <span className="text-tech-label text-brand-green/80 tracking-[0.4em]">IEC 60870-5-104 Protocol Shell</span>
-                            <div className="h-px w-12 bg-slate-800"></div>
-                            <span className="text-[10px] font-mono text-slate-600">ID_REF: SYS_ADMIN_BETA</span>
-                        </div>
-                    </div>
-
-                    <div className="flex items-center gap-6">
-                        <div className="px-4 py-2 bg-slate-900 border border-slate-800 rounded-xl hidden md:block group">
-                            <div className="flex items-center gap-3">
-                                <div className="w-2 h-2 rounded-full bg-brand-green shadow-[0_0_8px_rgba(16,185,129,0.5)] animate-pulse"></div>
-                                <span className="text-[10px] font-black text-slate-500 tracking-widest group-hover:text-brand-green transition-colors">Uplink Stable</span>
-                            </div>
-                        </div>
-                        <div className="p-4 bg-brand-green/10 border border-brand-green/20 rounded-xl">
-                            <Network size={20} className="text-brand-green" />
+                            <div className="w-2 h-2 rounded-full bg-grafana-accent-green shadow-[0_0_8px_rgba(115,191,105,0.4)] animate-pulse"></div>
+                            <span className="text-[10px] font-bold text-grafana-text-secondary tracking-widest uppercase font-mono">Sistem Hazır</span>
                         </div>
                     </div>
                 </div>
+            </PageHeader>
 
-                <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 items-start">
-                    {/* 2. Control Matrix (Left) */}
-                    <div className="xl:col-span-4 space-y-6">
-                        {/* Module 01: Uplink Parameters */}
-                        <section className="card-base p-8 bg-slate-900/40 border-slate-800/60 overflow-hidden relative group">
-                            <div className="absolute top-0 right-0 p-4 opacity-[0.03] group-hover:opacity-[0.08] transition-opacity">
-                                <Wifi size={48} />
+            <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
+                {/* Sol Panel: Yapılandırma */}
+                <div className="xl:col-span-4 space-y-6">
+                    <section className="card-base p-6 border-grafana-border group">
+                        <div className="flex items-center gap-3 mb-6 pb-4 border-b border-grafana-border">
+                            <Settings size={16} className="text-grafana-accent-blue" />
+                            <h2 className="text-[11px] font-bold text-grafana-text-primary tracking-[0.2em] uppercase font-mono">UPLINK YAPILANDIRMASI</h2>
+                        </div>
+
+                        <div className="space-y-6">
+                            <div className="space-y-2">
+                                <label className="text-tech-label block ml-1 uppercase">ÖN TANIMLI PROTOKOL</label>
+                                <select
+                                    value={selectedProtocolId}
+                                    onChange={(e) => {
+                                        const id = e.target.value;
+                                        setSelectedProtocolId(id);
+                                        const proto = protocols.find(p => p.id === id);
+                                        if (proto && proto.iec104Config) {
+                                            setIp(proto.iec104Config.ipAddress);
+                                            setPort(proto.iec104Config.port.toString());
+                                            setAsduAddr(proto.iec104Config.asduAddr.toString());
+                                            addLog(`YAPILANDIRMA_YÜKLENDİ: ${proto.configName}`, 'info');
+                                        }
+                                    }}
+                                    className="w-full h-11 bg-grafana-bg border border-grafana-border rounded-sm px-4 text-xs font-bold text-white outline-none focus:border-grafana-accent-blue transition-all cursor-pointer font-mono"
+                                >
+                                    <option value="">MANUEL GİRİŞ</option>
+                                    {protocols.map(p => (
+                                        <option key={p.id} value={p.id}>
+                                            {p.configName.toUpperCase()}
+                                        </option>
+                                    ))}
+                                </select>
                             </div>
-                            <h2 className="text-tech-label mb-8 text-brand-green tracking-[0.3em]">01_Uplink_Matrix</h2>
 
-                            <div className="space-y-6">
-                                <div className="space-y-3 group">
-                                    <label className="text-[9px] font-black text-slate-600 tracking-widest ml-1 group-focus-within:text-brand-green transition-colors">Select Predefined Protocol</label>
-                                    <select
-                                        value={selectedProtocolId}
-                                        onChange={(e) => {
-                                            const id = e.target.value;
-                                            setSelectedProtocolId(id);
-                                            const proto = protocols.find(p => p.id === id);
-                                            if (proto && proto.iec104Config) {
-                                                setIp(proto.iec104Config.ipAddress);
-                                                setPort(proto.iec104Config.port.toString());
-                                                setAsduAddr(proto.iec104Config.asduAddr.toString());
-                                                addLog(`LOADED_CONFIG: ${proto.configName}`, 'info');
-                                            }
-                                        }}
-                                        className="w-full h-12 bg-slate-950/50 border border-slate-800 rounded-xl px-4 text-xs font-black text-white outline-none focus:border-brand-green/30 transition-all cursor-pointer"
-                                    >
-                                        <option value="">Manual Entry or Select Protocol</option>
-                                        {protocols.map(p => (
-                                            <option key={p.id} value={p.id}>
-                                                {p.configName} ({p.plant?.plantName})
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
+                            <div className="space-y-2">
+                                <label className="text-tech-label block ml-1 uppercase">HEDEF IP ADRESİ</label>
+                                <input
+                                    type="text"
+                                    value={ip}
+                                    onChange={(e) => setIp(e.target.value)}
+                                    className="w-full h-11 bg-grafana-bg border border-grafana-border rounded-sm px-4 text-xs font-bold text-white outline-none focus:border-grafana-accent-blue transition-all font-mono"
+                                    placeholder="192.168.1.100"
+                                />
+                            </div>
 
-                                <div className="h-px bg-slate-800/50 my-2"></div>
-                                <div className="space-y-3 group">
-                                    <label className="text-[9px] font-black text-slate-600 tracking-widest ml-1 group-focus-within:text-brand-green transition-colors">Target Endpoint IP</label>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <label className="text-tech-label block ml-1 uppercase">PORT</label>
                                     <input
                                         type="text"
-                                        value={ip}
-                                        onChange={(e) => setIp(e.target.value)}
-                                        className="w-full h-12 bg-slate-950/50 border border-slate-800 rounded-xl px-4 text-xs font-black text-white outline-none focus:border-brand-green/30 focus:shadow-[0_0_15px_rgba(16,185,129,0.05)] transition-all placeholder:text-slate-900 tracking-wider tabular-nums italic"
+                                        value={port}
+                                        onChange={(e) => setPort(e.target.value)}
+                                        className="w-full h-11 bg-grafana-bg border border-grafana-border rounded-sm px-4 text-xs font-bold text-white outline-none focus:border-grafana-accent-blue transition-all font-mono"
                                     />
                                 </div>
-
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="space-y-3 group">
-                                        <label className="text-[9px] font-black text-slate-600 tracking-widest ml-1 group-focus-within:text-brand-green transition-colors">Port</label>
-                                        <input
-                                            type="text"
-                                            value={port}
-                                            onChange={(e) => setPort(e.target.value)}
-                                            className="w-full h-12 bg-slate-950/50 border border-slate-800 rounded-xl px-4 text-xs font-black text-white outline-none focus:border-brand-green/30 transition-all font-mono"
-                                        />
-                                    </div>
-                                    <div className="space-y-3 group">
-                                        <label className="text-[9px] font-black text-slate-600 tracking-widest ml-1 group-focus-within:text-brand-green transition-colors">ASDU Addr</label>
-                                        <input
-                                            type="text"
-                                            value={asduAddr}
-                                            onChange={(e) => setAsduAddr(e.target.value)}
-                                            className="w-full h-12 bg-slate-950/50 border border-slate-800 rounded-xl px-4 text-xs font-black text-white outline-none focus:border-brand-green/30 transition-all font-mono"
-                                        />
-                                    </div>
-                                </div>
-
-                                <div className="pt-4 flex gap-3">
-                                    <button
-                                        onClick={handleRunTest}
-                                        disabled={isTesting}
-                                        className={`flex-1 h-14 rounded-xl flex items-center justify-center gap-3 transition-all font-black text-[11px] tracking-widest ${isTesting
-                                            ? 'bg-slate-800 text-slate-600 cursor-not-allowed'
-                                            : 'bg-brand-green text-white shadow-2xl shadow-brand-green/20 hover:scale-[1.02] active:scale-[0.98]'
-                                            }`}
-                                    >
-                                        {isTesting ? <RefreshCw size={16} className="animate-spin" /> : <Play size={16} fill="white" />}
-                                        Start Listener
-                                    </button>
-                                    <button
-                                        onClick={saveSettings}
-                                        className="w-14 h-14 rounded-xl bg-slate-900 border border-slate-800 text-slate-600 flex items-center justify-center hover:text-white hover:border-slate-700 transition-all active:scale-95"
-                                    >
-                                        <Save size={18} />
-                                    </button>
+                                <div className="space-y-2">
+                                    <label className="text-tech-label block ml-1 uppercase">ASDU ADRESİ</label>
+                                    <input
+                                        type="text"
+                                        value={asduAddr}
+                                        onChange={(e) => setAsduAddr(e.target.value)}
+                                        className="w-full h-11 bg-grafana-bg border border-grafana-border rounded-sm px-4 text-xs font-bold text-white outline-none focus:border-grafana-accent-blue transition-all font-mono"
+                                    />
                                 </div>
                             </div>
-                        </section>
-                    </div>
 
-                    {/* 3. Identity Shell (Console Log - Right) */}
-                    <div className="xl:col-span-8 flex flex-col xl:h-[720px]">
-                        <section className="flex-1 card-base bg-slate-950/40 border-slate-800/60 overflow-hidden flex flex-col shadow-2xl backdrop-blur-3xl relative">
-                            {/* Terminal Header */}
-                            <div className="bg-slate-900/60 px-6 py-4 border-b border-slate-800/80 flex justify-between items-center relative z-20">
-                                <div className="flex items-center gap-4">
-                                    <div className="p-2 bg-slate-950 rounded-lg border border-slate-800">
-                                        <Terminal size={14} className="text-brand-green" />
-                                    </div>
-                                    <div className="space-y-0.5">
-                                        <span className="text-[10px] font-black text-white tracking-[0.3em] block leading-none">IEC 104 Traffic Monitor</span>
-                                        <span className="text-[8px] font-mono text-slate-700 ">Interactive Terminal _v1.0.4</span>
-                                    </div>
-                                </div>
+                            <div className="pt-4 flex gap-3">
                                 <button
-                                    onClick={() => { setLogs([]); setResults(null); }}
-                                    className="p-2.5 rounded-xl bg-slate-950 border border-slate-800 text-slate-700 hover:text-danger hover:border-danger/30 transition-all active:scale-90"
+                                    onClick={handleRunTest}
+                                    disabled={isTesting}
+                                    className={cn(
+                                        "flex-1 h-12 rounded-sm flex items-center justify-center gap-3 transition-all font-bold text-[11px] tracking-widest uppercase font-mono shadow-lg",
+                                        isTesting
+                                            ? 'bg-grafana-panel text-grafana-text-secondary cursor-not-allowed'
+                                            : 'bg-grafana-accent-blue text-white shadow-grafana-accent-blue/20 hover:bg-grafana-accent-blue/90 active:scale-[0.98]'
+                                    )}
                                 >
-                                    <Trash2 size={14} />
+                                    {isTesting ? <RefreshCw size={16} className="animate-spin" /> : <Play size={14} fill="white" />}
+                                    DINLEMEYI BAŞLAT
+                                </button>
+                                <button
+                                    onClick={saveSettings}
+                                    className="w-12 h-12 rounded-sm bg-grafana-panel border border-grafana-border text-grafana-text-secondary flex items-center justify-center hover:text-white hover:border-grafana-accent-blue transition-all"
+                                >
+                                    <Save size={18} />
                                 </button>
                             </div>
+                        </div>
+                    </section>
 
-                            {/* Log Stream Area */}
-                            <div className="flex-1 p-8 overflow-y-auto space-y-3 font-mono relative z-10 scrollbar-hide">
-                                <AnimatePresence initial={false}>
-                                    {logs.length === 0 ? (
-                                        <motion.div
-                                            initial={{ opacity: 0 }}
-                                            animate={{ opacity: 1 }}
-                                            className="h-full flex flex-col items-center justify-center space-y-6 opacity-20"
-                                        >
-                                            <div className="w-16 h-px bg-slate-700 animate-pulse"></div>
-                                            <p className="text-[9px] tracking-[0.8em] font-black italic text-slate-600">Ready to listen...</p>
-                                        </motion.div>
-                                    ) : (
-                                        logs.map((log) => (
-                                            <motion.div
-                                                key={log.id}
-                                                initial={{ opacity: 0, x: -10 }}
-                                                animate={{ opacity: 1, x: 0 }}
-                                                className={`text-[10px] flex gap-4 border-l-2 pl-5 py-2 ${log.type === 'error' ? 'text-danger border-danger bg-danger/5' :
-                                                    log.type === 'success' ? 'text-brand-green border-brand-green bg-brand-green/5' :
-                                                        log.type === 'data' ? 'text-blue-400 border-blue-400 bg-blue-400/5' : 'text-slate-500 border-slate-800 bg-slate-800/5'
-                                                    }`}
-                                            >
-                                                <span className="opacity-30 shrink-0 select-none tracking-tighter tabular-nums">[{log.time}]</span>
-                                                <div className="flex flex-col gap-1">
-                                                    <span className="font-bold tracking-widest leading-none italic">
-                                                        {log.message}
-                                                    </span>
-                                                </div>
-                                            </motion.div>
-                                        ))
-                                    )}
-                                </AnimatePresence>
+                    <div className="card-base p-6 border-grafana-border bg-grafana-accent-blue/[0.03]">
+                         <div className="flex items-start gap-4">
+                            <div className="p-2 bg-grafana-accent-blue/10 rounded-sm text-grafana-accent-blue">
+                                <Info size={16} />
                             </div>
-
-                            {/* Data Points Display */}
-                            {results && results.length > 0 && (
-                                <motion.div
-                                    initial={{ y: 20, opacity: 0 }}
-                                    animate={{ y: 0, opacity: 1 }}
-                                    className="border-t border-slate-800/80 bg-slate-900 shadow-[0_-20px_50px_rgba(0,0,0,0.5)] p-6 relative z-20"
-                                >
-                                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-                                        {results.map((point: any, idx: number) => (
-                                            <div key={idx} className="bg-slate-950 border border-slate-800 p-4 rounded-xl flex flex-col gap-2 hover:border-brand-green/30 transition-all group">
-                                                <div className="flex justify-between items-center">
-                                                    <span className="text-[8px] text-slate-600 font-bold uppercase tracking-widest">IOA: {point.ioa}</span>
-                                                    <span className="text-[8px] text-brand-green bg-brand-green/10 px-1.5 py-0.5 rounded border border-brand-green/20">TYPE {point.typeId}</span>
-                                                </div>
-
-                                                {point.description && (
-                                                    <div className="text-[9px] text-brand-green/80 font-bold uppercase tracking-tight truncate" title={point.description}>
-                                                        {point.description}
-                                                    </div>
-                                                )}
-
-                                                <div className="flex items-baseline gap-1.5 flex-wrap">
-                                                    <div className="text-xl font-black text-white italic truncate tabular-nums leading-none">
-                                                        {typeof point.value === 'number' ? point.value.toFixed(3) : String(point.value)}
-                                                    </div>
-                                                    {point.unit && <span className="text-[9px] font-bold text-slate-600 lowercase">{point.unit}</span>}
-                                                </div>
-
-                                                <div className="flex justify-between items-center mt-1 pt-2 border-t border-white/[0.03]">
-                                                    <span className="text-[7px] text-slate-700 uppercase font-mono">QDS: {point.qds || '0'}</span>
-                                                    <div className="w-1 h-1 rounded-full bg-slate-800 group-hover:bg-brand-green transition-colors"></div>
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </motion.div>
-                            )}
-                        </section>
+                            <div className="space-y-1">
+                                <p className="text-[10px] font-bold text-white uppercase tracking-widest font-mono">DİKKAT</p>
+                                <p className="text-[9px] text-grafana-text-secondary leading-relaxed font-mono uppercase">
+                                    IEC 104 TEST ARACI, HEDEF DÜĞÜMDEN GELEN TÜM ASDU PAKETLERİNİ GERÇEK ZAMANLI OLARAK ÇÖZÜMLEMEK İÇİN TASARLANMIŞTIR.
+                                </p>
+                            </div>
+                         </div>
                     </div>
                 </div>
 
-                {/* 4. Infrastructure Status Footer */}
-                <div className="flex flex-col md:flex-row items-center justify-between gap-6 px-4 pt-10 border-t border-slate-900">
-                    <div className="flex items-center gap-10">
-                        <div className="flex items-center gap-3">
-                            <Server size={14} className="text-brand-green/40" />
-                            <span className="text-[9px] font-black text-slate-700 tracking-[0.2em] ">IEC 104 Link Layer Active</span>
+                {/* Sağ Panel: Terminal ve Veri Akışı */}
+                <div className="xl:col-span-8 space-y-6">
+                    <section className="card-base flex flex-col h-[700px] border-grafana-border overflow-hidden">
+                        {/* Terminal Header */}
+                        <div className="bg-grafana-panel/50 px-6 py-3 border-b border-grafana-border flex justify-between items-center">
+                            <div className="flex items-center gap-3">
+                                <TerminalIcon size={14} className="text-grafana-accent-blue" />
+                                <span className="text-[10px] font-bold text-white tracking-[0.2em] uppercase font-mono">IEC 104 TRAFİK MONİTÖRÜ</span>
+                            </div>
+                            <button
+                                onClick={() => { setLogs([]); setResults(null); }}
+                                className="p-2 text-grafana-text-secondary hover:text-grafana-accent-red transition-all"
+                            >
+                                <Trash2 size={14} />
+                            </button>
                         </div>
-                        <div className="flex items-center gap-3">
-                            <Activity size={14} className="text-brand-green/40" />
-                            <span className="text-[9px] font-black text-slate-700 tracking-[0.2em] ">Polling Node: {ip}</span>
+
+                        {/* Terminal Logs */}
+                        <div className="flex-1 p-6 overflow-y-auto space-y-2 bg-grafana-bg/30 font-mono scrollbar-hide">
+                            <AnimatePresence initial={false}>
+                                {logs.length === 0 ? (
+                                    <div className="h-full flex flex-col items-center justify-center opacity-20 gap-4">
+                                        <div className="w-12 h-[1px] bg-grafana-border animate-pulse" />
+                                        <p className="text-[9px] tracking-[0.5em] font-bold text-grafana-text-secondary uppercase font-mono italic">Dinlemeye Hazır...</p>
+                                    </div>
+                                ) : (
+                                    logs.map((log) => (
+                                        <motion.div
+                                            key={log.id}
+                                            initial={{ opacity: 0, x: -5 }}
+                                            animate={{ opacity: 1, x: 0 }}
+                                            className={cn(
+                                                "text-[10px] flex gap-4 border-l-2 pl-4 py-1.5",
+                                                log.type === 'error' ? 'border-grafana-accent-red bg-grafana-accent-red/5 text-grafana-accent-red' :
+                                                log.type === 'success' ? 'border-grafana-accent-green bg-grafana-accent-green/5 text-grafana-accent-green' :
+                                                log.type === 'data' ? 'border-grafana-accent-blue bg-grafana-accent-blue/5 text-grafana-accent-blue' : 
+                                                'border-grafana-border bg-grafana-panel/30 text-grafana-text-secondary'
+                                            )}
+                                        >
+                                            <span className="opacity-40 shrink-0 font-mono">[{log.time}]</span>
+                                            <span className="font-bold tracking-wider">{log.message}</span>
+                                        </motion.div>
+                                    ))
+                                )}
+                            </AnimatePresence>
                         </div>
+
+                        {/* Results Matrix */}
+                        {results && results.length > 0 && (
+                            <motion.div
+                                initial={{ y: 20, opacity: 0 }}
+                                animate={{ y: 0, opacity: 1 }}
+                                className="border-t border-grafana-border bg-grafana-panel/80 p-6"
+                            >
+                                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                                    {results.map((point: any, idx: number) => (
+                                        <div key={idx} className="bg-grafana-bg border border-grafana-border p-4 rounded-sm flex flex-col gap-2 hover:border-grafana-accent-blue/50 transition-all group">
+                                            <div className="flex justify-between items-center">
+                                                <span className="text-[8px] text-grafana-text-secondary font-bold uppercase tracking-widest font-mono">IOA: {point.ioa}</span>
+                                                <span className="text-[7px] text-grafana-accent-blue bg-grafana-accent-blue/10 px-1.5 py-0.5 rounded-sm border border-grafana-accent-blue/20 font-mono">TİP {point.typeId}</span>
+                                            </div>
+
+                                            {point.description && (
+                                                <div className="text-[9px] text-grafana-accent-blue font-bold uppercase tracking-tight truncate font-mono" title={point.description}>
+                                                    {point.description}
+                                                </div>
+                                            )}
+
+                                            <div className="flex items-baseline gap-1.5">
+                                                <div className="text-xl font-bold text-white tabular-nums font-mono">
+                                                    {typeof point.value === 'number' ? point.value.toFixed(3) : String(point.value)}
+                                                </div>
+                                                {point.unit && <span className="text-[9px] font-bold text-grafana-text-secondary font-mono">{point.unit}</span>}
+                                            </div>
+
+                                            <div className="flex justify-between items-center mt-1 pt-2 border-t border-grafana-border/50">
+                                                <span className="text-[7px] text-grafana-text-secondary uppercase font-mono">QDS: {point.qds || '0'}</span>
+                                                <div className="w-1 h-1 rounded-full bg-grafana-border group-hover:bg-grafana-accent-blue transition-colors"></div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </motion.div>
+                        )}
+                    </section>
+                </div>
+            </div>
+
+            {/* Footer Stats */}
+            <div className="flex flex-col md:flex-row items-center justify-between gap-6 px-4 pt-10 border-t border-grafana-border">
+                <div className="flex items-center gap-10">
+                    <div className="flex items-center gap-3">
+                        <Server size={14} className="text-grafana-text-secondary" />
+                        <span className="text-[9px] font-bold text-grafana-text-secondary tracking-widest uppercase font-mono">KATMAN AKTİF</span>
                     </div>
-                    <div className="flex flex-wrap justify-center items-center gap-8">
-                        <div className="h-8 w-px bg-slate-900/50 hidden md:block"></div>
-                        <span className="text-[10px] font-black italic tracking-[0.4em] text-brand-green shadow-brand-green/20 ">Telemetry System v2.0</span>
+                    <div className="flex items-center gap-3">
+                        <Activity size={14} className="text-grafana-text-secondary" />
+                        <span className="text-[9px] font-bold text-grafana-text-secondary tracking-widest uppercase font-mono">SORGULANAN DÜĞÜM: {ip}</span>
                     </div>
+                </div>
+                <div className="flex items-center gap-4">
+                    <div className="w-px h-6 bg-grafana-border hidden md:block" />
+                    <span className="text-[10px] font-bold text-grafana-accent-blue tracking-[0.3em] uppercase font-mono">SCADA CORE v2.0</span>
                 </div>
             </div>
         </div>

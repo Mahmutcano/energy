@@ -2,7 +2,8 @@
 
 import React, { useMemo } from 'react';
 import ReactECharts from 'echarts-for-react';
-import { TrendingUp, TrendingDown } from 'lucide-react';
+import { TrendingUp, TrendingDown, Activity } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface SparkCardProps {
     title: string;
@@ -12,8 +13,8 @@ interface SparkCardProps {
     color?: string;
 }
 
-export default function AppleSparkCard({ title, value, unit, history, color = '#2962ff' }: SparkCardProps) {
-    const displayHistory = useMemo(() => history.slice(-15), [history]);
+export default function AppleSparkCard({ title, value, unit, history, color = '#5794f2' }: SparkCardProps) {
+    const displayHistory = useMemo(() => history.slice(-20), [history]);
 
     const isUp = useMemo(() => {
         if (displayHistory.length < 2) return true;
@@ -32,20 +33,20 @@ export default function AppleSparkCard({ title, value, unit, history, color = '#
     }, [displayHistory]);
 
     const chartOption = {
-        grid: { left: 0, right: 0, top: 0, bottom: 0 },
+        grid: { left: 0, right: 0, top: 5, bottom: 5 },
         xAxis: { type: 'category', show: false, data: displayHistory.map(h => h.t) },
         yAxis: { type: 'value', show: false, scale: true },
         series: [{
             type: 'line',
             data: displayHistory.map(h => h.value),
             symbol: 'none',
-            smooth: true,
-            lineStyle: { width: 2, color: color },
+            smooth: 0.1,
+            lineStyle: { width: 1.5, color: color },
             areaStyle: {
                 color: {
                     type: 'linear', x: 0, y: 0, x2: 0, y2: 1,
                     colorStops: [
-                        { offset: 0, color: `${color}20` },
+                        { offset: 0, color: `${color}15` },
                         { offset: 1, color: 'transparent' }
                     ]
                 }
@@ -54,25 +55,34 @@ export default function AppleSparkCard({ title, value, unit, history, color = '#
     };
 
     return (
-        <div className="bg-white border border-[#dfe2e7] rounded-xl p-4 flex flex-col gap-3 hover:shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:border-[#2962ff33] transition-all duration-300 group relative">
-            <div className="flex justify-between items-start">
+        <div className="bg-grafana-panel/40 border border-grafana-border rounded-sm p-4 flex flex-col gap-4 hover:shadow-2xl hover:border-grafana-accent-blue/30 transition-all duration-500 group relative overflow-hidden">
+            <div className="absolute top-0 right-0 p-2 opacity-[0.03] group-hover:opacity-10 transition-opacity">
+                <Activity size={48} />
+            </div>
+            
+            <div className="flex justify-between items-start relative z-10">
                 <div className="flex flex-col">
-                    <span className="text-[10px] font-bold text-[#787b86] uppercase tracking-wider">{title}</span>
-                    <div className="flex items-baseline gap-1 mt-0.5">
-                        <span className="text-2xl font-black tracking-tighter text-[#131722] group-hover:text-[#2962ff] transition-colors">
-                            {value?.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 2 })}
+                    <span className="text-[9px] font-bold text-grafana-text-secondary uppercase tracking-[0.2em] font-mono group-hover:text-grafana-accent-blue transition-colors">{title}</span>
+                    <div className="flex items-baseline gap-2 mt-2">
+                        <span className="text-3xl font-black tracking-tighter text-white font-mono group-hover:scale-105 transition-transform duration-500">
+                            {value?.toLocaleString('tr-TR', { minimumFractionDigits: 1, maximumFractionDigits: 2 })}
                         </span>
-                        <span className="text-[10px] font-black text-[#787b86]">{unit}</span>
+                        <span className="text-[10px] font-bold text-grafana-accent-blue font-mono uppercase tracking-widest">{unit}</span>
                     </div>
                 </div>
-                <div className={`flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-black ${isUp ? 'text-[#089981] bg-emerald-50' : 'text-[#f23645] bg-red-50'}`}>
+                <div className={cn(
+                    "flex items-center gap-1 px-2 py-0.5 rounded-sm text-[9px] font-bold font-mono tracking-widest border",
+                    isUp 
+                        ? "text-grafana-accent-green bg-grafana-accent-green/5 border-grafana-accent-green/20" 
+                        : "text-grafana-accent-red bg-grafana-accent-red/5 border-grafana-accent-red/20"
+                )}>
                     {isUp ? <TrendingUp size={10} /> : <TrendingDown size={10} />}
                     {delta}
                 </div>
             </div>
             
-            <div className="h-12 w-full mt-auto">
-                <ReactECharts option={chartOption} style={{ height: '48px', width: '100%' }} notMerge />
+            <div className="h-10 w-full mt-auto relative z-10">
+                <ReactECharts option={chartOption} style={{ height: '40px', width: '100%' }} notMerge />
             </div>
         </div>
     );

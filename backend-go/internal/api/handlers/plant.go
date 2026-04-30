@@ -262,6 +262,8 @@ func DeletePlant(c *gin.Context) {
 	}
 
 	// 4. Son olarak Tesisi silelim
+	_, _ = tx.Exec(ctx, `DELETE FROM "YtbsPlant" WHERE "plantId" = $1`, id)
+
 	result, err := tx.Exec(ctx, `DELETE FROM "Plant" WHERE id = $1`, id)
 	if err != nil {
 		response.Error(c, http.StatusInternalServerError, response.ErrDatabase, "Tesis silinirken hata: "+err.Error())

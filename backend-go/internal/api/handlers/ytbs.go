@@ -10,14 +10,32 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 )
 
 func GetImportedIds(c *gin.Context) {
-	rows, err := db.Pool.Query(context.Background(), `SELECT "ytbsId" FROM "YtbsPlant"`)
+	companyID := c.Query("companyId")
+	
+	var rows pgx.Rows
+	var err error
+
+	if companyID != "" {
+		cid, _ := uuid.Parse(companyID)
+		rows, err = db.Pool.Query(context.Background(), `
+			SELECT yp."ytbsId" 
+			FROM "YtbsPlant" yp
+			JOIN "Plant" p ON yp."plantId" = p.id
+			WHERE p."companyId" = $1
+		`, cid)
+	} else {
+		rows, err = db.Pool.Query(context.Background(), `SELECT "ytbsId" FROM "YtbsPlant"`)
+	}
+
 	if err != nil {
 		log.Printf("[YTBS] Error fetching imported IDs: %v", err)
 		response.Error(c, http.StatusInternalServerError, response.ErrDatabase, err.Error())
@@ -29,7 +47,6 @@ func GetImportedIds(c *gin.Context) {
 	for rows.Next() {
 		var id int
 		if err := rows.Scan(&id); err != nil {
-			log.Printf("[YTBS] Error scanning ytbsId: %v", err)
 			continue
 		}
 		ids = append(ids, id)
@@ -111,31 +128,55 @@ func DeleteProductionLog(c *gin.Context) {
 func CreateTestLog(c *gin.Context) {
 	var req struct {
 		CompanyID string `json:"companyId"`
-		Type      string `json:"type"`
+		Type      string `json:"type"` // "instant" or "hourly"
+		// Optional manual overrides
+		ManualYtbsID  int    `json:"ytbsId"`
+		ManualLicense string `json:"licenseNo"`
 	}
+
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.Error(c, http.StatusBadRequest, response.ErrInvalidInput, err.Error())
 		return
 	}
 
-	// Şirkete ait bir YTBS santrali bul
-	var ypID, plantID uuid.UUID
-	var ytbsID int
-	log.Printf("[YTBS-TEST] Looking for YTBS plant for company ID: %s", req.CompanyID)
-	err := db.Pool.QueryRow(context.Background(), `
-		SELECT yp.id, yp."plantId", yp."ytbsId"
-		FROM "YtbsPlant" yp
-		JOIN "Plant" p ON yp."plantId" = p.id
-		WHERE p."companyId" = $1
-		LIMIT 1
-	`, req.CompanyID).Scan(&ypID, &plantID, &ytbsID)
+	log.Printf("[YTBS-TEST] Request received: CompanyID=%s, Type=%s, ManualID=%d, ManualLicense=%s", 
+		req.CompanyID, req.Type, req.ManualYtbsID, req.ManualLicense)
 
-	if err != nil {
-		log.Printf("[YTBS-TEST] No plant found or DB error: %v", err)
-		response.Error(c, http.StatusNotFound, response.ErrNotFound, "Bu şirkete kayıtlı YTBS santrali bulunamadı. Lütfen önce 'Sisteme Aktar' işlemini yapın.")
-		return
+	// Şirkete ait bir YTBS santrali bul veya manuel veriyi kullan
+	var ypID uuid.UUID
+	var plantID uuid.UUID
+	var ytbsID int
+	var licenseNo string
+	var err error
+
+	compUUID, _ := uuid.Parse(req.CompanyID)
+
+	var plantIDPtr any = nil
+	var ypIDPtr any = nil
+
+	if req.ManualYtbsID != 0 || req.ManualLicense != "" {
+		// Manuel mod: Veritabanında aramadan doğrudan kullan
+		ytbsID = req.ManualYtbsID
+		licenseNo = req.ManualLicense
+		// ypID ve plantID NIL kalır
+		log.Printf("[YTBS-TEST] Manual mode: ID %d, License %s", ytbsID, licenseNo)
+	} else {
+		// Otomatik mod: Veritabanında ilk santrali bul
+		err = db.Pool.QueryRow(context.Background(), `
+			SELECT yp.id, yp."plantId", yp."ytbsId", yp.license_no
+			FROM "YtbsPlant" yp
+			JOIN "Plant" p ON yp."plantId" = p.id
+			WHERE p."companyId" = $1
+			LIMIT 1
+		`, compUUID).Scan(&ypID, &plantID, &ytbsID, &licenseNo)
+
+		if err != nil {
+			response.Error(c, http.StatusNotFound, response.ErrNotFound, "Bu şirkete kayıtlı YTBS santrali bulunamadı. Lütfen satırdaki butonları kullanın veya 'Sisteme Aktar' yapın.")
+			return
+		}
+		plantIDPtr = plantID
+		ypIDPtr = ypID
 	}
-	log.Printf("[YTBS-TEST] Found plant: %s (YTBS ID: %d)", ypID, ytbsID)
 
 	now := time.Now()
 	dateStr := now.Format("2006-01-02")
@@ -144,15 +185,15 @@ func CreateTestLog(c *gin.Context) {
 	if req.Type == "instant" {
 		_, err = db.Pool.Exec(context.Background(), `
 			INSERT INTO "YtbsInstantProduction" 
-			(id, "plantId", "externalPlantId", "ytbsPlantId", "readingDate", "readingTime", "valueMw", "isSent", "createdAt")
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
-		`, uuid.New(), plantID, ytbsID, ypID, dateStr, timeStr, 10.5, false)
+			(id, "plantId", "externalPlantId", "ytbsPlantId", "readingDate", "readingTime", "valueMw", "isSent", "createdAt", "companyId", "licenseNo")
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), $9, $10)
+		`, uuid.New(), plantIDPtr, ytbsID, ypIDPtr, dateStr, timeStr, 10.5, false, compUUID, licenseNo)
 	} else {
 		_, err = db.Pool.Exec(context.Background(), `
 			INSERT INTO "YtbsHourlyProduction" 
-			(id, "plantId", "externalPlantId", "ytbsPlantId", "readingDate", "readingHour", "valueMwh", "isSent", "createdAt")
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
-		`, uuid.New(), plantID, ytbsID, ypID, dateStr, fmt.Sprintf("%02d:00", now.Hour()), 45.2, false)
+			(id, "plantId", "externalPlantId", "ytbsPlantId", "readingDate", "readingHour", "valueMwh", "isSent", "createdAt", "companyId", "licenseNo")
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), $9, $10)
+		`, uuid.New(), plantIDPtr, ytbsID, ypIDPtr, dateStr, fmt.Sprintf("%02d:00", now.Hour()), 45.2, false, compUUID, licenseNo)
 	}
 
 	if err != nil {
@@ -181,13 +222,50 @@ func QueryExternalPlants(c *gin.Context) {
 	}
 
 	svc := services.GetYtbsService()
-	plants, err := svc.QueryExternalPlants(c.Request.Context(), cid)
+	result, err := svc.QueryExternalPlants(c.Request.Context(), cid)
 	if err != nil {
 		response.Error(c, http.StatusInternalServerError, response.ErrDatabase, err.Error())
 		return
 	}
 
-	response.Success(c, http.StatusOK, plants)
+	// Cross-reference with our database to mark imported plants
+	rows, err := db.Pool.Query(c.Request.Context(), `
+		SELECT yp."ytbsId" 
+		FROM "YtbsPlant" yp
+		JOIN "Plant" p ON yp."plantId" = p.id
+		WHERE p."companyId" = $1
+	`, cid)
+	
+	importedMap := make(map[int]bool)
+	if err == nil {
+		defer rows.Close()
+		for rows.Next() {
+			var yid int
+			if err := rows.Scan(&yid); err == nil {
+				importedMap[yid] = true
+			}
+		}
+	}
+
+	// Enforce structure and add isImported flag
+	if resMap, ok := result.(map[string]any); ok {
+		if veri, ok := resMap["veri"].([]any); ok {
+			for i, p := range veri {
+				if plant, ok := p.(map[string]any); ok {
+					if idVal, ok := plant["id"].(float64); ok {
+						ytbsId := int(idVal)
+						plant["isImported"] = importedMap[ytbsId]
+						veri[i] = plant
+					}
+				}
+			}
+			resMap["veri"] = veri
+		}
+		response.Success(c, http.StatusOK, resMap)
+		return
+	}
+
+	response.Success(c, http.StatusOK, result)
 }
 
 func ImportExternalPlants(c *gin.Context) {
@@ -270,7 +348,13 @@ func ImportExternalPlants(c *gin.Context) {
 		foundPlant := false
 
 		// 1. Try to find an existing plant linked to this YTBS ID
-		err = db.Pool.QueryRow(ctx, `SELECT "plantId" FROM "YtbsPlant" WHERE "ytbsId" = $1`, ytbsId).Scan(&plantId)
+		// 1. Try to find an existing plant linked to this YTBS ID and verify it belongs to this company
+		err = db.Pool.QueryRow(ctx, `
+			SELECT yp."plantId" 
+			FROM "YtbsPlant" yp
+			JOIN "Plant" p ON yp."plantId" = p.id
+			WHERE yp."ytbsId" = $1 AND p."companyId" = $2
+		`, ytbsId, compUUID).Scan(&plantId)
 		if err == nil {
 			foundPlant = true
 			log.Printf("[YTBS] Found existing link for plant %s (ytbsId: %d) -> plantId: %s", ad, ytbsId, plantId)
@@ -289,10 +373,18 @@ func ImportExternalPlants(c *gin.Context) {
 		if !foundPlant {
 			plantId = uuid.New()
 			log.Printf("[YTBS] Creating NEW Plant record for %s (ytbsId: %d)", ad, ytbsId)
+			pType := "SOLAR"
+			upperName := strings.ToUpper(ad)
+			if strings.Contains(upperName, "RES") || strings.Contains(upperName, "RÜZGAR") {
+				pType = "WIND"
+			} else if strings.Contains(upperName, "HES") || strings.Contains(upperName, "HİDRO") {
+				pType = "HYDRO"
+			}
+
 			_, err = db.Pool.Exec(ctx, `
 				INSERT INTO "Plant" ("id", "companyId", "plantName", "plantType", "isActive", "ytbsCode", "canSendYtbs", "createdAt", "updatedAt")
 				VALUES ($1, $2, $3, $4, true, $5, true, NOW(), NOW())
-			`, plantId, compUUID, ad, "GES", strconv.Itoa(ytbsId))
+			`, plantId, compUUID, ad, pType, strconv.Itoa(ytbsId))
 			
 			if err != nil {
 				log.Printf("[YTBS] Error creating main Plant for %s: %v", ad, err)
@@ -301,15 +393,10 @@ func ImportExternalPlants(c *gin.Context) {
 			foundPlant = true
 		}
 
-		// 4. Create or update the YtbsPlant integration record
-		// Using underscore names as they seem more likely based on patterns seen in services
+		// 4. Create the YtbsPlant integration record
 		_, err = db.Pool.Exec(ctx, `
 			INSERT INTO "YtbsPlant" ("id", "plantId", "ytbsId", "license_no", "plant_name", "capacity_ac", "isActive")
 			VALUES ($1, $2, $3, $4, $5, $6, true)
-			ON CONFLICT ("ytbsId") DO UPDATE SET 
-				"plantId" = EXCLUDED."plantId",
-				"plant_name" = EXCLUDED."plant_name", 
-				"capacity_ac" = EXCLUDED."capacity_ac"
 		`, uuid.New(), plantId, ytbsId, licenseNo, ad, guc)
 		
 		if err != nil {
@@ -327,7 +414,62 @@ func ImportExternalPlants(c *gin.Context) {
 }
 
 func RemoveExternalPlant(c *gin.Context) {
-    DeletePlant(c) 
+	var req struct {
+		CompanyID string `json:"companyId"`
+		YtbsID    int    `json:"ytbsId"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Error(c, http.StatusBadRequest, response.ErrInvalidInput, err.Error())
+		return
+	}
+
+	compUUID, err := uuid.Parse(req.CompanyID)
+	if err != nil {
+		response.Error(c, http.StatusBadRequest, response.ErrInvalidInput, "Invalid company ID")
+		return
+	}
+
+	// Find the plant link to delete it and the plant
+	var plantId uuid.UUID
+	err = db.Pool.QueryRow(context.Background(), `
+		SELECT yp."plantId" 
+		FROM "YtbsPlant" yp
+		JOIN "Plant" p ON yp."plantId" = p.id
+		WHERE yp."ytbsId" = $1 AND p."companyId" = $2
+	`, req.YtbsID, compUUID).Scan(&plantId)
+
+	if err != nil {
+		response.Error(c, http.StatusNotFound, response.ErrDatabase, "Link not found")
+		return
+	}
+
+	tx, err := db.Pool.Begin(context.Background())
+	if err != nil {
+		response.Error(c, http.StatusInternalServerError, response.ErrDatabase, err.Error())
+		return
+	}
+	defer tx.Rollback(context.Background())
+
+	// Delete from YtbsPlant
+	_, err = tx.Exec(context.Background(), `DELETE FROM "YtbsPlant" WHERE "plantId" = $1`, plantId)
+	if err != nil {
+		response.Error(c, http.StatusInternalServerError, response.ErrDatabase, err.Error())
+		return
+	}
+
+	// Delete from Plant
+	_, err = tx.Exec(context.Background(), `DELETE FROM "Plant" WHERE "id" = $1`, plantId)
+	if err != nil {
+		response.Error(c, http.StatusInternalServerError, response.ErrDatabase, err.Error())
+		return
+	}
+
+	if err := tx.Commit(context.Background()); err != nil {
+		response.Error(c, http.StatusInternalServerError, response.ErrDatabase, err.Error())
+		return
+	}
+
+	response.Success(c, http.StatusOK, gin.H{"message": "Santral sistemden kaldırıldı"})
 }
 
 func QueryExternalLogs(c *gin.Context) {

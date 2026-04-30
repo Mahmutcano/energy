@@ -127,15 +127,21 @@ func (s *YtbsService) QueryExternalPlants(ctx context.Context, cid uuid.UUID) (a
 func (s *YtbsService) ProcessPendingInstant() {
 	ctx := context.Background()
 	rows, err := db.Pool.Query(ctx, `
-		SELECT p.id, yp.id, yp.license_no, cp.id, cp."ytbsApiKey", cp."ytbsUsername", cp."ytbsPassword",
-		       p."readingDate", p."readingTime", p."valueMw", p.id
-		FROM "YtbsInstantProduction" p
-		JOIN "YtbsPlant" yp ON p."ytbsPlantId" = yp.id
-		JOIN "Plant" lp ON yp."plantId" = lp.id
-		JOIN "CompanyProfile" cp ON lp."companyId" = cp.id
-		WHERE p."isSent" = false AND p."retryCount" < 10
-		LIMIT 100
-	`)
+		SELECT 
+			COALESCE(p.id, '00000000-0000-0000-0000-000000000000'::uuid), 
+			COALESCE(yp.id, '00000000-0000-0000-0000-000000000000'::uuid), 
+			COALESCE(yp.license_no, i."licenseNo", ''), 
+			cp.id, cp."ytbsApiKey", cp."ytbsUsername", cp."ytbsPassword",
+			i.id, i."externalPlantId", i."readingDate", i."readingTime", i."valueMw"
+		FROM "YtbsInstantProduction" i
+		LEFT JOIN "YtbsPlant" yp ON i."ytbsPlantId" = yp.id
+		LEFT JOIN "Plant" p ON yp."plantId" = p.id
+		JOIN "CompanyProfile" cp ON (p."companyId" = cp.id OR i."companyId" = cp.id)
+		WHERE i."isSent" = false
+		AND (i."lastAttemptAt" IS NULL OR i."lastAttemptAt" < $1)
+		AND i."retryCount" < 5
+		LIMIT 50
+	`, time.Now().Add(-5*time.Minute))
 	if err != nil {
 		return
 	}

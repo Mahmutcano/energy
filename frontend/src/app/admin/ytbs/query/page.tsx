@@ -107,6 +107,19 @@ export default function YtbsQueryPage() {
         setLogs([]);
     };
 
+    const fetchImportedIds = async (companyId: string) => {
+        if (!companyId) return;
+        try {
+            const res = await apiRequest(`/api/ytbs/imported-ids?companyId=${companyId}`);
+            if (res.ok) {
+                const result = await res.json();
+                setImportedIds(result.data || []);
+            }
+        } catch (err) {
+            console.error('Imported IDs fetch error:', err);
+        }
+    };
+
     const handleQuery = async () => {
         if (!selectedCompanyId) {
             toast.error('Lütfen bir firma seçin');
@@ -114,6 +127,9 @@ export default function YtbsQueryPage() {
         }
 
         setQuerying(true);
+        // Her sorguda güncel aktarılmış ID listesini çek
+        await fetchImportedIds(selectedCompanyId);
+
         if (activeTab === 'logs') {
             setLogs([]);
             try {
@@ -227,16 +243,22 @@ export default function YtbsQueryPage() {
         }
     };
 
-    const handleCreateTestLog = async () => {
+    const handleCreateTestLog = async (logType: 'instant' | 'hourly', manualYtbsId?: number, manualLicense?: string) => {
         if (!selectedCompanyId) {
-            toast.error('Önce bir firma seçmelisiniz.');
+            toast.error('Lütfen önce bir firma seçin');
             return;
         }
-        const t = toast.loading('Test verisi oluşturuluyor...');
+
+        const t = toast.loading('Test kaydı oluşturuluyor...');
         try {
             const res = await apiRequest('/api/ytbs/test-log', {
                 method: 'POST',
-                body: JSON.stringify({ companyId: selectedCompanyId, type: logType })
+                body: JSON.stringify({ 
+                    companyId: selectedCompanyId, 
+                    type: logType,
+                    ytbsId: manualYtbsId ? Number(manualYtbsId) : undefined,
+                    licenseNo: manualLicense
+                })
             });
             if (res.ok) {
                 toast.success('Test kaydı oluşturuldu!', { id: t });
@@ -249,6 +271,12 @@ export default function YtbsQueryPage() {
             toast.error('Hata oluştu', { id: t });
         }
     };
+
+    useEffect(() => {
+        if (selectedCompanyId) {
+            fetchImportedIds(selectedCompanyId);
+        }
+    }, [selectedCompanyId]);
 
     return (
         <div className="space-y-8 pb-20 font-sans selection:bg-grafana-accent-blue/30">
@@ -342,7 +370,7 @@ export default function YtbsQueryPage() {
                                     </button>
                                 </div>
                                 <button 
-                                    onClick={handleCreateTestLog}
+                                    onClick={() => handleCreateTestLog(logType)}
                                     className="w-full flex items-center justify-center gap-2 py-3 bg-grafana-bg border border-grafana-border text-grafana-accent-blue rounded-sm text-[9px] font-black uppercase tracking-widest hover:bg-grafana-panel transition-all font-mono"
                                 >
                                     <Beaker size={12} /> TEST VERİSİ GÖNDER
@@ -378,6 +406,7 @@ export default function YtbsQueryPage() {
                                         <tr>
                                             <th className="w-[80px]">ID</th>
                                             <th>SANTRAL ADI</th>
+                                            <th className="text-center">HIZLI TEST</th>
                                             <th className="text-center">GÜÇ (AC)</th>
                                             <th className="text-center">DURUM</th>
                                             <th className="text-center">ŞEHİR</th>
@@ -386,12 +415,44 @@ export default function YtbsQueryPage() {
                                     </thead>
                                     <tbody className="divide-y divide-white/[0.02]">
                                         {externalPlants.length === 0 ? (
-                                            <tr><td colSpan={6} className="py-32 text-center opacity-20 text-[10px] font-bold uppercase font-mono">Sorgulama Bekleniyor</td></tr>
-                                        ) : (
-                                            externalPlants.map((plant: ExternalPlant) => (
-                                                <tr key={plant.id} className="group hover:bg-white/[0.01]">
+                                            <tr><td colSpan={7} className="py-32 text-center opacity-20 text-[10px] font-bold uppercase font-mono">Sorgulama Bekleniyor</td></tr>
+                                        ) : (() => {
+                                            // Prefer isImported flag from backend if present, fallback to local check
+                                            const getIsImported = (p: any) => {
+                                                if (p.isImported !== undefined) return p.isImported;
+                                                return importedIds.some(id => String(id) === String(p.id));
+                                            };
+
+                                            const imported = externalPlants.filter(p => getIsImported(p));
+                                            const notImported = externalPlants.filter(p => !getIsImported(p));
+
+                                            const renderRow = (plant: ExternalPlant, isAlreadyImported: boolean) => (
+                                                <tr key={plant.id} className={cn("group hover:bg-white/[0.01]", isAlreadyImported && "bg-grafana-bg/20 opacity-70")}>
                                                     <td className="px-4 py-3 font-mono text-[10px] text-grafana-text-secondary">#{plant.id}</td>
-                                                    <td className="px-4 py-3 font-bold text-white group-hover:text-grafana-accent-blue transition-colors font-mono">{plant.ad}</td>
+                                                    <td className="px-4 py-3 font-bold text-white group-hover:text-grafana-accent-blue transition-colors font-mono">
+                                                        <div className="flex flex-col">
+                                                            <span>{plant.ad}</span>
+                                                            {isAlreadyImported && <span className="text-[8px] text-grafana-accent-green font-black uppercase tracking-widest mt-0.5">SİSTEME KAYITLI</span>}
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-4 py-3 whitespace-nowrap text-sm">
+                                                        <div className="flex gap-2">
+                                                            <button
+                                                                onClick={() => handleCreateTestLog('instant', plant.id, plant.baglantiAnlasmasiSirketi?.id)}
+                                                                className="px-2 py-1 bg-yellow-500/20 text-yellow-500 rounded hover:bg-yellow-500/30 transition-colors text-[8px] font-bold font-mono"
+                                                                title="Anlık Test Verisi Oluştur"
+                                                            >
+                                                                ANLIK
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleCreateTestLog('hourly', plant.id, plant.baglantiAnlasmasiSirketi?.id)}
+                                                                className="px-2 py-1 bg-orange-500/20 text-orange-500 rounded hover:bg-orange-500/30 transition-colors text-[8px] font-bold font-mono"
+                                                                title="Saatlik Test Verisi Oluştur"
+                                                            >
+                                                                SAATLİK
+                                                            </button>
+                                                        </div>
+                                                    </td>
                                                     <td className="px-4 py-3 text-center font-bold text-grafana-text-primary font-mono">{(plant.tarihce?.acGucu || 0).toLocaleString()} <small className="opacity-40">MW</small></td>
                                                     <td className="px-4 py-3 text-center">
                                                         <span className={cn(
@@ -404,12 +465,12 @@ export default function YtbsQueryPage() {
                                                     <td className="px-4 py-3 text-center text-[10px] font-bold text-grafana-text-secondary font-mono">{plant.il?.ad || '-'}</td>
                                                     <td className="px-4 py-3 text-right">
                                                         <div className="flex justify-end gap-2">
-                                                            {importedIds.some(id => String(id) === String(plant.id)) ? (
+                                                            {isAlreadyImported ? (
                                                                 <>
-                                                                    <div className="px-2 py-1 bg-grafana-accent-green/5 text-grafana-accent-green border border-grafana-accent-green/20 rounded-sm text-[8px] font-bold uppercase flex items-center gap-1 font-mono">
+                                                                    <div className="px-2 py-1 bg-grafana-accent-green/10 text-grafana-accent-green border border-grafana-accent-green/30 rounded-sm text-[8px] font-bold uppercase flex items-center gap-1 font-mono">
                                                                         <CheckCircle2 size={10}/> AKTARILDI
                                                                     </div>
-                                                                    <button onClick={() => handleRemove(plant.id)} className="p-1.5 text-grafana-text-secondary hover:text-grafana-accent-red transition-all">
+                                                                    <button onClick={() => handleRemove(plant.id)} className="p-1.5 text-grafana-text-secondary hover:text-grafana-accent-red transition-all" title="Sistemden Kaldır">
                                                                         <Trash2 size={14}/>
                                                                     </button>
                                                                 </>
@@ -417,7 +478,7 @@ export default function YtbsQueryPage() {
                                                                 <button 
                                                                     onClick={() => handleImport([plant])} 
                                                                     disabled={importing} 
-                                                                    className="px-3 py-1.5 bg-grafana-accent-blue text-white rounded-sm text-[9px] font-bold uppercase tracking-widest hover:bg-grafana-accent-blue/90 transition-all font-mono"
+                                                                    className="px-3 py-1.5 bg-grafana-accent-blue text-white rounded-sm text-[9px] font-bold uppercase tracking-widest hover:bg-grafana-accent-blue/90 transition-all font-mono shadow-lg shadow-grafana-accent-blue/20"
                                                                 >
                                                                     SİSTEME AKTAR
                                                                 </button>
@@ -425,8 +486,31 @@ export default function YtbsQueryPage() {
                                                         </div>
                                                     </td>
                                                 </tr>
-                                            ))
-                                        )}
+                                            );
+
+                                            return (
+                                                <>
+                                                    {notImported.length > 0 && (
+                                                         <tr className="bg-grafana-accent-blue/5">
+                                                            <td colSpan={7} className="px-4 py-2 text-[9px] font-black text-grafana-accent-blue uppercase tracking-[0.3em] text-center border-y border-grafana-accent-blue/20 font-mono">
+                                                                YENİ SANTRALLER (AKTARILABİLİR)
+                                                            </td>
+                                                        </tr>
+                                                    )}
+                                                    {notImported.map(p => renderRow(p, false))}
+                                                    
+                                                    {imported.length > 0 && (
+                                                        <tr className="bg-grafana-bg/80">
+                                                            <td colSpan={7} className="px-4 py-2 text-[9px] font-black text-grafana-text-secondary/60 uppercase tracking-[0.3em] text-center border-y border-grafana-border/30 font-mono">
+                                                                SİSTEMDE ZATEN KAYITLI OLANLAR
+                                                            </td>
+                                                        </tr>
+                                                    )}
+
+                                                    {imported.map(p => renderRow(p, true))}
+                                                </>
+                                            );
+                                        })()}
                                     </tbody>
                                 </table>
                             ) : (

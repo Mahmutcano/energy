@@ -161,6 +161,7 @@ func main() {
 			ytbs := mgmt.Group("/ytbs")
 			{
 				ytbs.GET("/imported-ids", handlers.GetImportedIds)
+				ytbs.GET("/plants", handlers.GetIntegratedPlants)
 				ytbs.GET("/logs", handlers.GetProductionLogs)
 				ytbs.DELETE("/logs/:type/:id", handlers.DeleteProductionLog)
 				ytbs.POST("/test-log", handlers.CreateTestLog)
@@ -168,6 +169,9 @@ func main() {
 				ytbs.POST("/query-external-logs", handlers.QueryExternalLogs)
 				ytbs.POST("/import-external", handlers.ImportExternalPlants)
 				ytbs.POST("/remove-external", handlers.RemoveExternalPlant)
+				ytbs.POST("/bulk-delete", handlers.BulkDeleteLogs)
+				ytbs.POST("/bulk-send", handlers.BulkSendLogs)
+				ytbs.POST("/logs/:type/:id/send", handlers.SendLogNow)
 			}
 		}
 	}

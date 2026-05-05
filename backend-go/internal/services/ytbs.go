@@ -138,6 +138,7 @@ func (s *YtbsService) ProcessPendingInstant() {
 		LEFT JOIN "Plant" p ON yp."plantId" = p.id
 		JOIN "CompanyProfile" cp ON (p."companyId" = cp.id OR i."companyId" = cp.id)
 		WHERE i."isSent" = false
+		AND i."retryCount" >= 0
 		AND (i."lastAttemptAt" IS NULL OR i."lastAttemptAt" < $1)
 		AND i."retryCount" < 5
 		LIMIT 50
@@ -196,7 +197,9 @@ func (s *YtbsService) ProcessPendingHourly() {
 		JOIN "YtbsPlant" yp ON p."ytbsPlantId" = yp.id
 		JOIN "Plant" lp ON yp."plantId" = lp.id
 		JOIN "CompanyProfile" cp ON lp."companyId" = cp.id
-		WHERE p."isSent" = false AND p."retryCount" < 10
+		WHERE p."isSent" = false 
+		AND p."retryCount" >= 0 
+		AND p."retryCount" < 10
 		LIMIT 100
 	`)
 	if err != nil {

@@ -1,7 +1,9 @@
 package handlers
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"energy-scada-platform/internal/api/response"
 	"energy-scada-platform/internal/db"
 	"energy-scada-platform/internal/models"
@@ -17,6 +19,13 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 )
+
+func derefString(s *string) string {
+	if s == nil {
+		return ""
+	}
+	return *s
+}
 
 func GetImportedIds(c *gin.Context) {
 	companyID := c.Query("companyId")
@@ -58,29 +67,111 @@ func GetImportedIds(c *gin.Context) {
 	response.Success(c, http.StatusOK, ids)
 }
 
+func GetIntegratedPlants(c *gin.Context) {
+	companyID := c.Query("companyId")
+	var rows pgx.Rows
+	var err error
+
+	if companyID != "" {
+		cid, _ := uuid.Parse(companyID)
+		rows, err = db.Pool.Query(context.Background(), `
+			SELECT yp.id, yp."plantId", yp."ytbsId", yp.license_no, p."plantName", p."ytbsCode"
+			FROM "YtbsPlant" yp
+			JOIN "Plant" p ON yp."plantId" = p.id
+			WHERE p."companyId" = $1
+		`, cid)
+	} else {
+		rows, err = db.Pool.Query(context.Background(), `
+			SELECT yp.id, yp."plantId", yp."ytbsId", yp.license_no, p."plantName", p."ytbsCode"
+			FROM "YtbsPlant" yp
+			JOIN "Plant" p ON yp."plantId" = p.id
+		`)
+	}
+
+	if err != nil {
+		log.Printf("[YTBS] GetIntegratedPlants SQL error: %v", err)
+		response.Error(c, http.StatusInternalServerError, response.ErrDatabase, err.Error())
+		return
+	}
+	defer rows.Close()
+
+	var plants []gin.H
+	for rows.Next() {
+		var id, plantId uuid.UUID
+		var ytbsId int
+		var licenseNo, plantName, ytbsCode *string
+		if err := rows.Scan(&id, &plantId, &ytbsId, &licenseNo, &plantName, &ytbsCode); err != nil {
+			log.Printf("[YTBS] GetIntegratedPlants SCAN error: %v", err)
+			continue
+		}
+		plants = append(plants, gin.H{
+			"id":         plantId, 
+			"ytbsId":     ytbsId,
+			"ytbsCode":   derefString(ytbsCode),
+			"plantName":  derefString(plantName),
+			"licenseNo":  derefString(licenseNo),
+		})
+	}
+	if plants == nil {
+		plants = []gin.H{}
+	}
+	response.Success(c, http.StatusOK, plants)
+}
+
 func GetProductionLogs(c *gin.Context) {
 	logType := c.Query("type")
 	plantID := c.Query("plantId")
+	startDate := c.Query("startDate")
+	endDate := c.Query("endDate")
 
-	var query string
+	tableName := "YtbsInstantProduction"
 	if logType == "hourly" {
-		query = `SELECT id, "plantId", "externalPlantId", "ytbsPlantId", "readingDate", "readingHour", "valueMwh", "isSent", "lastAttemptAt", "retryCount", "createdAt" 
-				 FROM "YtbsHourlyProduction" `
-		if plantID != "" {
-			query += fmt.Sprintf(` WHERE "ytbsPlantId" = '%s' `, plantID)
-		}
-		query += ` ORDER BY "createdAt" DESC LIMIT 100 `
-	} else {
-		query = `SELECT id, "plantId", "externalPlantId", "ytbsPlantId", "readingDate", "readingTime", "valueMw", "isSent", "lastAttemptAt", "retryCount", "createdAt" 
-				 FROM "YtbsInstantProduction" `
-		if plantID != "" {
-			query += fmt.Sprintf(` WHERE "ytbsPlantId" = '%s' `, plantID)
-		}
-		query += ` ORDER BY "createdAt" DESC LIMIT 100 `
+		tableName = "YtbsHourlyProduction"
 	}
 
-	rows, err := db.Pool.Query(context.Background(), query)
+	var query strings.Builder
+	query.WriteString(fmt.Sprintf(`SELECT id, "plantId", "externalPlantId", "ytbsPlantId", "readingDate", %s, %s, "isSent", "lastAttemptAt", "retryCount", "createdAt" FROM "%s" WHERE 1=1 `, 
+		cond(logType == "hourly", "\"readingHour\"", "\"readingTime\""),
+		cond(logType == "hourly", "\"valueMwh\"", "\"valueMw\""),
+		tableName))
+
+	var args []any
+	argIdx := 1
+
+	if plantID != "" {
+		if _, err := uuid.Parse(plantID); err == nil {
+			// If it's a UUID, it's our local plantId
+			query.WriteString(fmt.Sprintf(` AND "plantId" = $%d `, argIdx))
+		} else if _, err := strconv.Atoi(plantID); err == nil {
+			// If it's a number, it's the externalPlantId (YTBS ID)
+			query.WriteString(fmt.Sprintf(` AND "externalPlantId" = $%d `, argIdx))
+		} else {
+			// Fallback to externalPlantId if it's some other string format
+			query.WriteString(fmt.Sprintf(` AND "externalPlantId" = $%d `, argIdx))
+		}
+		args = append(args, plantID)
+		argIdx++
+	}
+
+	if startDate != "" {
+		query.WriteString(fmt.Sprintf(` AND "readingDate" >= $%d `, argIdx))
+		args = append(args, startDate)
+		argIdx++
+	}
+
+	if endDate != "" {
+		query.WriteString(fmt.Sprintf(` AND "readingDate" <= $%d `, argIdx))
+		args = append(args, endDate)
+		argIdx++
+	}
+
+	query.WriteString(` ORDER BY "readingDate" DESC, `)
+	query.WriteString(cond(logType == "hourly", "\"readingHour\"", "\"readingTime\""))
+	query.WriteString(` DESC LIMIT 500`)
+
+	rows, err := db.Pool.Query(context.Background(), query.String(), args...)
 	if err != nil {
+		log.Printf("[YTBS] Query error: %v", err)
 		response.Error(c, http.StatusInternalServerError, response.ErrDatabase, err.Error())
 		return
 	}
@@ -107,6 +198,13 @@ func GetProductionLogs(c *gin.Context) {
 	response.Success(c, http.StatusOK, logs)
 }
 
+func cond(condition bool, t, f string) string {
+	if condition {
+		return t
+	}
+	return f
+}
+
 func DeleteProductionLog(c *gin.Context) {
 	logType := c.Param("type")
 	id := c.Param("id")
@@ -116,7 +214,13 @@ func DeleteProductionLog(c *gin.Context) {
 		tableName = "YtbsHourlyProduction"
 	}
 
-	_, err := db.Pool.Exec(context.Background(), fmt.Sprintf(`DELETE FROM "%s" WHERE id = $1`, tableName), id)
+	uid, err := uuid.Parse(id)
+	if err != nil {
+		response.Error(c, http.StatusBadRequest, response.ErrInvalidInput, "Geçersiz ID formatı")
+		return
+	}
+
+	_, err = db.Pool.Exec(context.Background(), fmt.Sprintf(`DELETE FROM "%s" WHERE id = $1`, tableName), uid)
 	if err != nil {
 		response.Error(c, http.StatusInternalServerError, response.ErrDatabase, err.Error())
 		return
@@ -130,8 +234,9 @@ func CreateTestLog(c *gin.Context) {
 		CompanyID string `json:"companyId"`
 		Type      string `json:"type"` // "instant" or "hourly"
 		// Optional manual overrides
-		ManualYtbsID  int    `json:"ytbsId"`
-		ManualLicense string `json:"licenseNo"`
+		ManualYtbsID  int     `json:"ytbsId"`
+		ManualLicense string  `json:"licenseNo"`
+		Value         float64 `json:"value"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -182,18 +287,27 @@ func CreateTestLog(c *gin.Context) {
 	dateStr := now.Format("2006-01-02")
 	timeStr := now.Format("15:04")
 
+	val := req.Value
+	if val == 0 {
+		if req.Type == "instant" {
+			val = 10.5
+		} else {
+			val = 45.2
+		}
+	}
+
 	if req.Type == "instant" {
 		_, err = db.Pool.Exec(context.Background(), `
 			INSERT INTO "YtbsInstantProduction" 
-			(id, "plantId", "externalPlantId", "ytbsPlantId", "readingDate", "readingTime", "valueMw", "isSent", "createdAt", "companyId", "licenseNo")
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), $9, $10)
-		`, uuid.New(), plantIDPtr, ytbsID, ypIDPtr, dateStr, timeStr, 10.5, false, compUUID, licenseNo)
+			(id, "plantId", "externalPlantId", "ytbsPlantId", "readingDate", "readingTime", "valueMw", "isSent", "createdAt", "companyId", "licenseNo", "retryCount")
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), $9, $10, -1)
+		`, uuid.New(), plantIDPtr, ytbsID, ypIDPtr, dateStr, timeStr, val, false, compUUID, licenseNo)
 	} else {
 		_, err = db.Pool.Exec(context.Background(), `
 			INSERT INTO "YtbsHourlyProduction" 
-			(id, "plantId", "externalPlantId", "ytbsPlantId", "readingDate", "readingHour", "valueMwh", "isSent", "createdAt", "companyId", "licenseNo")
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), $9, $10)
-		`, uuid.New(), plantIDPtr, ytbsID, ypIDPtr, dateStr, fmt.Sprintf("%02d:00", now.Hour()), 45.2, false, compUUID, licenseNo)
+			(id, "plantId", "externalPlantId", "ytbsPlantId", "readingDate", "readingHour", "valueMwh", "isSent", "createdAt", "companyId", "licenseNo", "retryCount")
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), $9, $10, -1)
+		`, uuid.New(), plantIDPtr, ytbsID, ypIDPtr, dateStr, fmt.Sprintf("%02d:00", now.Hour()), val, false, compUUID, licenseNo)
 	}
 
 	if err != nil {
@@ -496,4 +610,149 @@ func QueryExternalLogs(c *gin.Context) {
 	}
 
 	response.Success(c, http.StatusOK, logs)
+}
+func BulkDeleteLogs(c *gin.Context) {
+	var req struct {
+		Type      string `json:"type"`
+		PlantID   string `json:"plantId"`
+		StartDate string `json:"startDate"`
+		EndDate   string `json:"endDate"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Error(c, http.StatusBadRequest, response.ErrInvalidInput, err.Error())
+		return
+	}
+
+	tableName := "YtbsInstantProduction"
+	if req.Type == "hourly" {
+		tableName = "YtbsHourlyProduction"
+	}
+
+	query := fmt.Sprintf(`DELETE FROM "%s" WHERE "externalPlantId" = $1 AND "readingDate" >= $2 AND "readingDate" <= $3`, tableName)
+	_, err := db.Pool.Exec(context.Background(), query, req.PlantID, req.StartDate, req.EndDate)
+	if err != nil {
+		response.Error(c, http.StatusInternalServerError, response.ErrDatabase, err.Error())
+		return
+	}
+
+	response.Success(c, http.StatusOK, gin.H{"message": "Kayıtlar silindi"})
+}
+
+func BulkSendLogs(c *gin.Context) {
+	var req struct {
+		Type      string `json:"type"`
+		PlantID   string `json:"plantId"`
+		StartDate string `json:"startDate"`
+		EndDate   string `json:"endDate"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Error(c, http.StatusBadRequest, response.ErrInvalidInput, err.Error())
+		return
+	}
+
+	tableName := "YtbsInstantProduction"
+	if req.Type == "hourly" {
+		tableName = "YtbsHourlyProduction"
+	}
+
+	query := fmt.Sprintf(`UPDATE "%s" SET "isSent" = false, "retryCount" = 0, "lastAttemptAt" = NULL WHERE "externalPlantId" = $1 AND "readingDate" >= $2 AND "readingDate" <= $3`, tableName)
+	_, err := db.Pool.Exec(context.Background(), query, req.PlantID, req.StartDate, req.EndDate)
+	if err != nil {
+		response.Error(c, http.StatusInternalServerError, response.ErrDatabase, err.Error())
+		return
+	}
+
+	response.Success(c, http.StatusOK, gin.H{"message": "Kayıtlar gönderim için işaretlendi"})
+}
+func SendLogNow(c *gin.Context) {
+	logType := c.Param("type")
+	id := c.Param("id")
+
+	tableName := "YtbsInstantProduction"
+	if logType == "hourly" {
+		tableName = "YtbsHourlyProduction"
+	}
+
+	uid, err := uuid.Parse(id)
+	if err != nil {
+		response.Error(c, http.StatusBadRequest, response.ErrInvalidInput, "Geçersiz ID formatı")
+		return
+	}
+
+	// 1. Get log details
+	var date, timeOrHour string
+	var val float64
+	var externalPlantId int
+	var companyId uuid.UUID
+
+	query := fmt.Sprintf(`SELECT "readingDate", %s, %s, "externalPlantId", "companyId" FROM "%s" WHERE id = $1`, 
+		cond(logType == "hourly", "\"readingHour\"", "\"readingTime\""),
+		cond(logType == "hourly", "\"valueMwh\"", "\"valueMw\""),
+		tableName)
+	
+	err = db.Pool.QueryRow(context.Background(), query, uid).Scan(&date, &timeOrHour, &val, &externalPlantId, &companyId)
+	if err != nil {
+		response.Error(c, http.StatusNotFound, response.ErrNotFound, "Kayıt bulunamadı")
+		return
+	}
+
+	// 2. Get credentials and plant info
+	var apiKey, username, password, license *string
+	err = db.Pool.QueryRow(context.Background(), `
+		SELECT cp."ytbsApiKey", cp."ytbsUsername", cp."ytbsPassword", yp.license_no
+		FROM "CompanyProfile" cp
+		JOIN "YtbsPlant" yp ON yp."ytbsId" = $1
+		WHERE cp.id = $2
+	`, externalPlantId, companyId).Scan(&apiKey, &username, &password, &license)
+
+	if err != nil {
+		response.Error(c, http.StatusInternalServerError, response.ErrDatabase, "Santral veya yetki bilgisi bulunamadı")
+		return
+	}
+
+	// 3. Send via service
+	svc := services.GetYtbsService()
+	token, err := svc.Login(context.Background(), *apiKey, *username, *password)
+	if err != nil {
+		response.Error(c, http.StatusUnauthorized, response.ErrInternal, "YTBS Login başarısız: "+err.Error())
+		return
+	}
+
+	payload := map[string]interface{}{
+		"baglantiAnlasmasiSirketiLisansNo": *license,
+		"veri": []map[string]interface{}{
+			{
+				"tarih": date,
+				"saat":  timeOrHour,
+				"lisanssizSantralId": externalPlantId,
+				"veriDeger": val,
+			},
+		},
+	}
+	
+	endpoint := "/veritoplama/anliklisanssizsantralarz/ekle"
+	if logType == "hourly" {
+		endpoint = "/veritoplama/saatliklisanssizsantraluretim/ekle"
+	}
+
+	b, _ := json.Marshal(payload)
+	req, _ := http.NewRequest("POST", services.YtbsBaseURL+endpoint, bytes.NewBuffer(b))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("SERVICE_KEY", *apiKey)
+	req.Header.Set("AUTH_TOKEN", token)
+	
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		response.Error(c, http.StatusInternalServerError, response.ErrInternal, "Gönderim hatası: "+err.Error())
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusOK {
+		db.Pool.Exec(context.Background(), fmt.Sprintf(`UPDATE "%s" SET "isSent" = true, "retryCount" = 0, "lastAttemptAt" = NOW() WHERE id = $1`, tableName), uid)
+		response.Success(c, http.StatusOK, gin.H{"message": "Veri başarıyla YTBS'ye gönderildi"})
+	} else {
+		db.Pool.Exec(context.Background(), fmt.Sprintf(`UPDATE "%s" SET "retryCount" = "retryCount" + 1, "lastAttemptAt" = NOW() WHERE id = $1`, tableName), uid)
+		response.Error(c, http.StatusBadRequest, response.ErrInternal, "YTBS reddetti (Status "+strconv.Itoa(resp.StatusCode)+")")
+	}
 }

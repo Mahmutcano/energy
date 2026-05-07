@@ -178,12 +178,35 @@ func (s *YtbsService) ProcessPendingInstant() {
 			req.Header.Set("AUTH_TOKEN", token)
 			
 			resp, _ := s.client.Do(req)
-			if resp != nil && resp.StatusCode == http.StatusOK {
-				db.Pool.Exec(ctx, `UPDATE "YtbsInstantProduction" SET "isSent" = true, "lastAttemptAt" = NOW() WHERE id = $1`, prodID)
-				log.Printf("[YTBS] Successfully sent INSTANT log for license %s", license)
+			if resp != nil {
+				var res map[string]interface{}
+				json.NewDecoder(resp.Body).Decode(&res)
+				resp.Body.Close()
+				
+				isSuccess := false
+				if resp.StatusCode == http.StatusOK || resp.StatusCode == http.StatusCreated {
+					isSuccess = true
+					if val, ok := res["basarili"].(bool); ok && !val {
+						isSuccess = false
+					}
+				}
+				
+				if isSuccess {
+					db.Pool.Exec(ctx, `UPDATE "YtbsInstantProduction" SET "isSent" = true, "lastAttemptAt" = NOW() WHERE id = $1`, prodID)
+					log.Printf("[YTBS] Successfully sent INSTANT log for license %s", license)
+				} else {
+					db.Pool.Exec(ctx, `UPDATE "YtbsInstantProduction" SET "retryCount" = "retryCount" + 1, "lastAttemptAt" = NOW() WHERE id = $1`, prodID)
+					errMsg := "Unknown error"
+					if msgs, ok := res["mesaj"].([]interface{}); ok && len(msgs) > 0 {
+						errMsg = fmt.Sprintf("%v", msgs[0])
+					} else if msg, ok := res["mesaj"].(string); ok {
+						errMsg = msg
+					}
+					log.Printf("[YTBS] Failed to send INSTANT log for license %s (Status %d): %s", license, resp.StatusCode, errMsg)
+				}
 			} else {
 				db.Pool.Exec(ctx, `UPDATE "YtbsInstantProduction" SET "retryCount" = "retryCount" + 1, "lastAttemptAt" = NOW() WHERE id = $1`, prodID)
-				log.Printf("[YTBS] Failed to send INSTANT log for license %s", license)
+				log.Printf("[YTBS] Failed to send INSTANT log for license %s: Network error", license)
 			}
 		}
 	}
@@ -236,12 +259,35 @@ func (s *YtbsService) ProcessPendingHourly() {
 			req.Header.Set("AUTH_TOKEN", token)
 			
 			resp, _ := s.client.Do(req)
-			if resp != nil && resp.StatusCode == http.StatusOK {
-				db.Pool.Exec(ctx, `UPDATE "YtbsHourlyProduction" SET "isSent" = true, "lastAttemptAt" = NOW() WHERE id = $1`, prodID)
-				log.Printf("[YTBS] Successfully sent HOURLY log for license %s", license)
+			if resp != nil {
+				var res map[string]interface{}
+				json.NewDecoder(resp.Body).Decode(&res)
+				resp.Body.Close()
+				
+				isSuccess := false
+				if resp.StatusCode == http.StatusOK || resp.StatusCode == http.StatusCreated {
+					isSuccess = true
+					if val, ok := res["basarili"].(bool); ok && !val {
+						isSuccess = false
+					}
+				}
+				
+				if isSuccess {
+					db.Pool.Exec(ctx, `UPDATE "YtbsHourlyProduction" SET "isSent" = true, "lastAttemptAt" = NOW() WHERE id = $1`, prodID)
+					log.Printf("[YTBS] Successfully sent HOURLY log for license %s", license)
+				} else {
+					db.Pool.Exec(ctx, `UPDATE "YtbsHourlyProduction" SET "retryCount" = "retryCount" + 1, "lastAttemptAt" = NOW() WHERE id = $1`, prodID)
+					errMsg := "Unknown error"
+					if msgs, ok := res["mesaj"].([]interface{}); ok && len(msgs) > 0 {
+						errMsg = fmt.Sprintf("%v", msgs[0])
+					} else if msg, ok := res["mesaj"].(string); ok {
+						errMsg = msg
+					}
+					log.Printf("[YTBS] Failed to send HOURLY log for license %s (Status %d): %s", license, resp.StatusCode, errMsg)
+				}
 			} else {
 				db.Pool.Exec(ctx, `UPDATE "YtbsHourlyProduction" SET "retryCount" = "retryCount" + 1, "lastAttemptAt" = NOW() WHERE id = $1`, prodID)
-				log.Printf("[YTBS] Failed to send HOURLY log for license %s", license)
+				log.Printf("[YTBS] Failed to send HOURLY log for license %s: Network error", license)
 			}
 		}
 	}

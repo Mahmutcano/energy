@@ -798,11 +798,29 @@ func SendLogNow(c *gin.Context) {
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode == http.StatusOK {
+	var res map[string]interface{}
+	json.NewDecoder(resp.Body).Decode(&res)
+
+	isSuccess := false
+	if resp.StatusCode == http.StatusOK || resp.StatusCode == http.StatusCreated {
+		isSuccess = true
+		if val, ok := res["basarili"].(bool); ok && !val {
+			isSuccess = false
+		}
+	}
+
+	if isSuccess {
 		db.Pool.Exec(context.Background(), fmt.Sprintf(`UPDATE "%s" SET "isSent" = true, "retryCount" = 0, "lastAttemptAt" = NOW() WHERE id = $1`, tableName), uid)
 		response.Success(c, http.StatusOK, gin.H{"message": "Veri başarıyla YTBS'ye gönderildi"})
 	} else {
 		db.Pool.Exec(context.Background(), fmt.Sprintf(`UPDATE "%s" SET "retryCount" = "retryCount" + 1, "lastAttemptAt" = NOW() WHERE id = $1`, tableName), uid)
-		response.Error(c, http.StatusBadRequest, response.ErrInternal, "YTBS reddetti (Status "+strconv.Itoa(resp.StatusCode)+")")
+		
+		errMsg := "YTBS reddetti (Status " + strconv.Itoa(resp.StatusCode) + ")"
+		if msgs, ok := res["mesaj"].([]interface{}); ok && len(msgs) > 0 {
+			errMsg = fmt.Sprintf("TEİAŞ Hatası: %v", msgs[0])
+		} else if msg, ok := res["mesaj"].(string); ok {
+			errMsg = fmt.Sprintf("TEİAŞ Hatası: %s", msg)
+		}
+		response.Error(c, http.StatusBadRequest, response.ErrInternal, errMsg)
 	}
 }

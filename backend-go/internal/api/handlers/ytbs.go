@@ -120,6 +120,7 @@ func GetIntegratedPlants(c *gin.Context) {
 
 func GetProductionLogs(c *gin.Context) {
 	logType := c.Query("type")
+	companyID := c.Query("companyId")
 	plantID := c.Query("plantId")
 	startDate := c.Query("startDate")
 	endDate := c.Query("endDate")
@@ -138,15 +139,17 @@ func GetProductionLogs(c *gin.Context) {
 	var args []any
 	argIdx := 1
 
+	if companyID != "" {
+		log.Printf("[DEBUG-LOGS] Filtering by companyID: %s", companyID)
+		query.WriteString(fmt.Sprintf(` AND "companyId" = $%d `, argIdx))
+		args = append(args, companyID)
+		argIdx++
+	}
+
 	if plantID != "" {
 		if _, err := uuid.Parse(plantID); err == nil {
-			// If it's a UUID, it's our local plantId
 			query.WriteString(fmt.Sprintf(` AND "plantId" = $%d `, argIdx))
-		} else if _, err := strconv.Atoi(plantID); err == nil {
-			// If it's a number, it's the externalPlantId (YTBS ID)
-			query.WriteString(fmt.Sprintf(` AND "externalPlantId" = $%d `, argIdx))
 		} else {
-			// Fallback to externalPlantId if it's some other string format
 			query.WriteString(fmt.Sprintf(` AND "externalPlantId" = $%d `, argIdx))
 		}
 		args = append(args, plantID)
@@ -165,13 +168,14 @@ func GetProductionLogs(c *gin.Context) {
 		argIdx++
 	}
 
-	query.WriteString(` ORDER BY "readingDate" DESC, `)
-	query.WriteString(cond(logType == "hourly", "\"readingHour\"", "\"readingTime\""))
-	query.WriteString(` DESC LIMIT 500`)
+	query.WriteString(` ORDER BY "createdAt" DESC LIMIT 500`)
+
+	log.Printf("[DEBUG-LOGS] SQL: %s", query.String())
+	log.Printf("[DEBUG-LOGS] ARGS: %v", args)
 
 	rows, err := db.Pool.Query(context.Background(), query.String(), args...)
 	if err != nil {
-		log.Printf("[YTBS] Query error: %v", err)
+		log.Printf("[DEBUG-LOGS] CRITICAL QUERY ERROR: %v", err)
 		response.Error(c, http.StatusInternalServerError, response.ErrDatabase, err.Error())
 		return
 	}
@@ -234,9 +238,11 @@ func CreateTestLog(c *gin.Context) {
 		CompanyID string `json:"companyId"`
 		Type      string `json:"type"` // "instant" or "hourly"
 		// Optional manual overrides
-		ManualYtbsID  int     `json:"ytbsId"`
-		ManualLicense string  `json:"licenseNo"`
-		Value         float64 `json:"value"`
+		ManualYtbsID  int      `json:"ytbsId"`
+		ManualLicense string   `json:"licenseNo"`
+		Value         *float64 `json:"value"`
+		Date          string   `json:"date"` // YYYY-MM-DD
+		Time          string   `json:"time"` // HH:mm or HH:00
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -244,8 +250,15 @@ func CreateTestLog(c *gin.Context) {
 		return
 	}
 
-	log.Printf("[YTBS-TEST] Request received: CompanyID=%s, Type=%s, ManualID=%d, ManualLicense=%s", 
-		req.CompanyID, req.Type, req.ManualYtbsID, req.ManualLicense)
+	valLog := "nil"
+	if req.Value != nil {
+		valLog = fmt.Sprintf("%.4f", *req.Value)
+	}
+
+	log.Printf("======================================================")
+	log.Printf("[DEBUG-TEST] NEW REQUEST RECEIVED")
+	log.Printf("[DEBUG-TEST] CoID: %s, Type: %s, Val: %s, Date: %s, Time: %s", req.CompanyID, req.Type, valLog, req.Date, req.Time)
+	log.Printf("======================================================")
 
 	// Şirkete ait bir YTBS santrali bul veya manuel veriyi kullan
 	var ypID uuid.UUID
@@ -260,11 +273,26 @@ func CreateTestLog(c *gin.Context) {
 	var ypIDPtr any = nil
 
 	if req.ManualYtbsID != 0 || req.ManualLicense != "" {
-		// Manuel mod: Veritabanında aramadan doğrudan kullan
+		// Manuel mod: Veritabanında aramadan doğrudan kullanmak yerine,
+		// eğer sistemde bu ytbsId'ye ait bir santral varsa plantId'sini bulalım ki listelerde gözüksün.
 		ytbsID = req.ManualYtbsID
 		licenseNo = req.ManualLicense
-		// ypID ve plantID NIL kalır
-		log.Printf("[YTBS-TEST] Manual mode: ID %d, License %s", ytbsID, licenseNo)
+		
+		err = db.Pool.QueryRow(context.Background(), `
+			SELECT yp.id, yp."plantId"
+			FROM "YtbsPlant" yp
+			JOIN "Plant" p ON yp."plantId" = p.id
+			WHERE p."companyId" = $1 AND yp."ytbsId" = $2
+			LIMIT 1
+		`, compUUID, ytbsID).Scan(&ypID, &plantID)
+		
+		if err == nil {
+			plantIDPtr = plantID
+			ypIDPtr = ypID
+			log.Printf("[YTBS-TEST] Manual mode: Found matching plant for ID %d", ytbsID)
+		} else {
+			log.Printf("[YTBS-TEST] Manual mode: No matching plant found for ID %d, inserting with NULL plantId", ytbsID)
+		}
 	} else {
 		// Otomatik mod: Veritabanında ilk santrali bul
 		err = db.Pool.QueryRow(context.Background(), `
@@ -285,10 +313,20 @@ func CreateTestLog(c *gin.Context) {
 
 	now := time.Now()
 	dateStr := now.Format("2006-01-02")
-	timeStr := now.Format("15:04")
+	if req.Date != "" {
+		dateStr = req.Date
+	}
 
-	val := req.Value
-	if val == 0 {
+	timeStr := now.Format("15:04")
+	if req.Time != "" {
+		timeStr = req.Time
+	}
+
+	val := 0.0
+	if req.Value != nil {
+		val = *req.Value
+	} else {
+		// Default mock value only if nil
 		if req.Type == "instant" {
 			val = 10.5
 		} else {
@@ -297,17 +335,29 @@ func CreateTestLog(c *gin.Context) {
 	}
 
 	if req.Type == "instant" {
+		log.Printf("[YTBS-TEST] Inserting INSTANT: val=%.4f to plant %d for time %s %s", val, ytbsID, dateStr, timeStr)
 		_, err = db.Pool.Exec(context.Background(), `
 			INSERT INTO "YtbsInstantProduction" 
 			(id, "plantId", "externalPlantId", "ytbsPlantId", "readingDate", "readingTime", "valueMw", "isSent", "createdAt", "companyId", "licenseNo", "retryCount")
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), $9, $10, -1)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), $9, $10, 0)
+			ON CONFLICT ("ytbsPlantId", "readingDate", "readingTime") 
+			DO UPDATE SET "valueMw" = EXCLUDED."valueMw", "isSent" = false, "createdAt" = NOW()
 		`, uuid.New(), plantIDPtr, ytbsID, ypIDPtr, dateStr, timeStr, val, false, compUUID, licenseNo)
 	} else {
+		// Hourly ensure format HH:00 if not specified
+		finalHour := timeStr
+		if !strings.Contains(finalHour, ":") {
+			finalHour = fmt.Sprintf("%02d:00", now.Hour())
+		}
+		
+		log.Printf("[YTBS-TEST] Inserting HOURLY: val=%.4f to plant %d for hour %s %s", val, ytbsID, dateStr, finalHour)
 		_, err = db.Pool.Exec(context.Background(), `
 			INSERT INTO "YtbsHourlyProduction" 
 			(id, "plantId", "externalPlantId", "ytbsPlantId", "readingDate", "readingHour", "valueMwh", "isSent", "createdAt", "companyId", "licenseNo", "retryCount")
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), $9, $10, -1)
-		`, uuid.New(), plantIDPtr, ytbsID, ypIDPtr, dateStr, fmt.Sprintf("%02d:00", now.Hour()), val, false, compUUID, licenseNo)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), $9, $10, 0)
+			ON CONFLICT ("ytbsPlantId", "readingDate", "readingHour") 
+			DO UPDATE SET "valueMwh" = EXCLUDED."valueMwh", "isSent" = false, "createdAt" = NOW()
+		`, uuid.New(), plantIDPtr, ytbsID, ypIDPtr, dateStr, finalHour, val, false, compUUID, licenseNo)
 	}
 
 	if err != nil {

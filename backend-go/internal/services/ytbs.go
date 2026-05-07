@@ -129,10 +129,10 @@ func (s *YtbsService) ProcessPendingInstant() {
 	rows, err := db.Pool.Query(ctx, `
 		SELECT 
 			COALESCE(p.id, '00000000-0000-0000-0000-000000000000'::uuid), 
-			COALESCE(yp.id, '00000000-0000-0000-0000-000000000000'::uuid), 
+			COALESCE(yp."ytbsId", i."externalPlantId", 0), 
 			COALESCE(yp.license_no, i."licenseNo", ''), 
 			cp.id, cp."ytbsApiKey", cp."ytbsUsername", cp."ytbsPassword",
-			i.id, i."externalPlantId", i."readingDate", i."readingTime", i."valueMw"
+			i."readingDate", i."readingTime", i."valueMw", i.id
 		FROM "YtbsInstantProduction" i
 		LEFT JOIN "YtbsPlant" yp ON i."ytbsPlantId" = yp.id
 		LEFT JOIN "Plant" p ON yp."plantId" = p.id
@@ -151,11 +151,12 @@ func (s *YtbsService) ProcessPendingInstant() {
 	// In a real implementation we'd group by license and send batch
 	// For this port, simplified one-by-one or small batch is fine to start
 	for rows.Next() {
-		var id, ypID, cpID, prodID uuid.UUID
+		var id, cpID, prodID uuid.UUID
+		var ytbsID int
 		var license, apiKey, username, password, date, timeStr string
 		var val float64
 		
-		if err := rows.Scan(&id, &ypID, &license, &cpID, &apiKey, &username, &password, &date, &timeStr, &val, &prodID); err == nil {
+		if err := rows.Scan(&id, &ytbsID, &license, &cpID, &apiKey, &username, &password, &date, &timeStr, &val, &prodID); err == nil {
 			token, err := s.Login(ctx, apiKey, username, password)
 			if err != nil { continue }
 			
@@ -165,7 +166,7 @@ func (s *YtbsService) ProcessPendingInstant() {
 					{
 						"tarih": date,
 						"saat":  timeStr,
-						"lisanssizSantralId": ypID,
+						"lisanssizSantralId": ytbsID,
 						"veriDeger": val,
 					},
 				},
@@ -191,7 +192,7 @@ func (s *YtbsService) ProcessPendingInstant() {
 func (s *YtbsService) ProcessPendingHourly() {
 	ctx := context.Background()
 	rows, err := db.Pool.Query(ctx, `
-		SELECT p.id, yp.id, yp.license_no, cp.id, cp."ytbsApiKey", cp."ytbsUsername", cp."ytbsPassword",
+		SELECT p.id, COALESCE(yp."ytbsId", p."externalPlantId", 0), yp.license_no, cp.id, cp."ytbsApiKey", cp."ytbsUsername", cp."ytbsPassword",
 		       p."readingDate", p."readingHour", p."valueMwh", p.id
 		FROM "YtbsHourlyProduction" p
 		JOIN "YtbsPlant" yp ON p."ytbsPlantId" = yp.id
@@ -208,11 +209,12 @@ func (s *YtbsService) ProcessPendingHourly() {
 	defer rows.Close()
 
 	for rows.Next() {
-		var id, ypID, cpID, prodID uuid.UUID
+		var id, cpID, prodID uuid.UUID
+		var ytbsID int
 		var license, apiKey, username, password, date, hourStr string
 		var val float64
 		
-		if err := rows.Scan(&id, &ypID, &license, &cpID, &apiKey, &username, &password, &date, &hourStr, &val, &prodID); err == nil {
+		if err := rows.Scan(&id, &ytbsID, &license, &cpID, &apiKey, &username, &password, &date, &hourStr, &val, &prodID); err == nil {
 			token, err := s.Login(ctx, apiKey, username, password)
 			if err != nil { continue }
 			
@@ -222,7 +224,7 @@ func (s *YtbsService) ProcessPendingHourly() {
 					{
 						"tarih": date,
 						"saat":  hourStr,
-						"lisanssizSantralId": ypID,
+						"lisanssizSantralId": ytbsID,
 						"veriDeger": val,
 					},
 				},

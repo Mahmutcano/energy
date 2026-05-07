@@ -92,6 +92,8 @@ export default function YtbsQueryPage() {
     const [selectedPlantId, setSelectedPlantId] = useState(''); // This is the YtbsPlant UUID
     const [importedPlants, setImportedPlants] = useState<any[]>([]);
     const [testValue, setTestValue] = useState<string>('');
+    const [testDate, setTestDate] = useState(startDate);
+    const [testTime, setTestTime] = useState('01:00');
 
     useEffect(() => {
         const init = async () => {
@@ -308,13 +310,13 @@ export default function YtbsQueryPage() {
         }
     };
 
-    const handleCreateTestLog = async (logType: 'instant' | 'hourly', manualYtbsId?: number, manualLicense?: string, value?: number) => {
+    const handleCreateTestLog = async (logType: 'instant' | 'hourly', manualYtbsId?: number, manualLicense?: string, value?: number, date?: string, time?: string) => {
         if (!selectedCompanyId) {
             toast.error('Lütfen önce bir firma seçin');
             return;
         }
 
-        const t = toast.loading('Test kaydı oluşturuluyor...');
+        const t = toast.loading('Taslak kayıt oluşturuluyor...');
         try {
             const res = await apiRequest('/api/ytbs/test-log', {
                 method: 'POST',
@@ -323,18 +325,21 @@ export default function YtbsQueryPage() {
                     type: logType,
                     ytbsId: manualYtbsId ? Number(manualYtbsId) : undefined,
                     licenseNo: manualLicense,
-                    value: value
+                    value: value,
+                    date: date,
+                    time: time
                 })
             });
             if (res.ok) {
-                toast.success('Test kaydı oluşturuldu!', { id: t });
+                toast.success('Taslak kayıt başarıyla oluşturuldu', { id: t });
+                setTestValue('');
                 fetchLogs();
             } else {
                 const errData = await res.json();
-                toast.error(errData.error?.message || errData.message || 'Oluşturulamadı', { id: t });
+                toast.error(`Hata: ${errData.error || 'Oluşturulamadı'}`, { id: t });
             }
         } catch (err) {
-            toast.error('Hata oluştu', { id: t });
+            toast.error('Bağlantı hatası oluştu', { id: t });
         }
     };
 
@@ -525,30 +530,100 @@ export default function YtbsQueryPage() {
                         )}
 
                         {activeTab === 'data' && (
-                            <div className="pt-6 border-t border-grafana-border space-y-3">
+                            <div className="pt-6 border-t border-grafana-border space-y-4">
                                 <div className="space-y-1">
                                     <label className="text-[10px] font-black text-grafana-text-secondary uppercase tracking-widest ml-1 flex items-center gap-2">
-                                        <Zap size={12} className="text-grafana-accent-orange" /> MANUEL TEST DEĞERİ
+                                        <Zap size={12} className="text-grafana-accent-orange" /> MANUEL VERİ GİRİŞİ (TASLAK)
                                     </label>
-                                    <input
-                                        type="number"
-                                        step="0.01"
-                                        placeholder="Örn: 10.5"
-                                        value={testValue}
-                                        onChange={(e) => setTestValue(e.target.value)}
-                                        className="w-full bg-grafana-bg border border-grafana-border rounded-sm px-3 py-2 text-xs font-bold text-white focus:border-grafana-accent-blue outline-none font-mono"
-                                    />
+
+                                    <div className="grid grid-cols-1 gap-4">
+                                        {/* Değer Girişi */}
+                                        <div className="space-y-1">
+                                            <span className="text-[9px] font-bold text-grafana-text-secondary ml-1">ÜRETİM DEĞERİ ({logType === 'instant' ? 'MW' : 'MWh'})</span>
+                                            <div className="relative">
+                                                <input
+                                                    type="number"
+                                                    step="0.0001"
+                                                    placeholder="0.0000"
+                                                    value={testValue}
+                                                    onChange={(e) => setTestValue(e.target.value)}
+                                                    className="w-full bg-grafana-bg border border-grafana-border rounded-sm px-4 py-3 text-lg font-bold text-white focus:border-grafana-accent-blue outline-none font-mono"
+                                                />
+                                                <div className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-bold text-grafana-text-secondary font-mono">
+                                                    {logType === 'instant' ? 'MW' : 'MWh'}
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Tarih ve Saat Seçimi */}
+                                        <div className="space-y-3">
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-[9px] font-bold text-grafana-text-secondary ml-1 uppercase">Zaman Seçimi</span>
+                                                <input
+                                                    type="date"
+                                                    value={testDate}
+                                                    onChange={(e) => setTestDate(e.target.value)}
+                                                    className="bg-transparent border-none text-[10px] font-bold text-grafana-accent-blue focus:outline-none font-mono cursor-pointer"
+                                                />
+                                            </div>
+
+                                            {/* Saat Grid'i */}
+                                            <div className={cn(
+                                                "grid gap-1 max-h-[160px] overflow-y-auto p-1 bg-black/20 rounded-sm border border-grafana-border/50",
+                                                logType === 'instant' ? "grid-cols-4" : "grid-cols-6"
+                                            )}>
+                                                {Array.from({ length: logType === 'instant' ? 96 : 24 }).map((_, i) => {
+                                                    let timeLabel = "";
+                                                    if (logType === 'hourly') {
+                                                        timeLabel = `${String(i + 1).padStart(2, '0')}:00`;
+                                                    } else {
+                                                        const h = Math.floor(i / 4);
+                                                        const m = (i % 4) * 15;
+                                                        timeLabel = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+                                                    }
+
+                                                    const isSelected = testTime === timeLabel;
+
+                                                    return (
+                                                        <button
+                                                            key={timeLabel}
+                                                            onClick={() => setTestTime(timeLabel)}
+                                                            className={cn(
+                                                                "py-1.5 rounded-[2px] text-[9px] font-bold font-mono transition-all border",
+                                                                isSelected
+                                                                    ? "bg-grafana-accent-blue text-white border-grafana-accent-blue shadow-[0_0_8px_rgba(0,120,215,0.3)]"
+                                                                    : "bg-grafana-bg text-grafana-text-secondary border-grafana-border hover:border-grafana-text-secondary"
+                                                            )}
+                                                        >
+                                                            {timeLabel}
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
+
                                 <button
                                     onClick={() => {
                                         const plant = importedPlants.find(p => p.id === selectedPlantId);
-                                        handleCreateTestLog(logType, plant ? Number(plant.ytbsId) : undefined, undefined, testValue ? Number(testValue) : undefined);
+                                        handleCreateTestLog(
+                                            logType,
+                                            plant ? Number(plant.ytbsId) : undefined,
+                                            undefined,
+                                            testValue ? Number(testValue) : undefined,
+                                            testDate,
+                                            testTime
+                                        );
                                     }}
-                                    disabled={!selectedCompanyId}
-                                    className="w-full flex items-center justify-center gap-2 py-3 bg-grafana-bg border border-grafana-border text-grafana-text-secondary rounded-sm text-[9px] font-black uppercase tracking-widest hover:bg-grafana-panel hover:text-white transition-all font-mono disabled:opacity-30"
+                                    disabled={!selectedCompanyId || !testValue}
+                                    className="w-full flex items-center justify-center gap-3 py-4 bg-grafana-accent-blue text-white rounded-sm text-[10px] font-black uppercase tracking-widest hover:bg-grafana-accent-blue/90 transition-all font-mono shadow-xl shadow-grafana-accent-blue/20 disabled:opacity-30"
                                 >
-                                    <Beaker size={12} /> TEST VERİSİ OLUŞTUR
+                                    <Beaker size={14} /> TASLAK OLARAK KAYDET
                                 </button>
+                                <p className="text-[8px] text-center text-grafana-text-secondary font-mono leading-relaxed px-4">
+                                    * Kayıtlar sisteme TASLAK olarak eklenir. Kontrol ettikten sonra yanlarındaki GÖNDER butonu ile TEİAŞa iletebilirsiniz.
+                                </p>
                             </div>
                         )}
                     </div>

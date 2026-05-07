@@ -1,10 +1,16 @@
 import { io, Socket } from 'socket.io-client';
 
 const PRODUCTION_URL = 'https://amusing-inspiration-production-a099.up.railway.app';
-const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL ||
+const NGROK_BACKEND_URL = 'https://0f03-2a00-1d36-40c-5e00-55ad-b84f-9b37-9302.ngrok-free.app';
+
+let SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL ||
     (typeof window !== 'undefined' && !window.location.hostname.includes('localhost')
         ? PRODUCTION_URL
         : 'http://localhost:3001');
+
+if (typeof window !== 'undefined' && window.location.hostname.includes('ngrok-free.app')) {
+    SOCKET_URL = NGROK_BACKEND_URL;
+}
 
 class SocketService {
     private static instance: SocketService;
@@ -18,7 +24,10 @@ class SocketService {
             reconnectionDelayMax: 5000,
             timeout: 20000,
             autoConnect: true,
-            transports: ['websocket', 'polling']
+            transports: ['websocket', 'polling'],
+            extraHeaders: {
+                'ngrok-skip-browser-warning': '69420'
+            }
         });
 
         this.setupListeners();

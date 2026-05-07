@@ -18,16 +18,24 @@ export async function apiRequest(endpoint: string, options: RequestInit = {}) {
          window.location.hostname.startsWith('10.') || 
          window.location.hostname.endsWith('.local'));
 
-    // Enforce absolute URL to prevent Next.js from incorrectly resolving relative API requests to its own router (which returns HTML fallbacks).
+    // Temporary override for Ngrok testing
+    const NGROK_BACKEND_URL = 'https://0f03-2a00-1d36-40c-5e00-55ad-b84f-9b37-9302.ngrok-free.app';
+
     const envApiUrl = process.env.NEXT_PUBLIC_API_URL;
-    const apiUrl = (envApiUrl && envApiUrl.trim() !== '' && envApiUrl.trim() !== '/') 
+    let apiUrl = (envApiUrl && envApiUrl.trim() !== '' && envApiUrl.trim() !== '/') 
         ? envApiUrl 
         : (isLocal ? 'http://localhost:3001' : PRODUCTION_URL);
+        
+    // Eğer ngrok üzerinden giriliyorsa, API de mecburen ngrok backend'i olmalı
+    if (typeof window !== 'undefined' && window.location.hostname.includes('ngrok-free.app')) {
+        apiUrl = NGROK_BACKEND_URL;
+    }
 
     // console.log(`[API] Endpoint: ${endpoint} | Base: ${apiUrl}`); // Uncomment if you want to inspect URLs
 
     const headers = {
         'Content-Type': 'application/json',
+        'ngrok-skip-browser-warning': '69420',
         ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
         ...options.headers,
     };

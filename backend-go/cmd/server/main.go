@@ -169,6 +169,7 @@ func main() {
 				ytbs.POST("/query-external-logs", handlers.QueryExternalLogs)
 				ytbs.POST("/import-external", handlers.ImportExternalPlants)
 				ytbs.POST("/remove-external", handlers.RemoveExternalPlant)
+				ytbs.POST("/delete-remote", handlers.DeleteRemoteLogHandler)
 				ytbs.POST("/bulk-delete", handlers.BulkDeleteLogs)
 				ytbs.POST("/bulk-send", handlers.BulkSendLogs)
 				ytbs.POST("/logs/:type/:id/send", handlers.SendLogNow)
@@ -206,7 +207,7 @@ func main() {
 	}
 
 	go func() {
-		log.Printf("[SERVER] Go Backend running on port %s", port)
+		log.Printf("[SERVER] Go Backend (Version 2.0-FIXED-LICENSE) running on port %s", port)
 		if err := r.Run(":" + port); err != nil {
 			log.Fatalf("Server failed: %v", err)
 		}

@@ -121,6 +121,7 @@ type YtbsHourlyProduction struct {
 	LastAttemptAt   *time.Time `json:"lastAttemptAt"`
 	RetryCount      int        `json:"retryCount"`
 	CreatedAt       time.Time  `json:"createdAt"`
+	LicenseNo       string     `json:"licenseNo"`
 }
 
 type YtbsInstantProduction struct {
@@ -135,4 +136,5 @@ type YtbsInstantProduction struct {
 	LastAttemptAt   *time.Time `json:"lastAttemptAt"`
 	RetryCount      int        `json:"retryCount"`
 	CreatedAt       time.Time  `json:"createdAt"`
+	LicenseNo       string     `json:"licenseNo"`
 }

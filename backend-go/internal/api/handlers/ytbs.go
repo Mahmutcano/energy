@@ -131,7 +131,7 @@ func GetProductionLogs(c *gin.Context) {
 	}
 
 	var query strings.Builder
-	query.WriteString(fmt.Sprintf(`SELECT id, "plantId", "externalPlantId", "ytbsPlantId", "readingDate", %s, %s, "isSent", "lastAttemptAt", "retryCount", "createdAt" FROM "%s" WHERE 1=1 `, 
+	query.WriteString(fmt.Sprintf(`SELECT id, "plantId", "externalPlantId", "ytbsPlantId", "readingDate", %s, %s, "isSent", "lastAttemptAt", "retryCount", "createdAt", "licenseNo" FROM "%s" WHERE 1=1 `, 
 		cond(logType == "hourly", "\"readingHour\"", "\"readingTime\""),
 		cond(logType == "hourly", "\"valueMwh\"", "\"valueMw\""),
 		tableName))
@@ -185,12 +185,12 @@ func GetProductionLogs(c *gin.Context) {
 	for rows.Next() {
 		if logType == "hourly" {
 			var r models.YtbsHourlyProduction
-			if err := rows.Scan(&r.ID, &r.PlantID, &r.ExternalPlantID, &r.YtbsPlantID, &r.ReadingDate, &r.ReadingHour, &r.ValueMwh, &r.IsSent, &r.LastAttemptAt, &r.RetryCount, &r.CreatedAt); err == nil {
+			if err := rows.Scan(&r.ID, &r.PlantID, &r.ExternalPlantID, &r.YtbsPlantID, &r.ReadingDate, &r.ReadingHour, &r.ValueMwh, &r.IsSent, &r.LastAttemptAt, &r.RetryCount, &r.CreatedAt, &r.LicenseNo); err == nil {
 				logs = append(logs, r)
 			}
 		} else {
 			var r models.YtbsInstantProduction
-			if err := rows.Scan(&r.ID, &r.PlantID, &r.ExternalPlantID, &r.YtbsPlantID, &r.ReadingDate, &r.ReadingTime, &r.ValueMw, &r.IsSent, &r.LastAttemptAt, &r.RetryCount, &r.CreatedAt); err == nil {
+			if err := rows.Scan(&r.ID, &r.PlantID, &r.ExternalPlantID, &r.YtbsPlantID, &r.ReadingDate, &r.ReadingTime, &r.ValueMw, &r.IsSent, &r.LastAttemptAt, &r.RetryCount, &r.CreatedAt, &r.LicenseNo); err == nil {
 				logs = append(logs, r)
 			}
 		}
@@ -214,8 +214,10 @@ func DeleteProductionLog(c *gin.Context) {
 	id := c.Param("id")
 
 	tableName := "YtbsInstantProduction"
+	timeCol := "readingTime"
 	if logType == "hourly" {
 		tableName = "YtbsHourlyProduction"
+		timeCol = "readingHour"
 	}
 
 	uid, err := uuid.Parse(id)
@@ -224,13 +226,58 @@ func DeleteProductionLog(c *gin.Context) {
 		return
 	}
 
+	// 1. Get record details to check if it was sent and get deletion parameters
+	var isSent bool
+	var readingDate, readingTime, licenseNo string
+	var ytbsId int
+	var companyId uuid.UUID
+
+	query := fmt.Sprintf(`
+		SELECT "isSent", "readingDate", %s, "externalPlantId", "companyId", "licenseNo" 
+		FROM "%s" WHERE id = $1
+	`, timeCol, tableName)
+
+	err = db.Pool.QueryRow(context.Background(), query, uid).Scan(&isSent, &readingDate, &readingTime, &ytbsId, &companyId, &licenseNo)
+	if err != nil {
+		response.Error(c, http.StatusNotFound, response.ErrNotFound, "Kayıt bulunamadı")
+		return
+	}
+
+	// 2. If it was already sent, try to delete it from TEİAŞ first
+	if isSent {
+		var apiKey, username, password *string
+		err = db.Pool.QueryRow(context.Background(), `
+			SELECT "ytbsApiKey", "ytbsUsername", "ytbsPassword"
+			FROM "CompanyProfile"
+			WHERE id = $1
+		`, companyId).Scan(&apiKey, &username, &password)
+
+		if err == nil && apiKey != nil && username != nil && password != nil {
+			svc := services.GetYtbsService()
+			token, loginErr := svc.Login(context.Background(), *apiKey, *username, *password)
+			if loginErr == nil {
+				// Attempt remote delete
+				delErr := svc.DeleteRemoteLog(context.Background(), *apiKey, token, licenseNo, ytbsId, readingDate, readingTime, logType)
+				if delErr != nil {
+					log.Printf("[YTBS] Remote delete failed for ID %s: %v", id, delErr)
+					response.Error(c, http.StatusPreconditionFailed, response.ErrInternal, delErr.Error())
+					return
+				}
+				log.Printf("[YTBS] Successfully deleted record from TEİAŞ: %d %s %s", ytbsId, readingDate, readingTime)
+			} else {
+				log.Printf("[YTBS] Could not login to delete remote record: %v", loginErr)
+			}
+		}
+	}
+
+	// 3. Delete from local DB
 	_, err = db.Pool.Exec(context.Background(), fmt.Sprintf(`DELETE FROM "%s" WHERE id = $1`, tableName), uid)
 	if err != nil {
 		response.Error(c, http.StatusInternalServerError, response.ErrDatabase, err.Error())
 		return
 	}
 
-	response.Success(c, http.StatusOK, gin.H{"message": "Kayıt silindi"})
+	response.Success(c, http.StatusOK, gin.H{"message": "Kayıt başarıyla silindi (Yerel + YTBS)"})
 }
 
 func CreateTestLog(c *gin.Context) {
@@ -339,9 +386,9 @@ func CreateTestLog(c *gin.Context) {
 		_, err = db.Pool.Exec(context.Background(), `
 			INSERT INTO "YtbsInstantProduction" 
 			(id, "plantId", "externalPlantId", "ytbsPlantId", "readingDate", "readingTime", "valueMw", "isSent", "createdAt", "companyId", "licenseNo", "retryCount")
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), $9, $10, 0)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), $9, $10, -1)
 			ON CONFLICT ("ytbsPlantId", "readingDate", "readingTime") 
-			DO UPDATE SET "valueMw" = EXCLUDED."valueMw", "isSent" = false, "createdAt" = NOW()
+			DO UPDATE SET "valueMw" = EXCLUDED."valueMw", "isSent" = false, "createdAt" = NOW(), "licenseNo" = EXCLUDED."licenseNo", "retryCount" = -1
 		`, uuid.New(), plantIDPtr, ytbsID, ypIDPtr, dateStr, timeStr, val, false, compUUID, licenseNo)
 	} else {
 		// Hourly ensure format HH:00 if not specified
@@ -354,9 +401,9 @@ func CreateTestLog(c *gin.Context) {
 		_, err = db.Pool.Exec(context.Background(), `
 			INSERT INTO "YtbsHourlyProduction" 
 			(id, "plantId", "externalPlantId", "ytbsPlantId", "readingDate", "readingHour", "valueMwh", "isSent", "createdAt", "companyId", "licenseNo", "retryCount")
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), $9, $10, 0)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), $9, $10, -1)
 			ON CONFLICT ("ytbsPlantId", "readingDate", "readingHour") 
-			DO UPDATE SET "valueMwh" = EXCLUDED."valueMwh", "isSent" = false, "createdAt" = NOW()
+			DO UPDATE SET "valueMwh" = EXCLUDED."valueMwh", "isSent" = false, "createdAt" = NOW(), "licenseNo" = EXCLUDED."licenseNo", "retryCount" = -1
 		`, uuid.New(), plantIDPtr, ytbsID, ypIDPtr, dateStr, finalHour, val, false, compUUID, licenseNo)
 	}
 
@@ -638,8 +685,10 @@ func RemoveExternalPlant(c *gin.Context) {
 
 func QueryExternalLogs(c *gin.Context) {
 	var req struct {
-		CompanyID string `json:"companyId"`
-		Type      string `json:"type"` // hourly or instant
+		CompanyID string `json:"companyId" binding:"required"`
+		Type      string `json:"type" binding:"required"`
+		StartDate string `json:"startDate"`
+		EndDate   string `json:"endDate"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.Error(c, http.StatusBadRequest, response.ErrInvalidInput, err.Error())
@@ -653,7 +702,7 @@ func QueryExternalLogs(c *gin.Context) {
 	}
 
 	svc := services.GetYtbsService()
-	logs, err := svc.QueryExternalLogs(c.Request.Context(), cid, req.Type)
+	logs, err := svc.QueryExternalLogs(c.Request.Context(), cid, req.Type, req.StartDate, req.EndDate)
 	if err != nil {
 		response.Error(c, http.StatusInternalServerError, response.ErrDatabase, err.Error())
 		return
@@ -823,4 +872,56 @@ func SendLogNow(c *gin.Context) {
 		}
 		response.Error(c, http.StatusBadRequest, response.ErrInternal, errMsg)
 	}
+}
+
+func DeleteRemoteLogHandler(c *gin.Context) {
+	var req struct {
+		CompanyID string `json:"companyId"`
+		LogType   string `json:"logType"`
+		YtbsID    int    `json:"ytbsId"`
+		LicenseNo string `json:"licenseNo"`
+		Date      string `json:"date"`
+		Time      string `json:"time"`
+		Tarih     string `json:"tarih"` // Support both
+		Saat      string `json:"saat"`  // Support both
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Error(c, http.StatusBadRequest, response.ErrInvalidInput, err.Error())
+		return
+	}
+
+	if req.Date == "" { req.Date = req.Tarih }
+	if req.Time == "" { req.Time = req.Saat }
+
+	cid, err := uuid.Parse(req.CompanyID)
+	if err != nil {
+		response.Error(c, http.StatusBadRequest, response.ErrInvalidInput, "Invalid company ID")
+		return
+	}
+
+	// Get credentials
+	var apiKey, username, password string
+	err = db.Pool.QueryRow(c.Request.Context(), `
+		SELECT "ytbsApiKey", "ytbsUsername", "ytbsPassword" 
+		FROM "CompanyProfile" WHERE id = $1
+	`, cid).Scan(&apiKey, &username, &password)
+	if err != nil {
+		response.Error(c, http.StatusInternalServerError, response.ErrDatabase, "Yetki bilgisi bulunamadı")
+		return
+	}
+
+	svc := services.GetYtbsService()
+	token, err := svc.Login(c.Request.Context(), apiKey, username, password)
+	if err != nil {
+		response.Error(c, http.StatusUnauthorized, response.ErrInternal, "YTBS Login başarısız")
+		return
+	}
+
+	err = svc.DeleteRemoteLog(c.Request.Context(), apiKey, token, req.LicenseNo, req.YtbsID, req.Date, req.Time, req.LogType)
+	if err != nil {
+		response.Error(c, http.StatusBadRequest, response.ErrInternal, err.Error())
+		return
+	}
+
+	response.Success(c, http.StatusOK, gin.H{"message": "Kayıt TEİAŞ'tan silindi"})
 }

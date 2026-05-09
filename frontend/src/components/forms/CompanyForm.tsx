@@ -26,45 +26,35 @@ interface CompanyFormProps {
     submitLabel: string;
 }
 
+const getInitialFormData = (data?: Partial<CompanyFormData>): CompanyFormData => ({
+    name: data?.name || '',
+    address: data?.address || '',
+    phone: data?.phone || '',
+    email: data?.email || '',
+    representative: data?.representative || '',
+    taxOffice: data?.taxOffice || '',
+    taxNumber: data?.taxNumber || '',
+    ytbsUsername: data?.ytbsUsername || '',
+    ytbsPassword: data?.ytbsPassword || '',
+    ytbsApiKey: data?.ytbsApiKey || '',
+    baglantiAnlasmasiSirketiLisansNo: data?.baglantiAnlasmasiSirketiLisansNo || '',
+    isActive: data?.isActive ?? true,
+});
+
 export default function CompanyForm({
     initialData,
     onSubmit,
     isSubmitting,
     submitLabel
 }: CompanyFormProps) {
-    const [formData, setFormData] = useState<CompanyFormData>({
-        name: initialData?.name || '',
-        address: initialData?.address || '',
-        phone: initialData?.phone || '',
-        email: initialData?.email || '',
-        representative: initialData?.representative || '',
-        taxOffice: initialData?.taxOffice || '',
-        taxNumber: initialData?.taxNumber || '',
-        ytbsUsername: initialData?.ytbsUsername || '',
-        ytbsPassword: initialData?.ytbsPassword || '',
-        ytbsApiKey: initialData?.ytbsApiKey || '',
-        baglantiAnlasmasiSirketiLisansNo: initialData?.baglantiAnlasmasiSirketiLisansNo || '',
-        isActive: initialData?.isActive ?? true,
-    });
+    const [formData, setFormData] = useState<CompanyFormData>(() => getInitialFormData(initialData));
+    const [prevInitialData, setPrevInitialData] = useState(initialData);
 
-    useEffect(() => {
-        if (initialData) {
-            setFormData({
-                name: initialData.name || '',
-                address: initialData.address || '',
-                phone: initialData.phone || '',
-                email: initialData.email || '',
-                representative: initialData.representative || '',
-                taxOffice: initialData.taxOffice || '',
-                taxNumber: initialData.taxNumber || '',
-                ytbsUsername: initialData.ytbsUsername || '',
-                ytbsPassword: initialData.ytbsPassword || '',
-                ytbsApiKey: initialData.ytbsApiKey || '',
-                baglantiAnlasmasiSirketiLisansNo: initialData.baglantiAnlasmasiSirketiLisansNo || '',
-                isActive: initialData.isActive ?? true,
-            });
-        }
-    }, [initialData]);
+    // Sync state if initialData prop changes (During render to avoid cascading renders)
+    if (initialData !== prevInitialData) {
+        setPrevInitialData(initialData);
+        setFormData(getInitialFormData(initialData));
+    }
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();

@@ -15,6 +15,8 @@ const customIcon = L.icon({
     iconAnchor: [12, 41],
 });
 
+const DEFAULT_CENTER: [number, number] = [38.4237, 27.1428];
+
 interface LocationPickerProps {
     initialPos?: [number, number];
     onLocationSelect: (lat: number, lng: number) => void;
@@ -82,15 +84,15 @@ const FlyToLocation = ({ pos }: { pos: [number, number] }) => {
     return null;
 };
 
-export default function LocationPicker({ initialPos = [38.4237, 27.1428], onLocationSelect }: LocationPickerProps) {
+export default function LocationPicker({ initialPos = DEFAULT_CENTER, onLocationSelect }: LocationPickerProps) {
     const [position, setPosition] = useState<[number, number]>(initialPos);
+    const [prevInitialPos, setPrevInitialPos] = useState<[number, number]>(initialPos);
 
-    // Sync internal state with props
-    useEffect(() => {
-        if (initialPos[0] !== position[0] || initialPos[1] !== position[1]) {
-            setPosition(initialPos);
-        }
-    }, [initialPos, position]);
+    // Sync internal state with props (during render to avoid cascading renders)
+    if (initialPos[0] !== prevInitialPos[0] || initialPos[1] !== prevInitialPos[1]) {
+        setPrevInitialPos(initialPos);
+        setPosition(initialPos);
+    }
 
     // Update internal position and notify parent
     const handleSelect = (lat: number, lng: number) => {

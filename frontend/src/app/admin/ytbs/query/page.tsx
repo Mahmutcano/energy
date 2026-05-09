@@ -34,6 +34,10 @@ interface ExternalPlant {
         id: string; // Lisans No
         ad: string;
     };
+    // Mapped fields
+    licenseNo?: string;
+    capacityAc: number;
+    city: string;
 }
 
 interface Company {
@@ -57,7 +61,8 @@ export default function YtbsQueryPage() {
     const [activeTab, setActiveTab] = useState<'import' | 'plants' | 'data' | 'reports'>('import');
     const [logType, setLogType] = useState<'instant' | 'hourly'>('instant');
     const [logs, setLogs] = useState<any[]>([]);
-    const filteredLogs = activeTab === 'reports' ? logs.filter(l => l.isSent) : logs;
+    const [externalReports, setExternalReports] = useState<any[]>([]);
+    const filteredLogs = activeTab === 'reports' ? externalReports : logs;
 
     const handleExport = () => {
         if (logs.length === 0) {
@@ -66,10 +71,11 @@ export default function YtbsQueryPage() {
         }
 
         // Simple CSV export
-        const headers = ['Tarih', 'Saat/Saatlik', 'Değer', 'Birim', 'Durum'].join(',');
-        const rows = logs.map(log => [
+        const headers = ['Tarih', 'Saat/Saatlik', 'Lisans No', 'Değer', 'Birim', 'Durum'].join(',');
+        const rows = filteredLogs.map(log => [
             log.readingDate,
             log.readingTime || log.readingHour,
+            log.licenseNo || '-',
             log.valueMw || log.valueMwh,
             logType === 'instant' ? 'MW' : 'MWh',
             log.isSent ? 'GÖNDERİLDİ' : 'BEKLEMEDE'
@@ -119,6 +125,62 @@ export default function YtbsQueryPage() {
         };
         init();
     }, []);
+
+    const fetchExternalReports = async () => {
+        if (!selectedCompanyId) {
+            toast.error('Önce bir firma seçmelisiniz.');
+            return;
+        }
+        setQuerying(true);
+        try {
+            const res = await apiRequest('/api/ytbs/query-external-logs', {
+                method: 'POST',
+                body: JSON.stringify({
+                    companyId: selectedCompanyId,
+                    type: logType,
+                    startDate: startDate,
+                    endDate: endDate
+                })
+            });
+            if (res.ok) {
+                const result = await res.json();
+                const mapped = (result.data || []).map((item: any, idx: number) => {
+                    // Try to extract date/time from various possible fields
+                    let rDate = item.readingDate || item.tarih || item.Tarih || item.okumaTarihi;
+                    let rTime = item.readingTime || item.saat || item.Saat || item.okumaSaati;
+
+                    // If zaman exists (e.g. 2026-05-09T01:00), split it
+                    if (item.zaman && item.zaman.includes('T')) {
+                        const parts = item.zaman.split('T');
+                        if (!rDate) rDate = parts[0];
+                        if (!rTime) rTime = parts[1];
+                    }
+
+                    return {
+                        id: `ext-${idx}`,
+                        readingDate: rDate || '-',
+                        readingTime: rTime || '-',
+                        readingHour: rTime || '-',
+                        valueMw: item.valueMw || (item.veriDeger !== undefined ? item.veriDeger : item.Deger || item.value || 0),
+                        valueMwh: item.valueMwh || (item.veriDeger !== undefined ? item.veriDeger : item.Deger || item.value || 0),
+                        licenseNo: item.licenseNo || item.baglantiAnlasmasiSirketiLisansNo || item.baglantiAnlasmasiSirketiLisansno || item.lisansNo || '-',
+                        ytbsId: item.ytbsId || item.lisanssizSantralId || item.santralId || 0,
+                        isSent: true,
+                        isExternal: true,
+                        retryCount: -2,
+                    };
+                });
+                setExternalReports(mapped);
+                if (mapped.length > 0) {
+                    toast.success(`${mapped.length} kayıt TEİAŞ sisteminden çekildi.`);
+                }
+            }
+        } catch (err) {
+            toast.error('TEİAŞ verileri çekilemedi');
+        } finally {
+            setQuerying(false);
+        }
+    };
 
     const fetchLogs = async () => {
         if (!selectedCompanyId) {
@@ -195,6 +257,12 @@ export default function YtbsQueryPage() {
             return;
         }
 
+        if (activeTab === 'reports') {
+            await fetchExternalReports();
+            setQuerying(false);
+            return;
+        }
+
         if (activeTab === 'plants') {
             await fetchImportedPlants(selectedCompanyId);
             setQuerying(false);
@@ -211,10 +279,16 @@ export default function YtbsQueryPage() {
 
             if (res.ok) {
                 const result = await res.json();
-                const list = result.data?.veri || (Array.isArray(result.data) ? result.data : []);
-                setExternalPlants(list);
-                if (list && list.length > 0) {
-                    toast.success(`${list.length} santral bulundu.`);
+                const rawList = result.data?.veri || (Array.isArray(result.data) ? result.data : []);
+                const mappedList = rawList.map((p: any) => ({
+                    ...p,
+                    licenseNo: p.baglantiAnlasmasiSirketi?.id || '-',
+                    capacityAc: p.tarihce?.acGucu || 0,
+                    city: p.il?.ad || '-'
+                }));
+                setExternalPlants(mappedList);
+                if (mappedList.length > 0) {
+                    toast.success(`${mappedList.length} santral bulundu.`);
                 } else {
                     toast.error('Kayıtlı santral bulunamadı.');
                 }
@@ -291,6 +365,33 @@ export default function YtbsQueryPage() {
             } else {
                 const err = await res.json();
                 toast.error(err.message || 'Gönderim başarısız', { id: t });
+            }
+        } catch (err) {
+            toast.error('Hata oluştu', { id: t });
+        }
+    };
+
+    const handleDeleteExternalLog = async (log: any) => {
+        if (!confirm('Bu kayıt doğrudan TEİAŞ (YTBS) sisteminden SİLİNECEKTİR. Emin misiniz?')) return;
+        const t = toast.loading('TEİAŞ\'tan siliniyor...');
+        try {
+            const res = await apiRequest('/api/ytbs/delete-remote', {
+                method: 'POST',
+                body: JSON.stringify({
+                    companyId: selectedCompanyId,
+                    logType: logType,
+                    ytbsId: log.ytbsId,
+                    licenseNo: log.licenseNo,
+                    date: log.readingDate,
+                    time: log.readingTime || log.readingHour
+                })
+            });
+            if (res.ok) {
+                toast.success('Kayıt TEİAŞ\'tan başarıyla silindi', { id: t });
+                fetchExternalReports();
+            } else {
+                const err = await res.json();
+                toast.error(err.message || 'Silme başarısız', { id: t });
             }
         } catch (err) {
             toast.error('Hata oluştu', { id: t });
@@ -610,7 +711,7 @@ export default function YtbsQueryPage() {
                                         handleCreateTestLog(
                                             logType,
                                             plant ? Number(plant.ytbsId) : undefined,
-                                            undefined,
+                                            plant?.licenseNo,
                                             testValue ? Number(testValue) : undefined,
                                             testDate,
                                             testTime
@@ -655,6 +756,7 @@ export default function YtbsQueryPage() {
                                         <tr>
                                             <th className="w-[80px]">ID</th>
                                             <th>SANTRAL ADI</th>
+                                            <th className="text-center">LİSANS NO</th>
                                             <th className="text-center">HIZLI TEST</th>
                                             <th className="text-center">GÜÇ (AC)</th>
                                             <th className="text-center">DURUM</th>
@@ -680,17 +782,18 @@ export default function YtbsQueryPage() {
                                                     <td className="px-4 py-3 font-bold text-white group-hover:text-grafana-accent-blue transition-colors font-mono">
                                                         <span>{plant.ad}</span>
                                                     </td>
+                                                    <td className="px-4 py-3 text-center font-mono text-[10px] text-grafana-text-secondary">{plant.licenseNo}</td>
                                                     <td className="px-4 py-3 whitespace-nowrap text-sm">
                                                         <div className="flex gap-2">
                                                             <button
-                                                                onClick={() => handleCreateTestLog('instant', plant.id, plant.baglantiAnlasmasiSirketi?.id)}
+                                                                onClick={() => handleCreateTestLog('instant', plant.id, plant.licenseNo)}
                                                                 className="px-2 py-1 bg-yellow-500/20 text-yellow-500 rounded hover:bg-yellow-500/30 transition-colors text-[8px] font-bold font-mono"
                                                                 title="Anlık Test Verisi Oluştur"
                                                             >
                                                                 ANLIK
                                                             </button>
                                                             <button
-                                                                onClick={() => handleCreateTestLog('hourly', plant.id, plant.baglantiAnlasmasiSirketi?.id)}
+                                                                onClick={() => handleCreateTestLog('hourly', plant.id, plant.licenseNo)}
                                                                 className="px-2 py-1 bg-orange-500/20 text-orange-500 rounded hover:bg-orange-500/30 transition-colors text-[8px] font-bold font-mono"
                                                                 title="Saatlik Test Verisi Oluştur"
                                                             >
@@ -698,7 +801,7 @@ export default function YtbsQueryPage() {
                                                             </button>
                                                         </div>
                                                     </td>
-                                                    <td className="px-4 py-3 text-center font-bold text-grafana-text-primary font-mono">{(plant.tarihce?.acGucu || 0).toLocaleString()} <small className="opacity-40">MW</small></td>
+                                                    <td className="px-4 py-3 text-center font-bold text-grafana-text-primary font-mono">{plant.capacityAc.toLocaleString()} <small className="opacity-40">MW</small></td>
                                                     <td className="px-4 py-3 text-center">
                                                         <span className={cn(
                                                             "px-2 py-0.5 rounded-sm text-[8px] font-bold uppercase border font-mono",
@@ -707,7 +810,7 @@ export default function YtbsQueryPage() {
                                                             {plant.durum?.ad || 'BİLİNMİYOR'}
                                                         </span>
                                                     </td>
-                                                    <td className="px-4 py-3 text-center font-bold text-grafana-text-secondary font-mono text-[10px]">{plant.il?.ad || '-'}</td>
+                                                    <td className="px-4 py-3 text-center font-bold text-grafana-text-secondary font-mono text-[10px]">{plant.city}</td>
                                                     <td className="px-4 py-3 text-right">
                                                         {isAlreadyImported ? (
                                                             <div className="flex items-center justify-end gap-2 text-grafana-accent-green text-[10px] font-black font-mono">
@@ -731,7 +834,7 @@ export default function YtbsQueryPage() {
                                                     {notImported.length > 0 && (
                                                         <>
                                                             <tr className="bg-grafana-accent-orange/5">
-                                                                <td colSpan={7} className="px-4 py-2 border-y border-grafana-accent-orange/20 text-center">
+                                                                <td colSpan={8} className="px-4 py-2 border-y border-grafana-accent-orange/20 text-center">
                                                                     <span className="text-[9px] font-black text-grafana-accent-orange uppercase tracking-[0.3em] font-mono">SİSTEMDE OLMAYAN SANTRALLER ({notImported.length})</span>
                                                                 </td>
                                                             </tr>
@@ -741,7 +844,7 @@ export default function YtbsQueryPage() {
                                                     {imported.length > 0 && (
                                                         <>
                                                             <tr className="bg-grafana-accent-green/5">
-                                                                <td colSpan={7} className="px-4 py-2 border-y border-grafana-accent-green/20 text-center">
+                                                                <td colSpan={8} className="px-4 py-2 border-y border-grafana-accent-green/20 text-center">
                                                                     <span className="text-[9px] font-black text-grafana-accent-green uppercase tracking-[0.3em] font-mono">SİSTEME AKTARILMIŞ SANTRALLER ({imported.length})</span>
                                                                 </td>
                                                             </tr>
@@ -791,7 +894,8 @@ export default function YtbsQueryPage() {
                                 <table className="scada-table">
                                     <thead>
                                         <tr>
-                                            <th>ZAMAN</th>
+                                            <th>TARİH / SAAT</th>
+                                            <th className="text-center">LİSANS NO</th>
                                             <th className="text-center">DEĞER</th>
                                             <th className="text-center">DURUM</th>
                                             <th className="text-center">DENEME</th>
@@ -800,7 +904,7 @@ export default function YtbsQueryPage() {
                                     </thead>
                                     <tbody className="divide-y divide-white/[0.02]">
                                         {filteredLogs.length === 0 ? (
-                                            <tr><td colSpan={5} className="py-32 text-center opacity-20 text-[10px] font-bold uppercase font-mono">Kayıt Bulunmamaktadır</td></tr>
+                                            <tr><td colSpan={6} className="py-32 text-center opacity-20 text-[10px] font-bold uppercase font-mono">Kayıt Bulunmamaktadır</td></tr>
                                         ) : (
                                             filteredLogs.map((log) => (
                                                 <tr key={log.id} className="hover:bg-white/[0.01]">
@@ -810,11 +914,12 @@ export default function YtbsQueryPage() {
                                                             <span className="text-[9px] text-grafana-text-secondary font-mono italic">{log.readingTime || log.readingHour}</span>
                                                         </div>
                                                     </td>
+                                                    <td className="px-6 py-3 text-center text-[10px] font-mono text-grafana-text-secondary">{log.licenseNo || '-'}</td>
                                                     <td className="px-6 py-3 text-center text-[12px] font-bold text-white font-mono">{log.valueMw || log.valueMwh} <small className="opacity-40">{logType === 'instant' ? 'MW' : 'MWh'}</small></td>
                                                     <td className="px-6 py-3 text-center">
                                                         {log.isSent ? (
                                                             <div className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-grafana-accent-green/5 text-grafana-accent-green rounded-sm border border-grafana-accent-green/20 text-[8px] font-bold uppercase font-mono">
-                                                                <CheckCircle2 size={12} /> BAŞARILI
+                                                                <CheckCircle2 size={12} /> {log.isExternal ? 'TEİAŞ\'TA KAYITLI' : 'BAŞARILI'}
                                                             </div>
                                                         ) : log.retryCount === -1 ? (
                                                             <div className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-slate-500/10 text-slate-400 rounded-sm border border-slate-500/20 text-[8px] font-bold uppercase font-mono">
@@ -827,24 +932,36 @@ export default function YtbsQueryPage() {
                                                         )}
                                                     </td>
                                                     <td className="px-6 py-3 text-center text-[10px] font-bold text-grafana-text-secondary font-mono">
-                                                        {log.retryCount === -1 ? '-' : `${log.retryCount} / 10`}
+                                                        {log.retryCount < 0 ? '-' : `${log.retryCount} / 10`}
                                                     </td>
                                                     <td className="px-6 py-3 text-right">
                                                         <div className="flex items-center justify-end gap-2">
-                                                            <button
-                                                                onClick={() => handleSendLog(log.id)}
-                                                                className={cn(
-                                                                    "px-2 py-1 rounded-sm text-[8px] font-black uppercase tracking-widest transition-all font-mono border",
-                                                                    log.isSent
-                                                                        ? "bg-grafana-bg border-grafana-border text-grafana-text-secondary hover:text-white hover:border-white"
-                                                                        : "bg-grafana-accent-green/20 text-grafana-accent-green border-grafana-accent-green/30 hover:bg-grafana-accent-green/30"
-                                                                )}
-                                                            >
-                                                                {log.isSent ? 'YENİDEN GÖNDER' : 'GÖNDER'}
-                                                            </button>
-                                                            <button onClick={() => handleDeleteLog(log.id)} className="p-1.5 text-grafana-text-secondary hover:text-grafana-accent-red transition-all">
-                                                                <Trash2 size={14} />
-                                                            </button>
+                                                            {!log.isExternal && (
+                                                                <>
+                                                                    <button
+                                                                        onClick={() => handleSendLog(log.id)}
+                                                                        className={cn(
+                                                                            "px-2 py-1 rounded-sm text-[8px] font-black uppercase tracking-widest transition-all font-mono border",
+                                                                            log.isSent
+                                                                                ? "bg-grafana-bg border-grafana-border text-grafana-text-secondary hover:text-white hover:border-white"
+                                                                                : "bg-grafana-accent-green/20 text-grafana-accent-green border-grafana-accent-green/30 hover:bg-grafana-accent-green/30"
+                                                                        )}
+                                                                    >
+                                                                        {log.isSent ? 'YENİDEN GÖNDER' : 'GÖNDER'}
+                                                                    </button>
+                                                                    <button onClick={() => handleDeleteLog(log.id)} className="p-1.5 text-grafana-text-secondary hover:text-grafana-accent-red transition-all">
+                                                                        <Trash2 size={14} />
+                                                                    </button>
+                                                                </>
+                                                            )}
+                                                            {log.isExternal && (
+                                                                <div className="flex items-center gap-2">
+                                                                    <span className="text-[9px] font-bold text-grafana-accent-blue/50 font-mono italic">TEİAŞ KAYDI</span>
+                                                                    <button onClick={() => handleDeleteExternalLog(log)} className="p-1.5 text-grafana-text-secondary hover:text-grafana-accent-red transition-all">
+                                                                        <Trash2 size={14} />
+                                                                    </button>
+                                                                </div>
+                                                            )}
                                                         </div>
                                                     </td>
                                                 </tr>

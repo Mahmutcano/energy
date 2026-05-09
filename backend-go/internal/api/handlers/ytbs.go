@@ -390,7 +390,7 @@ func CreateTestLog(c *gin.Context) {
 			(id, "plantId", "externalPlantId", "ytbsPlantId", "readingDate", "readingTime", "valueMw", "isSent", "createdAt", "companyId", "licenseNo", "retryCount")
 			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), $9, $10, -1)
 			ON CONFLICT ("ytbsPlantId", "readingDate", "readingTime") 
-			DO UPDATE SET "valueMw" = EXCLUDED."valueMw", "isSent" = false, "createdAt" = NOW(), "licenseNo" = EXCLUDED."licenseNo", "retryCount" = -1
+			DO UPDATE SET "valueMw" = EXCLUDED."valueMw", "isSent" = false, "createdAt" = NOW(), "licenseNo" = EXCLUDED."licenseNo", "companyId" = EXCLUDED."companyId", "retryCount" = -1
 		`, uuid.New(), plantIDPtr, ytbsID, ypIDPtr, dateStr, timeStr, val, false, compUUID, licenseNo)
 	} else {
 		// Hourly ensure format HH:00 if not specified
@@ -405,7 +405,7 @@ func CreateTestLog(c *gin.Context) {
 			(id, "plantId", "externalPlantId", "ytbsPlantId", "readingDate", "readingHour", "valueMwh", "isSent", "createdAt", "companyId", "licenseNo", "retryCount")
 			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), $9, $10, -1)
 			ON CONFLICT ("ytbsPlantId", "readingDate", "readingHour") 
-			DO UPDATE SET "valueMwh" = EXCLUDED."valueMwh", "isSent" = false, "createdAt" = NOW(), "licenseNo" = EXCLUDED."licenseNo", "retryCount" = -1
+			DO UPDATE SET "valueMwh" = EXCLUDED."valueMwh", "isSent" = false, "createdAt" = NOW(), "licenseNo" = EXCLUDED."licenseNo", "companyId" = EXCLUDED."companyId", "retryCount" = -1
 		`, uuid.New(), plantIDPtr, ytbsID, ypIDPtr, dateStr, finalHour, val, false, compUUID, licenseNo)
 	}
 

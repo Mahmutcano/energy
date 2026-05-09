@@ -47,19 +47,20 @@ export default function PlantForm({
         canSendYtbs: initialData?.canSendYtbs || false,
     });
 
-    useEffect(() => {
-        if (initialData) {
-            setFormData({
-                companyId: initialData.companyId || '',
-                plantName: initialData.plantName || '',
-                latitude: initialData.latitude || '',
-                longitude: initialData.longitude || '',
-                plantType: initialData.plantType || 'SOLAR',
-                ytbsCode: initialData.ytbsCode || '',
-                canSendYtbs: initialData.canSendYtbs || false,
-            });
-        }
-    }, [initialData]);
+    // Handle initialData changes during render to avoid cascading renders
+    const [prevInitialData, setPrevInitialData] = useState(initialData);
+    if (initialData !== prevInitialData) {
+        setPrevInitialData(initialData);
+        setFormData({
+            companyId: initialData?.companyId || '',
+            plantName: initialData?.plantName || '',
+            latitude: initialData?.latitude || '',
+            longitude: initialData?.longitude || '',
+            plantType: initialData?.plantType || 'SOLAR',
+            ytbsCode: initialData?.ytbsCode || '',
+            canSendYtbs: initialData?.canSendYtbs || false,
+        });
+    }
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();

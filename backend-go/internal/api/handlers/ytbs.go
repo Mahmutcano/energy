@@ -228,36 +228,38 @@ func DeleteProductionLog(c *gin.Context) {
 
 	// 1. Get record details to check if it was sent and get deletion parameters
 	var isSent bool
-	var readingDate, readingTime, licenseNo string
+	var readingDate, readingTime string
+	var licenseNo *string
 	var ytbsId int
-	var companyId uuid.UUID
+	var companyId *uuid.UUID
 
 	query := fmt.Sprintf(`
-		SELECT "isSent", "readingDate", %s, "externalPlantId", "companyId", "licenseNo" 
+		SELECT "isSent", "readingDate", "%s", "externalPlantId", "companyId", "licenseNo" 
 		FROM "%s" WHERE id = $1
 	`, timeCol, tableName)
 
 	err = db.Pool.QueryRow(context.Background(), query, uid).Scan(&isSent, &readingDate, &readingTime, &ytbsId, &companyId, &licenseNo)
 	if err != nil {
-		response.Error(c, http.StatusNotFound, response.ErrNotFound, "Kayıt bulunamadı")
+		log.Printf("[YTBS] Delete scan error for ID %s in table %s: %v", id, tableName, err)
+		response.Error(c, http.StatusNotFound, response.ErrNotFound, fmt.Sprintf("Veri okuma hatası: %v", err))
 		return
 	}
 
 	// 2. If it was already sent, try to delete it from TEİAŞ first
-	if isSent {
+	if isSent && companyId != nil && licenseNo != nil {
 		var apiKey, username, password *string
 		err = db.Pool.QueryRow(context.Background(), `
 			SELECT "ytbsApiKey", "ytbsUsername", "ytbsPassword"
 			FROM "CompanyProfile"
 			WHERE id = $1
-		`, companyId).Scan(&apiKey, &username, &password)
+		`, *companyId).Scan(&apiKey, &username, &password)
 
 		if err == nil && apiKey != nil && username != nil && password != nil {
 			svc := services.GetYtbsService()
 			token, loginErr := svc.Login(context.Background(), *apiKey, *username, *password)
 			if loginErr == nil {
 				// Attempt remote delete
-				delErr := svc.DeleteRemoteLog(context.Background(), *apiKey, token, licenseNo, ytbsId, readingDate, readingTime, logType)
+				delErr := svc.DeleteRemoteLog(context.Background(), *apiKey, token, *licenseNo, ytbsId, readingDate, readingTime, logType)
 				if delErr != nil {
 					log.Printf("[YTBS] Remote delete failed for ID %s: %v", id, delErr)
 					response.Error(c, http.StatusPreconditionFailed, response.ErrInternal, delErr.Error())

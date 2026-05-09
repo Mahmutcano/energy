@@ -717,11 +717,16 @@ export default function YtbsQueryPage() {
                                             testTime
                                         );
                                     }}
-                                    disabled={!selectedCompanyId || !testValue}
+                                    disabled={!selectedCompanyId || !selectedPlantId || !testValue}
                                     className="w-full flex items-center justify-center gap-3 py-4 bg-grafana-accent-blue text-white rounded-sm text-[10px] font-black uppercase tracking-widest hover:bg-grafana-accent-blue/90 transition-all font-mono shadow-xl shadow-grafana-accent-blue/20 disabled:opacity-30"
                                 >
                                     <Beaker size={14} /> TASLAK OLARAK KAYDET
                                 </button>
+                                {(!selectedCompanyId || !selectedPlantId || !testValue) && (
+                                    <p className="text-[9px] text-center text-grafana-accent-orange font-bold font-mono animate-pulse">
+                                        {!selectedCompanyId ? 'Lütfen Önce Firma Seçin' : !selectedPlantId ? 'Lütfen Önce Santral Seçin' : 'Lütfen Değer Girin'}
+                                    </p>
+                                )}
                                 <p className="text-[8px] text-center text-grafana-text-secondary font-mono leading-relaxed px-4">
                                     * Kayıtlar sisteme TASLAK olarak eklenir. Kontrol ettikten sonra yanlarındaki GÖNDER butonu ile TEİAŞa iletebilirsiniz.
                                 </p>

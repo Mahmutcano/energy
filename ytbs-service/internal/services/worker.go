@@ -14,17 +14,21 @@ import (
 )
 
 type TransmissionWorker struct {
-	db          *sql.DB
-	plantRepo   *repository.PlantRepository
-	companyRepo *repository.CompanyRepository
-	logRepo     *repository.LogRepository
-	dataDefRepo *repository.DataDefRepository
-	ytbsClient  *YTBSClient
-	mailer      *Mailer
+	db             *sql.DB
+	sourceDB       *sql.DB
+	sourceDBStatus string
+	sourceDBError  string
+	plantRepo      *repository.PlantRepository
+	companyRepo    *repository.CompanyRepository
+	logRepo        *repository.LogRepository
+	dataDefRepo    *repository.DataDefRepository
+	ytbsClient     *YTBSClient
+	mailer         *Mailer
 }
 
 func NewTransmissionWorker(
 	db *sql.DB,
+	sourceDB *sql.DB,
 	plantRepo *repository.PlantRepository,
 	companyRepo *repository.CompanyRepository,
 	logRepo *repository.LogRepository,
@@ -32,15 +36,32 @@ func NewTransmissionWorker(
 	ytbsClient *YTBSClient,
 	mailer *Mailer,
 ) *TransmissionWorker {
-	return &TransmissionWorker{
-		db:          db,
-		plantRepo:   plantRepo,
-		companyRepo: companyRepo,
-		logRepo:     logRepo,
-		dataDefRepo: dataDefRepo,
-		ytbsClient:  ytbsClient,
-		mailer:      mailer,
+	status := "STANDBY"
+	if sourceDB != nil {
+		status = "ONLINE"
 	}
+	return &TransmissionWorker{
+		db:             db,
+		sourceDB:       sourceDB,
+		sourceDBStatus: status,
+		plantRepo:      plantRepo,
+		companyRepo:    companyRepo,
+		logRepo:        logRepo,
+		dataDefRepo:    dataDefRepo,
+		ytbsClient:     ytbsClient,
+		mailer:         mailer,
+	}
+}
+
+func (w *TransmissionWorker) GetSourceDBStatus() (string, string) {
+	return w.sourceDBStatus, w.sourceDBError
+}
+
+func (w *TransmissionWorker) LogConnectionHealth(sourceName, status, errMsg string) {
+	_, _ = w.db.Exec(`
+		INSERT INTO system_connection_logs (source_name, connection_status, error_message, checked_at)
+		VALUES ($1, $2, $3, NOW())
+	`, sourceName, status, errMsg)
 }
 
 // Start launches the background scheduler for 15-minute and 1-hour intervals.
@@ -211,9 +232,10 @@ func (w *TransmissionWorker) executeTransmissionWithTransaction(
 		_ = w.logRepo.UpdateStatus(ctx, logItem.ID, "FAILED", httpCode, respBody, errMsg)
 		log.Printf("[WORKER-FAILED] YTBS aktarımı başarısız: %s (%s) - Hata: %s", plant.PlantName, timeStr, errMsg)
 
-		// Step 4: Send immediate Alert Email to ozgancan9@gmail.com
+		// Step 4: Send immediate Alert Email to plant owner / company email
 		go func() {
 			_ = w.mailer.SendTransmissionFailureAlert(AlertDetails{
+				RecipientEmail:   company.Email,
 				CompanyName:      company.Name,
 				PlantName:        plant.PlantName,
 				YTBSPlantID:      plant.YTBSPlantID,
@@ -296,6 +318,7 @@ func (w *TransmissionWorker) RetryTransmission(ctx context.Context, logID uuid.U
 	}
 	go func() {
 		_ = w.mailer.SendTransmissionFailureAlert(AlertDetails{
+			RecipientEmail:   company.Email,
 			CompanyName:      company.Name,
 			PlantName:        plant.PlantName,
 			YTBSPlantID:      plant.YTBSPlantID,
@@ -314,30 +337,72 @@ func (w *TransmissionWorker) RetryTransmission(ctx context.Context, logID uuid.U
 	return fmt.Errorf("YTBS gönderim hatası (Kod: %d): %s", httpCode, errMsg)
 }
 
-// resolveTelemetryValue reads either from data definitions multiplier or simulates realistic power generation.
+// resolveTelemetryValue reads either from the source SCADA / Railway DB or falls back to calibrated curve.
 func (w *TransmissionWorker) resolveTelemetryValue(ctx context.Context, plantID uuid.UUID, dataType string, capacityMW float64) float64 {
 	defs, err := w.dataDefRepo.GetAll(ctx, &plantID)
 	multiplier := 1.0
+	paramName := "Active Power (P)"
+	if dataType == "HOURLY_MWH" {
+		paramName = "Supplied Active Energy (Wpneg)"
+	}
+
 	if err == nil && len(defs) > 0 {
 		for _, d := range defs {
 			if d.DataType == dataType && d.IsActive {
 				multiplier = d.Multiplier
+				if d.SourceTagOrColumn != "" {
+					paramName = d.SourceTagOrColumn
+				}
 				break
 			}
 		}
 	}
 
-	// Calculate a realistic daytime generation curve based on capacity
+	// 1. Try reading live telemetry from external SCADA DB (Railway)
+	if w.sourceDB != nil {
+		var rawVal sql.NullFloat64
+		// Query latest telemetry matching the datasheet point
+		query := `
+			SELECT tv."valueNumeric"
+			FROM "TelemetryValue" tv
+			JOIN "DatasheetPoint" dp ON tv."pointId" = dp.id
+			WHERE dp."dataName" ILIKE $1 OR dp."dataExplanation" ILIKE $1
+			ORDER BY tv."measurementTime" DESC
+			LIMIT 1
+		`
+		qCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
+		defer cancel()
+
+		qErr := w.sourceDB.QueryRowContext(qCtx, query, "%"+paramName+"%").Scan(&rawVal)
+		if qErr == nil && rawVal.Valid {
+			w.sourceDBStatus = "ONLINE"
+			w.sourceDBError = ""
+			finalVal := rawVal.Float64 * multiplier
+			if finalVal < 0 {
+				finalVal = -finalVal // Ensure non-negative generation
+			}
+			log.Printf("[WORKER-SOURCE-DB] Kaynak SCADA DB'den okundu: %s = %.4f (Çarpan sonrası: %.4f)", paramName, rawVal.Float64, finalVal)
+			return float64(int(finalVal*10000)) / 10000.0
+		}
+
+		// Log connection drop or query issue
+		if qErr != nil && qErr != sql.ErrNoRows {
+			w.sourceDBStatus = "OFFLINE"
+			w.sourceDBError = qErr.Error()
+			log.Printf("[WORKER-SOURCE-DB-ERROR] Kaynak SCADA DB bağlantı hatası: %v", qErr)
+			w.LogConnectionHealth("SCADA_Railway_DB", "DISCONNECTED", qErr.Error())
+		}
+	}
+
+	// 2. Realistic daytime generation curve fallback
 	hour := time.Now().Hour()
 	factor := 0.0
 	if hour >= 6 && hour <= 19 {
-		// Sun curve peak around 13:00
 		diff := float64(hour) - 13.0
 		factor = 1.0 - (diff*diff)/49.0
 		if factor < 0.1 {
 			factor = 0.1
 		}
-		// Add small random fluctuation +/- 5%
 		fluctuation := (rand.Float64() - 0.5) * 0.1
 		factor += fluctuation
 	}
@@ -346,6 +411,5 @@ func (w *TransmissionWorker) resolveTelemetryValue(ctx context.Context, plantID 
 	if val < 0 {
 		val = 0
 	}
-	// Round to 4 decimals
 	return float64(int(val*10000)) / 10000.0
 }

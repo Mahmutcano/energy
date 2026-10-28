@@ -6,8 +6,9 @@ import (
 )
 
 type Config struct {
-	Port         string
-	DatabaseURL  string
+	Port          string
+	DatabaseURL   string
+	SourceDBURL   string // External SCADA / Railway telemetry DB
 	SessionSecret string
 
 	// SMTP Configuration for Alerts
@@ -32,6 +33,7 @@ func Load() *Config {
 	return &Config{
 		Port:          port,
 		DatabaseURL:   dbURL,
+		SourceDBURL:   getEnv("SOURCE_DATABASE_URL", "postgresql://postgres:SDDyuSvBSUVpZTFLoLunxKSevXAnLHrD@mainline.proxy.rlwy.net:21430/railway"),
 		SessionSecret: sessionSecret,
 
 		SMTPHost:      getEnv("SMTP_HOST", "smtp.gmail.com"),

@@ -18,6 +18,7 @@ func NewMailer(cfg *config.Config) *Mailer {
 }
 
 type AlertDetails struct {
+	RecipientEmail   string // Santral sahibi / Firma kayıtlı e-posta adresi
 	CompanyName      string
 	PlantName        string
 	YTBSPlantID      int
@@ -32,11 +33,15 @@ type AlertDetails struct {
 	RetryCount       int
 }
 
-// SendTransmissionFailureAlert sends an immediate HTML notification to ozgancan9@gmail.com.
+// SendTransmissionFailureAlert sends an immediate HTML notification to the plant owner's registered email.
 func (m *Mailer) SendTransmissionFailureAlert(details AlertDetails) error {
-	to := m.cfg.AlertEmail
+	to := details.RecipientEmail
 	if to == "" {
-		to = "ozgancan9@gmail.com"
+		to = m.cfg.AlertEmail
+	}
+	if to == "" {
+		log.Println("[MAILER] Alıcı e-posta adresi bulunamadı, alert gönderimi atlandı")
+		return nil
 	}
 
 	subject := fmt.Sprintf("[ALERT] YTBS Gönderim Hatası - %s (%s)", details.PlantName, details.CompanyName)

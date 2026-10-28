@@ -87,6 +87,16 @@ func RunMigrations(db *sql.DB) error {
 
 		`CREATE INDEX IF NOT EXISTS idx_logs_date_plant ON ytbs_transmission_logs(reading_date, plant_id, status);`,
 		`CREATE INDEX IF NOT EXISTS idx_logs_company ON ytbs_transmission_logs(company_id, created_at DESC);`,
+
+		// 6. System Connection Logs (SCADA & External DB Connection health history)
+		`CREATE TABLE IF NOT EXISTS system_connection_logs (
+			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			source_name VARCHAR(100) NOT NULL,
+			connection_status VARCHAR(30) NOT NULL,
+			error_message TEXT DEFAULT '',
+			checked_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+		);`,
+		`CREATE INDEX IF NOT EXISTS idx_conn_logs_time ON system_connection_logs(checked_at DESC);`,
 	}
 
 	for _, query := range queries {
@@ -150,24 +160,15 @@ func seedDefaultData(db *sql.DB) error {
 			return fmt.Errorf("failed to seed pilot plant: %w", err)
 		}
 
-		// Seed data definition
+		// Seed data definition matching SCADA / Railway telemetry dataset
 		_, _ = db.Exec(`
 			INSERT INTO data_definitions (plant_id, parameter_name, data_type, unit, source_tag_or_column, multiplier, is_active)
 			VALUES 
-			($1, 'Aktif Güç', 'INSTANT_MW', 'MW', 'scada_telemetry.active_power_kw', 0.001, true),
-			($1, 'Saatlik Net Üretim', 'HOURLY_MWH', 'MWh', 'meter_hourly.net_mwh', 1.0, true)
+			($1, 'Active Power (P)', 'INSTANT_MW', 'MW', 'Active Power (P)', 0.001, true),
+			($1, 'Supplied Active Energy (Wpneg)', 'HOURLY_MWH', 'MWh', 'Supplied Active Energy (Wpneg)', 0.001, true)
 		`, plantID)
 
-		// Seed a demo transmission log
-		_, _ = db.Exec(`
-			INSERT INTO ytbs_transmission_logs 
-			(plant_id, company_id, transmission_type, reading_date, reading_time, value, status, ytbs_response_code, is_manual_entry, sent_at)
-			VALUES 
-			($1, $2, 'INSTANT', CURRENT_DATE, '16:45', 2.85, 'SUCCESS', 200, false, NOW()),
-			($1, $2, 'INSTANT', CURRENT_DATE, '17:00', 2.91, 'SUCCESS', 200, false, NOW())
-		`, plantID, companyID)
-
-		log.Println("[DB] Diyarbakır OSB & Akmersan GES pilot data seeded successfully")
+		log.Println("[DB] Diyarbakır OSB & Akmersan GES pilot data seeded successfully (No mock transmission logs)")
 	}
 
 	return nil

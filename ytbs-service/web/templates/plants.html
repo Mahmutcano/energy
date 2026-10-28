@@ -7,99 +7,141 @@
       <h3 class="text-sm font-semibold text-[#242424]">Santral Tanımlamaları</h3>
       <p class="text-xs text-[#616161]">Üretim tesisleri, kurulu güçler ve TEİAŞ Lisanssız Santral ID eşleştirmeleri</p>
     </div>
+    {{if eq .User.Role "system_admin"}}
     <button onclick="openModal('addPlantModal')"
-            class="px-3 py-1.5 bg-[#0078D4] hover:bg-[#106EBE] active:bg-[#005A9E] text-white font-medium rounded text-xs flex items-center gap-1.5 shadow-sm transition">
+            class="px-3.5 py-1.5 bg-[#0078D4] hover:bg-[#106EBE] active:bg-[#005A9E] text-white font-medium rounded text-xs flex items-center gap-1.5 shadow-sm transition">
       <i class="fa-solid fa-plus text-[10px]"></i>
       <span>Yeni Santral Ekle</span>
     </button>
+    {{end}}
   </div>
 
   <!-- Plants Table -->
   <div class="bg-white border border-[#E1DFDD] rounded-md ms-card-shadow overflow-hidden">
     <div class="overflow-x-auto">
-      <table class="w-full text-left border-collapse text-xs">
+      <table class="min-w-[960px] w-full text-left border-collapse text-xs">
         <thead>
           <tr class="bg-[#F3F2F1] text-[#616161] font-semibold border-b border-[#E1DFDD]">
-            <th class="py-2.5 px-4">Santral Adı</th>
-            <th class="py-2.5 px-4">Bağlı Firma</th>
-            <th class="py-2.5 px-4">Tür & Güç</th>
-            <th class="py-2.5 px-4">YTBS Santral ID</th>
-            <th class="py-2.5 px-4">Periyot</th>
-            <th class="py-2.5 px-4">YTBS Aktarımı</th>
-            <th class="py-2.5 px-4">Konum</th>
-            <th class="py-2.5 px-4 text-right">İşlem</th>
+            <th class="py-3 px-4">Santral Adı & YTBS ID</th>
+            <th class="py-3 px-4">Bağlı Firma</th>
+            <th class="py-3 px-4">Tür & Kapasite</th>
+            <th class="py-3 px-4">Aktarım Periyodu</th>
+            <th class="py-3 px-4">Otomatik YTBS</th>
+            <th class="py-3 px-4">Konum</th>
+            <th class="py-3 px-4 text-right">İşlemler</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-[#EDEBE9] text-[#242424]">
           {{range .Plants}}
           <tr class="hover:bg-[#F8F9FA] transition">
-            <td class="py-2.5 px-4 font-semibold text-[#242424]">
+            <td class="py-3 px-4">
               <div class="flex items-center gap-2">
                 <i class="fa-solid fa-solar-panel text-[#0078D4] text-xs"></i>
-                <span>{{.PlantName}}</span>
+                <span class="font-semibold text-[#242424] text-xs">{{.PlantName}}</span>
+              </div>
+              <div class="text-[11px] font-mono text-[#0078D4] mt-0.5 font-medium">
+                TEİAŞ Santral ID: #{{.YTBSPlantID}}
               </div>
             </td>
-            <td class="py-2.5 px-4 text-[#616161]">
-              {{.CompanyName}}
+            <td class="py-3 px-4">
+              <div class="font-medium text-[#242424]">{{.CompanyName}}</div>
+              <div class="text-[11px] text-[#616161]">Lisanslı Üretici</div>
             </td>
-            <td class="py-2.5 px-4 font-mono">
-              <span class="px-1.5 py-0.5 rounded border border-[#E1DFDD] bg-[#FAF9F8] text-[#424242] font-semibold mr-1">{{.PlantType}}</span>
-              <span class="font-semibold text-[#242424]">{{printf "%.2f" .CapacityMW}} MW</span>
+            <td class="py-3 px-4">
+              <div class="flex items-center gap-1.5">
+                <span class="px-1.5 py-0.5 rounded border border-[#E1DFDD] bg-[#FAF9F8] text-[#424242] font-semibold font-mono text-[11px]">{{.PlantType}}</span>
+                <span class="font-semibold text-[#242424] font-mono">{{printf "%.4f" .CapacityMW}} MW</span>
+              </div>
             </td>
-            <td class="py-2.5 px-4 font-mono font-semibold text-[#0078D4]">
-              #{{.YTBSPlantID}}
+            <td class="py-3 px-4 font-mono text-[#424242]">
+              {{if eq .PeriodType "15m"}}
+              <span class="px-2 py-0.5 rounded text-[11px] bg-[#EFF6FC] text-[#0078D4] border border-[#C7E0F4] font-semibold">15 Dk (MW)</span>
+              {{else if eq .PeriodType "1h"}}
+              <span class="px-2 py-0.5 rounded text-[11px] bg-[#F3F2F1] text-[#424242] border border-[#EDEBE9] font-semibold">1 Saat (MWh)</span>
+              {{else}}
+              <span class="px-2 py-0.5 rounded text-[11px] bg-[#EFF6FC] text-[#0078D4] border border-[#C7E0F4] font-semibold">15 Dk & 1 Saat</span>
+              {{end}}
             </td>
-            <td class="py-2.5 px-4 font-mono text-[#616161]">
-              {{if eq .PeriodType "15m"}}15 Dk (MW)
-              {{else if eq .PeriodType "1h"}}1 Saat (MWh)
-              {{else}}15m & 1h{{end}}
-            </td>
-            <td class="py-2.5 px-4">
+            <td class="py-3 px-4">
               <form action="/plants/toggle-ytbs" method="POST" class="inline">
                 <input type="hidden" name="id" value="{{.ID}}">
                 {{if .CanSendYTBS}}
-                <button type="submit" class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-[#DFF6DD] text-[#107C10] border border-[#C3E8BF] hover:bg-[#D0F0CE] transition" title="Durdurmak için tıklayın">
+                <button type="submit" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-[11px] font-medium bg-[#DFF6DD] text-[#107C10] border border-[#C3E8BF] hover:bg-[#D0F0CE] transition" title="Durdurmak için tıklayın">
                   <span class="w-1.5 h-1.5 rounded-full bg-[#107C10]"></span>
-                  Aktarılıyor
+                  <span>Aktarılıyor</span>
                 </button>
                 {{else}}
-                <button type="submit" class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-[#F3F2F1] text-[#616161] border border-[#EDEBE9] hover:bg-[#E1DFDD] transition" title="Başlatmak için tıklayın">
+                <button type="submit" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-[11px] font-medium bg-[#F3F2F1] text-[#616161] border border-[#EDEBE9] hover:bg-[#E1DFDD] transition" title="Başlatmak için tıklayın">
                   <span class="w-1.5 h-1.5 rounded-full bg-[#8A8886]"></span>
-                  Beklemede
+                  <span>Beklemede</span>
                 </button>
                 {{end}}
               </form>
             </td>
-            <td class="py-2.5 px-4 text-[#616161]">
-              {{.City}}{{if .District}} / {{.District}}{{end}}
+            <td class="py-3 px-4 text-[#616161]">
+              <div class="font-medium text-[#242424]">{{.City}}</div>
+              {{if .District}}<div class="text-[11px] text-[#616161]">{{.District}}</div>{{end}}
             </td>
-            <td class="py-2.5 px-4 text-right space-x-1">
-              <button onclick="editPlant({
-                id: '{{.ID}}',
-                companyId: '{{.CompanyID}}',
-                plantName: '{{.PlantName}}',
-                plantType: '{{.PlantType}}',
-                capacityMw: '{{.CapacityMW}}',
-                ytbsPlantId: '{{.YTBSPlantID}}',
-                periodType: '{{.PeriodType}}',
-                city: '{{.City}}',
-                district: '{{.District}}',
-                canSendYtbs: {{.CanSendYTBS}},
-                isActive: {{.IsActive}}
-              })" class="px-2 py-1 rounded border border-[#8A8886] text-[#242424] hover:bg-[#EDEBE9] font-medium transition text-[11px]" title="Düzenle">
-                <i class="fa-regular fa-pen-to-square text-[10px]"></i> Düzenle
-              </button>
-              <form action="/plants/delete" method="POST" class="inline" onsubmit="return confirm('Bu santrali silmek istediğinize emin misiniz?');">
-                <input type="hidden" name="id" value="{{.ID}}">
-                <button type="submit" class="p-1 text-[#616161] hover:text-[#A80000] transition" title="Sil">
-                  <i class="fa-regular fa-trash-can text-xs"></i>
+            <td class="py-3 px-4 text-right">
+              <!-- Microsoft Fluent Actions Dropdown -->
+              <div class="relative inline-block text-left dropdown-container">
+                <button onclick="toggleDropdown('plant-menu-{{.ID}}')"
+                        class="px-2.5 py-1 bg-white hover:bg-[#F3F2F1] active:bg-[#EDEBE9] border border-[#8A8886] rounded text-[#242424] text-xs font-medium inline-flex items-center gap-1.5 transition">
+                  <span>İşlemler</span>
+                  <i class="fa-solid fa-chevron-down text-[9px] text-[#616161]"></i>
                 </button>
-              </form>
+
+                <div id="plant-menu-{{.ID}}" class="dropdown-menu hidden absolute right-0 mt-1 w-64 bg-white border border-[#E1DFDD] rounded-md shadow-lg z-30 py-1 text-xs">
+                  <button onclick="editPlant({
+                    id: '{{.ID}}',
+                    companyId: '{{.CompanyID}}',
+                    plantName: '{{.PlantName}}',
+                    plantType: '{{.PlantType}}',
+                    capacityMw: '{{.CapacityMW}}',
+                    ytbsPlantId: '{{.YTBSPlantID}}',
+                    periodType: '{{.PeriodType}}',
+                    city: '{{.City}}',
+                    district: '{{.District}}',
+                    canSendYtbs: {{.CanSendYTBS}},
+                    isActive: {{.IsActive}}
+                  }); closeAllDropdowns();" class="w-full text-left px-3 py-2 hover:bg-[#F3F2F1] flex items-start gap-2.5 transition">
+                    <i class="fa-regular fa-pen-to-square text-[#0078D4] text-sm mt-0.5"></i>
+                    <div>
+                      <div class="font-semibold text-[#242424]">Santrali Düzenle</div>
+                      <div class="text-[11px] text-[#616161]">Ad, güç, periyot ve konum bilgilerini güncelle</div>
+                    </div>
+                  </button>
+
+                  <form action="/plants/toggle-ytbs" method="POST">
+                    <input type="hidden" name="id" value="{{.ID}}">
+                    <button type="submit" class="w-full text-left px-3 py-2 hover:bg-[#F3F2F1] flex items-start gap-2.5 transition border-t border-[#EDEBE9]">
+                      <i class="fa-solid fa-power-off text-[#107C10] text-sm mt-0.5"></i>
+                      <div>
+                        <div class="font-semibold text-[#242424]">{{if .CanSendYTBS}}Aktarımı Durdur{{else}}Aktarımı Başlat{{end}}</div>
+                        <div class="text-[11px] text-[#616161]">Otomatik TEİAŞ veri akışı durumunu değiştir</div>
+                      </div>
+                    </button>
+                  </form>
+
+                  {{if eq $.User.Role "system_admin"}}
+                  <form action="/plants/delete" method="POST" onsubmit="return confirm('Bu santrali silmek istediğinize emin misiniz?');">
+                    <input type="hidden" name="id" value="{{.ID}}">
+                    <button type="submit" class="w-full text-left px-3 py-2 hover:bg-[#FDE7E9] text-[#A80000] flex items-start gap-2.5 transition border-t border-[#EDEBE9]">
+                      <i class="fa-regular fa-trash-can text-[#A80000] text-sm mt-0.5"></i>
+                      <div>
+                        <div class="font-semibold text-[#A80000]">Santrali Sil</div>
+                        <div class="text-[11px] text-[#A80000]/80">Santrali ve veri tanımlarını sistemden kaldır</div>
+                      </div>
+                    </button>
+                  </form>
+                  {{end}}
+                </div>
+              </div>
             </td>
           </tr>
           {{else}}
           <tr>
-            <td colspan="8" class="py-6 text-center text-[#8A8886] text-xs">
+            <td colspan="7" class="py-8 text-center text-[#8A8886] text-xs">
               Kayıtlı santral bulunamadı.
             </td>
           </tr>
@@ -289,6 +331,25 @@
 <script>
   function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
   function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+
+  function toggleDropdown(id) {
+    const el = document.getElementById(id);
+    const isHidden = el.classList.contains('hidden');
+    closeAllDropdowns();
+    if (isHidden) {
+      el.classList.remove('hidden');
+    }
+  }
+
+  function closeAllDropdowns() {
+    document.querySelectorAll('.dropdown-menu').forEach(m => m.classList.add('hidden'));
+  }
+
+  window.addEventListener('click', function(e) {
+    if (!e.target.closest('.dropdown-container')) {
+      closeAllDropdowns();
+    }
+  });
 
   function editPlant(data) {
     document.getElementById('editPlantId').value = data.id || '';

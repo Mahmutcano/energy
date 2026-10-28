@@ -17,77 +17,101 @@
   <!-- Companies Table -->
   <div class="bg-white border border-[#E1DFDD] rounded-md ms-card-shadow overflow-hidden">
     <div class="overflow-x-auto">
-      <table class="w-full text-left border-collapse text-xs">
+      <table class="min-w-[960px] w-full text-left border-collapse text-xs">
         <thead>
           <tr class="bg-[#F3F2F1] text-[#616161] font-semibold border-b border-[#E1DFDD]">
-            <th class="py-2.5 px-4">Firma Adı</th>
-            <th class="py-2.5 px-4">Vergi No / Daire</th>
-            <th class="py-2.5 px-4">Yetkili / İletişim</th>
-            <th class="py-2.5 px-4">YTBS Lisans No</th>
-            <th class="py-2.5 px-4">Santral</th>
-            <th class="py-2.5 px-4">Durum</th>
-            <th class="py-2.5 px-4 text-right">İşlemler</th>
+            <th class="py-3 px-4">Firma Adı & Lisans No</th>
+            <th class="py-3 px-4">Vergi No / Daire</th>
+            <th class="py-3 px-4">Yetkili & İletişim</th>
+            <th class="py-3 px-4">Santral Sayısı</th>
+            <th class="py-3 px-4">Durum</th>
+            <th class="py-3 px-4 text-right">İşlemler</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-[#EDEBE9] text-[#242424]">
           {{range .Companies}}
           <tr class="hover:bg-[#F8F9FA] transition">
-            <td class="py-2.5 px-4 font-semibold text-[#242424]">
-              {{.Name}}
+            <td class="py-3 px-4">
+              <div class="font-semibold text-[#242424] text-xs">{{.Name}}</div>
+              <div class="text-[11px] font-mono font-medium text-[#0078D4] mt-0.5">
+                Lisans: {{.LicenseNo}}
+              </div>
             </td>
-            <td class="py-2.5 px-4 font-mono text-[#616161]">
-              {{.TaxNumber}} <span class="text-[#8A8886]">({{.TaxOffice}})</span>
+            <td class="py-3 px-4 font-mono text-[#616161]">
+              <div class="text-[#242424] font-medium">{{.TaxNumber}}</div>
+              <div class="text-[11px] text-[#8A8886]">{{.TaxOffice}}</div>
             </td>
-            <td class="py-2.5 px-4">
+            <td class="py-3 px-4">
               <div class="font-medium text-[#242424]">{{.ContactPerson}}</div>
               <div class="text-[11px] text-[#616161]">{{.Email}} &bull; {{.Phone}}</div>
             </td>
-            <td class="py-2.5 px-4 font-mono font-semibold text-[#0078D4]">
-              {{.LicenseNo}}
+            <td class="py-3 px-4 font-mono">
+              <span class="px-2 py-0.5 rounded border border-[#E1DFDD] bg-[#FAF9F8] text-[#424242] font-semibold">{{.PlantCount}} Santral</span>
             </td>
-            <td class="py-2.5 px-4 font-mono">
-              <span class="px-1.5 py-0.5 rounded border border-[#E1DFDD] bg-[#FAF9F8] text-[#424242]">{{.PlantCount}} Santral</span>
-            </td>
-            <td class="py-2.5 px-4">
+            <td class="py-3 px-4">
               {{if .IsActive}}
-              <span class="px-2 py-0.5 rounded text-[11px] font-medium bg-[#DFF6DD] text-[#107C10] border border-[#C3E8BF]">Aktif</span>
+              <span class="px-2.5 py-0.5 rounded text-[11px] font-medium bg-[#DFF6DD] text-[#107C10] border border-[#C3E8BF]">Aktif</span>
               {{else}}
-              <span class="px-2 py-0.5 rounded text-[11px] font-medium bg-[#F3F2F1] text-[#616161] border border-[#EDEBE9]">Pasif</span>
+              <span class="px-2.5 py-0.5 rounded text-[11px] font-medium bg-[#F3F2F1] text-[#616161] border border-[#EDEBE9]">Pasif</span>
               {{end}}
             </td>
-            <td class="py-2.5 px-4 text-right space-x-1.5">
-              <button onclick="testYTBS('{{.ID}}')"
-                      class="px-2 py-1 rounded border border-[#0078D4] text-[#0078D4] hover:bg-[#EFF6FC] font-medium transition text-[11px]"
-                      title="TEİAŞ Bağlantısını Test Et">
-                <i class="fa-solid fa-plug-circle-check text-[10px]"></i> Test Et
-              </button>
-              <button onclick="editCompany({
-                id: '{{.ID}}',
-                name: '{{.Name}}',
-                taxNumber: '{{.TaxNumber}}',
-                taxOffice: '{{.TaxOffice}}',
-                contactPerson: '{{.ContactPerson}}',
-                email: '{{.Email}}',
-                phone: '{{.Phone}}',
-                ytbsUsername: '{{.YTBSUsername}}',
-                ytbsPassword: '{{.YTBSPassword}}',
-                ytbsApiKey: '{{.YTBSApiKey}}',
-                licenseNo: '{{.LicenseNo}}',
-                isActive: {{.IsActive}}
-              })" class="px-2 py-1 rounded border border-[#8A8886] text-[#242424] hover:bg-[#EDEBE9] font-medium transition text-[11px]" title="Düzenle">
-                <i class="fa-regular fa-pen-to-square text-[10px]"></i> Düzenle
-              </button>
-              <form action="/companies/delete" method="POST" class="inline" onsubmit="return confirm('Bu firmayı silmek istediğinize emin misiniz?');">
-                <input type="hidden" name="id" value="{{.ID}}">
-                <button type="submit" class="p-1 text-[#616161] hover:text-[#A80000] transition" title="Sil">
-                  <i class="fa-regular fa-trash-can text-xs"></i>
+            <td class="py-3 px-4 text-right">
+              <!-- Actions Dropdown -->
+              <div class="relative inline-block text-left dropdown-container">
+                <button onclick="toggleDropdown('comp-menu-{{.ID}}')"
+                        class="px-2.5 py-1 bg-white hover:bg-[#F3F2F1] active:bg-[#EDEBE9] border border-[#8A8886] rounded text-[#242424] text-xs font-medium inline-flex items-center gap-1.5 transition">
+                  <span>İşlemler</span>
+                  <i class="fa-solid fa-chevron-down text-[9px] text-[#616161]"></i>
                 </button>
-              </form>
+
+                <div id="comp-menu-{{.ID}}" class="dropdown-menu hidden absolute right-0 mt-1 w-64 bg-white border border-[#E1DFDD] rounded-md shadow-lg z-30 py-1 text-xs">
+                  <button onclick="testYTBS('{{.ID}}'); closeAllDropdowns();"
+                          class="w-full text-left px-3 py-2 hover:bg-[#EFF6FC] text-[#0078D4] flex items-start gap-2.5 transition">
+                    <i class="fa-solid fa-plug-circle-check text-[#0078D4] text-sm mt-0.5"></i>
+                    <div>
+                      <div class="font-semibold text-[#0078D4]">TEİAŞ Bağlantısını Test Et</div>
+                      <div class="text-[11px] text-[#616161]">Servis anahtarı ve token yetkisini sına</div>
+                    </div>
+                  </button>
+
+                  <button onclick="editCompany({
+                    id: '{{.ID}}',
+                    name: '{{.Name}}',
+                    taxNumber: '{{.TaxNumber}}',
+                    taxOffice: '{{.TaxOffice}}',
+                    contactPerson: '{{.ContactPerson}}',
+                    email: '{{.Email}}',
+                    phone: '{{.Phone}}',
+                    ytbsUsername: '{{.YTBSUsername}}',
+                    ytbsPassword: '{{.YTBSPassword}}',
+                    ytbsApiKey: '{{.YTBSApiKey}}',
+                    licenseNo: '{{.LicenseNo}}',
+                    isActive: {{.IsActive}}
+                  }); closeAllDropdowns();" class="w-full text-left px-3 py-2 hover:bg-[#F3F2F1] flex items-start gap-2.5 transition border-t border-[#EDEBE9]">
+                    <i class="fa-regular fa-pen-to-square text-[#242424] text-sm mt-0.5"></i>
+                    <div>
+                      <div class="font-semibold text-[#242424]">Firma & YTBS Düzenle</div>
+                      <div class="text-[11px] text-[#616161]">API anahtarı, şifre ve lisans no güncelle</div>
+                    </div>
+                  </button>
+
+                  <form action="/companies/delete" method="POST" onsubmit="return confirm('Bu firmayı silmek istediğinize emin misiniz?');">
+                    <input type="hidden" name="id" value="{{.ID}}">
+                    <button type="submit" class="w-full text-left px-3 py-2 hover:bg-[#FDE7E9] text-[#A80000] flex items-start gap-2.5 transition border-t border-[#EDEBE9]">
+                      <i class="fa-regular fa-trash-can text-[#A80000] text-sm mt-0.5"></i>
+                      <div>
+                        <div class="font-semibold text-[#A80000]">Firmayı Sil</div>
+                        <div class="text-[11px] text-[#A80000]/80">Firmayı ve ilişkili tüm kayıtları kaldır</div>
+                      </div>
+                    </button>
+                  </form>
+                </div>
+              </div>
             </td>
           </tr>
           {{else}}
           <tr>
-            <td colspan="7" class="py-6 text-center text-[#8A8886] text-xs">
+            <td colspan="6" class="py-8 text-center text-[#8A8886] text-xs">
               Kayıtlı firma bulunamadı.
             </td>
           </tr>
@@ -266,6 +290,25 @@
 <script>
   function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
   function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+
+  function toggleDropdown(id) {
+    const el = document.getElementById(id);
+    const isHidden = el.classList.contains('hidden');
+    closeAllDropdowns();
+    if (isHidden) {
+      el.classList.remove('hidden');
+    }
+  }
+
+  function closeAllDropdowns() {
+    document.querySelectorAll('.dropdown-menu').forEach(m => m.classList.add('hidden'));
+  }
+
+  window.addEventListener('click', function(e) {
+    if (!e.target.closest('.dropdown-container')) {
+      closeAllDropdowns();
+    }
+  });
 
   function editCompany(data) {
     document.getElementById('editCompId').value = data.id || '';

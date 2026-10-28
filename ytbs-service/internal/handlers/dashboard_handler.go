@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"ytbs-platform/internal/middleware"
 	"ytbs-platform/internal/repository"
+	"ytbs-platform/internal/services"
 	"ytbs-platform/web"
 
 	"github.com/google/uuid"
@@ -11,10 +12,11 @@ import (
 
 type DashboardHandler struct {
 	logRepo *repository.LogRepository
+	worker  *services.TransmissionWorker
 }
 
-func NewDashboardHandler(logRepo *repository.LogRepository) *DashboardHandler {
-	return &DashboardHandler{logRepo: logRepo}
+func NewDashboardHandler(logRepo *repository.LogRepository, worker *services.TransmissionWorker) *DashboardHandler {
+	return &DashboardHandler{logRepo: logRepo, worker: worker}
 }
 
 func (h *DashboardHandler) ShowDashboard(w http.ResponseWriter, r *http.Request) {
@@ -36,12 +38,16 @@ func (h *DashboardHandler) ShowDashboard(w http.ResponseWriter, r *http.Request)
 		Limit:     10,
 	})
 
+	sourceDBStatus, sourceDBErr := h.worker.GetSourceDBStatus()
+
 	data := map[string]interface{}{
-		"Title":      "Gösterge Paneli",
-		"ActiveNav":  "dashboard",
-		"User":       user,
-		"Stats":      stats,
-		"RecentLogs": recentLogs,
+		"Title":          "Gösterge Paneli",
+		"ActiveNav":      "dashboard",
+		"User":           user,
+		"Stats":          stats,
+		"RecentLogs":     recentLogs,
+		"SourceDBStatus": sourceDBStatus,
+		"SourceDBError":  sourceDBErr,
 	}
 
 	if err := web.RenderTemplate(w, "dashboard.html", data); err != nil {

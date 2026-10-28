@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"log"
 	"net/http"
@@ -45,10 +46,28 @@ func main() {
 	dataDefRepo := repository.NewDataDefRepository(database)
 	logRepo := repository.NewLogRepository(database)
 
-	// 4. Initialize Services
+	// 4. Initialize Services & Source Telemetry DB (Railway / SCADA)
+	var sourceDB *sql.DB
+	if cfg.SourceDBURL != "" {
+		sdb, err := sql.Open("pgx", cfg.SourceDBURL)
+		if err == nil {
+			sdb.SetMaxOpenConns(5)
+			sdb.SetConnMaxLifetime(5 * time.Minute)
+			pingCtx, pCancel := context.WithTimeout(context.Background(), 4*time.Second)
+			defer pCancel()
+			if pErr := sdb.PingContext(pingCtx); pErr == nil {
+				sourceDB = sdb
+				log.Println("[DB-SOURCE] SCADA/Railway kaynak telemetri veritabanına bağlanıldı")
+			} else {
+				log.Printf("[DB-SOURCE-WARN] SCADA kaynak DB'ye ilk bağlantı sağlanamadı: %v (Worker otomatik deneyecek)", pErr)
+				sourceDB = sdb
+			}
+		}
+	}
+
 	ytbsClient := services.NewYTBSClient()
 	mailer := services.NewMailer(cfg)
-	worker := services.NewTransmissionWorker(database, plantRepo, companyRepo, logRepo, dataDefRepo, ytbsClient, mailer)
+	worker := services.NewTransmissionWorker(database, sourceDB, plantRepo, companyRepo, logRepo, dataDefRepo, ytbsClient, mailer)
 
 	// 5. Start Background Scheduler Worker
 	if cfg.WorkerEnabled {
@@ -61,7 +80,7 @@ func main() {
 	authMiddleware := middleware.NewAuthMiddleware(userRepo)
 
 	authHandler := handlers.NewAuthHandler(userRepo)
-	dashboardHandler := handlers.NewDashboardHandler(logRepo)
+	dashboardHandler := handlers.NewDashboardHandler(logRepo, worker)
 	companyHandler := handlers.NewCompanyHandler(companyRepo, ytbsClient)
 	plantHandler := handlers.NewPlantHandler(plantRepo, companyRepo)
 	userHandler := handlers.NewUserHandler(userRepo, companyRepo)

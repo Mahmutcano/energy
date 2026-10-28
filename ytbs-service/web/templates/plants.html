@@ -1,92 +1,90 @@
 {{define "content"}}
-<div class="space-y-6">
+<div class="space-y-4">
 
   <!-- Header & Add Button -->
   <div class="flex items-center justify-between">
     <div>
-      <h3 class="text-base font-bold text-white">Santral Tanımlamaları</h3>
-      <p class="text-xs text-slate-400">Üretim tesisleri, kurulu güçler ve TEİAŞ Lisanssız Santral ID eşleştirmeleri</p>
+      <h3 class="text-sm font-semibold text-[#242424]">Santral Tanımlamaları</h3>
+      <p class="text-xs text-[#616161]">Üretim tesisleri, kurulu güçler ve TEİAŞ Lisanssız Santral ID eşleştirmeleri</p>
     </div>
     <button onclick="openModal('addPlantModal')"
-            class="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-xl text-xs flex items-center gap-2 shadow-lg shadow-emerald-600/20 transition">
-      <i class="fa-solid fa-plus"></i>
+            class="px-3 py-1.5 bg-[#0078D4] hover:bg-[#106EBE] active:bg-[#005A9E] text-white font-medium rounded text-xs flex items-center gap-1.5 shadow-sm transition">
+      <i class="fa-solid fa-plus text-[10px]"></i>
       <span>Yeni Santral Ekle</span>
     </button>
   </div>
 
   <!-- Plants Table -->
-  <div class="bg-slate-900 border border-slate-800 rounded-2xl shadow-xl overflow-hidden">
+  <div class="bg-white border border-[#E1DFDD] rounded-md ms-card-shadow overflow-hidden">
     <div class="overflow-x-auto">
-      <table class="w-full text-left border-collapse text-sm">
+      <table class="w-full text-left border-collapse text-xs">
         <thead>
-          <tr class="bg-slate-950/60 text-slate-400 text-xs font-semibold uppercase tracking-wider border-b border-slate-800">
-            <th class="py-3.5 px-6">Santral Adı</th>
-            <th class="py-3.5 px-6">Bağlı Firma</th>
-            <th class="py-3.5 px-6">Tür & Güç</th>
-            <th class="py-3.5 px-6">YTBS Santral ID</th>
-            <th class="py-3.5 px-6">Periyot</th>
-            <th class="py-3.5 px-6">YTBS Aktarımı</th>
-            <th class="py-3.5 px-6">Şehir</th>
-            <th class="py-3.5 px-6 text-right">İşlem</th>
+          <tr class="bg-[#F3F2F1] text-[#616161] font-semibold border-b border-[#E1DFDD]">
+            <th class="py-2.5 px-4">Santral Adı</th>
+            <th class="py-2.5 px-4">Bağlı Firma</th>
+            <th class="py-2.5 px-4">Tür & Güç</th>
+            <th class="py-2.5 px-4">YTBS Santral ID</th>
+            <th class="py-2.5 px-4">Periyot</th>
+            <th class="py-2.5 px-4">YTBS Aktarımı</th>
+            <th class="py-2.5 px-4">Konum</th>
+            <th class="py-2.5 px-4 text-right">İşlem</th>
           </tr>
         </thead>
-        <tbody class="divide-y divide-slate-800/60 text-slate-200">
+        <tbody class="divide-y divide-[#EDEBE9] text-[#242424]">
           {{range .Plants}}
-          <tr class="hover:bg-slate-800/30 transition">
-            <td class="py-4 px-6 font-semibold text-white">
-              <div class="flex items-center gap-2.5">
-                <div class="w-7 h-7 rounded-lg bg-amber-500/10 text-amber-400 flex items-center justify-center text-xs">
-                  <i class="fa-solid fa-solar-panel"></i>
-                </div>
+          <tr class="hover:bg-[#F8F9FA] transition">
+            <td class="py-2.5 px-4 font-semibold text-[#242424]">
+              <div class="flex items-center gap-2">
+                <i class="fa-solid fa-solar-panel text-[#0078D4] text-xs"></i>
                 <span>{{.PlantName}}</span>
               </div>
             </td>
-            <td class="py-4 px-6 text-xs text-slate-300">
+            <td class="py-2.5 px-4 text-[#616161]">
               {{.CompanyName}}
             </td>
-            <td class="py-4 px-6 text-xs font-mono">
-              <span class="px-2 py-0.5 rounded bg-slate-800 text-slate-300 font-bold mr-1">{{.PlantType}}</span>
-              <span class="text-white font-bold">{{printf "%.2f" .CapacityMW}} MW</span>
+            <td class="py-2.5 px-4 font-mono">
+              <span class="px-1.5 py-0.5 rounded border border-[#E1DFDD] bg-[#FAF9F8] text-[#424242] font-semibold mr-1">{{.PlantType}}</span>
+              <span class="font-semibold text-[#242424]">{{printf "%.2f" .CapacityMW}} MW</span>
             </td>
-            <td class="py-4 px-6 font-mono text-xs text-emerald-400 font-bold">
+            <td class="py-2.5 px-4 font-mono font-semibold text-[#0078D4]">
               #{{.YTBSPlantID}}
             </td>
-            <td class="py-4 px-6 text-xs font-mono">
-              {{if eq .PeriodType "15m"}}<span class="text-cyan-400">15 Dk (MW)</span>
-              {{else if eq .PeriodType "1h"}}<span class="text-indigo-400">1 Saat (MWh)</span>
-              {{else}}<span class="text-purple-400">15m & 1h</span>{{end}}
+            <td class="py-2.5 px-4 font-mono text-[#616161]">
+              {{if eq .PeriodType "15m"}}15 Dk (MW)
+              {{else if eq .PeriodType "1h"}}1 Saat (MWh)
+              {{else}}15m & 1h{{end}}
             </td>
-            <td class="py-4 px-6">
+            <td class="py-2.5 px-4">
               <form action="/plants/toggle-ytbs" method="POST" class="inline">
                 <input type="hidden" name="id" value="{{.ID}}">
                 {{if .CanSendYTBS}}
-                <button type="submit" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20 transition" title="Tıkla ve Durdur">
-                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                <button type="submit" class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-[#DFF6DD] text-[#107C10] border border-[#C3E8BF] hover:bg-[#D0F0CE] transition" title="Durdurmak için tıklayın">
+                  <span class="w-1.5 h-1.5 rounded-full bg-[#107C10]"></span>
                   Aktarılıyor
                 </button>
                 {{else}}
-                <button type="submit" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-slate-800 text-slate-400 border border-slate-700 hover:bg-slate-700 transition" title="Tıkla ve Başlat">
-                  <span class="w-1.5 h-1.5 rounded-full bg-slate-500"></span>
+                <button type="submit" class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-[#F3F2F1] text-[#616161] border border-[#EDEBE9] hover:bg-[#E1DFDD] transition" title="Başlatmak için tıklayın">
+                  <span class="w-1.5 h-1.5 rounded-full bg-[#8A8886]"></span>
                   Beklemede
                 </button>
                 {{end}}
               </form>
             </td>
-            <td class="py-4 px-6 text-xs text-slate-400">
+            <td class="py-2.5 px-4 text-[#616161]">
               {{.City}}{{if .District}} / {{.District}}{{end}}
             </td>
-            <td class="py-4 px-6 text-right">
+            <td class="py-2.5 px-4 text-right">
               <form action="/plants/delete" method="POST" class="inline" onsubmit="return confirm('Bu santrali silmek istediğinize emin misiniz?');">
                 <input type="hidden" name="id" value="{{.ID}}">
-                <button type="submit" class="p-1.5 text-slate-400 hover:text-red-400 transition" title="Sil">
-                  <i class="fa-solid fa-trash-can"></i>
+                <button type="submit" class="p-1 text-[#616161] hover:text-[#A80000] transition" title="Sil">
+                  <i class="fa-regular fa-trash-can text-xs"></i>
                 </button>
               </form>
             </td>
           </tr>
           {{else}}
           <tr>
-            <td colspan="8" class="py-8 text-center text-slate-500 text-xs">
+            <td colspan="8" class="py-6 text-center text-[#8A8886] text-xs">
               Kayıtlı santral bulunamadı.
             </td>
           </tr>
@@ -97,19 +95,19 @@
   </div>
 
   <!-- Add Plant Modal -->
-  <div id="addPlantModal" class="fixed inset-0 z-50 hidden bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
-    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-xl w-full p-6 shadow-2xl">
-      <div class="flex items-center justify-between pb-4 border-b border-slate-800">
-        <h4 class="text-base font-bold text-white">Yeni Santral Tanımlama</h4>
-        <button onclick="closeModal('addPlantModal')" class="text-slate-400 hover:text-white">
-          <i class="fa-solid fa-xmark text-lg"></i>
+  <div id="addPlantModal" class="fixed inset-0 z-50 hidden bg-black/40 flex items-center justify-center p-4">
+    <div class="bg-white border border-[#E1DFDD] rounded-md max-w-md w-full p-5 ms-shadow">
+      <div class="flex items-center justify-between pb-3 border-b border-[#EDEBE9]">
+        <h4 class="text-sm font-semibold text-[#242424]">Yeni Santral Tanımlama</h4>
+        <button onclick="closeModal('addPlantModal')" class="text-[#616161] hover:text-[#242424]">
+          <i class="fa-solid fa-xmark text-sm"></i>
         </button>
       </div>
 
-      <form action="/plants" method="POST" class="mt-6 space-y-4">
+      <form action="/plants" method="POST" class="mt-4 space-y-3.5">
         <div>
-          <label class="block text-xs font-semibold text-slate-300 uppercase mb-1">Bağlı Firma *</label>
-          <select name="companyId" required class="w-full px-3.5 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-white text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+          <label class="block text-xs font-semibold text-[#424242] mb-1">Bağlı Firma *</label>
+          <select name="companyId" required class="w-full px-2.5 py-1.5 bg-white border border-[#8A8886] rounded text-[#242424] text-xs focus:outline-none focus:border-[#0078D4] focus:ring-1 focus:ring-[#0078D4]">
             {{range .Companies}}
             <option value="{{.ID}}">{{.Name}} (Lisans: {{.LicenseNo}})</option>
             {{end}}
@@ -117,14 +115,14 @@
         </div>
 
         <div>
-          <label class="block text-xs font-semibold text-slate-300 uppercase mb-1">Santral Adı *</label>
-          <input type="text" name="plantName" required placeholder="Örn: Manisa Salihli GES" class="w-full px-3.5 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-white text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+          <label class="block text-xs font-semibold text-[#424242] mb-1">Santral Adı *</label>
+          <input type="text" name="plantName" required placeholder="Manisa Salihli GES" class="w-full px-2.5 py-1.5 bg-white border border-[#8A8886] rounded text-[#242424] text-xs focus:outline-none focus:border-[#0078D4] focus:ring-1 focus:ring-[#0078D4]">
         </div>
 
-        <div class="grid grid-cols-2 gap-4">
+        <div class="grid grid-cols-2 gap-3">
           <div>
-            <label class="block text-xs font-semibold text-slate-300 uppercase mb-1">Santral Türü</label>
-            <select name="plantType" class="w-full px-3.5 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-white text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+            <label class="block text-xs font-semibold text-[#424242] mb-1">Santral Türü</label>
+            <select name="plantType" class="w-full px-2.5 py-1.5 bg-white border border-[#8A8886] rounded text-[#242424] text-xs focus:outline-none focus:border-[#0078D4] focus:ring-1 focus:ring-[#0078D4]">
               <option value="GES">Güneş (GES)</option>
               <option value="RES">Rüzgar (RES)</option>
               <option value="BIOGAS">Biyogaz</option>
@@ -133,47 +131,47 @@
           </div>
 
           <div>
-            <label class="block text-xs font-semibold text-slate-300 uppercase mb-1">Kurulu Güç (MW) *</label>
-            <input type="number" step="0.0001" name="capacityMw" required placeholder="Örn: 10.50" class="w-full px-3.5 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-white text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none font-mono">
+            <label class="block text-xs font-semibold text-[#424242] mb-1">Kurulu Güç (MW) *</label>
+            <input type="number" step="0.0001" name="capacityMw" required placeholder="10.50" class="w-full px-2.5 py-1.5 bg-white border border-[#8A8886] rounded text-[#242424] text-xs font-mono focus:outline-none focus:border-[#0078D4] focus:ring-1 focus:ring-[#0078D4]">
           </div>
         </div>
 
-        <div class="grid grid-cols-2 gap-4">
+        <div class="grid grid-cols-2 gap-3">
           <div>
-            <label class="block text-xs font-semibold text-slate-300 uppercase mb-1">YTBS Santral ID (TEİAŞ) *</label>
-            <input type="number" name="ytbsPlantId" required placeholder="Örn: 48291" class="w-full px-3.5 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-white text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none font-mono">
+            <label class="block text-xs font-semibold text-[#424242] mb-1">YTBS Santral ID (TEİAŞ) *</label>
+            <input type="number" name="ytbsPlantId" required placeholder="48291" class="w-full px-2.5 py-1.5 bg-white border border-[#8A8886] rounded text-[#242424] text-xs font-mono focus:outline-none focus:border-[#0078D4] focus:ring-1 focus:ring-[#0078D4]">
           </div>
 
           <div>
-            <label class="block text-xs font-semibold text-slate-300 uppercase mb-1">Gönderim Periyodu</label>
-            <select name="periodType" class="w-full px-3.5 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-white text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none">
-              <option value="15m">15 Dakikalık Anlık Arz (MW)</option>
-              <option value="1h">1 Saatlik Üretim (MWh)</option>
+            <label class="block text-xs font-semibold text-[#424242] mb-1">Gönderim Periyodu</label>
+            <select name="periodType" class="w-full px-2.5 py-1.5 bg-white border border-[#8A8886] rounded text-[#242424] text-xs focus:outline-none focus:border-[#0078D4] focus:ring-1 focus:ring-[#0078D4]">
+              <option value="15m">15 Dakikalık (Anlık MW)</option>
+              <option value="1h">1 Saatlik (Üretim MWh)</option>
               <option value="both">Her İkisi (15 Dk + 1 Saat)</option>
             </select>
           </div>
         </div>
 
-        <div class="grid grid-cols-2 gap-4">
+        <div class="grid grid-cols-2 gap-3">
           <div>
-            <label class="block text-xs font-semibold text-slate-300 uppercase mb-1">Şehir</label>
-            <input type="text" name="city" placeholder="Örn: Konya" class="w-full px-3.5 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-white text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+            <label class="block text-xs font-semibold text-[#424242] mb-1">Şehir</label>
+            <input type="text" name="city" placeholder="Konya" class="w-full px-2.5 py-1.5 bg-white border border-[#8A8886] rounded text-[#242424] text-xs focus:outline-none focus:border-[#0078D4] focus:ring-1 focus:ring-[#0078D4]">
           </div>
 
           <div>
-            <label class="block text-xs font-semibold text-slate-300 uppercase mb-1">İlçe</label>
-            <input type="text" name="district" placeholder="Örn: Karapınar" class="w-full px-3.5 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-white text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+            <label class="block text-xs font-semibold text-[#424242] mb-1">İlçe</label>
+            <input type="text" name="district" placeholder="Karapınar" class="w-full px-2.5 py-1.5 bg-white border border-[#8A8886] rounded text-[#242424] text-xs focus:outline-none focus:border-[#0078D4] focus:ring-1 focus:ring-[#0078D4]">
           </div>
         </div>
 
-        <div class="flex items-center gap-2 pt-2">
-          <input type="checkbox" name="canSendYtbs" id="canSendYtbsCheck" checked value="true" class="w-4 h-4 rounded text-emerald-600 bg-slate-800 border-slate-700">
-          <label for="canSendYtbsCheck" class="text-xs font-medium text-slate-300">Otomatik YTBS Aktarımı Başlasın</label>
+        <div class="flex items-center gap-2 pt-1">
+          <input type="checkbox" name="canSendYtbs" id="canSendYtbsCheck" checked value="true" class="w-4 h-4 rounded text-[#0078D4] border-[#8A8886] focus:ring-[#0078D4]">
+          <label for="canSendYtbsCheck" class="text-xs text-[#242424]">Otomatik YTBS Gönderimi Aktif</label>
         </div>
 
-        <div class="pt-4 border-t border-slate-800 flex justify-end gap-3">
-          <button type="button" onclick="closeModal('addPlantModal')" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-semibold transition">İptal</button>
-          <button type="submit" class="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-semibold shadow-lg shadow-emerald-600/30 transition">Santrali Kaydet</button>
+        <div class="pt-3 border-t border-[#EDEBE9] flex justify-end gap-2">
+          <button type="button" onclick="closeModal('addPlantModal')" class="px-3 py-1.5 bg-[#F3F2F1] hover:bg-[#EDEBE9] text-[#242424] rounded text-xs font-medium transition">İptal</button>
+          <button type="submit" class="px-3 py-1.5 bg-[#0078D4] hover:bg-[#106EBE] text-white rounded text-xs font-medium transition shadow-sm">Kaydet</button>
         </div>
       </form>
     </div>

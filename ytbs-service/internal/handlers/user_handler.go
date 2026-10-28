@@ -77,6 +77,49 @@ func (h *UserHandler) Create(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/users", http.StatusSeeOther)
 }
 
+func (h *UserHandler) Update(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	id, err := uuid.Parse(r.FormValue("id"))
+	if err != nil {
+		http.Error(w, "Geçersiz ID", http.StatusBadRequest)
+		return
+	}
+
+	var companyID *uuid.UUID
+	companyIDStr := r.FormValue("companyId")
+	if companyIDStr != "" {
+		if parsed, err := uuid.Parse(companyIDStr); err == nil {
+			companyID = &parsed
+		}
+	}
+
+	user := &models.User{
+		ID:        id,
+		CompanyID: companyID,
+		Username:  r.FormValue("username"),
+		FullName:  r.FormValue("fullName"),
+		Email:     r.FormValue("email"),
+		Role:      r.FormValue("role"),
+		IsActive:  r.FormValue("isActive") == "true",
+	}
+
+	var newPassword *string
+	if pw := r.FormValue("password"); pw != "" {
+		newPassword = &pw
+	}
+
+	if err := h.userRepo.Update(r.Context(), user, newPassword); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	http.Redirect(w, r, "/users", http.StatusSeeOther)
+}
+
 func (h *UserHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)

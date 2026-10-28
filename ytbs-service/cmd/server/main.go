@@ -123,6 +123,7 @@ func main() {
 			// Users (Kullanıcı Tanımlama & Firma Eşleştirme)
 			adminRouter.Get("/users", userHandler.List)
 			adminRouter.Post("/users", userHandler.Create)
+			adminRouter.Post("/users/update", userHandler.Update)
 			adminRouter.Post("/users/delete", userHandler.Delete)
 
 			// Data Definitions (Veri & Tag Tanımlama)

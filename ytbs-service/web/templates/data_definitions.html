@@ -2,32 +2,35 @@
 <div class="space-y-4">
 
   <!-- Header & Add Button -->
-  <div class="flex items-center justify-between">
+  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
     <div>
-      <h3 class="text-sm font-semibold text-[#242424]">Veri & Tag Tanımlamaları</h3>
-      <p class="text-xs text-[#616161]">SCADA veya sayaç veritabanındaki tag/kolonların YTBS parametreleriyle eşleşmesi</p>
+      <h3 class="text-sm font-semibold text-[#242424]">Veri & Telemetri Tag Tanımlamaları</h3>
+      <p class="text-xs text-[#616161]">SCADA veya sayaç veritabanındaki tag/kolonların YTBS parametreleriyle eşleşmesi (Toplam {{len .Defs}} parametre)</p>
     </div>
-    <button onclick="openModal('addDataDefModal')"
-            class="px-3 py-1.5 bg-[#0078D4] hover:bg-[#106EBE] active:bg-[#005A9E] text-white font-medium rounded text-xs flex items-center gap-1.5 shadow-sm transition">
-      <i class="fa-solid fa-plus text-[10px]"></i>
-      <span>Yeni Veri Tanımı Ekle</span>
-    </button>
+    <div class="flex items-center gap-2">
+      <input type="text" id="tagFilterInput" onkeyup="filterTagTable()" placeholder="Tag veya parametre ara..." class="px-2.5 py-1.5 bg-white border border-[#8A8886] rounded text-[#242424] text-xs focus:outline-none focus:border-[#0078D4] focus:ring-1 focus:ring-[#0078D4] w-48 sm:w-60">
+      <button onclick="openModal('addDataDefModal')"
+              class="px-3 py-1.5 bg-[#0078D4] hover:bg-[#106EBE] active:bg-[#005A9E] text-white font-medium rounded text-xs flex items-center gap-1.5 shadow-sm transition whitespace-nowrap">
+        <i class="fa-solid fa-plus text-[10px]"></i>
+        <span>Yeni Veri Tanımı Ekle</span>
+      </button>
+    </div>
   </div>
 
   <!-- Table -->
   <div class="bg-white border border-[#E1DFDD] rounded-md ms-card-shadow overflow-hidden">
     <div class="overflow-x-auto">
-      <table class="w-full text-left border-collapse text-xs">
+      <table id="defsTable" class="min-w-[1050px] w-full text-left border-collapse text-xs">
         <thead>
           <tr class="bg-[#F3F2F1] text-[#616161] font-semibold border-b border-[#E1DFDD]">
-            <th class="py-2.5 px-4">Santral</th>
-            <th class="py-2.5 px-4">Parametre Adı</th>
-            <th class="py-2.5 px-4">Veri Türü</th>
-            <th class="py-2.5 px-4">Birim</th>
-            <th class="py-2.5 px-4">Kaynak Kolon / Tag</th>
-            <th class="py-2.5 px-4">Çarpan</th>
-            <th class="py-2.5 px-4">Durum</th>
-            <th class="py-2.5 px-4 text-right">İşlem</th>
+            <th class="py-3 px-4">Santral</th>
+            <th class="py-3 px-4">Parametre Adı</th>
+            <th class="py-3 px-4">Veri Türü</th>
+            <th class="py-3 px-4">Birim</th>
+            <th class="py-3 px-4">Kaynak Kolon / Tag</th>
+            <th class="py-3 px-4">Çarpan</th>
+            <th class="py-3 px-4">Durum</th>
+            <th class="py-3 px-4 text-right">İşlem</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-[#EDEBE9] text-[#242424]">
@@ -152,5 +155,15 @@
 <script>
   function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
   function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+
+  function filterTagTable() {
+    const input = document.getElementById('tagFilterInput');
+    const filter = input.value.toLowerCase();
+    const rows = document.querySelectorAll('#defsTable tbody tr');
+    rows.forEach(row => {
+      const text = row.innerText.toLowerCase();
+      row.style.display = text.includes(filter) ? '' : 'none';
+    });
+  }
 </script>
 {{end}}

@@ -97,6 +97,9 @@ func RunMigrations(db *sql.DB) error {
 			checked_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 		);`,
 		`CREATE INDEX IF NOT EXISTS idx_conn_logs_time ON system_connection_logs(checked_at DESC);`,
+
+		// Unique constraint for idempotent data definitions
+		`CREATE UNIQUE INDEX IF NOT EXISTS idx_data_def_plant_param ON data_definitions(plant_id, parameter_name);`,
 	}
 
 	for _, query := range queries {
@@ -106,7 +109,10 @@ func RunMigrations(db *sql.DB) error {
 	}
 
 	log.Println("[DB] Migrations applied successfully")
-	return seedDefaultData(db)
+	if err := seedDefaultData(db); err != nil {
+		return err
+	}
+	return seedRailwayDataDefinitions(db)
 }
 
 func seedDefaultData(db *sql.DB) error {
@@ -171,5 +177,102 @@ func seedDefaultData(db *sql.DB) error {
 		log.Println("[DB] Diyarbakır OSB & Akmersan GES pilot data seeded successfully (No mock transmission logs)")
 	}
 
+	return nil
+}
+
+// seedRailwayDataDefinitions imports all 46 telemetry data points extracted from previous Railway SCADA database
+func seedRailwayDataDefinitions(db *sql.DB) error {
+	var plantID string
+	err := db.QueryRow("SELECT id FROM plants WHERE ytbs_plant_id = 25924 OR plant_name ILIKE '%Akmersan%' ORDER BY created_at ASC LIMIT 1").Scan(&plantID)
+	if err != nil {
+		// If no pilot plant found yet, skip
+		return nil
+	}
+
+	type PointDef struct {
+		Profile    string
+		DataName   string
+		Address    string
+		DataType   string
+		Unit       string
+		Multiplier float64
+	}
+
+	points := []PointDef{
+		// ENTES EMK-01 (26 points)
+		{"ENTES EMK-01", "Voltage L1 (Van)", "40001", "PHASE_VOLTAGE", "kV", 1.0},
+		{"ENTES EMK-01", "Voltage L2 (VBN)", "40003", "PHASE_VOLTAGE", "kV", 1.0},
+		{"ENTES EMK-01", "Voltage L3 (VCN)", "40005", "PHASE_VOLTAGE", "kV", 1.0},
+		{"ENTES EMK-01", "Voltage L1-L2 (VAB)", "40009", "PHASE_VOLTAGE", "kV", 1.0},
+		{"ENTES EMK-01", "Voltage L2-L3 (VBC)", "40011", "PHASE_VOLTAGE", "kV", 1.0},
+		{"ENTES EMK-01", "Voltage L3-L1 (VCA)", "40013", "PHASE_VOLTAGE", "kV", 1.0},
+		{"ENTES EMK-01", "Voltage THD L1 (Harmonic)", "40017", "HARMONIC", "%", 1.0},
+		{"ENTES EMK-01", "Voltage THD L2 (Harmonic)", "40019", "HARMONIC", "%", 1.0},
+		{"ENTES EMK-01", "Voltage THD L3 (Harmonic)", "40021", "HARMONIC", "%", 1.0},
+		{"ENTES EMK-01", "Voltage THD L1 – L2 (Harmonic)", "40025", "HARMONIC", "%", 1.0},
+		{"ENTES EMK-01", "Voltage THD L2 – L3 (Harmonic)", "40027", "HARMONIC", "%", 1.0},
+		{"ENTES EMK-01", "Voltage THD L3 – L1 (Harmonic)", "40029", "HARMONIC", "%", 1.0},
+		{"ENTES EMK-01", "Current L1 (IA)", "40033", "PHASE_CURRENT", "A", 1.0},
+		{"ENTES EMK-01", "Current L2 (IB)", "40035", "PHASE_CURRENT", "A", 1.0},
+		{"ENTES EMK-01", "Current L3 (IC)", "40037", "PHASE_CURRENT", "A", 1.0},
+		{"ENTES EMK-01", "Current THD L1 (Harmonic)", "40041", "HARMONIC", "%", 1.0},
+		{"ENTES EMK-01", "Current THD L2 (Harmonic)", "40043", "HARMONIC", "%", 1.0},
+		{"ENTES EMK-01", "Current THD L3 (Harmonic)", "40045", "HARMONIC", "%", 1.0},
+		{"ENTES EMK-01", "Power factor L1..L4 (PF)", "40073", "POWER_FACTOR", "PF", 1.0},
+		{"ENTES EMK-01", "Frequency", "40081", "FREQUENCY", "Hz", 1.0},
+		{"ENTES EMK-01", "Active Power (P)", "40153", "INSTANT_MW", "MW", 0.001},
+		{"ENTES EMK-01", "Apparent Power (S)", "40161", "APPARENT_POWER", "kVA", 1.0},
+		{"ENTES EMK-01", "Reactive Power (Q) - CONSUMPTION", "40169", "REACTIVE_POWER", "kVAR", 1.0},
+		{"ENTES EMK-01", "Reactive Power (Q) - DISTRIBUTION", "40177", "REACTIVE_POWER", "kVAR", 1.0},
+		{"ENTES EMK-01", "Consumed Active Energy (Wppos)", "55024", "TOTAL_INDEX", "kWh", 1.0},
+		{"ENTES EMK-01", "Supplied Active Energy (Wpneg)", "55030", "HOURLY_MWH", "MWh", 0.001},
+
+		// Kaco Blueplanet 60.0 TL3 (20 points)
+		{"Kaco Blueplanet 60.0 TL3", "AC Current", "40123", "PHASE_CURRENT", "A", 1.0},
+		{"Kaco Blueplanet 60.0 TL3", "Phase A Current", "40125", "PHASE_CURRENT", "A", 1.0},
+		{"Kaco Blueplanet 60.0 TL3", "Phase B Current", "40127", "PHASE_CURRENT", "A", 1.0},
+		{"Kaco Blueplanet 60.0 TL3", "Phase C Current", "40129", "PHASE_CURRENT", "A", 1.0},
+		{"Kaco Blueplanet 60.0 TL3", "Phase Voltage AB", "40132", "PHASE_VOLTAGE", "V", 1.0},
+		{"Kaco Blueplanet 60.0 TL3", "Phase Voltage BC", "40134", "PHASE_VOLTAGE", "V", 1.0},
+		{"Kaco Blueplanet 60.0 TL3", "Phase Voltage CA", "40136", "PHASE_VOLTAGE", "V", 1.0},
+		{"Kaco Blueplanet 60.0 TL3", "Phase Voltage AN", "40137", "PHASE_VOLTAGE", "V", 1.0},
+		{"Kaco Blueplanet 60.0 TL3", "Phase Voltage BN", "40139", "PHASE_VOLTAGE", "V", 1.0},
+		{"Kaco Blueplanet 60.0 TL3", "Phase Voltage CN", "40141", "PHASE_VOLTAGE", "V", 1.0},
+		{"Kaco Blueplanet 60.0 TL3", "AC Power", "40143", "ACTIVE_POWER", "kW", 0.001},
+		{"Kaco Blueplanet 60.0 TL3", "Line Frequency", "40145", "FREQUENCY", "Hz", 1.0},
+		{"Kaco Blueplanet 60.0 TL3", "AC Apparent Power", "40147", "APPARENT_POWER", "kVA", 1.0},
+		{"Kaco Blueplanet 60.0 TL3", "AC Reactive Power", "40149", "REACTIVE_POWER", "kVAR", 1.0},
+		{"Kaco Blueplanet 60.0 TL3", "AC Power Factor", "40151", "POWER_FACTOR", "PF", 1.0},
+		{"Kaco Blueplanet 60.0 TL3", "AC Energy", "40153", "HOURLY_MWH", "kWh", 0.001},
+		{"Kaco Blueplanet 60.0 TL3", "DC Current", "40155", "ANALOG", "A", 1.0},
+		{"Kaco Blueplanet 60.0 TL3", "DC Voltage", "40157", "ANALOG", "V", 1.0},
+		{"Kaco Blueplanet 60.0 TL3", "DC Power", "40159", "ANALOG", "kW", 1.0},
+		{"Kaco Blueplanet 60.0 TL3", "Cabinet Temperature", "40161", "ANALOG", "°C", 1.0},
+	}
+
+	stmt, err := db.Prepare(`
+		INSERT INTO data_definitions (plant_id, parameter_name, data_type, unit, source_tag_or_column, multiplier, is_active)
+		VALUES ($1, $2, $3, $4, $5, $6, true)
+		ON CONFLICT (plant_id, parameter_name) DO UPDATE 
+		SET source_tag_or_column = EXCLUDED.source_tag_or_column,
+		    unit = EXCLUDED.unit,
+		    data_type = EXCLUDED.data_type,
+		    multiplier = EXCLUDED.multiplier
+	`)
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+
+	for _, pt := range points {
+		paramFullName := fmt.Sprintf("[%s] %s", pt.Profile, pt.DataName)
+		sourceTag := pt.DataName
+		_, err := stmt.Exec(plantID, paramFullName, pt.DataType, pt.Unit, sourceTag, pt.Multiplier)
+		if err != nil {
+			log.Printf("[DB] Warning: failed to seed point %s: %v", paramFullName, err)
+		}
+	}
+
+	log.Printf("[DB] %d Railway SCADA telemetry points loaded/synchronized into data_definitions", len(points))
 	return nil
 }

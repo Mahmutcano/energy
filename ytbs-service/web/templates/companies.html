@@ -58,13 +58,14 @@
             <td class="py-3 px-4 text-right">
               <!-- Actions Dropdown -->
               <div class="relative inline-block text-left dropdown-container">
-                <button onclick="toggleDropdown('comp-menu-{{.ID}}')"
-                        class="px-2.5 py-1 bg-white hover:bg-[#F3F2F1] active:bg-[#EDEBE9] border border-[#8A8886] rounded text-[#242424] text-xs font-medium inline-flex items-center gap-1.5 transition">
+                <button type="button" 
+                        onclick="toggleDropdown(this, 'comp-menu-{{.ID}}')"
+                        class="px-2.5 py-1.5 bg-white hover:bg-[#F3F2F1] active:bg-[#EDEBE9] border border-[#8A8886] rounded text-[#242424] text-xs font-medium inline-flex items-center gap-1.5 transition shadow-sm">
                   <span>İşlemler</span>
                   <i class="fa-solid fa-chevron-down text-[9px] text-[#616161]"></i>
                 </button>
 
-                <div id="comp-menu-{{.ID}}" class="dropdown-menu hidden absolute right-0 mt-1 w-64 bg-white border border-[#E1DFDD] rounded-md shadow-lg z-30 py-1 text-xs">
+                <div id="comp-menu-{{.ID}}" class="dropdown-menu hidden bg-white border border-[#E1DFDD] rounded-md shadow-2xl py-1 text-xs w-64 text-left">
                   <button onclick="testYTBS('{{.ID}}'); closeAllDropdowns();"
                           class="w-full text-left px-3 py-2 hover:bg-[#EFF6FC] text-[#0078D4] flex items-start gap-2.5 transition">
                     <i class="fa-solid fa-plug-circle-check text-[#0078D4] text-sm mt-0.5"></i>
@@ -291,23 +292,55 @@
   function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
   function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
 
-  function toggleDropdown(id) {
+  let activeDropdown = null;
+
+  function toggleDropdown(btn, id) {
     const el = document.getElementById(id);
     const isHidden = el.classList.contains('hidden');
     closeAllDropdowns();
     if (isHidden) {
       el.classList.remove('hidden');
+      activeDropdown = el;
+      positionDropdown(btn, el);
     }
+  }
+
+  function positionDropdown(btn, el) {
+    const rect = btn.getBoundingClientRect();
+    const menuWidth = 256;
+    let left = rect.right - menuWidth;
+    if (left < 10) left = 10;
+    let top = rect.bottom + 4;
+    
+    const menuHeight = el.offsetHeight || 160;
+    if (top + menuHeight > window.innerHeight - 10) {
+      top = rect.top - menuHeight - 4;
+    }
+    el.style.position = 'fixed';
+    el.style.top = top + 'px';
+    el.style.left = left + 'px';
+    el.style.zIndex = '99999';
   }
 
   function closeAllDropdowns() {
-    document.querySelectorAll('.dropdown-menu').forEach(m => m.classList.add('hidden'));
+    document.querySelectorAll('.dropdown-menu').forEach(m => {
+      m.classList.add('hidden');
+    });
+    activeDropdown = null;
   }
 
   window.addEventListener('click', function(e) {
-    if (!e.target.closest('.dropdown-container')) {
+    if (!e.target.closest('.dropdown-container') && !e.target.closest('.dropdown-menu')) {
       closeAllDropdowns();
     }
+  });
+
+  window.addEventListener('scroll', function() {
+    if (activeDropdown) closeAllDropdowns();
+  }, true);
+
+  window.addEventListener('resize', function() {
+    if (activeDropdown) closeAllDropdowns();
   });
 
   function editCompany(data) {

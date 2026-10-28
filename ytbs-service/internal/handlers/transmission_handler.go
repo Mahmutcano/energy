@@ -71,6 +71,37 @@ func (h *TransmissionHandler) List(w http.ResponseWriter, r *http.Request) {
 
 	plants, _ := h.plantRepo.GetAll(ctx, nil)
 
+	var instantCount, hourlyCount, successCount, failedCount, pendingCount int
+	for _, l := range logs {
+		if l.TransmissionType == "INSTANT" {
+			instantCount++
+		} else {
+			hourlyCount++
+		}
+		switch l.Status {
+		case "SUCCESS":
+			successCount++
+		case "FAILED":
+			failedCount++
+		default:
+			pendingCount++
+		}
+	}
+	successRate := 0.0
+	if len(logs) > 0 {
+		successRate = float64(successCount) / float64(len(logs)) * 100.0
+	}
+
+	stats := map[string]interface{}{
+		"Total":        len(logs),
+		"InstantCount": instantCount,
+		"HourlyCount":  hourlyCount,
+		"SuccessCount": successCount,
+		"FailedCount":  failedCount,
+		"PendingCount": pendingCount,
+		"SuccessRate":  successRate,
+	}
+
 	data := map[string]interface{}{
 		"Title":     "Gönderim & Rapor Ekranı",
 		"ActiveNav": "transmissions",
@@ -78,6 +109,7 @@ func (h *TransmissionHandler) List(w http.ResponseWriter, r *http.Request) {
 		"Logs":      logs,
 		"Plants":    plants,
 		"Filters":   filter,
+		"Stats":     stats,
 	}
 
 	_ = web.RenderTemplate(w, "transmissions.html", data)

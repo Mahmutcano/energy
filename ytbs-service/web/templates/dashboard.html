@@ -1,0 +1,169 @@
+{{define "content"}}
+<div class="space-y-8">
+
+  <!-- Alert System Notice -->
+  <div class="p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-sm flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <i class="fa-solid fa-triangle-exclamation text-lg text-amber-400"></i>
+      <div>
+        <span class="font-bold">E-Posta Alert Sistemi Aktif:</span> TEİAŞ aktarımlarında hata, timeout veya geçersiz jeton durumunda sistem anında 
+        <span class="font-mono bg-amber-500/20 px-1.5 py-0.5 rounded text-white">ozgancan9@gmail.com</span> adresine HTML uyarı raporu iletir.
+      </div>
+    </div>
+    <form action="/transmissions/trigger-now" method="POST">
+      <button type="submit" class="px-3.5 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-lg text-xs transition flex items-center gap-2 shadow-md">
+        <i class="fa-solid fa-rotate"></i>
+        <span>15 Dk Döngüsünü Şimdi Tetikle</span>
+      </button>
+    </form>
+  </div>
+
+  <!-- KPI Metrics Grid -->
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+    <!-- Total Companies -->
+    <div class="p-6 rounded-2xl bg-slate-900 border border-slate-800 shadow-xl">
+      <div class="flex items-center justify-between">
+        <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Aktif Firma</span>
+        <div class="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-400 flex items-center justify-center">
+          <i class="fa-solid fa-building text-lg"></i>
+        </div>
+      </div>
+      <div class="mt-4 flex items-baseline gap-2">
+        <span class="text-3xl font-extrabold text-white">{{.Stats.TotalCompanies}}</span>
+        <span class="text-xs text-slate-500">Kayıtlı</span>
+      </div>
+    </div>
+
+    <!-- Total Plants -->
+    <div class="p-6 rounded-2xl bg-slate-900 border border-slate-800 shadow-xl">
+      <div class="flex items-center justify-between">
+        <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Santral Sayısı</span>
+        <div class="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center">
+          <i class="fa-solid fa-solar-panel text-lg"></i>
+        </div>
+      </div>
+      <div class="mt-4 flex items-baseline gap-2">
+        <span class="text-3xl font-extrabold text-white">{{.Stats.TotalPlants}}</span>
+        <span class="text-xs text-emerald-400 font-medium">GES / RES</span>
+      </div>
+    </div>
+
+    <!-- Today Transmissions -->
+    <div class="p-6 rounded-2xl bg-slate-900 border border-slate-800 shadow-xl">
+      <div class="flex items-center justify-between">
+        <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Bugünkü Gönderim</span>
+        <div class="w-10 h-10 rounded-xl bg-purple-500/10 text-purple-400 flex items-center justify-center">
+          <i class="fa-solid fa-paper-plane text-lg"></i>
+        </div>
+      </div>
+      <div class="mt-4 flex items-baseline gap-2">
+        <span class="text-3xl font-extrabold text-white">{{.Stats.TodayTransmissions}}</span>
+        <span class="text-xs text-slate-500">Paket</span>
+      </div>
+    </div>
+
+    <!-- Success Rate -->
+    <div class="p-6 rounded-2xl bg-slate-900 border border-slate-800 shadow-xl">
+      <div class="flex items-center justify-between">
+        <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Başarı Oranı</span>
+        <div class="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center">
+          <i class="fa-solid fa-chart-pie text-lg"></i>
+        </div>
+      </div>
+      <div class="mt-4 flex items-baseline gap-2">
+        <span class="text-3xl font-extrabold text-white">%{{printf "%.1f" .Stats.SuccessRate}}</span>
+        <span class="text-xs {{if gt .Stats.FailedCount 0}}text-red-400{{else}}text-slate-500{{end}}">
+          {{if gt .Stats.FailedCount 0}}{{.Stats.FailedCount}} Hata{{else}}Kusursuz{{end}}
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Recent Transmissions Table Card -->
+  <div class="bg-slate-900 border border-slate-800 rounded-2xl shadow-xl overflow-hidden">
+    <div class="p-6 border-b border-slate-800 flex items-center justify-between">
+      <div>
+        <h3 class="font-bold text-white text-base">Son YTBS İletim Logları</h3>
+        <p class="text-xs text-slate-400 mt-0.5">En son TEİAŞ'a gönderilen 15 dakikalık ve saatlik üretim paketleri</p>
+      </div>
+      <a href="/transmissions" class="text-xs font-semibold text-brand-500 hover:text-brand-400 flex items-center gap-1.5 transition">
+        <span>Tüm Raporu Gör</span>
+        <i class="fa-solid fa-arrow-right"></i>
+      </a>
+    </div>
+
+    <div class="overflow-x-auto">
+      <table class="w-full text-left border-collapse text-sm">
+        <thead>
+          <tr class="bg-slate-950/60 text-slate-400 text-xs font-semibold uppercase tracking-wider border-b border-slate-800">
+            <th class="py-3.5 px-6">Tarih & Saat</th>
+            <th class="py-3.5 px-6">Santral / Firma</th>
+            <th class="py-3.5 px-6">Tip</th>
+            <th class="py-3.5 px-6">Değer</th>
+            <th class="py-3.5 px-6">Durum</th>
+            <th class="py-3.5 px-6">YTBS Kodu</th>
+            <th class="py-3.5 px-6 text-right">İşlem</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-800/60 text-slate-200">
+          {{range .RecentLogs}}
+          <tr class="hover:bg-slate-800/30 transition">
+            <td class="py-4 px-6 font-mono text-xs text-slate-300">
+              {{.ReadingDate}} <span class="font-bold text-white">{{.ReadingTime}}</span>
+            </td>
+            <td class="py-4 px-6">
+              <div class="font-medium text-white">{{.PlantName}}</div>
+              <div class="text-xs text-slate-400">{{.CompanyName}}</div>
+            </td>
+            <td class="py-4 px-6">
+              <span class="px-2.5 py-1 rounded-md text-[11px] font-mono font-semibold {{if eq .TransmissionType "INSTANT"}}bg-cyan-500/10 text-cyan-400 border border-cyan-500/20{{else}}bg-indigo-500/10 text-indigo-400 border border-indigo-500/20{{end}}">
+                {{if eq .TransmissionType "INSTANT"}}15 Dk (MW){{else}}1 Saat (MWh){{end}}
+              </span>
+            </td>
+            <td class="py-4 px-6 font-mono font-bold text-white">
+              {{printf "%.4f" .Value}} <span class="text-xs font-normal text-slate-400">{{if eq .TransmissionType "INSTANT"}}MW{{else}}MWh{{end}}</span>
+            </td>
+            <td class="py-4 px-6">
+              {{if eq .Status "SUCCESS"}}
+              <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                Başarılı
+              </span>
+              {{else if eq .Status "FAILED"}}
+              <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-red-500/10 text-red-400 border border-red-500/20" title="{{.ErrorMessage}}">
+                <span class="w-1.5 h-1.5 rounded-full bg-red-400"></span>
+                Hata ({{.RetryCount}}. deneme)
+              </span>
+              {{else}}
+              <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                <span class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span>
+                Beklemede
+              </span>
+              {{end}}
+            </td>
+            <td class="py-4 px-6 font-mono text-xs text-slate-400">
+              {{if .YTBSResponseCode}}HTTP {{.YTBSResponseCode}}{{else}}-{{end}}
+            </td>
+            <td class="py-4 px-6 text-right">
+              <form action="/transmissions/retry" method="POST" class="inline">
+                <input type="hidden" name="id" value="{{.ID}}">
+                <button type="submit" class="p-2 text-slate-400 hover:text-emerald-400 transition" title="Yeniden Gönder">
+                  <i class="fa-solid fa-paper-plane"></i>
+                </button>
+              </form>
+            </td>
+          </tr>
+          {{else}}
+          <tr>
+            <td colspan="7" class="py-8 text-center text-slate-500 text-xs">
+              Henüz kayıt bulunmuyor.
+            </td>
+          </tr>
+          {{end}}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+{{end}}

@@ -1,0 +1,260 @@
+{{define "content"}}
+<div class="space-y-6">
+
+  <!-- Filter Card -->
+  <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl">
+    <div class="flex items-center justify-between pb-4 border-b border-slate-800 mb-4">
+      <div class="flex items-center gap-2 text-white font-bold text-sm">
+        <i class="fa-solid fa-filter text-emerald-400"></i>
+        <span>Rapor Filtreleme & Arama</span>
+      </div>
+      <form action="/transmissions/trigger-now" method="POST">
+        <button type="submit" class="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold flex items-center gap-2 shadow-md transition">
+          <i class="fa-solid fa-bolt"></i>
+          <span>15 Dk İletimini Şimdi Tetikle</span>
+        </button>
+      </form>
+    </div>
+
+    <form method="GET" action="/transmissions" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4">
+      <div>
+        <label class="block text-[11px] font-semibold text-slate-400 uppercase mb-1">Başlangıç Tarihi</label>
+        <input type="date" name="startDate" value="{{.Filters.StartDate}}" class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-white text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+      </div>
+
+      <div>
+        <label class="block text-[11px] font-semibold text-slate-400 uppercase mb-1">Bitiş Tarihi</label>
+        <input type="date" name="endDate" value="{{.Filters.EndDate}}" class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-white text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+      </div>
+
+      <div>
+        <label class="block text-[11px] font-semibold text-slate-400 uppercase mb-1">Santral</label>
+        <select name="plantId" class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-white text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+          <option value="">Tüm Santraller</option>
+          {{range .Plants}}
+          <option value="{{.ID}}">{{.PlantName}}</option>
+          {{end}}
+        </select>
+      </div>
+
+      <div>
+        <label class="block text-[11px] font-semibold text-slate-400 uppercase mb-1">Durum</label>
+        <select name="status" class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-white text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+          <option value="ALL">Tümü</option>
+          <option value="SUCCESS" {{if eq .Filters.Status "SUCCESS"}}selected{{end}}>Başarılı</option>
+          <option value="FAILED" {{if eq .Filters.Status "FAILED"}}selected{{end}}>Hatalı / İletilemedi</option>
+          <option value="PENDING" {{if eq .Filters.Status "PENDING"}}selected{{end}}>Beklemede</option>
+        </select>
+      </div>
+
+      <div class="flex items-end gap-2">
+        <button type="submit" class="flex-1 py-2 px-3 bg-brand-600 hover:bg-brand-500 text-white font-semibold rounded-xl text-xs flex items-center justify-center gap-1.5 transition">
+          <i class="fa-solid fa-magnifying-glass"></i>
+          <span>Filtrele</span>
+        </button>
+        <a href="/transmissions" class="py-2 px-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-semibold transition" title="Filtreleri Temizle">
+          <i class="fa-solid fa-arrow-rotate-left"></i>
+        </a>
+      </div>
+    </form>
+  </div>
+
+  <!-- Transmissions Table -->
+  <div class="bg-slate-900 border border-slate-800 rounded-2xl shadow-xl overflow-hidden">
+    <div class="p-4 bg-slate-950/40 border-b border-slate-800 flex items-center justify-between text-xs text-slate-400">
+      <div>Toplam <span class="font-bold text-white">{{len .Logs}}</span> iletim kaydı listeleniyor</div>
+      <div class="flex items-center gap-3">
+        <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-emerald-400"></span> Başarılı</span>
+        <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-red-400"></span> Hata (Alert Gitti)</span>
+        <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-amber-400"></span> Beklemede</span>
+      </div>
+    </div>
+
+    <div class="overflow-x-auto">
+      <table class="w-full text-left border-collapse text-sm">
+        <thead>
+          <tr class="bg-slate-950/60 text-slate-400 text-xs font-semibold uppercase tracking-wider border-b border-slate-800">
+            <th class="py-3.5 px-6">Tarih / Saat</th>
+            <th class="py-3.5 px-6">Santral & Firma</th>
+            <th class="py-3.5 px-6">İletim Türü</th>
+            <th class="py-3.5 px-6">Değer</th>
+            <th class="py-3.5 px-6">YTBS Durumu</th>
+            <th class="py-3.5 px-6">HTTP Kodu</th>
+            <th class="py-3.5 px-6 text-right">İşlemler</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-800/60 text-slate-200">
+          {{range .Logs}}
+          <tr class="hover:bg-slate-800/30 transition">
+            <td class="py-4 px-6 font-mono text-xs">
+              <span class="text-slate-400">{{.ReadingDate}}</span>
+              <span class="font-bold text-white ml-1">{{.ReadingTime}}</span>
+            </td>
+            <td class="py-4 px-6">
+              <div class="font-bold text-white text-xs">{{.PlantName}} <span class="font-mono text-emerald-400">(#{{.YTBSPlantID}})</span></div>
+              <div class="text-[11px] text-slate-400">{{.CompanyName}} &bull; Lisans: {{.LicenseNo}}</div>
+            </td>
+            <td class="py-4 px-6">
+              <span class="px-2.5 py-1 rounded-md text-[11px] font-mono font-semibold {{if eq .TransmissionType "INSTANT"}}bg-cyan-500/10 text-cyan-400 border border-cyan-500/20{{else}}bg-indigo-500/10 text-indigo-400 border border-indigo-500/20{{end}}">
+                {{if eq .TransmissionType "INSTANT"}}15 Dk (MW){{else}}1 Saat (MWh){{end}}
+              </span>
+            </td>
+            <td class="py-4 px-6 font-mono font-bold text-white">
+              {{printf "%.4f" .Value}} 
+              <span class="text-xs font-normal text-slate-400">{{if eq .TransmissionType "INSTANT"}}MW{{else}}MWh{{end}}</span>
+              {{if .IsManualEntry}}
+              <span class="ml-1 text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20 font-sans" title="Kullanıcı tarafından elle düzeltildi">Manuel</span>
+              {{end}}
+            </td>
+            <td class="py-4 px-6">
+              {{if eq .Status "SUCCESS"}}
+              <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                Başarılı
+              </span>
+              {{else if eq .Status "FAILED"}}
+              <button onclick="showErrorModal('{{.ErrorMessage}}', '{{.YTBSResponseBody}}', '{{.ReadingDate}} {{.ReadingTime}}', '{{.PlantName}}')"
+                      class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20 transition cursor-pointer">
+                <span class="w-1.5 h-1.5 rounded-full bg-red-400"></span>
+                <span>Hata ({{.RetryCount}}. deneme) - İncele</span>
+              </button>
+              {{else}}
+              <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                <span class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span>
+                Beklemede
+              </span>
+              {{end}}
+            </td>
+            <td class="py-4 px-6 font-mono text-xs text-slate-400">
+              {{if .YTBSResponseCode}}HTTP {{.YTBSResponseCode}}{{else}}-{{end}}
+            </td>
+            <td class="py-4 px-6 text-right space-x-2">
+              <!-- Edit Value Modal Button -->
+              <button onclick="openEditModal('{{.ID}}', '{{.Value}}', '{{.ReadingDate}}', '{{.ReadingTime}}', '{{.PlantName}}')"
+                      class="p-1.5 text-slate-400 hover:text-amber-400 transition" title="Değeri Manuel Güncelle">
+                <i class="fa-solid fa-pen-to-square"></i>
+              </button>
+
+              <!-- Retry Send Button -->
+              <form action="/transmissions/retry" method="POST" class="inline">
+                <input type="hidden" name="id" value="{{.ID}}">
+                <button type="submit" class="p-1.5 text-slate-400 hover:text-emerald-400 transition" title="YTBS'ye Tekrar Gönder">
+                  <i class="fa-solid fa-paper-plane"></i>
+                </button>
+              </form>
+
+              <!-- Delete Button -->
+              <form action="/transmissions/delete" method="POST" class="inline" onsubmit="return confirm('Bu iletim kaydını silmek istediğinize emin misiniz?');">
+                <input type="hidden" name="id" value="{{.ID}}">
+                <button type="submit" class="p-1.5 text-slate-400 hover:text-red-400 transition" title="Kaydı Sil">
+                  <i class="fa-solid fa-trash-can"></i>
+                </button>
+              </form>
+            </td>
+          </tr>
+          {{else}}
+          <tr>
+            <td colspan="7" class="py-12 text-center text-slate-500 text-xs">
+              Belirtilen filtre kriterlerine uygun iletim kaydı bulunamadı.
+            </td>
+          </tr>
+          {{end}}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Manual Edit Modal -->
+  <div id="editModal" class="fixed inset-0 z-50 hidden bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-6 shadow-2xl">
+      <div class="flex items-center justify-between pb-4 border-b border-slate-800">
+        <h4 class="text-base font-bold text-white">İletim Değerini Düzelt (Update)</h4>
+        <button onclick="closeModal('editModal')" class="text-slate-400 hover:text-white">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+
+      <form action="/transmissions/update" method="POST" class="mt-6 space-y-4">
+        <input type="hidden" name="id" id="editLogId">
+
+        <div class="p-3 rounded-xl bg-slate-800/60 border border-slate-700/60 text-xs">
+          <div class="text-slate-400">Hedef Santral: <strong class="text-white" id="editPlantName">-</strong></div>
+          <div class="text-slate-400 mt-1">Kayıt Saati: <span class="font-mono text-emerald-400" id="editDateTime">-</span></div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 uppercase mb-1">Yeni Üretim Değeri (MW / MWh) *</label>
+          <input type="number" step="0.0001" name="value" id="editValueInput" required class="w-full px-3.5 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-white text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none font-mono">
+          <p class="text-[11px] text-slate-500 mt-1">Değeri güncellediğinizde kayıt Beklemede durumuna alınır ve doğrudan TEİAŞ'a gönderim kuyruğuna girer.</p>
+        </div>
+
+        <div class="pt-4 border-t border-slate-800 flex justify-end gap-3">
+          <button type="button" onclick="closeModal('editModal')" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-semibold transition">İptal</button>
+          <button type="submit" class="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-semibold shadow-lg shadow-emerald-600/30 transition">Güncelle ve Gönder</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Error Detail Modal -->
+  <div id="errorModal" class="fixed inset-0 z-50 hidden bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-xl w-full p-6 shadow-2xl">
+      <div class="flex items-center justify-between pb-4 border-b border-slate-800">
+        <h4 class="text-base font-bold text-red-400 flex items-center gap-2">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+          <span>YTBS İletim Hata Detayı</span>
+        </h4>
+        <button onclick="closeModal('errorModal')" class="text-slate-400 hover:text-white">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+
+      <div class="mt-4 space-y-4">
+        <div class="text-xs text-slate-400">
+          Santral: <strong class="text-white" id="errPlantName">-</strong> &bull; Zaman: <span class="text-white font-mono" id="errTime">-</span>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-400 uppercase mb-1">Sistem Hata Mesajı</label>
+          <div id="errMessageText" class="p-3 bg-red-950/30 border border-red-500/20 text-red-300 rounded-xl font-mono text-xs break-all"></div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-400 uppercase mb-1">TEİAŞ Ham Yanıtı (Raw Body)</label>
+          <pre id="errRawBodyText" class="p-3 bg-slate-950 border border-slate-800 text-slate-400 rounded-xl font-mono text-xs overflow-x-auto max-h-48"></pre>
+        </div>
+
+        <div class="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs">
+          Bu hata oluştuğunda <strong class="text-white">ozgancan9@gmail.com</strong> adresine otomatik alert maili gönderilmiştir.
+        </div>
+      </div>
+
+      <div class="pt-4 border-t border-slate-800 flex justify-end">
+        <button type="button" onclick="closeModal('errorModal')" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-semibold transition">Kapat</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
+  function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+
+  function openEditModal(id, value, date, time, plantName) {
+    document.getElementById('editLogId').value = id;
+    document.getElementById('editValueInput').value = value;
+    document.getElementById('editDateTime').innerText = date + ' ' + time;
+    document.getElementById('editPlantName').innerText = plantName;
+    openModal('editModal');
+  }
+
+  function showErrorModal(errMsg, rawBody, dateTime, plantName) {
+    document.getElementById('errMessageText').innerText = errMsg || 'Bilinmeyen sistem hatası';
+    document.getElementById('errRawBodyText').innerText = rawBody || '(Boş yanıt)';
+    document.getElementById('errTime').innerText = dateTime;
+    document.getElementById('errPlantName').innerText = plantName;
+    openModal('errorModal');
+  }
+</script>
+{{end}}

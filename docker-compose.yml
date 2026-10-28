@@ -1,52 +1,46 @@
 services:
-  backend:
-    build:
-      context: .
-      dockerfile: Dockerfile.backend
-    ports:
-      - "3001:3001"
-    environment:
-      - DATABASE_URL=postgres://postgres:postgres@db:5432/energy_scada?sslmode=disable
-      - REDIS_URL=redis://redis:6379
-      - PORT=3001
-    restart: always
-    depends_on:
-      - redis
-      - db
-
-  frontend:
-    build:
-      context: .
-      dockerfile: Dockerfile.frontend
-    ports:
-      - "3000:3000"
-    environment:
-      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
-    restart: always
-    depends_on:
-      - backend
-
-  redis:
-    image: redis:alpine
-    ports:
-      - "6379:6379"
-    restart: always
-
   db:
-    image: timescale/timescaledb:2.14.2-pg15 # Daha kararlı sürüm
-    shm_size: '1gb' # Belleği 1GB'a çıkardım
+    image: timescale/timescaledb:2.14.2-pg15
+    container_name: ytbs-postgres
+    restart: always
+    shm_size: '1gb'
     ports:
       - "5432:5432"
     environment:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
-      - POSTGRES_DB=energy_scada
+      - POSTGRES_DB=ytbs_db
+      - TZ=Europe/Istanbul
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - ytbs_pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d energy_scada"]
-      interval: 10s
+      test: ["CMD-SHELL", "pg_isready -U postgres -d ytbs_db"]
+      interval: 5s
       timeout: 5s
       retries: 5
+
+  ytbs-app:
+    build:
+      context: ./ytbs-service
+      dockerfile: Dockerfile
+    container_name: ytbs-platform
+    restart: always
+    ports:
+      - "8080:8080"
+    environment:
+      - PORT=8080
+      - DATABASE_URL=postgres://postgres:postgres@db:5432/ytbs_db?sslmode=disable
+      - ALERT_EMAIL=ozgancan9@gmail.com
+      - SMTP_HOST=${SMTP_HOST:-smtp.gmail.com}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_USERNAME=${SMTP_USERNAME:-}
+      - SMTP_PASSWORD=${SMTP_PASSWORD:-}
+      - SMTP_FROM=${SMTP_FROM:-ytbs-alert@energy-platform.com}
+      - WORKER_ENABLED=true
+      - TZ=Europe/Istanbul
+    depends_on:
+      db:
+        condition: service_healthy
+
 volumes:
-  postgres_data:
+  ytbs_pgdata:

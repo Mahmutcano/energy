@@ -8,11 +8,11 @@
       <div class="flex items-center gap-2.5">
         <i class="fa-solid fa-triangle-exclamation text-base text-[#A80000]"></i>
         <div>
-          <div class="font-bold">Telemetri Kaynak DB Bağlantı Hatası (SCADA / Railway)</div>
+          <div class="font-bold">SCADA Telemetri DB Bağlantı Uyarısı</div>
           <div class="text-[11px] font-mono text-[#A80000]/90 mt-0.5">{{.SourceDBError}}</div>
         </div>
       </div>
-      <span class="px-2 py-1 rounded bg-[#A80000] text-white font-semibold text-[11px]">Bağlantı Koptu</span>
+      <span class="px-2 py-1 rounded bg-[#A80000] text-white font-semibold text-[11px]">Bağlantı Hatası</span>
     </div>
     {{else}}
     <div class="px-3.5 py-2 bg-[#F8F9FA] border border-[#E1DFDD] rounded-md flex items-center justify-between text-xs text-[#424242]">
@@ -20,11 +20,11 @@
         <i class="fa-solid fa-database text-[#0078D4]"></i>
         <span>SCADA Telemetri Veritabanı:</span>
         <span class="inline-flex items-center gap-1 font-semibold text-[#107C10]">
-          <span class="w-1.5 h-1.5 rounded-full bg-[#107C10]"></span> Bağlı & Canlı (Railway SCADA)
+          <span class="w-1.5 h-1.5 rounded-full bg-[#107C10]"></span> Bağlı & Aktif (Yerel Sunucu SCADA DB)
         </span>
       </div>
       <div class="text-[11px] text-[#616161] font-mono">
-        Active Power (P) & Supplied Active Energy
+        Active Power (P) & Supplied Active Energy (48 Parametre)
       </div>
     </div>
     {{end}}

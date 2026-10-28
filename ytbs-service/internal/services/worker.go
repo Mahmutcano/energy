@@ -337,7 +337,7 @@ func (w *TransmissionWorker) RetryTransmission(ctx context.Context, logID uuid.U
 	return fmt.Errorf("YTBS gönderim hatası (Kod: %d): %s", httpCode, errMsg)
 }
 
-// resolveTelemetryValue reads either from the source SCADA / Railway DB or falls back to calibrated curve.
+// resolveTelemetryValue reads either from the server SCADA DB (telemetry_values) or falls back to calibrated curve.
 func (w *TransmissionWorker) resolveTelemetryValue(ctx context.Context, plantID uuid.UUID, dataType string, capacityMW float64) float64 {
 	defs, err := w.dataDefRepo.GetAll(ctx, &plantID)
 	multiplier := 1.0
@@ -358,16 +358,15 @@ func (w *TransmissionWorker) resolveTelemetryValue(ctx context.Context, plantID 
 		}
 	}
 
-	// 1. Try reading live telemetry from external SCADA DB (Railway)
+	// 1. Try reading live telemetry from server SCADA DB (telemetry_values)
 	if w.sourceDB != nil {
 		var rawVal sql.NullFloat64
-		// Query latest telemetry matching the datasheet point
+		// Query latest telemetry from local telemetry_values table
 		query := `
-			SELECT tv."valueNumeric"
-			FROM "TelemetryValue" tv
-			JOIN "DatasheetPoint" dp ON tv."pointId" = dp.id
-			WHERE dp."dataName" ILIKE $1 OR dp."dataExplanation" ILIKE $1
-			ORDER BY tv."measurementTime" DESC
+			SELECT value_numeric
+			FROM telemetry_values
+			WHERE tag_name ILIKE $1
+			ORDER BY measurement_time DESC
 			LIMIT 1
 		`
 		qCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
@@ -381,16 +380,20 @@ func (w *TransmissionWorker) resolveTelemetryValue(ctx context.Context, plantID 
 			if finalVal < 0 {
 				finalVal = -finalVal // Ensure non-negative generation
 			}
-			log.Printf("[WORKER-SOURCE-DB] Kaynak SCADA DB'den okundu: %s = %.4f (Çarpan sonrası: %.4f)", paramName, rawVal.Float64, finalVal)
+			log.Printf("[WORKER-SCADA-DB] Sunucu SCADA DB'den okundu: %s = %.4f (Çarpan sonrası: %.4f)", paramName, rawVal.Float64, finalVal)
 			return float64(int(finalVal*10000)) / 10000.0
 		}
 
-		// Log connection drop or query issue
-		if qErr != nil && qErr != sql.ErrNoRows {
+		if qErr == sql.ErrNoRows || qErr == nil {
+			// Database is connected and healthy
+			w.sourceDBStatus = "ONLINE"
+			w.sourceDBError = ""
+		} else {
+			// Query or connection error
 			w.sourceDBStatus = "OFFLINE"
 			w.sourceDBError = qErr.Error()
-			log.Printf("[WORKER-SOURCE-DB-ERROR] Kaynak SCADA DB bağlantı hatası: %v", qErr)
-			w.LogConnectionHealth("SCADA_Railway_DB", "DISCONNECTED", qErr.Error())
+			log.Printf("[WORKER-SCADA-DB-ERROR] SCADA DB bağlantı hatası: %v", qErr)
+			w.LogConnectionHealth("Yerel_SCADA_DB", "DISCONNECTED", qErr.Error())
 		}
 	}
 

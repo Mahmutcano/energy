@@ -46,9 +46,9 @@ func main() {
 	dataDefRepo := repository.NewDataDefRepository(database)
 	logRepo := repository.NewLogRepository(database)
 
-	// 4. Initialize Services & Source Telemetry DB (Railway / SCADA)
-	var sourceDB *sql.DB
-	if cfg.SourceDBURL != "" {
+	// 4. Initialize Services & Source Telemetry DB (Sunucu Yerel SCADA Telemetri DB)
+	sourceDB := database // Bu sunucudaki PostgreSQL veritabanı telemetri kaynağıdır
+	if cfg.SourceDBURL != "" && cfg.SourceDBURL != cfg.DatabaseURL {
 		sdb, err := sql.Open("pgx", cfg.SourceDBURL)
 		if err == nil {
 			sdb.SetMaxOpenConns(5)
@@ -57,12 +57,13 @@ func main() {
 			defer pCancel()
 			if pErr := sdb.PingContext(pingCtx); pErr == nil {
 				sourceDB = sdb
-				log.Println("[DB-SOURCE] SCADA/Railway kaynak telemetri veritabanına bağlanıldı")
+				log.Println("[DB-SOURCE] Harici SCADA kaynak telemetri veritabanına bağlanıldı")
 			} else {
-				log.Printf("[DB-SOURCE-WARN] SCADA kaynak DB'ye ilk bağlantı sağlanamadı: %v (Worker otomatik deneyecek)", pErr)
-				sourceDB = sdb
+				log.Printf("[DB-SOURCE-WARN] Harici SCADA kaynak DB'ye bağlanılamadı: %v (Yerel DB aktif)", pErr)
 			}
 		}
+	} else {
+		log.Println("[DB-SOURCE] Sunucu üzerindeki yerel SCADA telemetri veritabanı aktif")
 	}
 
 	ytbsClient := services.NewYTBSClient()

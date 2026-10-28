@@ -100,6 +100,30 @@ func RunMigrations(db *sql.DB) error {
 
 		// Unique constraint for idempotent data definitions
 		`CREATE UNIQUE INDEX IF NOT EXISTS idx_data_def_plant_param ON data_definitions(plant_id, parameter_name);`,
+
+		// 7. Local SCADA Devices Table (EMK Analizör, İnvertörler)
+		`CREATE TABLE IF NOT EXISTS scada_devices (
+			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			plant_id UUID REFERENCES plants(id) ON DELETE CASCADE,
+			device_name VARCHAR(100) NOT NULL,
+			device_type VARCHAR(50) NOT NULL,
+			model VARCHAR(100) DEFAULT '',
+			is_active BOOLEAN DEFAULT TRUE,
+			created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+		);`,
+
+		// 8. Local SCADA Telemetry Values Table (Sunucu üzerindeki telemetri havuzu)
+		`CREATE TABLE IF NOT EXISTS telemetry_values (
+			id BIGSERIAL PRIMARY KEY,
+			plant_id UUID REFERENCES plants(id) ON DELETE CASCADE,
+			device_id UUID REFERENCES scada_devices(id) ON DELETE SET NULL,
+			tag_name VARCHAR(100) NOT NULL,
+			value_numeric DOUBLE PRECISION NOT NULL,
+			quality SMALLINT DEFAULT 192,
+			measurement_time TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+		);`,
+		`CREATE INDEX IF NOT EXISTS idx_telemetry_tag_time ON telemetry_values(tag_name, measurement_time DESC);`,
+		`CREATE INDEX IF NOT EXISTS idx_telemetry_plant_time ON telemetry_values(plant_id, measurement_time DESC);`,
 	}
 
 	for _, query := range queries {
@@ -112,7 +136,7 @@ func RunMigrations(db *sql.DB) error {
 	if err := seedDefaultData(db); err != nil {
 		return err
 	}
-	return seedRailwayDataDefinitions(db)
+	return seedScadaDataDefinitions(db)
 }
 
 func seedDefaultData(db *sql.DB) error {
@@ -166,7 +190,7 @@ func seedDefaultData(db *sql.DB) error {
 			return fmt.Errorf("failed to seed pilot plant: %w", err)
 		}
 
-		// Seed data definition matching SCADA / Railway telemetry dataset
+		// Seed data definition matching SCADA telemetry dataset
 		_, _ = db.Exec(`
 			INSERT INTO data_definitions (plant_id, parameter_name, data_type, unit, source_tag_or_column, multiplier, is_active)
 			VALUES 
@@ -180,13 +204,37 @@ func seedDefaultData(db *sql.DB) error {
 	return nil
 }
 
-// seedRailwayDataDefinitions imports all 46 telemetry data points extracted from previous Railway SCADA database
-func seedRailwayDataDefinitions(db *sql.DB) error {
+// seedScadaDataDefinitions imports all 46 telemetry data points and devices into the server's local SCADA database
+func seedScadaDataDefinitions(db *sql.DB) error {
 	var plantID string
 	err := db.QueryRow("SELECT id FROM plants WHERE ytbs_plant_id = 25924 OR plant_name ILIKE '%Akmersan%' ORDER BY created_at ASC LIMIT 1").Scan(&plantID)
 	if err != nil {
 		// If no pilot plant found yet, skip
 		return nil
+	}
+
+	// 1. Seed SCADA Devices (EMK analyzer & Inverters)
+	devices := []struct {
+		Name  string
+		Type  string
+		Model string
+	}{
+		{"EMK", "ANALYZER", "ENTES EMK-01"},
+		{"INV1", "INVERTER", "Kaco Blueplanet 60.0 TL3"},
+		{"INV2", "INVERTER", "Kaco Blueplanet 60.0 TL3"},
+		{"INV3", "INVERTER", "Kaco Blueplanet 60.0 TL3"},
+		{"INV4", "INVERTER", "Kaco Blueplanet 60.0 TL3"},
+	}
+
+	for _, d := range devices {
+		var devCount int
+		_ = db.QueryRow("SELECT COUNT(*) FROM scada_devices WHERE plant_id = $1 AND device_name = $2", plantID, d.Name).Scan(&devCount)
+		if devCount == 0 {
+			_, _ = db.Exec(`
+				INSERT INTO scada_devices (plant_id, device_name, device_type, model, is_active)
+				VALUES ($1, $2, $3, $4, true)
+			`, plantID, d.Name, d.Type, d.Model)
+		}
 	}
 
 	type PointDef struct {
@@ -273,6 +321,6 @@ func seedRailwayDataDefinitions(db *sql.DB) error {
 		}
 	}
 
-	log.Printf("[DB] %d Railway SCADA telemetry points loaded/synchronized into data_definitions", len(points))
+	log.Printf("[DB] %d SCADA telemetri veri tanımı yerel veritabanına aktarıldı ve eşitlendi", len(points))
 	return nil
 }

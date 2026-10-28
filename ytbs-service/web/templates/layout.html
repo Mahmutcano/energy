@@ -42,6 +42,8 @@
     ::-webkit-scrollbar-thumb:hover { background: #A19F9D; }
     .ms-shadow { box-shadow: 0 1.6px 3.6px 0 rgba(0,0,0,.132), 0 0.3px 0.9px 0 rgba(0,0,0,.108); }
     .ms-card-shadow { box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04); }
+    /* Prevent dropdown jumping or sliding animation across the viewport */
+    .dropdown-menu { transition: none !important; }
   </style>
 </head>
 <body class="h-full flex overflow-hidden antialiased bg-[#F8F9FA] text-[#242424]">
@@ -123,8 +125,8 @@
 
   <!-- Main Content Area -->
   <main class="flex-1 flex flex-col min-w-0 overflow-y-auto">
-    <!-- Top Header Bar -->
-    <header class="h-14 bg-white border-b border-[#E5E7EB] px-6 flex items-center justify-between sticky top-0 z-10">
+    <!-- Top Header Bar (Fixed height, cannot shrink) -->
+    <header class="h-14 flex-shrink-0 bg-white border-b border-[#E5E7EB] px-6 flex items-center justify-between sticky top-0 z-10">
       <div>
         <h2 class="text-sm font-semibold text-[#242424]">{{.Title}}</h2>
       </div>
@@ -143,6 +145,158 @@
     </div>
   </main>
 
+  <!-- Global Custom Confirmation Modal -->
+  <div id="systemConfirmModal" class="fixed inset-0 z-[100000] hidden bg-black/40 flex items-center justify-center p-4">
+    <div class="bg-white border border-[#E1DFDD] rounded-md max-w-sm w-full p-5 ms-shadow text-left">
+      <div class="flex items-center gap-2.5 pb-3 border-b border-[#EDEBE9]">
+        <div id="confirmIconContainer" class="w-7 h-7 rounded-full flex items-center justify-center text-xs">
+          <i id="confirmIcon" class="fa-solid fa-triangle-exclamation"></i>
+        </div>
+        <h4 id="confirmTitle" class="text-sm font-semibold text-[#242424]">İşlem Onayı</h4>
+      </div>
+      <p id="confirmMessage" class="py-4 text-xs text-[#616161] leading-relaxed"></p>
+      <div class="pt-3 border-t border-[#EDEBE9] flex justify-end gap-2">
+        <button type="button" onclick="closeConfirmModal()" class="px-3.5 py-1.5 bg-[#F3F2F1] hover:bg-[#EDEBE9] text-[#242424] rounded text-xs font-medium transition">Vazgeç</button>
+        <button type="button" id="confirmActionBtn" class="px-3.5 py-1.5 text-white rounded text-xs font-medium transition shadow-sm">Onayla</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Global Confirmation Modal Logic
+    let confirmCallback = null;
+
+    function openConfirmModal(opts) {
+      const modal = document.getElementById('systemConfirmModal');
+      const title = document.getElementById('confirmTitle');
+      const msg = document.getElementById('confirmMessage');
+      const btn = document.getElementById('confirmActionBtn');
+      const iconContainer = document.getElementById('confirmIconContainer');
+      const icon = document.getElementById('confirmIcon');
+
+      title.innerText = opts.title || 'İşlem Onayı';
+      msg.innerText = opts.message || 'Bu işlemi gerçekleştirmek istediğinize emin misiniz?';
+      btn.innerText = opts.confirmText || 'Onayla';
+
+      if (opts.isDanger) {
+        btn.className = 'px-3.5 py-1.5 bg-[#A80000] hover:bg-[#8A0000] text-white rounded text-xs font-medium transition shadow-sm';
+        iconContainer.className = 'w-7 h-7 rounded-full bg-[#FDE7E9] text-[#A80000] flex items-center justify-center text-xs';
+        icon.className = 'fa-solid fa-triangle-exclamation';
+      } else {
+        btn.className = 'px-3.5 py-1.5 bg-[#0078D4] hover:bg-[#106EBE] text-white rounded text-xs font-medium transition shadow-sm';
+        iconContainer.className = 'w-7 h-7 rounded-full bg-[#EFF6FC] text-[#0078D4] flex items-center justify-center text-xs';
+        icon.className = 'fa-solid fa-circle-question';
+      }
+
+      confirmCallback = opts.onConfirm;
+      btn.onclick = function() {
+        closeConfirmModal();
+        if (confirmCallback) confirmCallback();
+      };
+
+      modal.classList.remove('hidden');
+    }
+
+    function closeConfirmModal() {
+      document.getElementById('systemConfirmModal').classList.add('hidden');
+      confirmCallback = null;
+    }
+
+    // Global Client-Side Table Pagination Engine
+    function initTablePagination(opts) {
+      const table = document.getElementById(opts.tableId);
+      const container = document.getElementById(opts.paginationId);
+      if (!table || !container) return;
+
+      const tbody = table.querySelector('tbody');
+      if (!tbody) return;
+
+      let pageSize = opts.pageSize || 10;
+      let currentPage = 1;
+
+      function render() {
+        const rows = Array.from(tbody.querySelectorAll('tr')).filter(r => !r.hasAttribute('data-pagination-ignore'));
+        const totalRows = rows.length;
+        if (totalRows === 0) {
+          container.innerHTML = '';
+          return;
+        }
+
+        const totalPages = Math.ceil(totalRows / pageSize) || 1;
+        if (currentPage > totalPages) currentPage = totalPages;
+        if (currentPage < 1) currentPage = 1;
+
+        const startIdx = (currentPage - 1) * pageSize;
+        const endIdx = Math.min(startIdx + pageSize, totalRows);
+
+        rows.forEach((row, i) => {
+          row.style.display = (i >= startIdx && i < endIdx) ? '' : 'none';
+        });
+
+        // Build Fluent Pagination Controls
+        let pagesHtml = '';
+        const maxButtons = 5;
+        let startPage = Math.max(1, currentPage - 2);
+        let endPage = Math.min(totalPages, startPage + maxButtons - 1);
+        if (endPage - startPage < maxButtons - 1) {
+          startPage = Math.max(1, endPage - maxButtons + 1);
+        }
+
+        for (let p = startPage; p <= endPage; p++) {
+          pagesHtml += `<button type="button" onclick="window['paginate_${opts.tableId}'](${p})" 
+            class="px-2.5 py-1 rounded text-xs font-medium transition ${p === currentPage ? 'bg-[#0078D4] text-white' : 'bg-white hover:bg-[#F3F2F1] text-[#242424] border border-[#E1DFDD]'}">
+            ${p}
+          </button>`;
+        }
+
+        container.innerHTML = `
+          <div class="px-4 py-3 bg-[#FAF9F8] border-t border-[#E1DFDD] flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-[#616161]">
+            <div class="flex items-center gap-2">
+              <span>Toplam <strong class="text-[#242424] font-semibold">${totalRows}</strong> kayıt arasından <strong class="text-[#242424] font-semibold">${startIdx + 1} - ${endIdx}</strong> arası gösteriliyor</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="text-[11px]">Sayfa boyutu:</span>
+              <select onchange="window['changeSize_${opts.tableId}'](this.value)" class="px-2 py-1 bg-white border border-[#8A8886] rounded text-xs text-[#242424] focus:outline-none">
+                <option value="10" ${pageSize === 10 ? 'selected' : ''}>10</option>
+                <option value="25" ${pageSize === 25 ? 'selected' : ''}>25</option>
+                <option value="50" ${pageSize === 50 ? 'selected' : ''}>50</option>
+              </select>
+              <div class="flex items-center gap-1 ml-2">
+                <button type="button" onclick="window['paginate_${opts.tableId}'](${currentPage - 1})" 
+                  class="px-2 py-1 rounded bg-white hover:bg-[#F3F2F1] text-[#242424] border border-[#E1DFDD] transition disabled:opacity-40 disabled:cursor-not-allowed" 
+                  ${currentPage === 1 ? 'disabled' : ''}>
+                  <i class="fa-solid fa-chevron-left text-[10px]"></i>
+                </button>
+                ${pagesHtml}
+                <button type="button" onclick="window['paginate_${opts.tableId}'](${currentPage + 1})" 
+                  class="px-2 py-1 rounded bg-white hover:bg-[#F3F2F1] text-[#242424] border border-[#E1DFDD] transition disabled:opacity-40 disabled:cursor-not-allowed" 
+                  ${currentPage === totalPages ? 'disabled' : ''}>
+                  <i class="fa-solid fa-chevron-right text-[10px]"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+
+      window[`paginate_${opts.tableId}`] = function(p) {
+        currentPage = p;
+        render();
+      };
+
+      window[`changeSize_${opts.tableId}`] = function(sz) {
+        pageSize = parseInt(sz, 10);
+        currentPage = 1;
+        render();
+      };
+
+      window[`refreshPagination_${opts.tableId}`] = function() {
+        render();
+      };
+
+      render();
+    }
+  </script>
 </body>
 </html>
 {{end}}

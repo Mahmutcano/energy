@@ -17,7 +17,7 @@
   <!-- Companies Table -->
   <div class="bg-white border border-[#E1DFDD] rounded-md ms-card-shadow overflow-hidden">
     <div class="overflow-x-auto">
-      <table class="min-w-[960px] w-full text-left border-collapse text-xs">
+      <table id="companiesTable" class="min-w-[960px] w-full text-left border-collapse text-xs">
         <thead>
           <tr class="bg-[#F3F2F1] text-[#616161] font-semibold border-b border-[#E1DFDD]">
             <th class="py-3 px-4">Firma Adı & Lisans No</th>
@@ -96,22 +96,30 @@
                     </div>
                   </button>
 
-                  <form action="/companies/delete" method="POST" onsubmit="return confirm('Bu firmayı silmek istediğinize emin misiniz?');">
+                  <button type="button" 
+                          onclick="closeAllDropdowns(); openConfirmModal({
+                            title: 'Firmayı Sil',
+                            message: '{{.Name}} firmasını ve ilişkili tüm kayıtları sistemden kalıcı olarak kaldırmak istediğinize emin misiniz?',
+                            confirmText: 'Firmayı Sil',
+                            isDanger: true,
+                            onConfirm: function() { document.getElementById('del-comp-{{.ID}}').submit(); }
+                          })"
+                          class="w-full text-left px-3 py-2 hover:bg-[#FDE7E9] text-[#A80000] flex items-start gap-2.5 transition border-t border-[#EDEBE9]">
+                    <i class="fa-regular fa-trash-can text-[#A80000] text-sm mt-0.5"></i>
+                    <div>
+                      <div class="font-semibold text-[#A80000]">Firmayı Sil</div>
+                      <div class="text-[11px] text-[#A80000]/80">Firmayı ve ilişkili tüm kayıtları kaldır</div>
+                    </div>
+                  </button>
+                  <form id="del-comp-{{.ID}}" action="/companies/delete" method="POST" class="hidden">
                     <input type="hidden" name="id" value="{{.ID}}">
-                    <button type="submit" class="w-full text-left px-3 py-2 hover:bg-[#FDE7E9] text-[#A80000] flex items-start gap-2.5 transition border-t border-[#EDEBE9]">
-                      <i class="fa-regular fa-trash-can text-[#A80000] text-sm mt-0.5"></i>
-                      <div>
-                        <div class="font-semibold text-[#A80000]">Firmayı Sil</div>
-                        <div class="text-[11px] text-[#A80000]/80">Firmayı ve ilişkili tüm kayıtları kaldır</div>
-                      </div>
-                    </button>
                   </form>
                 </div>
               </div>
             </td>
           </tr>
           {{else}}
-          <tr>
+          <tr data-pagination-ignore>
             <td colspan="6" class="py-8 text-center text-[#8A8886] text-xs">
               Kayıtlı firma bulunamadı.
             </td>
@@ -120,6 +128,9 @@
         </tbody>
       </table>
     </div>
+
+    <!-- Pagination Container -->
+    <div id="companiesPagination"></div>
   </div>
 
   <!-- Add Company Modal -->
@@ -377,5 +388,13 @@
       alert("İstek hatası: " + e.message);
     }
   }
+
+  document.addEventListener('DOMContentLoaded', function() {
+    initTablePagination({
+      tableId: 'companiesTable',
+      paginationId: 'companiesPagination',
+      pageSize: 10
+    });
+  });
 </script>
 {{end}}

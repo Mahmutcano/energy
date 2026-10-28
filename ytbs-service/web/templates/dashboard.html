@@ -38,57 +38,87 @@
         <span class="font-semibold text-[#242424]">YTBS Aktarım Servisi Aktif:</span> 15 dakikalık anlık telemetri (MW) ve 1 saatlik net üretim (MWh) döngüleri çalışıyor.
       </div>
     </div>
-    <form action="/transmissions/trigger-now" method="POST">
-      <button type="submit" class="px-3.5 py-1.5 bg-[#0078D4] hover:bg-[#106EBE] text-white font-medium rounded text-xs transition flex items-center gap-1.5 shadow-sm">
+    <form id="dashTriggerForm" action="/transmissions/trigger-now" method="POST">
+      <button type="button" 
+              onclick="openConfirmModal({
+                title: 'YTBS Gönderim Onayı',
+                message: 'Mevcut telemetri verileriyle 15 dakikalık YTBS iletim döngüsünü tetiklemek istiyor musunuz?',
+                confirmText: 'Şimdi Çalıştır',
+                isDanger: false,
+                onConfirm: function() { document.getElementById('dashTriggerForm').submit(); }
+              })"
+              class="px-3.5 py-1.5 bg-[#0078D4] hover:bg-[#106EBE] text-white font-medium rounded text-xs transition flex items-center gap-1.5 shadow-sm">
         <i class="fa-solid fa-rotate text-[11px]"></i>
         <span>15 Dk Döngüsünü Şimdi Çalıştır</span>
       </button>
     </form>
   </div>
 
-  <!-- Metric KPI Cards (4 Grid) -->
-  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-    <!-- Total Companies / Scope -->
-    <div class="p-4 bg-white border border-[#E1DFDD] rounded-md ms-card-shadow">
-      <div class="text-[11px] font-semibold text-[#616161] uppercase tracking-wide">
-        {{if eq .User.Role "system_admin"}}Kayıtlı Firma{{else}}Bağlı Şirketim{{end}}
+  <!-- Telemetry & Transmission KPI Summary Cards (5 Grid) -->
+  <div class="grid grid-cols-2 md:grid-cols-5 gap-3.5">
+    <!-- Card 1: Total Transmissions -->
+    <div class="bg-white border border-[#E1DFDD] rounded-md p-3.5 ms-card-shadow flex items-center justify-between">
+      <div>
+        <div class="text-[11px] font-semibold uppercase tracking-wider text-[#616161]">Toplam Kayıt</div>
+        <div class="text-2xl font-bold text-[#242424] mt-0.5">{{.Stats.TotalTransmissions}}</div>
+        <div class="text-[11px] text-[#616161] mt-0.5">Sistem aktarım kaydı</div>
       </div>
-      <div class="mt-2 flex items-baseline justify-between">
-        <span class="text-2xl font-semibold text-[#242424]">
-          {{if eq .User.Role "system_admin"}}{{.Stats.TotalCompanies}}{{else}}1 Firma{{end}}
-        </span>
-        <span class="text-xs text-[#107C10] font-medium">Aktif</span>
-      </div>
-    </div>
-
-    <!-- Total Plants -->
-    <div class="p-4 bg-white border border-[#E1DFDD] rounded-md ms-card-shadow">
-      <div class="text-[11px] font-semibold text-[#616161] uppercase tracking-wide">
-        {{if eq .User.Role "system_admin"}}Toplam Santral{{else}}Santrallerim{{end}}
-      </div>
-      <div class="mt-2 flex items-baseline justify-between">
-        <span class="text-2xl font-semibold text-[#0078D4]">{{.Stats.TotalPlants}}</span>
-        <span class="text-xs text-[#616161] font-mono">GES / RES</span>
+      <div class="w-10 h-10 rounded-md bg-[#EFF6FC] border border-[#C7E0F4] flex items-center justify-center text-[#0078D4]">
+        <i class="fa-solid fa-database text-base"></i>
       </div>
     </div>
 
-    <!-- Today Transmissions -->
-    <div class="p-4 bg-white border border-[#E1DFDD] rounded-md ms-card-shadow">
-      <div class="text-[11px] font-semibold text-[#616161] uppercase tracking-wide">Bugünkü İletim</div>
-      <div class="mt-2 flex items-baseline justify-between">
-        <span class="text-2xl font-semibold text-[#242424]">{{.Stats.TodayTransmissions}}</span>
-        <span class="text-xs text-[#616161]">Paket</span>
+    <!-- Card 2: 15-Minute Instant -->
+    <div class="bg-white border border-[#E1DFDD] rounded-md p-3.5 ms-card-shadow flex items-center justify-between">
+      <div>
+        <div class="text-[11px] font-semibold uppercase tracking-wider text-[#616161]">15 Dk Anlık (MW)</div>
+        <div class="text-2xl font-bold text-[#0078D4] mt-0.5">{{.Stats.TotalInstant}}</div>
+        <div class="text-[11px] text-[#616161] mt-0.5">Anlık güç telemetrisi</div>
+      </div>
+      <div class="w-10 h-10 rounded-md bg-[#EFF6FC] border border-[#C7E0F4] flex items-center justify-center text-[#0078D4]">
+        <i class="fa-solid fa-bolt text-base"></i>
       </div>
     </div>
 
-    <!-- Success Rate -->
-    <div class="p-4 bg-white border border-[#E1DFDD] rounded-md ms-card-shadow">
-      <div class="text-[11px] font-semibold text-[#616161] uppercase tracking-wide">İletim Başarısı</div>
-      <div class="mt-2 flex items-baseline justify-between">
-        <span class="text-2xl font-semibold text-[#107C10]">%{{printf "%.1f" .Stats.SuccessRate}}</span>
-        <span class="text-xs {{if gt .Stats.FailedCount 0}}text-[#A80000] font-medium{{else}}text-[#616161]{{end}}">
-          {{if gt .Stats.FailedCount 0}}{{.Stats.FailedCount}} Hata{{else}}Kayıp Yok{{end}}
-        </span>
+    <!-- Card 3: 1-Hour Cumulative -->
+    <div class="bg-white border border-[#E1DFDD] rounded-md p-3.5 ms-card-shadow flex items-center justify-between">
+      <div>
+        <div class="text-[11px] font-semibold uppercase tracking-wider text-[#616161]">1 Saatlik (MWh)</div>
+        <div class="text-2xl font-bold text-[#107C10] mt-0.5">{{.Stats.TotalHourly}}</div>
+        <div class="text-[11px] text-[#616161] mt-0.5">Kümülatif üretim verisi</div>
+      </div>
+      <div class="w-10 h-10 rounded-md bg-[#DFF6DD] border border-[#C3E8BF] flex items-center justify-center text-[#107C10]">
+        <i class="fa-solid fa-clock-rotate-left text-base"></i>
+      </div>
+    </div>
+
+    <!-- Card 4: Success Count & Rate -->
+    <div class="bg-white border border-[#E1DFDD] rounded-md p-3.5 ms-card-shadow flex items-center justify-between">
+      <div>
+        <div class="text-[11px] font-semibold uppercase tracking-wider text-[#616161]">Başarılı İletim</div>
+        <div class="text-2xl font-bold text-[#107C10] mt-0.5">{{.Stats.TotalSuccess}}</div>
+        <div class="text-[11px] text-[#107C10] font-medium mt-0.5">
+          {{if .Stats.TotalTransmissions}}%{{printf "%.1f" .Stats.SuccessRate}} Başarı{{else}}0%{{end}}
+        </div>
+      </div>
+      <div class="w-10 h-10 rounded-md bg-[#DFF6DD] border border-[#C3E8BF] flex items-center justify-center text-[#107C10]">
+        <i class="fa-solid fa-circle-check text-base"></i>
+      </div>
+    </div>
+
+    <!-- Card 5: Failures / Pending -->
+    <div class="bg-white border border-[#E1DFDD] rounded-md p-3.5 ms-card-shadow flex items-center justify-between col-span-2 sm:col-span-1">
+      <div>
+        <div class="text-[11px] font-semibold uppercase tracking-wider text-[#616161]">Hatalı / Bekleyen</div>
+        <div class="text-2xl font-bold {{if gt .Stats.FailedCount 0}}text-[#A80000]{{else}}text-[#616161]{{end}} mt-0.5">
+          {{.Stats.FailedCount}} <span class="text-xs font-normal text-[#616161]">/ {{.Stats.PendingCount}}</span>
+        </div>
+        <div class="text-[11px] {{if gt .Stats.FailedCount 0}}text-[#A80000] font-medium{{else}}text-[#616161]{{end}} mt-0.5">
+          {{if gt .Stats.FailedCount 0}}İnceleme gerektirir{{else}}Hata kaydı yok{{end}}
+        </div>
+      </div>
+      <div class="w-10 h-10 rounded-md {{if gt .Stats.FailedCount 0}}bg-[#FDE7E9] border border-[#F8B6B9] text-[#A80000]{{else}}bg-[#F3F2F1] border border-[#EDEBE9] text-[#616161]{{end}} flex items-center justify-center">
+        <i class="fa-solid fa-triangle-exclamation text-base"></i>
       </div>
     </div>
   </div>

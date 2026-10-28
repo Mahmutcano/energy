@@ -17,7 +17,7 @@
   <!-- Users Table -->
   <div class="bg-white border border-[#E1DFDD] rounded-md ms-card-shadow overflow-hidden">
     <div class="overflow-x-auto">
-      <table class="w-full text-left border-collapse text-xs">
+      <table id="usersTable" class="w-full text-left border-collapse text-xs">
         <thead>
           <tr class="bg-[#F3F2F1] text-[#616161] font-semibold border-b border-[#E1DFDD]">
             <th class="py-2.5 px-4">Kullanıcı</th>
@@ -65,11 +65,19 @@
                 <i class="fa-regular fa-pen-to-square text-xs"></i>
               </button>
               {{if ne .Username "admin"}}
-              <form action="/users/delete" method="POST" class="inline" onsubmit="return confirm('Bu kullanıcıyı silmek istediğinize emin misiniz?');">
+              <button type="button" 
+                      onclick="openConfirmModal({
+                        title: 'Kullanıcıyı Sil',
+                        message: '@{{.Username}} kullanıcısını silmek istediğinize emin misiniz?',
+                        confirmText: 'Kullanıcıyı Sil',
+                        isDanger: true,
+                        onConfirm: function() { document.getElementById('del-user-{{.ID}}').submit(); }
+                      })"
+                      class="p-1 text-[#616161] hover:text-[#A80000] transition" title="Sil">
+                <i class="fa-regular fa-trash-can text-xs"></i>
+              </button>
+              <form id="del-user-{{.ID}}" action="/users/delete" method="POST" class="hidden">
                 <input type="hidden" name="id" value="{{.ID}}">
-                <button type="submit" class="p-1 text-[#616161] hover:text-[#A80000] transition" title="Sil">
-                  <i class="fa-regular fa-trash-can text-xs"></i>
-                </button>
               </form>
               {{end}}
             </td>
@@ -78,6 +86,9 @@
         </tbody>
       </table>
     </div>
+
+    <!-- Pagination Container -->
+    <div id="usersPagination"></div>
   </div>
 
   <!-- Add User Modal -->
@@ -234,5 +245,13 @@
     toggleEditCompanySelect();
     openModal('editUserModal');
   }
+
+  document.addEventListener('DOMContentLoaded', function() {
+    initTablePagination({
+      tableId: 'usersTable',
+      paginationId: 'usersPagination',
+      pageSize: 10
+    });
+  });
 </script>
 {{end}}

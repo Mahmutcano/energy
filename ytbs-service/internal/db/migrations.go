@@ -237,65 +237,67 @@ func seedScadaDataDefinitions(db *sql.DB) error {
 		}
 	}
 
+	// Remove legacy bracket-prefixed parameters
+	_, _ = db.Exec("DELETE FROM data_definitions WHERE parameter_name LIKE '[%'")
+
 	type PointDef struct {
-		Profile    string
-		DataName   string
-		Address    string
+		ParamName  string
+		SourceTag  string
 		DataType   string
 		Unit       string
 		Multiplier float64
 	}
 
 	points := []PointDef{
-		// ENTES EMK-01 (26 points)
-		{"ENTES EMK-01", "Voltage L1 (Van)", "40001", "PHASE_VOLTAGE", "kV", 1.0},
-		{"ENTES EMK-01", "Voltage L2 (VBN)", "40003", "PHASE_VOLTAGE", "kV", 1.0},
-		{"ENTES EMK-01", "Voltage L3 (VCN)", "40005", "PHASE_VOLTAGE", "kV", 1.0},
-		{"ENTES EMK-01", "Voltage L1-L2 (VAB)", "40009", "PHASE_VOLTAGE", "kV", 1.0},
-		{"ENTES EMK-01", "Voltage L2-L3 (VBC)", "40011", "PHASE_VOLTAGE", "kV", 1.0},
-		{"ENTES EMK-01", "Voltage L3-L1 (VCA)", "40013", "PHASE_VOLTAGE", "kV", 1.0},
-		{"ENTES EMK-01", "Voltage THD L1 (Harmonic)", "40017", "HARMONIC", "%", 1.0},
-		{"ENTES EMK-01", "Voltage THD L2 (Harmonic)", "40019", "HARMONIC", "%", 1.0},
-		{"ENTES EMK-01", "Voltage THD L3 (Harmonic)", "40021", "HARMONIC", "%", 1.0},
-		{"ENTES EMK-01", "Voltage THD L1 – L2 (Harmonic)", "40025", "HARMONIC", "%", 1.0},
-		{"ENTES EMK-01", "Voltage THD L2 – L3 (Harmonic)", "40027", "HARMONIC", "%", 1.0},
-		{"ENTES EMK-01", "Voltage THD L3 – L1 (Harmonic)", "40029", "HARMONIC", "%", 1.0},
-		{"ENTES EMK-01", "Current L1 (IA)", "40033", "PHASE_CURRENT", "A", 1.0},
-		{"ENTES EMK-01", "Current L2 (IB)", "40035", "PHASE_CURRENT", "A", 1.0},
-		{"ENTES EMK-01", "Current L3 (IC)", "40037", "PHASE_CURRENT", "A", 1.0},
-		{"ENTES EMK-01", "Current THD L1 (Harmonic)", "40041", "HARMONIC", "%", 1.0},
-		{"ENTES EMK-01", "Current THD L2 (Harmonic)", "40043", "HARMONIC", "%", 1.0},
-		{"ENTES EMK-01", "Current THD L3 (Harmonic)", "40045", "HARMONIC", "%", 1.0},
-		{"ENTES EMK-01", "Power factor L1..L4 (PF)", "40073", "POWER_FACTOR", "PF", 1.0},
-		{"ENTES EMK-01", "Frequency", "40081", "FREQUENCY", "Hz", 1.0},
-		{"ENTES EMK-01", "Active Power (P)", "40153", "INSTANT_MW", "MW", 0.001},
-		{"ENTES EMK-01", "Apparent Power (S)", "40161", "APPARENT_POWER", "kVA", 1.0},
-		{"ENTES EMK-01", "Reactive Power (Q) - CONSUMPTION", "40169", "REACTIVE_POWER", "kVAR", 1.0},
-		{"ENTES EMK-01", "Reactive Power (Q) - DISTRIBUTION", "40177", "REACTIVE_POWER", "kVAR", 1.0},
-		{"ENTES EMK-01", "Consumed Active Energy (Wppos)", "55024", "TOTAL_INDEX", "kWh", 1.0},
-		{"ENTES EMK-01", "Supplied Active Energy (Wpneg)", "55030", "HOURLY_MWH", "MWh", 0.001},
+		// 1. TEİAŞ YTBS Zorunlu Telemetri Parametreleri
+		{"Aktif Güç (15 Dk Anlık)", "Active Power (P)", "INSTANT_MW", "MW", 0.001},
+		{"Net Üretilen Enerji (1 Saatlik)", "Supplied Active Energy (Wpneg)", "HOURLY_MWH", "MWh", 0.001},
 
-		// Kaco Blueplanet 60.0 TL3 (20 points)
-		{"Kaco Blueplanet 60.0 TL3", "AC Current", "40123", "PHASE_CURRENT", "A", 1.0},
-		{"Kaco Blueplanet 60.0 TL3", "Phase A Current", "40125", "PHASE_CURRENT", "A", 1.0},
-		{"Kaco Blueplanet 60.0 TL3", "Phase B Current", "40127", "PHASE_CURRENT", "A", 1.0},
-		{"Kaco Blueplanet 60.0 TL3", "Phase C Current", "40129", "PHASE_CURRENT", "A", 1.0},
-		{"Kaco Blueplanet 60.0 TL3", "Phase Voltage AB", "40132", "PHASE_VOLTAGE", "V", 1.0},
-		{"Kaco Blueplanet 60.0 TL3", "Phase Voltage BC", "40134", "PHASE_VOLTAGE", "V", 1.0},
-		{"Kaco Blueplanet 60.0 TL3", "Phase Voltage CA", "40136", "PHASE_VOLTAGE", "V", 1.0},
-		{"Kaco Blueplanet 60.0 TL3", "Phase Voltage AN", "40137", "PHASE_VOLTAGE", "V", 1.0},
-		{"Kaco Blueplanet 60.0 TL3", "Phase Voltage BN", "40139", "PHASE_VOLTAGE", "V", 1.0},
-		{"Kaco Blueplanet 60.0 TL3", "Phase Voltage CN", "40141", "PHASE_VOLTAGE", "V", 1.0},
-		{"Kaco Blueplanet 60.0 TL3", "AC Power", "40143", "ACTIVE_POWER", "kW", 0.001},
-		{"Kaco Blueplanet 60.0 TL3", "Line Frequency", "40145", "FREQUENCY", "Hz", 1.0},
-		{"Kaco Blueplanet 60.0 TL3", "AC Apparent Power", "40147", "APPARENT_POWER", "kVA", 1.0},
-		{"Kaco Blueplanet 60.0 TL3", "AC Reactive Power", "40149", "REACTIVE_POWER", "kVAR", 1.0},
-		{"Kaco Blueplanet 60.0 TL3", "AC Power Factor", "40151", "POWER_FACTOR", "PF", 1.0},
-		{"Kaco Blueplanet 60.0 TL3", "AC Energy", "40153", "HOURLY_MWH", "kWh", 0.001},
-		{"Kaco Blueplanet 60.0 TL3", "DC Current", "40155", "ANALOG", "A", 1.0},
-		{"Kaco Blueplanet 60.0 TL3", "DC Voltage", "40157", "ANALOG", "V", 1.0},
-		{"Kaco Blueplanet 60.0 TL3", "DC Power", "40159", "ANALOG", "kW", 1.0},
-		{"Kaco Blueplanet 60.0 TL3", "Cabinet Temperature", "40161", "ANALOG", "°C", 1.0},
+		// 2. SCADA Telemetri & Ölçüm Noktaları (Cihaz parantezleri kaldırıldı)
+		{"Faz Gerilimi L1 (Van)", "Voltage L1 (Van)", "PHASE_VOLTAGE", "kV", 1.0},
+		{"Faz Gerilimi L2 (VBN)", "Voltage L2 (VBN)", "PHASE_VOLTAGE", "kV", 1.0},
+		{"Faz Gerilimi L3 (VCN)", "Voltage L3 (VCN)", "PHASE_VOLTAGE", "kV", 1.0},
+		{"Hat Gerilimi L1-L2 (VAB)", "Voltage L1-L2 (VAB)", "PHASE_VOLTAGE", "kV", 1.0},
+		{"Hat Gerilimi L2-L3 (VBC)", "Voltage L2-L3 (VBC)", "PHASE_VOLTAGE", "kV", 1.0},
+		{"Hat Gerilimi L3-L1 (VCA)", "Voltage L3-L1 (VCA)", "PHASE_VOLTAGE", "kV", 1.0},
+		{"Gerilim THD L1 (Harmonik)", "Voltage THD L1 (Harmonic)", "HARMONIC", "%", 1.0},
+		{"Gerilim THD L2 (Harmonik)", "Voltage THD L2 (Harmonic)", "HARMONIC", "%", 1.0},
+		{"Gerilim THD L3 (Harmonik)", "Voltage THD L3 (Harmonic)", "HARMONIC", "%", 1.0},
+		{"Gerilim THD L1-L2", "Voltage THD L1 – L2 (Harmonic)", "HARMONIC", "%", 1.0},
+		{"Gerilim THD L2-L3", "Voltage THD L2 – L3 (Harmonic)", "HARMONIC", "%", 1.0},
+		{"Gerilim THD L3-L1", "Voltage THD L3 – L1 (Harmonic)", "HARMONIC", "%", 1.0},
+		{"Faz Akımı L1 (IA)", "Current L1 (IA)", "PHASE_CURRENT", "A", 1.0},
+		{"Faz Akımı L2 (IB)", "Current L2 (IB)", "PHASE_CURRENT", "A", 1.0},
+		{"Faz Akımı L3 (IC)", "Current L3 (IC)", "PHASE_CURRENT", "A", 1.0},
+		{"Akım THD L1 (Harmonik)", "Current THD L1 (Harmonic)", "HARMONIC", "%", 1.0},
+		{"Akım THD L2 (Harmonik)", "Current THD L2 (Harmonic)", "HARMONIC", "%", 1.0},
+		{"Akım THD L3 (Harmonik)", "Current THD L3 (Harmonic)", "HARMONIC", "%", 1.0},
+		{"Güç Faktörü (PF)", "Power factor L1..L4 (PF)", "POWER_FACTOR", "PF", 1.0},
+		{"Şebeke Frekansı (Hz)", "Frequency", "FREQUENCY", "Hz", 1.0},
+		{"Görünür Güç (S)", "Apparent Power (S)", "APPARENT_POWER", "kVA", 1.0},
+		{"Reaktif Güç - Tüketim (Q)", "Reactive Power (Q) - CONSUMPTION", "REACTIVE_POWER", "kVAR", 1.0},
+		{"Reaktif Güç - Dağıtım (Q)", "Reactive Power (Q) - DISTRIBUTION", "REACTIVE_POWER", "kVAR", 1.0},
+		{"Tüketilen Aktif Enerji (Wppos)", "Consumed Active Energy (Wppos)", "TOTAL_INDEX", "kWh", 1.0},
+		{"İnvertör AC Akım", "AC Current", "PHASE_CURRENT", "A", 1.0},
+		{"İnvertör Faz A Akımı", "Phase A Current", "PHASE_CURRENT", "A", 1.0},
+		{"İnvertör Faz B Akımı", "Phase B Current", "PHASE_CURRENT", "A", 1.0},
+		{"İnvertör Faz C Akımı", "Phase C Current", "PHASE_CURRENT", "A", 1.0},
+		{"İnvertör Faz Gerilimi AB", "Phase Voltage AB", "PHASE_VOLTAGE", "V", 1.0},
+		{"İnvertör Faz Gerilimi BC", "Phase Voltage BC", "PHASE_VOLTAGE", "V", 1.0},
+		{"İnvertör Faz Gerilimi CA", "Phase Voltage CA", "PHASE_VOLTAGE", "V", 1.0},
+		{"İnvertör Faz Gerilimi AN", "Phase Voltage AN", "PHASE_VOLTAGE", "V", 1.0},
+		{"İnvertör Faz Gerilimi BN", "Phase Voltage BN", "PHASE_VOLTAGE", "V", 1.0},
+		{"İnvertör Faz Gerilimi CN", "Phase Voltage CN", "PHASE_VOLTAGE", "V", 1.0},
+		{"İnvertör AC Güç", "AC Power", "ACTIVE_POWER", "kW", 0.001},
+		{"İnvertör Hat Frekansı", "Line Frequency", "FREQUENCY", "Hz", 1.0},
+		{"İnvertör AC Görünür Güç", "AC Apparent Power", "APPARENT_POWER", "kVA", 1.0},
+		{"İnvertör AC Reaktif Güç", "AC Reactive Power", "REACTIVE_POWER", "kVAR", 1.0},
+		{"İnvertör AC Güç Faktörü", "AC Power Factor", "POWER_FACTOR", "PF", 1.0},
+		{"İnvertör AC Enerji", "AC Energy", "HOURLY_MWH", "kWh", 0.001},
+		{"İnvertör DC Akım", "DC Current", "ANALOG", "A", 1.0},
+		{"İnvertör DC Gerilim", "DC Voltage", "ANALOG", "V", 1.0},
+		{"İnvertör DC Güç", "DC Power", "ANALOG", "kW", 1.0},
+		{"İnvertör Kabin Sıcaklığı", "Cabinet Temperature", "ANALOG", "°C", 1.0},
 	}
 
 	stmt, err := db.Prepare(`
@@ -313,11 +315,9 @@ func seedScadaDataDefinitions(db *sql.DB) error {
 	defer stmt.Close()
 
 	for _, pt := range points {
-		paramFullName := fmt.Sprintf("[%s] %s", pt.Profile, pt.DataName)
-		sourceTag := pt.DataName
-		_, err := stmt.Exec(plantID, paramFullName, pt.DataType, pt.Unit, sourceTag, pt.Multiplier)
+		_, err := stmt.Exec(plantID, pt.ParamName, pt.DataType, pt.Unit, pt.SourceTag, pt.Multiplier)
 		if err != nil {
-			log.Printf("[DB] Warning: failed to seed point %s: %v", paramFullName, err)
+			log.Printf("[DB] Warning: failed to seed point %s: %v", pt.ParamName, err)
 		}
 	}
 

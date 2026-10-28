@@ -1,80 +1,124 @@
 {{define "content"}}
 <div class="space-y-4">
 
-  <!-- Header & Add Button -->
-  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+  <!-- Header & Actions Toolbar -->
+  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white border border-[#E1DFDD] rounded-md p-4 ms-card-shadow">
     <div>
-      <h3 class="text-sm font-semibold text-[#242424]">Veri & Telemetri Tag Tanımlamaları</h3>
-      <p class="text-xs text-[#616161]">SCADA veya sayaç veritabanındaki tag/kolonların YTBS parametreleriyle eşleşmesi (Toplam {{len .Defs}} parametre)</p>
+      <h3 class="text-sm font-semibold text-[#242424] flex items-center gap-2">
+        <i class="fa-solid fa-sliders text-[#0078D4]"></i>
+        <span>YTBS & SCADA Veri Eşleme Yönetimi</span>
+      </h3>
+      <p class="text-xs text-[#616161] mt-0.5">SCADA / analizörden okunan telemetri tag'lerinin TEİAŞ YTBS zorunlu üretim parametreleriyle eşleşmesi (Toplam {{len .Defs}} parametre)</p>
     </div>
     <div class="flex items-center gap-2">
-      <input type="text" id="tagFilterInput" onkeyup="filterTagTable()" placeholder="Tag veya parametre ara..." class="px-2.5 py-1.5 bg-white border border-[#8A8886] rounded text-[#242424] text-xs focus:outline-none focus:border-[#0078D4] focus:ring-1 focus:ring-[#0078D4] w-48 sm:w-60">
+      <div class="relative">
+        <i class="fa-solid fa-magnifying-glass absolute left-2.5 top-2.5 text-xs text-[#8A8886]"></i>
+        <input type="text" id="tagFilterInput" onkeyup="filterTagTable()" placeholder="Parametre veya tag ara..." class="pl-8 pr-3 py-1.5 bg-white border border-[#8A8886] rounded text-[#242424] text-xs focus:outline-none focus:border-[#0078D4] focus:ring-1 focus:ring-[#0078D4] w-48 sm:w-60 shadow-sm">
+      </div>
       <button onclick="openModal('addDataDefModal')"
-              class="px-3 py-1.5 bg-[#0078D4] hover:bg-[#106EBE] active:bg-[#005A9E] text-white font-medium rounded text-xs flex items-center gap-1.5 shadow-sm transition whitespace-nowrap">
+              class="px-3.5 py-1.5 bg-[#0078D4] hover:bg-[#106EBE] active:bg-[#005A9E] text-white font-medium rounded text-xs flex items-center gap-1.5 shadow-sm transition whitespace-nowrap">
         <i class="fa-solid fa-plus text-[10px]"></i>
-        <span>Yeni Veri Tanımı Ekle</span>
+        <span>Yeni Eşleme Ekle</span>
       </button>
     </div>
   </div>
 
-  <!-- Table -->
+  <!-- Data Definitions Table Card with Pagination -->
   <div class="bg-white border border-[#E1DFDD] rounded-md ms-card-shadow overflow-hidden">
     <div class="overflow-x-auto">
       <table id="defsTable" class="min-w-[1050px] w-full text-left border-collapse text-xs">
         <thead>
           <tr class="bg-[#F3F2F1] text-[#616161] font-semibold border-b border-[#E1DFDD]">
             <th class="py-3 px-4">Santral</th>
-            <th class="py-3 px-4">Parametre Adı</th>
+            <th class="py-3 px-4">Hedef YTBS & Telemetri Parametresi</th>
+            <th class="py-3 px-4">SCADA Kaynak Tag / Sinyal</th>
             <th class="py-3 px-4">Veri Türü</th>
             <th class="py-3 px-4">Birim</th>
-            <th class="py-3 px-4">Kaynak Kolon / Tag</th>
             <th class="py-3 px-4">Çarpan</th>
-            <th class="py-3 px-4">Durum</th>
+            <th class="py-3 px-4">Eşleme Durumu</th>
             <th class="py-3 px-4 text-right">İşlem</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-[#EDEBE9] text-[#242424]">
           {{range .Defs}}
           <tr class="hover:bg-[#F8F9FA] transition">
-            <td class="py-2.5 px-4 font-semibold text-[#242424]">
+            <!-- Santral -->
+            <td class="py-2.5 px-4 font-semibold text-[#242424] whitespace-nowrap">
               {{.PlantName}}
             </td>
+
+            <!-- Parametre Adı & YTBS Zorunlu Rozeti -->
             <td class="py-2.5 px-4 font-medium text-[#242424]">
-              {{.ParameterName}}
+              <div class="flex items-center gap-2">
+                {{if eq .DataType "INSTANT_MW"}}
+                <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-[#EFF6FC] text-[#0078D4] border border-[#C7E0F4] whitespace-nowrap">
+                  <i class="fa-solid fa-bolt text-[9px] mr-0.5"></i> YTBS Zorunlu (15 Dk)
+                </span>
+                {{else if eq .DataType "HOURLY_MWH"}}
+                <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-[#DFF6DD] text-[#107C10] border border-[#C3E8BF] whitespace-nowrap">
+                  <i class="fa-solid fa-clock-rotate-left text-[9px] mr-0.5"></i> YTBS Zorunlu (1 Saat)
+                </span>
+                {{else}}
+                <span class="px-2 py-0.5 rounded text-[10px] font-medium bg-[#F3F2F1] text-[#616161] border border-[#EDEBE9] whitespace-nowrap">
+                  SCADA İzleme
+                </span>
+                {{end}}
+                <span class="font-semibold text-[#242424]">{{.ParameterName}}</span>
+              </div>
             </td>
-            <td class="py-2.5 px-4 font-mono text-[#616161]">
+
+            <!-- SCADA Kaynak Kolon / Tag -->
+            <td class="py-2.5 px-4 font-mono font-medium text-[#0078D4] whitespace-nowrap">
+              {{if .SourceTagOrColumn}}{{.SourceTagOrColumn}}{{else}}<span class="text-[#8A8886] font-normal">(Otomatik)</span>{{end}}
+            </td>
+
+            <!-- Veri Türü -->
+            <td class="py-2.5 px-4 font-mono text-[#616161] whitespace-nowrap">
               <span class="px-1.5 py-0.5 rounded border border-[#E1DFDD] bg-[#FAF9F8] text-[#424242]">
                 {{.DataType}}
               </span>
             </td>
-            <td class="py-2.5 px-4 font-mono text-[#616161]">
+
+            <!-- Birim -->
+            <td class="py-2.5 px-4 font-mono text-[#616161] whitespace-nowrap">
               {{.Unit}}
             </td>
-            <td class="py-2.5 px-4 font-mono font-medium text-[#0078D4]">
-              {{if .SourceTagOrColumn}}{{.SourceTagOrColumn}}{{else}}<span class="text-[#8A8886] font-normal">(Otomatik)</span>{{end}}
-            </td>
-            <td class="py-2.5 px-4 font-mono text-[#616161]">
+
+            <!-- Çarpan -->
+            <td class="py-2.5 px-4 font-mono text-[#616161] whitespace-nowrap">
               x{{.Multiplier}}
             </td>
-            <td class="py-2.5 px-4">
+
+            <!-- Durum -->
+            <td class="py-2.5 px-4 whitespace-nowrap">
               {{if .IsActive}}
-              <span class="px-2 py-0.5 rounded text-[11px] font-medium bg-[#DFF6DD] text-[#107C10] border border-[#C3E8BF]">Aktif</span>
+              <span class="px-2 py-0.5 rounded text-[11px] font-medium bg-[#DFF6DD] text-[#107C10] border border-[#C3E8BF]">Eşlendi (Aktif)</span>
               {{else}}
               <span class="px-2 py-0.5 rounded text-[11px] font-medium bg-[#F3F2F1] text-[#616161] border border-[#EDEBE9]">Pasif</span>
               {{end}}
             </td>
-            <td class="py-2.5 px-4 text-right">
-              <form action="/data-definitions/delete" method="POST" class="inline" onsubmit="return confirm('Bu veri tanımını silmek istediğinize emin misiniz?');">
+
+            <!-- İşlem (Custom Modal Confirmation) -->
+            <td class="py-2.5 px-4 text-right whitespace-nowrap">
+              <button type="button" 
+                      onclick="openConfirmModal({
+                        title: 'Eşleme Tanımını Sil',
+                        message: 'Bu veri eşleme tanımını silmek istediğinize emin misiniz? (Parametre: {{.ParameterName}})',
+                        confirmText: 'Eşlemeyi Sil',
+                        isDanger: true,
+                        onConfirm: function() { document.getElementById('del-def-{{.ID}}').submit(); }
+                      })"
+                      class="p-1 text-[#616161] hover:text-[#A80000] transition" title="Sil">
+                <i class="fa-regular fa-trash-can text-xs"></i>
+              </button>
+              <form id="del-def-{{.ID}}" action="/data-definitions/delete" method="POST" class="hidden">
                 <input type="hidden" name="id" value="{{.ID}}">
-                <button type="submit" class="p-1 text-[#616161] hover:text-[#A80000] transition" title="Sil">
-                  <i class="fa-regular fa-trash-can text-xs"></i>
-                </button>
               </form>
             </td>
           </tr>
           {{else}}
-          <tr>
-            <td colspan="8" class="py-6 text-center text-[#8A8886] text-xs">
+          <tr data-pagination-ignore>
+            <td colspan="8" class="py-8 text-center text-[#8A8886] text-xs">
               Kayıtlı veri tanımı bulunamadı.
             </td>
           </tr>
@@ -82,13 +126,16 @@
         </tbody>
       </table>
     </div>
+
+    <!-- Pagination Container -->
+    <div id="dataDefPagination"></div>
   </div>
 
   <!-- Add Data Definition Modal -->
   <div id="addDataDefModal" class="fixed inset-0 z-50 hidden bg-black/40 flex items-center justify-center p-4">
-    <div class="bg-white border border-[#E1DFDD] rounded-md max-w-md w-full p-5 ms-shadow">
+    <div class="bg-white border border-[#E1DFDD] rounded-md max-w-md w-full p-5 ms-shadow text-left">
       <div class="flex items-center justify-between pb-3 border-b border-[#EDEBE9]">
-        <h4 class="text-sm font-semibold text-[#242424]">Yeni Veri / Tag Tanımlama</h4>
+        <h4 class="text-sm font-semibold text-[#242424]">Yeni YTBS / SCADA Eşleme Ekle</h4>
         <button onclick="closeModal('addDataDefModal')" class="text-[#616161] hover:text-[#242424]">
           <i class="fa-solid fa-xmark text-sm"></i>
         </button>
@@ -106,15 +153,18 @@
 
         <div>
           <label class="block text-xs font-semibold text-[#424242] mb-1">Parametre Adı *</label>
-          <input type="text" name="parameterName" required placeholder="Aktif Güç (15 Dk)" class="w-full px-2.5 py-1.5 bg-white border border-[#8A8886] rounded text-[#242424] text-xs focus:outline-none focus:border-[#0078D4] focus:ring-1 focus:ring-[#0078D4]">
+          <input type="text" name="parameterName" required placeholder="Örn: Aktif Güç (15 Dk Anlık)" class="w-full px-2.5 py-1.5 bg-white border border-[#8A8886] rounded text-[#242424] text-xs focus:outline-none focus:border-[#0078D4] focus:ring-1 focus:ring-[#0078D4]">
         </div>
 
         <div class="grid grid-cols-2 gap-3">
           <div>
             <label class="block text-xs font-semibold text-[#424242] mb-1">Veri Türü</label>
             <select name="dataType" class="w-full px-2.5 py-1.5 bg-white border border-[#8A8886] rounded text-[#242424] text-xs focus:outline-none focus:border-[#0078D4] focus:ring-1 focus:ring-[#0078D4]">
-              <option value="INSTANT_MW">15 Dk Anlık (MW)</option>
-              <option value="HOURLY_MWH">1 Saatlik Üretim (MWh)</option>
+              <option value="INSTANT_MW">15 Dk Anlık (MW) - YTBS Zorunlu</option>
+              <option value="HOURLY_MWH">1 Saatlik Üretim (MWh) - YTBS Zorunlu</option>
+              <option value="PHASE_VOLTAGE">Faz Gerilimi (kV / V)</option>
+              <option value="PHASE_CURRENT">Faz Akımı (A)</option>
+              <option value="FREQUENCY">Frekans (Hz)</option>
               <option value="TOTAL_INDEX">Sayaç Endeksi</option>
             </select>
           </div>
@@ -126,14 +176,18 @@
               <option value="MWh">MWh</option>
               <option value="kW">kW</option>
               <option value="kWh">kWh</option>
+              <option value="kV">kV</option>
+              <option value="V">V</option>
+              <option value="A">A</option>
+              <option value="Hz">Hz</option>
             </select>
           </div>
         </div>
 
         <div>
-          <label class="block text-xs font-semibold text-[#424242] mb-1">Kaynak Veritabanı Tablo / Kolon / Tag</label>
-          <input type="text" name="sourceTagOrColumn" placeholder="telemetry_points.active_power" class="w-full px-2.5 py-1.5 bg-white border border-[#8A8886] rounded text-[#242424] text-xs font-mono focus:outline-none focus:border-[#0078D4] focus:ring-1 focus:ring-[#0078D4]">
-          <p class="text-[11px] text-[#616161] mt-1">SCADA veya sayaç DB'sinden okunacak kolon veya tag</p>
+          <label class="block text-xs font-semibold text-[#424242] mb-1">SCADA Kaynak Kolon / Tag Adı *</label>
+          <input type="text" name="sourceTagOrColumn" required placeholder="Örn: Active Power (P)" class="w-full px-2.5 py-1.5 bg-white border border-[#8A8886] rounded text-[#242424] text-xs font-mono focus:outline-none focus:border-[#0078D4] focus:ring-1 focus:ring-[#0078D4]">
+          <p class="text-[11px] text-[#616161] mt-1">Sunucu üzerindeki SCADA telemetrisinden okunacak tag</p>
         </div>
 
         <div>
@@ -143,8 +197,8 @@
         </div>
 
         <div class="pt-3 border-t border-[#EDEBE9] flex justify-end gap-2">
-          <button type="button" onclick="closeModal('addDataDefModal')" class="px-3 py-1.5 bg-[#F3F2F1] hover:bg-[#EDEBE9] text-[#242424] rounded text-xs font-medium transition">İptal</button>
-          <button type="submit" class="px-3 py-1.5 bg-[#0078D4] hover:bg-[#106EBE] text-white rounded text-xs font-medium transition shadow-sm">Kaydet</button>
+          <button type="button" onclick="closeModal('addDataDefModal')" class="px-3.5 py-1.5 bg-[#F3F2F1] hover:bg-[#EDEBE9] text-[#242424] rounded text-xs font-medium transition">İptal</button>
+          <button type="submit" class="px-3.5 py-1.5 bg-[#0078D4] hover:bg-[#106EBE] text-white rounded text-xs font-medium transition shadow-sm">Kaydet</button>
         </div>
       </form>
     </div>
@@ -162,8 +216,26 @@
     const rows = document.querySelectorAll('#defsTable tbody tr');
     rows.forEach(row => {
       const text = row.innerText.toLowerCase();
-      row.style.display = text.includes(filter) ? '' : 'none';
+      if (text.includes(filter)) {
+        row.removeAttribute('data-pagination-ignore');
+        row.style.display = '';
+      } else {
+        row.setAttribute('data-pagination-ignore', 'true');
+        row.style.display = 'none';
+      }
     });
+    if (window.refreshPagination_defsTable) {
+      window.refreshPagination_defsTable();
+    }
   }
+
+  // Initialize Table Pagination (12 items per page)
+  document.addEventListener('DOMContentLoaded', function() {
+    initTablePagination({
+      tableId: 'defsTable',
+      paginationId: 'dataDefPagination',
+      pageSize: 12
+    });
+  });
 </script>
 {{end}}

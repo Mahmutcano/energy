@@ -194,31 +194,22 @@ func (r *LogRepository) GetDashboardStats(ctx context.Context, companyID *uuid.U
 		stats.TotalCompanies = 1
 		_ = r.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM plants WHERE is_active = true AND company_id = $1", *companyID).Scan(&stats.TotalPlants)
 
+		_ = r.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM ytbs_transmission_logs WHERE company_id = $1", *companyID).Scan(&stats.TotalTransmissions)
+		_ = r.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM ytbs_transmission_logs WHERE transmission_type = 'INSTANT' AND company_id = $1", *companyID).Scan(&stats.TotalInstant)
+		_ = r.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM ytbs_transmission_logs WHERE transmission_type = 'HOURLY' AND company_id = $1", *companyID).Scan(&stats.TotalHourly)
+		_ = r.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM ytbs_transmission_logs WHERE status = 'SUCCESS' AND company_id = $1", *companyID).Scan(&stats.TotalSuccess)
+		_ = r.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM ytbs_transmission_logs WHERE status = 'FAILED' AND company_id = $1", *companyID).Scan(&stats.FailedCount)
+		_ = r.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM ytbs_transmission_logs WHERE status = 'PENDING' AND company_id = $1", *companyID).Scan(&stats.PendingCount)
+
 		_ = r.db.QueryRowContext(ctx, `
 			SELECT COUNT(*) FROM ytbs_transmission_logs 
 			WHERE reading_date = CURRENT_DATE AND company_id = $1
 		`, *companyID).Scan(&stats.TodayTransmissions)
 
-		var successCount int
-		_ = r.db.QueryRowContext(ctx, `
-			SELECT COUNT(*) FROM ytbs_transmission_logs 
-			WHERE reading_date = CURRENT_DATE AND status = 'SUCCESS' AND company_id = $1
-		`, *companyID).Scan(&successCount)
-
-		_ = r.db.QueryRowContext(ctx, `
-			SELECT COUNT(*) FROM ytbs_transmission_logs 
-			WHERE reading_date = CURRENT_DATE AND status = 'FAILED' AND company_id = $1
-		`, *companyID).Scan(&stats.FailedCount)
-
-		_ = r.db.QueryRowContext(ctx, `
-			SELECT COUNT(*) FROM ytbs_transmission_logs 
-			WHERE reading_date = CURRENT_DATE AND status = 'PENDING' AND company_id = $1
-		`, *companyID).Scan(&stats.PendingCount)
-
-		if stats.TodayTransmissions > 0 {
-			stats.SuccessRate = float64(successCount) / float64(stats.TodayTransmissions) * 100.0
+		if stats.TotalTransmissions > 0 {
+			stats.SuccessRate = float64(stats.TotalSuccess) / float64(stats.TotalTransmissions) * 100.0
 		} else {
-			stats.SuccessRate = 100.0
+			stats.SuccessRate = 0.0
 		}
 
 		var lastSent sql.NullTime
@@ -237,31 +228,22 @@ func (r *LogRepository) GetDashboardStats(ctx context.Context, companyID *uuid.U
 	_ = r.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM companies WHERE is_active = true").Scan(&stats.TotalCompanies)
 	_ = r.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM plants WHERE is_active = true").Scan(&stats.TotalPlants)
 
+	_ = r.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM ytbs_transmission_logs").Scan(&stats.TotalTransmissions)
+	_ = r.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM ytbs_transmission_logs WHERE transmission_type = 'INSTANT'").Scan(&stats.TotalInstant)
+	_ = r.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM ytbs_transmission_logs WHERE transmission_type = 'HOURLY'").Scan(&stats.TotalHourly)
+	_ = r.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM ytbs_transmission_logs WHERE status = 'SUCCESS'").Scan(&stats.TotalSuccess)
+	_ = r.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM ytbs_transmission_logs WHERE status = 'FAILED'").Scan(&stats.FailedCount)
+	_ = r.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM ytbs_transmission_logs WHERE status = 'PENDING'").Scan(&stats.PendingCount)
+
 	_ = r.db.QueryRowContext(ctx, `
 		SELECT COUNT(*) FROM ytbs_transmission_logs 
 		WHERE reading_date = CURRENT_DATE
 	`).Scan(&stats.TodayTransmissions)
 
-	var successCount int
-	_ = r.db.QueryRowContext(ctx, `
-		SELECT COUNT(*) FROM ytbs_transmission_logs 
-		WHERE reading_date = CURRENT_DATE AND status = 'SUCCESS'
-	`).Scan(&successCount)
-
-	_ = r.db.QueryRowContext(ctx, `
-		SELECT COUNT(*) FROM ytbs_transmission_logs 
-		WHERE reading_date = CURRENT_DATE AND status = 'FAILED'
-	`).Scan(&stats.FailedCount)
-
-	_ = r.db.QueryRowContext(ctx, `
-		SELECT COUNT(*) FROM ytbs_transmission_logs 
-		WHERE reading_date = CURRENT_DATE AND status = 'PENDING'
-	`).Scan(&stats.PendingCount)
-
-	if stats.TodayTransmissions > 0 {
-		stats.SuccessRate = float64(successCount) / float64(stats.TodayTransmissions) * 100.0
+	if stats.TotalTransmissions > 0 {
+		stats.SuccessRate = float64(stats.TotalSuccess) / float64(stats.TotalTransmissions) * 100.0
 	} else {
-		stats.SuccessRate = 100.0
+		stats.SuccessRate = 0.0
 	}
 
 	var lastSent sql.NullTime

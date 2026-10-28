@@ -94,11 +94,15 @@ type TransmissionLog struct {
 
 // DashboardStats holds summary KPI metrics.
 type DashboardStats struct {
-	TotalCompanies    int     `json:"totalCompanies"`
-	TotalPlants       int     `json:"totalPlants"`
-	TodayTransmissions int    `json:"todayTransmissions"`
-	SuccessRate       float64 `json:"successRate"`
-	FailedCount       int     `json:"failedCount"`
-	PendingCount      int     `json:"pendingCount"`
-	LastTransmissionAt string `json:"lastTransmissionAt"`
+	TotalCompanies     int     `json:"totalCompanies"`
+	TotalPlants        int     `json:"totalPlants"`
+	TodayTransmissions int     `json:"todayTransmissions"`
+	TotalTransmissions int     `json:"totalTransmissions"`
+	TotalInstant       int     `json:"totalInstant"`
+	TotalHourly        int     `json:"totalHourly"`
+	TotalSuccess       int     `json:"totalSuccess"`
+	SuccessRate        float64 `json:"successRate"`
+	FailedCount        int     `json:"failedCount"`
+	PendingCount       int     `json:"pendingCount"`
+	LastTransmissionAt string  `json:"lastTransmissionAt"`
 }

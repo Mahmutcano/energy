@@ -48,12 +48,18 @@ func (h *TransmissionHandler) List(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	var companyID *uuid.UUID
+	if user != nil && user.Role != "system_admin" && user.CompanyID != nil {
+		companyID = user.CompanyID
+	}
+
 	filter := repository.FilterParams{
 		StartDate: startDate,
 		EndDate:   endDate,
 		Status:    status,
 		Type:      tType,
 		PlantID:   plantID,
+		CompanyID: companyID,
 		Limit:     200,
 	}
 

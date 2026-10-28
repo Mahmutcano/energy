@@ -61,16 +61,19 @@
         <span>Gönderim & Rapor</span>
       </a>
 
-      <div class="pt-4 pb-1 px-3 text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Tanımlamalar</div>
+      <div class="pt-4 pb-1 px-3 text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Santral İşlemleri</div>
+
+      <a href="/plants" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors {{if eq .ActiveNav "plants"}}bg-brand-600 text-white shadow-lg shadow-brand-600/30{{else}}text-slate-400 hover:text-slate-200 hover:bg-slate-800/60{{end}}">
+        <i class="fa-solid fa-solar-panel w-5 text-center"></i>
+        <span>{{if eq .User.Role "system_admin"}}Santral Tanımlama{{else}}Santrallerim{{end}}</span>
+      </a>
+
+      {{if eq .User.Role "system_admin"}}
+      <div class="pt-4 pb-1 px-3 text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Sistem Admin</div>
 
       <a href="/companies" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors {{if eq .ActiveNav "companies"}}bg-brand-600 text-white shadow-lg shadow-brand-600/30{{else}}text-slate-400 hover:text-slate-200 hover:bg-slate-800/60{{end}}">
         <i class="fa-solid fa-building w-5 text-center"></i>
         <span>Firma Tanımlama</span>
-      </a>
-
-      <a href="/plants" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors {{if eq .ActiveNav "plants"}}bg-brand-600 text-white shadow-lg shadow-brand-600/30{{else}}text-slate-400 hover:text-slate-200 hover:bg-slate-800/60{{end}}">
-        <i class="fa-solid fa-solar-panel w-5 text-center"></i>
-        <span>Santral Tanımlama</span>
       </a>
 
       <a href="/data-definitions" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors {{if eq .ActiveNav "data_definitions"}}bg-brand-600 text-white shadow-lg shadow-brand-600/30{{else}}text-slate-400 hover:text-slate-200 hover:bg-slate-800/60{{end}}">
@@ -78,12 +81,11 @@
         <span>Veri & Tag Eşleme</span>
       </a>
 
-      <div class="pt-4 pb-1 px-3 text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Yönetim</div>
-
       <a href="/users" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors {{if eq .ActiveNav "users"}}bg-brand-600 text-white shadow-lg shadow-brand-600/30{{else}}text-slate-400 hover:text-slate-200 hover:bg-slate-800/60{{end}}">
         <i class="fa-solid fa-users-gear w-5 text-center"></i>
         <span>Kullanıcı Yönetimi</span>
       </a>
+      {{end}}
     </nav>
 
     <!-- Footer Profile & Logout -->
@@ -95,7 +97,9 @@
           </div>
           <div class="truncate">
             <div class="text-xs font-semibold text-white truncate">{{.User.FullName}}</div>
-            <div class="text-[10px] text-slate-400 truncate">{{.User.Role}}</div>
+            <div class="text-[10px] font-bold uppercase truncate {{if eq .User.Role "system_admin"}}text-purple-400{{else}}text-emerald-400{{end}}">
+              {{if eq .User.Role "system_admin"}}Sistem Admin{{else}}Santral Sahibi{{end}}
+            </div>
           </div>
         </div>
         <a href="/logout" title="Çıkış Yap" class="text-slate-400 hover:text-red-400 p-1.5 transition-colors">

@@ -112,11 +112,11 @@ func seedDefaultData(db *sql.DB) error {
 			return err
 		}
 
-		// Seed Super Admin
+		// Seed Sistem Admin
 		_, err = db.Exec(`
 			INSERT INTO users (username, full_name, email, password_hash, role, is_active)
 			VALUES ($1, $2, $3, $4, $5, $6)
-		`, "admin", "Sistem Yöneticisi", "ozgancan9@gmail.com", string(hash), "super_admin", true)
+		`, "admin", "Sistem Yöneticisi", "ozgancan9@gmail.com", string(hash), "system_admin", true)
 		if err != nil {
 			return fmt.Errorf("failed to seed admin user: %w", err)
 		}
@@ -132,6 +132,13 @@ func seedDefaultData(db *sql.DB) error {
 		if err != nil {
 			return fmt.Errorf("failed to seed demo company: %w", err)
 		}
+
+		// Seed a demo Santral Sahibi linked to company
+		ownerHash, _ := bcrypt.GenerateFromPassword([]byte("Santralpass123!"), bcrypt.DefaultCost)
+		_, _ = db.Exec(`
+			INSERT INTO users (company_id, username, full_name, email, password_hash, role, is_active)
+			VALUES ($1, $2, $3, $4, $5, $6, $7)
+		`, companyID, "santralsahibi", "Mehmet Demir (Santral Sahibi)", "mehmet@anadoluenerji.com.tr", string(ownerHash), "plant_owner", true)
 
 		var plantID string
 		err = db.QueryRow(`

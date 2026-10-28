@@ -187,8 +187,52 @@ func (r *LogRepository) Delete(ctx context.Context, id uuid.UUID) error {
 	return err
 }
 
-func (r *LogRepository) GetDashboardStats(ctx context.Context) (*models.DashboardStats, error) {
+func (r *LogRepository) GetDashboardStats(ctx context.Context, companyID *uuid.UUID) (*models.DashboardStats, error) {
 	stats := &models.DashboardStats{}
+
+	if companyID != nil {
+		stats.TotalCompanies = 1
+		_ = r.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM plants WHERE is_active = true AND company_id = $1", *companyID).Scan(&stats.TotalPlants)
+
+		_ = r.db.QueryRowContext(ctx, `
+			SELECT COUNT(*) FROM ytbs_transmission_logs 
+			WHERE reading_date = CURRENT_DATE AND company_id = $1
+		`, *companyID).Scan(&stats.TodayTransmissions)
+
+		var successCount int
+		_ = r.db.QueryRowContext(ctx, `
+			SELECT COUNT(*) FROM ytbs_transmission_logs 
+			WHERE reading_date = CURRENT_DATE AND status = 'SUCCESS' AND company_id = $1
+		`, *companyID).Scan(&successCount)
+
+		_ = r.db.QueryRowContext(ctx, `
+			SELECT COUNT(*) FROM ytbs_transmission_logs 
+			WHERE reading_date = CURRENT_DATE AND status = 'FAILED' AND company_id = $1
+		`, *companyID).Scan(&stats.FailedCount)
+
+		_ = r.db.QueryRowContext(ctx, `
+			SELECT COUNT(*) FROM ytbs_transmission_logs 
+			WHERE reading_date = CURRENT_DATE AND status = 'PENDING' AND company_id = $1
+		`, *companyID).Scan(&stats.PendingCount)
+
+		if stats.TodayTransmissions > 0 {
+			stats.SuccessRate = float64(successCount) / float64(stats.TodayTransmissions) * 100.0
+		} else {
+			stats.SuccessRate = 100.0
+		}
+
+		var lastSent sql.NullTime
+		_ = r.db.QueryRowContext(ctx, `
+			SELECT MAX(sent_at) FROM ytbs_transmission_logs WHERE status = 'SUCCESS' AND company_id = $1
+		`, *companyID).Scan(&lastSent)
+
+		if lastSent.Valid {
+			stats.LastTransmissionAt = lastSent.Time.Format("15:04:05 02.01.2006")
+		} else {
+			stats.LastTransmissionAt = "Henüz gönderim yok"
+		}
+		return stats, nil
+	}
 
 	_ = r.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM companies WHERE is_active = true").Scan(&stats.TotalCompanies)
 	_ = r.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM plants WHERE is_active = true").Scan(&stats.TotalPlants)

@@ -88,27 +88,11 @@ func main() {
 		protected.Get("/", dashboardHandler.ShowDashboard)
 		protected.Get("/dashboard", dashboardHandler.ShowDashboard)
 
-		// Companies (Firma Tanımlama)
-		protected.Get("/companies", companyHandler.List)
-		protected.Post("/companies", companyHandler.Create)
-		protected.Post("/companies/delete", companyHandler.Delete)
-		protected.Post("/companies/test-ytbs", companyHandler.TestYTBSConnection)
-
-		// Plants (Santral Tanımlama)
+		// Plants (Santral Tanımlama / Santrallerim)
 		protected.Get("/plants", plantHandler.List)
 		protected.Post("/plants", plantHandler.Create)
 		protected.Post("/plants/delete", plantHandler.Delete)
 		protected.Post("/plants/toggle-ytbs", plantHandler.ToggleYTBS)
-
-		// Users (Kullanıcı Tanımlama & Firma Eşleştirme)
-		protected.Get("/users", userHandler.List)
-		protected.Post("/users", userHandler.Create)
-		protected.Post("/users/delete", userHandler.Delete)
-
-		// Data Definitions (Veri & Tag Tanımlama)
-		protected.Get("/data-definitions", dataDefHandler.List)
-		protected.Post("/data-definitions", dataDefHandler.Create)
-		protected.Post("/data-definitions/delete", dataDefHandler.Delete)
 
 		// Transmissions & Reports (Gönderim & Rapor Ekranı)
 		protected.Get("/transmissions", transHandler.List)
@@ -116,6 +100,36 @@ func main() {
 		protected.Post("/transmissions/delete", transHandler.Delete)
 		protected.Post("/transmissions/retry", transHandler.Retry)
 		protected.Post("/transmissions/trigger-now", transHandler.TriggerNow)
+
+		// System Admin Only Routes
+		protected.Group(func(adminRouter chi.Router) {
+			adminRouter.Use(func(next http.Handler) http.Handler {
+				return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					u := middleware.GetCurrentUser(r)
+					if u == nil || u.Role != "system_admin" {
+						http.Redirect(w, r, "/dashboard", http.StatusSeeOther)
+						return
+					}
+					next.ServeHTTP(w, r)
+				})
+			})
+
+			// Companies (Firma Tanımlama)
+			adminRouter.Get("/companies", companyHandler.List)
+			adminRouter.Post("/companies", companyHandler.Create)
+			adminRouter.Post("/companies/delete", companyHandler.Delete)
+			adminRouter.Post("/companies/test-ytbs", companyHandler.TestYTBSConnection)
+
+			// Users (Kullanıcı Tanımlama & Firma Eşleştirme)
+			adminRouter.Get("/users", userHandler.List)
+			adminRouter.Post("/users", userHandler.Create)
+			adminRouter.Post("/users/delete", userHandler.Delete)
+
+			// Data Definitions (Veri & Tag Tanımlama)
+			adminRouter.Get("/data-definitions", dataDefHandler.List)
+			adminRouter.Post("/data-definitions", dataDefHandler.Create)
+			adminRouter.Post("/data-definitions/delete", dataDefHandler.Delete)
+		})
 	})
 
 	server := &http.Server{

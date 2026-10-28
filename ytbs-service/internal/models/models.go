@@ -24,7 +24,7 @@ type Company struct {
 	PlantCount    int       `json:"plantCount,omitempty" db:"plant_count"`
 }
 
-// User represents an application user (Super Admin or Company User).
+// User represents an application user (Sistem Admin or Santral Sahibi).
 type User struct {
 	ID           uuid.UUID  `json:"id" db:"id"`
 	CompanyID    *uuid.UUID `json:"companyId" db:"company_id"`
@@ -33,7 +33,7 @@ type User struct {
 	FullName     string     `json:"fullName" db:"full_name"`
 	Email        string     `json:"email" db:"email"`
 	PasswordHash string     `json:"-" db:"password_hash"`
-	Role         string     `json:"role" db:"role"` // "super_admin", "company_admin", "company_user"
+	Role         string     `json:"role" db:"role"` // "system_admin" veya "plant_owner"
 	IsActive     bool       `json:"isActive" db:"is_active"`
 	CreatedAt    time.Time  `json:"createdAt" db:"created_at"`
 }

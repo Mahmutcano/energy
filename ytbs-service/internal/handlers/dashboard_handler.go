@@ -11,12 +11,13 @@ import (
 )
 
 type DashboardHandler struct {
-	logRepo *repository.LogRepository
-	worker  *services.TransmissionWorker
+	logRepo   *repository.LogRepository
+	plantRepo *repository.PlantRepository
+	worker    *services.TransmissionWorker
 }
 
-func NewDashboardHandler(logRepo *repository.LogRepository, worker *services.TransmissionWorker) *DashboardHandler {
-	return &DashboardHandler{logRepo: logRepo, worker: worker}
+func NewDashboardHandler(logRepo *repository.LogRepository, plantRepo *repository.PlantRepository, worker *services.TransmissionWorker) *DashboardHandler {
+	return &DashboardHandler{logRepo: logRepo, plantRepo: plantRepo, worker: worker}
 }
 
 func (h *DashboardHandler) ShowDashboard(w http.ResponseWriter, r *http.Request) {
@@ -38,6 +39,8 @@ func (h *DashboardHandler) ShowDashboard(w http.ResponseWriter, r *http.Request)
 		Limit:     10,
 	})
 
+	plants, _ := h.plantRepo.GetAll(ctx, companyID)
+
 	sourceDBStatus, sourceDBErr := h.worker.GetSourceDBStatus()
 
 	data := map[string]interface{}{
@@ -46,6 +49,7 @@ func (h *DashboardHandler) ShowDashboard(w http.ResponseWriter, r *http.Request)
 		"User":           user,
 		"Stats":          stats,
 		"RecentLogs":     recentLogs,
+		"Plants":         plants,
 		"SourceDBStatus": sourceDBStatus,
 		"SourceDBError":  sourceDBErr,
 	}

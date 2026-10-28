@@ -77,17 +77,19 @@
 
       <div class="px-2.5 pt-3 pb-1.5 text-[11px] font-semibold text-[#8A8886] uppercase tracking-wider">Yönetim</div>
 
+      {{if eq .User.Role "system_admin"}}
+      <a href="/companies" class="flex items-center gap-2.5 px-2.5 py-1.5 rounded text-xs font-medium transition-colors {{if eq .ActiveNav "companies"}}bg-[#EFF6FC] text-[#0078D4] font-semibold border-l-2 border-[#0078D4]{{else}}text-[#424242] hover:bg-[#F3F2F1] hover:text-[#242424]{{end}}">
+        <i class="fa-regular fa-building w-4 text-center text-xs"></i>
+        <span>Firma Tanımlama</span>
+      </a>
+      {{end}}
+
       <a href="/plants" class="flex items-center gap-2.5 px-2.5 py-1.5 rounded text-xs font-medium transition-colors {{if eq .ActiveNav "plants"}}bg-[#EFF6FC] text-[#0078D4] font-semibold border-l-2 border-[#0078D4]{{else}}text-[#424242] hover:bg-[#F3F2F1] hover:text-[#242424]{{end}}">
         <i class="fa-solid fa-solar-panel w-4 text-center text-xs"></i>
         <span>{{if eq .User.Role "system_admin"}}Santral Tanımlama{{else}}Santrallerim{{end}}</span>
       </a>
 
       {{if eq .User.Role "system_admin"}}
-      <a href="/companies" class="flex items-center gap-2.5 px-2.5 py-1.5 rounded text-xs font-medium transition-colors {{if eq .ActiveNav "companies"}}bg-[#EFF6FC] text-[#0078D4] font-semibold border-l-2 border-[#0078D4]{{else}}text-[#424242] hover:bg-[#F3F2F1] hover:text-[#242424]{{end}}">
-        <i class="fa-regular fa-building w-4 text-center text-xs"></i>
-        <span>Firma Tanımlama</span>
-      </a>
-
       <a href="/data-definitions" class="flex items-center gap-2.5 px-2.5 py-1.5 rounded text-xs font-medium transition-colors {{if eq .ActiveNav "data_definitions"}}bg-[#EFF6FC] text-[#0078D4] font-semibold border-l-2 border-[#0078D4]{{else}}text-[#424242] hover:bg-[#F3F2F1] hover:text-[#242424]{{end}}">
         <i class="fa-solid fa-sliders w-4 text-center text-xs"></i>
         <span>Veri & Tag Eşleme</span>

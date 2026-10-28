@@ -34,10 +34,10 @@ type tokenResponse struct {
 	Message string `json:"message"`
 }
 
-// Login obtains a session token (jeton) from TEIAS YTBS.
-func (c *YTBSClient) Login(ctx context.Context, apiKey, username, password string) (string, error) {
+// LoginWithDetails obtains a session token from TEIAS YTBS along with HTTP status code and response body.
+func (c *YTBSClient) LoginWithDetails(ctx context.Context, apiKey, username, password string) (string, int, string, error) {
 	if apiKey == "" || username == "" || password == "" {
-		return "", fmt.Errorf("YTBS kimlik bilgileri eksik (API Key, Kullanıcı Adı veya Şifre boş)")
+		return "", 400, `{"error":"Kimlik bilgileri eksik"}`, fmt.Errorf("YTBS kimlik bilgileri eksik (API Key, Kullanıcı Adı veya Şifre boş)")
 	}
 
 	payload := map[string]string{
@@ -48,26 +48,27 @@ func (c *YTBSClient) Login(ctx context.Context, apiKey, username, password strin
 
 	req, err := http.NewRequestWithContext(ctx, "POST", YtbsBaseURL+"/yetkilendirme/login", bytes.NewBuffer(body))
 	if err != nil {
-		return "", fmt.Errorf("login isteği oluşturulamadı: %w", err)
+		return "", 0, "", fmt.Errorf("login isteği oluşturulamadı: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("SERVICE_KEY", apiKey)
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return "", fmt.Errorf("TEİAŞ YTBS bağlantı hatası (timeout/network): %w", err)
+		return "", 0, "", fmt.Errorf("TEİAŞ YTBS bağlantı hatası (timeout/network): %w", err)
 	}
 	defer resp.Body.Close()
 
 	respBytes, _ := io.ReadAll(resp.Body)
+	respStr := string(respBytes)
 
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("YTBS Login başarısız! HTTP Kod: %d, Yanıt: %s", resp.StatusCode, string(respBytes))
+		return "", resp.StatusCode, respStr, fmt.Errorf("YTBS Login başarısız! HTTP Kod: %d, Yanıt: %s", resp.StatusCode, respStr)
 	}
 
 	var res tokenResponse
 	if err := json.Unmarshal(respBytes, &res); err != nil {
-		return "", fmt.Errorf("YTBS yanıtı json olarak çözülemedi: %w", err)
+		return "", resp.StatusCode, respStr, fmt.Errorf("YTBS yanıtı json olarak çözülemedi: %w", err)
 	}
 
 	token := res.Veri.Jeton
@@ -76,17 +77,23 @@ func (c *YTBSClient) Login(ctx context.Context, apiKey, username, password strin
 	}
 
 	if token == "" {
-		return "", fmt.Errorf("YTBS geçerli bir jeton (token) dönmedi: %s", string(respBytes))
+		return "", resp.StatusCode, respStr, fmt.Errorf("YTBS geçerli bir jeton (token) dönmedi: %s", respStr)
 	}
 
-	return token, nil
+	return token, resp.StatusCode, respStr, nil
+}
+
+// Login obtains a session token (jeton) from TEIAS YTBS.
+func (c *YTBSClient) Login(ctx context.Context, apiKey, username, password string) (string, error) {
+	token, _, _, err := c.LoginWithDetails(ctx, apiKey, username, password)
+	return token, err
 }
 
 // SendInstantData transmits 15-minute telemetry (MW) to TEIAS.
 func (c *YTBSClient) SendInstantData(ctx context.Context, apiKey, username, password, licenseNo string, ytbsPlantID int, dateStr, timeStr string, valueMw float64) (int, string, error) {
-	token, err := c.Login(ctx, apiKey, username, password)
+	token, statusCode, respBody, err := c.LoginWithDetails(ctx, apiKey, username, password)
 	if err != nil {
-		return 0, "", err
+		return statusCode, respBody, err
 	}
 
 	payload := map[string]interface{}{
@@ -130,9 +137,9 @@ func (c *YTBSClient) SendInstantData(ctx context.Context, apiKey, username, pass
 
 // SendHourlyData transmits 1-hour total production (MWh) to TEIAS.
 func (c *YTBSClient) SendHourlyData(ctx context.Context, apiKey, username, password, licenseNo string, ytbsPlantID int, dateStr, hourStr string, valueMwh float64) (int, string, error) {
-	token, err := c.Login(ctx, apiKey, username, password)
+	token, statusCode, respBody, err := c.LoginWithDetails(ctx, apiKey, username, password)
 	if err != nil {
-		return 0, "", err
+		return statusCode, respBody, err
 	}
 
 	payload := map[string]interface{}{

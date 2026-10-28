@@ -165,10 +165,10 @@ func (r *LogRepository) UpdateStatus(ctx context.Context, id uuid.UUID, status s
 		UPDATE ytbs_transmission_logs
 		SET status = $1, ytbs_response_code = $2, ytbs_response_body = $3,
 		    error_message = $4, sent_at = $5,
-		    retry_count = CASE WHEN $1 = 'FAILED' THEN retry_count + 1 ELSE retry_count END
-		WHERE id = $6
+		    retry_count = CASE WHEN $6 = 'FAILED' THEN retry_count + 1 ELSE retry_count END
+		WHERE id = $7
 	`
-	_, err := r.db.ExecContext(ctx, query, status, responseCode, responseBody, errMsg, sentAt, id)
+	_, err := r.db.ExecContext(ctx, query, status, responseCode, responseBody, errMsg, sentAt, status, id)
 	return err
 }
 

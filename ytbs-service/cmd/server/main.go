@@ -81,7 +81,7 @@ func main() {
 	authMiddleware := middleware.NewAuthMiddleware(userRepo)
 
 	authHandler := handlers.NewAuthHandler(userRepo)
-	dashboardHandler := handlers.NewDashboardHandler(logRepo, worker)
+	dashboardHandler := handlers.NewDashboardHandler(logRepo, plantRepo, worker)
 	companyHandler := handlers.NewCompanyHandler(companyRepo, ytbsClient)
 	plantHandler := handlers.NewPlantHandler(plantRepo, companyRepo, ytbsClient)
 	userHandler := handlers.NewUserHandler(userRepo, companyRepo)

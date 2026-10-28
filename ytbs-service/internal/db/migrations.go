@@ -321,6 +321,27 @@ func seedScadaDataDefinitions(db *sql.DB) error {
 		}
 	}
 
+	// Seed initial SCADA telemetry measurements for Akmersan GES in telemetry_values
+	var valCount int
+	_ = db.QueryRow("SELECT COUNT(*) FROM telemetry_values WHERE plant_id = $1", plantID).Scan(&valCount)
+	if valCount == 0 {
+		_, _ = db.Exec(`
+			INSERT INTO telemetry_values (plant_id, tag_name, value_numeric, measurement_time)
+			VALUES 
+			($1, 'Active Power (P)', 2485.50, NOW()),
+			($1, 'Supplied Active Energy (Wpneg)', 1890.25, NOW()),
+			($1, 'Phase Voltage L1 (Van)', 398.20, NOW()),
+			($1, 'Phase Voltage L2 (Vbn)', 401.10, NOW()),
+			($1, 'Phase Voltage L3 (Vcn)', 399.40, NOW()),
+			($1, 'Phase Current L1 (Ia)', 365.10, NOW()),
+			($1, 'Phase Current L2 (Ib)', 364.80, NOW()),
+			($1, 'Phase Current L3 (Ic)', 365.50, NOW()),
+			($1, 'Grid Frequency (f)', 50.02, NOW()),
+			($1, 'Total Energy Index (MWh)', 12450.80, NOW())
+		`, plantID)
+		log.Println("[DB] SCADA telemetry_values ölçümleri yerel veritabanına eklendi")
+	}
+
 	log.Printf("[DB] %d SCADA telemetri veri tanımı yerel veritabanına aktarıldı ve eşitlendi", len(points))
 	return nil
 }

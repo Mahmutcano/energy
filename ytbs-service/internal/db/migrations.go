@@ -122,32 +122,32 @@ func seedDefaultData(db *sql.DB) error {
 		}
 		log.Println("[DB] Default admin user created (Username: admin, Pass: Adminpass123!)")
 
-		// Seed a default demo company and plant
+		// Seed Diyarbakır OSB Pilot Company
 		var companyID string
 		err = db.QueryRow(`
 			INSERT INTO companies (name, tax_number, tax_office, contact_person, email, phone, ytbs_username, ytbs_password, ytbs_api_key, license_no, is_active)
 			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 			RETURNING id
-		`, "Anadolu Yenilenebilir Enerji A.Ş.", "1234567890", "Kordon VD", "Ahmet Yılmaz", "info@anadoluenerji.com.tr", "+90 532 100 2030", "ytbs_anadolu", "YtbsSecret2026!", "sample-teias-api-key-99812", "LNS-2024-98123", true).Scan(&companyID)
+		`, "DİYARBAKIR ORGANİZE SANAYİ BÖLGESİ", "2950553123", "Gökalp VD", "Diyarbakır OSB Enerji Birimi", "enerji@diyarbakirosb.org.tr", "+90 412 711 7000", "diyarbakir_osb", "YtbsPassword2026!", "b8c6a5a2-c3f9-4d6b-9e2a-7f6d5c4b3a21", "ED-OSB/1836-1/1305", true).Scan(&companyID)
 		if err != nil {
-			return fmt.Errorf("failed to seed demo company: %w", err)
+			return fmt.Errorf("failed to seed pilot company: %w", err)
 		}
 
-		// Seed a demo Santral Sahibi linked to company
+		// Seed Santral Sahibi linked to Diyarbakır OSB
 		ownerHash, _ := bcrypt.GenerateFromPassword([]byte("Santralpass123!"), bcrypt.DefaultCost)
 		_, _ = db.Exec(`
 			INSERT INTO users (company_id, username, full_name, email, password_hash, role, is_active)
 			VALUES ($1, $2, $3, $4, $5, $6, $7)
-		`, companyID, "santralsahibi", "Mehmet Demir (Santral Sahibi)", "mehmet@anadoluenerji.com.tr", string(ownerHash), "plant_owner", true)
+		`, companyID, "santralsahibi", "Akmersan Santral Yöneticisi", "santral@akmersan.com.tr", string(ownerHash), "plant_owner", true)
 
 		var plantID string
 		err = db.QueryRow(`
 			INSERT INTO plants (company_id, plant_name, plant_type, capacity_mw, ytbs_plant_id, can_send_ytbs, period_type, city, district, is_active)
 			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 			RETURNING id
-		`, companyID, "Konya Karapınar GES-1", "GES", 15.5000, 48291, true, "15m", "Konya", "Karapınar", true).Scan(&plantID)
+		`, companyID, "Akmersan GES", "GES", 3.1250, 25924, true, "15m", "Diyarbakır", "Yenişehir (OSB)", true).Scan(&plantID)
 		if err != nil {
-			return fmt.Errorf("failed to seed demo plant: %w", err)
+			return fmt.Errorf("failed to seed pilot plant: %w", err)
 		}
 
 		// Seed data definition
@@ -163,11 +163,11 @@ func seedDefaultData(db *sql.DB) error {
 			INSERT INTO ytbs_transmission_logs 
 			(plant_id, company_id, transmission_type, reading_date, reading_time, value, status, ytbs_response_code, is_manual_entry, sent_at)
 			VALUES 
-			($1, $2, 'INSTANT', CURRENT_DATE, '16:45', 14.82, 'SUCCESS', 200, false, NOW()),
-			($1, $2, 'INSTANT', CURRENT_DATE, '17:00', 15.10, 'SUCCESS', 200, false, NOW())
+			($1, $2, 'INSTANT', CURRENT_DATE, '16:45', 2.85, 'SUCCESS', 200, false, NOW()),
+			($1, $2, 'INSTANT', CURRENT_DATE, '17:00', 2.91, 'SUCCESS', 200, false, NOW())
 		`, plantID, companyID)
 
-		log.Println("[DB] Sample demo data seeded successfully")
+		log.Println("[DB] Diyarbakır OSB & Akmersan GES pilot data seeded successfully")
 	}
 
 	return nil

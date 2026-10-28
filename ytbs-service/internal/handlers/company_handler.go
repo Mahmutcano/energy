@@ -72,6 +72,41 @@ func (h *CompanyHandler) Create(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/companies", http.StatusSeeOther)
 }
 
+func (h *CompanyHandler) Update(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	id, err := uuid.Parse(r.FormValue("id"))
+	if err != nil {
+		http.Error(w, "Geçersiz ID", http.StatusBadRequest)
+		return
+	}
+
+	company := &models.Company{
+		ID:            id,
+		Name:          r.FormValue("name"),
+		TaxNumber:     r.FormValue("taxNumber"),
+		TaxOffice:     r.FormValue("taxOffice"),
+		ContactPerson: r.FormValue("contactPerson"),
+		Email:         r.FormValue("email"),
+		Phone:         r.FormValue("phone"),
+		YTBSUsername:  r.FormValue("ytbsUsername"),
+		YTBSPassword:  r.FormValue("ytbsPassword"),
+		YTBSApiKey:    r.FormValue("ytbsApiKey"),
+		LicenseNo:     r.FormValue("licenseNo"),
+		IsActive:      r.FormValue("isActive") == "true",
+	}
+
+	if err := h.companyRepo.Update(r.Context(), company); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	http.Redirect(w, r, "/companies", http.StatusSeeOther)
+}
+
 func (h *CompanyHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)

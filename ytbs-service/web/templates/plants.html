@@ -73,7 +73,22 @@
             <td class="py-2.5 px-4 text-[#616161]">
               {{.City}}{{if .District}} / {{.District}}{{end}}
             </td>
-            <td class="py-2.5 px-4 text-right">
+            <td class="py-2.5 px-4 text-right space-x-1">
+              <button onclick="editPlant({
+                id: '{{.ID}}',
+                companyId: '{{.CompanyID}}',
+                plantName: '{{.PlantName}}',
+                plantType: '{{.PlantType}}',
+                capacityMw: '{{.CapacityMW}}',
+                ytbsPlantId: '{{.YTBSPlantID}}',
+                periodType: '{{.PeriodType}}',
+                city: '{{.City}}',
+                district: '{{.District}}',
+                canSendYtbs: {{.CanSendYTBS}},
+                isActive: {{.IsActive}}
+              })" class="px-2 py-1 rounded border border-[#8A8886] text-[#242424] hover:bg-[#EDEBE9] font-medium transition text-[11px]" title="Düzenle">
+                <i class="fa-regular fa-pen-to-square text-[10px]"></i> Düzenle
+              </button>
               <form action="/plants/delete" method="POST" class="inline" onsubmit="return confirm('Bu santrali silmek istediğinize emin misiniz?');">
                 <input type="hidden" name="id" value="{{.ID}}">
                 <button type="submit" class="p-1 text-[#616161] hover:text-[#A80000] transition" title="Sil">
@@ -177,10 +192,117 @@
     </div>
   </div>
 
+  <!-- Edit Plant Modal -->
+  <div id="editPlantModal" class="fixed inset-0 z-50 hidden bg-black/40 flex items-center justify-center p-4">
+    <div class="bg-white border border-[#E1DFDD] rounded-md max-w-md w-full p-5 ms-shadow">
+      <div class="flex items-center justify-between pb-3 border-b border-[#EDEBE9]">
+        <h4 class="text-sm font-semibold text-[#242424]">Santral Bilgilerini Düzenle</h4>
+        <button onclick="closeModal('editPlantModal')" class="text-[#616161] hover:text-[#242424]">
+          <i class="fa-solid fa-xmark text-sm"></i>
+        </button>
+      </div>
+
+      <form action="/plants/update" method="POST" class="mt-4 space-y-3.5">
+        <input type="hidden" name="id" id="editPlantId">
+
+        <div>
+          <label class="block text-xs font-semibold text-[#424242] mb-1">Bağlı Firma *</label>
+          <select name="companyId" id="editPlantCompanyId" required class="w-full px-2.5 py-1.5 bg-white border border-[#8A8886] rounded text-[#242424] text-xs focus:outline-none focus:border-[#0078D4] focus:ring-1 focus:ring-[#0078D4]">
+            {{range .Companies}}
+            <option value="{{.ID}}">{{.Name}} (Lisans: {{.LicenseNo}})</option>
+            {{end}}
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-[#424242] mb-1">Santral Adı *</label>
+          <input type="text" name="plantName" id="editPlantName" required class="w-full px-2.5 py-1.5 bg-white border border-[#8A8886] rounded text-[#242424] text-xs focus:outline-none focus:border-[#0078D4] focus:ring-1 focus:ring-[#0078D4]">
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-[#424242] mb-1">Santral Türü *</label>
+            <select name="plantType" id="editPlantType" required class="w-full px-2.5 py-1.5 bg-white border border-[#8A8886] rounded text-[#242424] text-xs focus:outline-none focus:border-[#0078D4] focus:ring-1 focus:ring-[#0078D4]">
+              <option value="GES">Güneş (GES)</option>
+              <option value="RES">Rüzgar (RES)</option>
+              <option value="HES">Hidroelektrik (HES)</option>
+              <option value="BİYOKÜTLE">Biyokütle (BES)</option>
+              <option value="TERMİK">Termik Santral</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-[#424242] mb-1">Kurulu Güç (MW) *</label>
+            <input type="number" step="0.0001" name="capacityMw" id="editPlantCapacityMw" required class="w-full px-2.5 py-1.5 bg-white border border-[#8A8886] rounded text-[#242424] text-xs font-mono focus:outline-none focus:border-[#0078D4] focus:ring-1 focus:ring-[#0078D4]">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-[#424242] mb-1">YTBS Santral ID (TEİAŞ) *</label>
+            <input type="number" name="ytbsPlantId" id="editPlantYtbsPlantId" required class="w-full px-2.5 py-1.5 bg-white border border-[#8A8886] rounded text-[#242424] text-xs font-mono focus:outline-none focus:border-[#0078D4] focus:ring-1 focus:ring-[#0078D4]">
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-[#424242] mb-1">Gönderim Periyodu</label>
+            <select name="periodType" id="editPlantPeriodType" class="w-full px-2.5 py-1.5 bg-white border border-[#8A8886] rounded text-[#242424] text-xs focus:outline-none focus:border-[#0078D4] focus:ring-1 focus:ring-[#0078D4]">
+              <option value="15m">15 Dakikalık (Anlık MW)</option>
+              <option value="1h">1 Saatlik (Üretim MWh)</option>
+              <option value="both">Her İkisi (15 Dk + 1 Saat)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-[#424242] mb-1">Şehir</label>
+            <input type="text" name="city" id="editPlantCity" class="w-full px-2.5 py-1.5 bg-white border border-[#8A8886] rounded text-[#242424] text-xs focus:outline-none focus:border-[#0078D4] focus:ring-1 focus:ring-[#0078D4]">
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-[#424242] mb-1">İlçe</label>
+            <input type="text" name="district" id="editPlantDistrict" class="w-full px-2.5 py-1.5 bg-white border border-[#8A8886] rounded text-[#242424] text-xs focus:outline-none focus:border-[#0078D4] focus:ring-1 focus:ring-[#0078D4]">
+          </div>
+        </div>
+
+        <div class="space-y-1 pt-1">
+          <div class="flex items-center gap-2">
+            <input type="checkbox" name="canSendYtbs" id="editPlantCanSendYtbs" value="true" class="w-4 h-4 rounded text-[#0078D4] border-[#8A8886] focus:ring-[#0078D4]">
+            <label for="editPlantCanSendYtbs" class="text-xs text-[#242424]">Otomatik YTBS Gönderimi Aktif</label>
+          </div>
+          <div class="flex items-center gap-2">
+            <input type="checkbox" name="isActive" id="editPlantIsActive" value="true" class="w-4 h-4 rounded text-[#0078D4] border-[#8A8886] focus:ring-[#0078D4]">
+            <label for="editPlantIsActive" class="text-xs text-[#242424]">Santral Aktif</label>
+          </div>
+        </div>
+
+        <div class="pt-3 border-t border-[#EDEBE9] flex justify-end gap-2">
+          <button type="button" onclick="closeModal('editPlantModal')" class="px-3 py-1.5 bg-[#F3F2F1] hover:bg-[#EDEBE9] text-[#242424] rounded text-xs font-medium transition">İptal</button>
+          <button type="submit" class="px-3 py-1.5 bg-[#0078D4] hover:bg-[#106EBE] text-white rounded text-xs font-medium transition shadow-sm">Güncelle</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
 </div>
 
 <script>
   function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
   function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+
+  function editPlant(data) {
+    document.getElementById('editPlantId').value = data.id || '';
+    document.getElementById('editPlantCompanyId').value = data.companyId || '';
+    document.getElementById('editPlantName').value = data.plantName || '';
+    document.getElementById('editPlantType').value = data.plantType || 'GES';
+    document.getElementById('editPlantCapacityMw').value = parseFloat(data.capacityMw) || 0;
+    document.getElementById('editPlantYtbsPlantId').value = data.ytbsPlantId || '';
+    document.getElementById('editPlantPeriodType').value = data.periodType || '15m';
+    document.getElementById('editPlantCity').value = data.city || '';
+    document.getElementById('editPlantDistrict').value = data.district || '';
+    document.getElementById('editPlantCanSendYtbs').checked = (data.canSendYtbs === true);
+    document.getElementById('editPlantIsActive').checked = (data.isActive === true);
+    openModal('editPlantModal');
+  }
 </script>
 {{end}}

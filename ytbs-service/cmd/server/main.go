@@ -91,6 +91,7 @@ func main() {
 		// Plants (Santral Tanımlama / Santrallerim)
 		protected.Get("/plants", plantHandler.List)
 		protected.Post("/plants", plantHandler.Create)
+		protected.Post("/plants/update", plantHandler.Update)
 		protected.Post("/plants/delete", plantHandler.Delete)
 		protected.Post("/plants/toggle-ytbs", plantHandler.ToggleYTBS)
 
@@ -117,6 +118,7 @@ func main() {
 			// Companies (Firma Tanımlama)
 			adminRouter.Get("/companies", companyHandler.List)
 			adminRouter.Post("/companies", companyHandler.Create)
+			adminRouter.Post("/companies/update", companyHandler.Update)
 			adminRouter.Post("/companies/delete", companyHandler.Delete)
 			adminRouter.Post("/companies/test-ytbs", companyHandler.TestYTBSConnection)
 

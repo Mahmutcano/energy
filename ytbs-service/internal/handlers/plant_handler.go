@@ -87,6 +87,49 @@ func (h *PlantHandler) Create(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/plants", http.StatusSeeOther)
 }
 
+func (h *PlantHandler) Update(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	id, err := uuid.Parse(r.FormValue("id"))
+	if err != nil {
+		http.Error(w, "Geçersiz ID", http.StatusBadRequest)
+		return
+	}
+
+	companyID, err := uuid.Parse(r.FormValue("companyId"))
+	if err != nil {
+		http.Error(w, "Geçersiz Firma", http.StatusBadRequest)
+		return
+	}
+
+	capacityMW, _ := strconv.ParseFloat(r.FormValue("capacityMw"), 64)
+	ytbsPlantID, _ := strconv.Atoi(r.FormValue("ytbsPlantId"))
+
+	plant := &models.Plant{
+		ID:          id,
+		CompanyID:   companyID,
+		PlantName:   r.FormValue("plantName"),
+		PlantType:   r.FormValue("plantType"),
+		CapacityMW:  capacityMW,
+		YTBSPlantID: ytbsPlantID,
+		CanSendYTBS: r.FormValue("canSendYtbs") == "true",
+		PeriodType:  r.FormValue("periodType"),
+		City:        r.FormValue("city"),
+		District:    r.FormValue("district"),
+		IsActive:    r.FormValue("isActive") == "true",
+	}
+
+	if err := h.plantRepo.Update(r.Context(), plant); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	http.Redirect(w, r, "/plants", http.StatusSeeOther)
+}
+
 func (h *PlantHandler) ToggleYTBS(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)

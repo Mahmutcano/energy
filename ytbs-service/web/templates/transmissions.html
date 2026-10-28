@@ -427,55 +427,6 @@
   function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
   function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
 
-  let activeDropdown = null;
-
-  function toggleDropdown(btn, id) {
-    const el = document.getElementById(id);
-    const isHidden = el.classList.contains('hidden');
-    closeAllDropdowns();
-    if (isHidden) {
-      el.classList.remove('hidden');
-      activeDropdown = el;
-      positionDropdown(btn, el);
-    }
-  }
-
-  function positionDropdown(btn, el) {
-    const rect = btn.getBoundingClientRect();
-    const menuWidth = 240;
-    let left = Math.round(rect.right - menuWidth);
-    if (left < 10) left = 10;
-    let top = Math.round(rect.bottom + 2);
-    
-    const menuHeight = el.offsetHeight || 130;
-    if (top + menuHeight > window.innerHeight - 10) {
-      top = Math.round(rect.top - menuHeight - 2);
-    }
-    el.style.position = 'fixed';
-    el.style.top = top + 'px';
-    el.style.left = left + 'px';
-    el.style.zIndex = '99999';
-  }
-
-  function closeAllDropdowns() {
-    document.querySelectorAll('.dropdown-menu').forEach(m => m.classList.add('hidden'));
-    activeDropdown = null;
-  }
-
-  window.addEventListener('click', function(e) {
-    if (!e.target.closest('.dropdown-container') && !e.target.closest('.dropdown-menu')) {
-      closeAllDropdowns();
-    }
-  });
-
-  window.addEventListener('scroll', function() {
-    if (activeDropdown) closeAllDropdowns();
-  }, true);
-
-  window.addEventListener('resize', function() {
-    if (activeDropdown) closeAllDropdowns();
-  });
-
   function setQuickDate(range) {
     const now = new Date();
     const pad = (n) => String(n).padStart(2, '0');

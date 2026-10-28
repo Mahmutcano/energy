@@ -83,7 +83,7 @@ func main() {
 	authHandler := handlers.NewAuthHandler(userRepo)
 	dashboardHandler := handlers.NewDashboardHandler(logRepo, worker)
 	companyHandler := handlers.NewCompanyHandler(companyRepo, ytbsClient)
-	plantHandler := handlers.NewPlantHandler(plantRepo, companyRepo)
+	plantHandler := handlers.NewPlantHandler(plantRepo, companyRepo, ytbsClient)
 	userHandler := handlers.NewUserHandler(userRepo, companyRepo)
 	dataDefHandler := handlers.NewDataDefHandler(dataDefRepo, plantRepo)
 	transHandler := handlers.NewTransmissionHandler(logRepo, plantRepo, worker)
@@ -114,6 +114,7 @@ func main() {
 		protected.Post("/plants/update", plantHandler.Update)
 		protected.Post("/plants/delete", plantHandler.Delete)
 		protected.Post("/plants/toggle-ytbs", plantHandler.ToggleYTBS)
+		protected.Post("/plants/sync-teias", plantHandler.SyncFromTEIAS)
 
 		// Transmissions & Reports (Gönderim & Rapor Ekranı)
 		protected.Get("/transmissions", transHandler.List)
@@ -152,6 +153,9 @@ func main() {
 			adminRouter.Get("/data-definitions", dataDefHandler.List)
 			adminRouter.Post("/data-definitions", dataDefHandler.Create)
 			adminRouter.Post("/data-definitions/delete", dataDefHandler.Delete)
+			adminRouter.Get("/data-definitions/template", dataDefHandler.DownloadTemplate)
+			adminRouter.Post("/data-definitions/import", dataDefHandler.ImportExcelOrCSV)
+			adminRouter.Post("/data-definitions/clone", dataDefHandler.CloneDefinitions)
 		})
 	})
 

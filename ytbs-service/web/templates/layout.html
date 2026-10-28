@@ -75,7 +75,7 @@
         <span>Gönderim & Rapor</span>
       </a>
 
-      <div class="px-2.5 pt-3 pb-1.5 text-[11px] font-semibold text-[#8A8886] uppercase tracking-wider">Santral</div>
+      <div class="px-2.5 pt-3 pb-1.5 text-[11px] font-semibold text-[#8A8886] uppercase tracking-wider">Yönetim</div>
 
       <a href="/plants" class="flex items-center gap-2.5 px-2.5 py-1.5 rounded text-xs font-medium transition-colors {{if eq .ActiveNav "plants"}}bg-[#EFF6FC] text-[#0078D4] font-semibold border-l-2 border-[#0078D4]{{else}}text-[#424242] hover:bg-[#F3F2F1] hover:text-[#242424]{{end}}">
         <i class="fa-solid fa-solar-panel w-4 text-center text-xs"></i>
@@ -83,8 +83,6 @@
       </a>
 
       {{if eq .User.Role "system_admin"}}
-      <div class="px-2.5 pt-3 pb-1.5 text-[11px] font-semibold text-[#8A8886] uppercase tracking-wider">Yönetim</div>
-
       <a href="/companies" class="flex items-center gap-2.5 px-2.5 py-1.5 rounded text-xs font-medium transition-colors {{if eq .ActiveNav "companies"}}bg-[#EFF6FC] text-[#0078D4] font-semibold border-l-2 border-[#0078D4]{{else}}text-[#424242] hover:bg-[#F3F2F1] hover:text-[#242424]{{end}}">
         <i class="fa-regular fa-building w-4 text-center text-xs"></i>
         <span>Firma Tanımlama</span>
@@ -201,6 +199,57 @@
       document.getElementById('systemConfirmModal').classList.add('hidden');
       confirmCallback = null;
     }
+
+    // Global Rock-Solid Non-Drifting Dropdown Logic
+    let activeDropdown = null;
+
+    function toggleDropdown(btn, id) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      const isHidden = el.classList.contains('hidden');
+      closeAllDropdowns();
+      if (isHidden) {
+        // Calculate position FIRST before removing hidden to prevent any visual drift
+        const rect = btn.getBoundingClientRect();
+        const menuWidth = 240;
+        let left = Math.round(rect.right - menuWidth);
+        if (left < 10) left = 10;
+        let top = Math.round(rect.bottom + 2);
+        const menuHeight = 160;
+        if (top + menuHeight > window.innerHeight - 10) {
+          top = Math.max(10, Math.round(rect.top - menuHeight - 2));
+        }
+
+        el.style.position = 'fixed';
+        el.style.top = top + 'px';
+        el.style.left = left + 'px';
+        el.style.zIndex = '99999';
+        el.style.transition = 'none';
+        el.style.animation = 'none';
+
+        el.classList.remove('hidden');
+        activeDropdown = el;
+      }
+    }
+
+    function closeAllDropdowns() {
+      document.querySelectorAll('.dropdown-menu').forEach(m => m.classList.add('hidden'));
+      activeDropdown = null;
+    }
+
+    window.addEventListener('click', function(e) {
+      if (!e.target.closest('.dropdown-container') && !e.target.closest('.dropdown-menu')) {
+        closeAllDropdowns();
+      }
+    });
+
+    window.addEventListener('scroll', function() {
+      if (activeDropdown) closeAllDropdowns();
+    }, true);
+
+    window.addEventListener('resize', function() {
+      if (activeDropdown) closeAllDropdowns();
+    });
 
     // Global Client-Side Table Pagination Engine
     function initTablePagination(opts) {

@@ -82,3 +82,51 @@ func (r *DataDefRepository) Delete(ctx context.Context, id uuid.UUID) error {
 	_, err := r.db.ExecContext(ctx, "DELETE FROM data_definitions WHERE id = $1", id)
 	return err
 }
+
+func (r *DataDefRepository) Clone(ctx context.Context, sourcePlantID, targetPlantID uuid.UUID) (int64, error) {
+	query := `
+		INSERT INTO data_definitions (plant_id, parameter_name, data_type, unit, source_tag_or_column, multiplier, is_active)
+		SELECT $1, parameter_name, data_type, unit, source_tag_or_column, multiplier, is_active
+		FROM data_definitions
+		WHERE plant_id = $2
+	`
+	res, err := r.db.ExecContext(ctx, query, targetPlantID, sourcePlantID)
+	if err != nil {
+		return 0, err
+	}
+	return res.RowsAffected()
+}
+
+func (r *DataDefRepository) BulkCreate(ctx context.Context, defs []models.DataDefinition) (int, error) {
+	if len(defs) == 0 {
+		return 0, nil
+	}
+
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return 0, err
+	}
+	defer tx.Rollback()
+
+	stmt, err := tx.PrepareContext(ctx, `
+		INSERT INTO data_definitions (plant_id, parameter_name, data_type, unit, source_tag_or_column, multiplier, is_active)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
+	`)
+	if err != nil {
+		return 0, err
+	}
+	defer stmt.Close()
+
+	count := 0
+	for _, d := range defs {
+		_, err := stmt.ExecContext(ctx, d.PlantID, d.ParameterName, d.DataType, d.Unit, d.SourceTagOrColumn, d.Multiplier, d.IsActive)
+		if err == nil {
+			count++
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return 0, err
+	}
+	return count, nil
+}

@@ -182,3 +182,184 @@ func (c *YTBSClient) TestCredentials(ctx context.Context, apiKey, username, pass
 	}
 	return true, token, nil
 }
+
+// ListExternalPlants queries the plant list registered to the company at TEIAS YTBS.
+func (c *YTBSClient) ListExternalPlants(ctx context.Context, apiKey, username, password, dateStr string) ([]map[string]interface{}, error) {
+	token, err := c.Login(ctx, apiKey, username, password)
+	if err != nil {
+		return nil, err
+	}
+
+	if dateStr == "" {
+		dateStr = time.Now().Format("2006-01-02")
+	}
+
+	payload := map[string]string{
+		"tarih": dateStr,
+	}
+	body, _ := json.Marshal(payload)
+
+	req, err := http.NewRequestWithContext(ctx, "POST", YtbsBaseURL+"/modelleme/uretim/lisanssizsantral/listele", bytes.NewBuffer(body))
+	if err != nil {
+		return nil, fmt.Errorf("TEİAŞ santral listeleme isteği oluşturulamadı: %w", err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("SERVICE_KEY", apiKey)
+	req.Header.Set("AUTH_TOKEN", token)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("TEİAŞ santral listeleme ağ hatası: %w", err)
+	}
+	defer resp.Body.Close()
+
+	respBytes, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("TEİAŞ santral listeleme hatası (HTTP %d): %s", resp.StatusCode, string(respBytes))
+	}
+
+	var res struct {
+		Basarili bool                     `json:"basarili"`
+		Mesaj    []string                 `json:"mesaj"`
+		Veri     []map[string]interface{} `json:"veri"`
+	}
+	if err := json.Unmarshal(respBytes, &res); err != nil {
+		// Fallback for different JSON envelope
+		var rawMap map[string]interface{}
+		if err2 := json.Unmarshal(respBytes, &rawMap); err2 == nil {
+			if vList, ok := rawMap["veri"].([]interface{}); ok {
+				var converted []map[string]interface{}
+				for _, itm := range vList {
+					if m, ok := itm.(map[string]interface{}); ok {
+						converted = append(converted, m)
+					}
+				}
+				return converted, nil
+			}
+		}
+		return nil, fmt.Errorf("TEİAŞ santral listesi ayrıştırılamadı: %w", err)
+	}
+
+	return res.Veri, nil
+}
+
+// QuerySentInstantData queries sent 15-minute telemetry data from TEIAS.
+func (c *YTBSClient) QuerySentInstantData(ctx context.Context, apiKey, username, password, licenseNo string, ytbsPlantID int, dateStr string) ([]map[string]interface{}, error) {
+	token, err := c.Login(ctx, apiKey, username, password)
+	if err != nil {
+		return nil, err
+	}
+
+	if dateStr == "" {
+		dateStr = time.Now().Format("2006-01-02")
+	}
+
+	payload := map[string]interface{}{
+		"lisanssizSantralId":               ytbsPlantID,
+		"baglantiAnlasmasiSirketiLisansNo": licenseNo,
+		"tarih":                            dateStr,
+	}
+	body, _ := json.Marshal(payload)
+
+	req, err := http.NewRequestWithContext(ctx, "POST", YtbsBaseURL+"/veritoplama/anliklisanssizsantralarz/sorgula", bytes.NewBuffer(body))
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("SERVICE_KEY", apiKey)
+	req.Header.Set("AUTH_TOKEN", token)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	respBytes, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("TEİAŞ anlık sorgu hatası (HTTP %d): %s", resp.StatusCode, string(respBytes))
+	}
+
+	var res struct {
+		Veri []map[string]interface{} `json:"veri"`
+	}
+	if err := json.Unmarshal(respBytes, &res); err == nil && len(res.Veri) > 0 {
+		return res.Veri, nil
+	}
+
+	var genericRes map[string]interface{}
+	_ = json.Unmarshal(respBytes, &genericRes)
+	if vList, ok := genericRes["veri"].([]interface{}); ok {
+		var list []map[string]interface{}
+		for _, v := range vList {
+			if m, ok := v.(map[string]interface{}); ok {
+				list = append(list, m)
+			}
+		}
+		return list, nil
+	}
+
+	return []map[string]interface{}{}, nil
+}
+
+// QuerySentHourlyData queries sent 1-hour telemetry data from TEIAS.
+func (c *YTBSClient) QuerySentHourlyData(ctx context.Context, apiKey, username, password, licenseNo string, ytbsPlantID int, dateStr string) ([]map[string]interface{}, error) {
+	token, err := c.Login(ctx, apiKey, username, password)
+	if err != nil {
+		return nil, err
+	}
+
+	if dateStr == "" {
+		dateStr = time.Now().Format("2006-01-02")
+	}
+
+	payload := map[string]interface{}{
+		"lisanssizSantralId":               ytbsPlantID,
+		"baglantiAnlasmasiSirketiLisansNo": licenseNo,
+		"tarih":                            dateStr,
+	}
+	body, _ := json.Marshal(payload)
+
+	req, err := http.NewRequestWithContext(ctx, "POST", YtbsBaseURL+"/veritoplama/saatliklisanssizsantraluretim/sorgula", bytes.NewBuffer(body))
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("SERVICE_KEY", apiKey)
+	req.Header.Set("AUTH_TOKEN", token)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	respBytes, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("TEİAŞ saatlik sorgu hatası (HTTP %d): %s", resp.StatusCode, string(respBytes))
+	}
+
+	var res struct {
+		Veri []map[string]interface{} `json:"veri"`
+	}
+	if err := json.Unmarshal(respBytes, &res); err == nil && len(res.Veri) > 0 {
+		return res.Veri, nil
+	}
+
+	var genericRes map[string]interface{}
+	_ = json.Unmarshal(respBytes, &genericRes)
+	if vList, ok := genericRes["veri"].([]interface{}); ok {
+		var list []map[string]interface{}
+		for _, v := range vList {
+			if m, ok := v.(map[string]interface{}); ok {
+				list = append(list, m)
+			}
+		}
+		return list, nil
+	}
+
+	return []map[string]interface{}{}, nil
+}

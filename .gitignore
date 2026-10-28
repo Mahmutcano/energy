@@ -43,3 +43,7 @@ build/
 
 # OS
 .DS_Store
+
+# Local Go binaries
+server
+ytbs-service/server

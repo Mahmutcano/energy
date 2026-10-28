@@ -44,5 +44,7 @@ func (h *DashboardHandler) ShowDashboard(w http.ResponseWriter, r *http.Request)
 		"RecentLogs": recentLogs,
 	}
 
-	_ = web.RenderTemplate(w, "dashboard.html", data)
+	if err := web.RenderTemplate(w, "dashboard.html", data); err != nil {
+		http.Error(w, "Şablon hatası: "+err.Error(), http.StatusInternalServerError)
+	}
 }

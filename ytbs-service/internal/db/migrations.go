@@ -172,7 +172,7 @@ func seedDefaultData(db *sql.DB) error {
 			INSERT INTO companies (name, tax_number, tax_office, contact_person, email, phone, ytbs_username, ytbs_password, ytbs_api_key, license_no, is_active)
 			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 			RETURNING id
-		`, "DİYARBAKIR ORGANİZE SANAYİ BÖLGESİ", "2950553123", "Gökalp VD", "Diyarbakır OSB Enerji Birimi", "enerji@diyarbakirosb.org.tr", "+90 412 711 7000", "diyarbakir_osb", "YtbsPassword2026!", "b8c6a5a2-c3f9-4d6b-9e2a-7f6d5c4b3a21", "ED-OSB/1836-1/1305", true).Scan(&companyID)
+		`, "DİYARBAKIR ORGANİZE SANAYİ BÖLGESİ", "2950553123", "Gökalp VD", "Diyarbakır OSB Enerji Birimi", "enerji@diyarbakirosb.org.tr", "+90 412 711 7000", "yusuf.yigit.otokontrol", "DosbOtkYbts21", "b8c6a5a2-c3f9-4d6b-9e2a-7f6d5c4b3a21", "ED-OSB/1836-1/1305", true).Scan(&companyID)
 		if err != nil {
 			return fmt.Errorf("failed to seed pilot company: %w", err)
 		}

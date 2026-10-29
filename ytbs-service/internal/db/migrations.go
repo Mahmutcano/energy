@@ -101,6 +101,10 @@ func RunMigrations(db *sql.DB) error {
 		// Unique constraint for idempotent data definitions
 		`CREATE UNIQUE INDEX IF NOT EXISTS idx_data_def_plant_param ON data_definitions(plant_id, parameter_name);`,
 
+		// Company persistent YTBS Token storage
+		`ALTER TABLE companies ADD COLUMN IF NOT EXISTS ytbs_token TEXT DEFAULT '';`,
+		`ALTER TABLE companies ADD COLUMN IF NOT EXISTS ytbs_token_updated_at TIMESTAMP WITH TIME ZONE;`,
+
 		// 7. Local SCADA Devices Table (EMK Analizör, İnvertörler)
 		`CREATE TABLE IF NOT EXISTS scada_devices (
 			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

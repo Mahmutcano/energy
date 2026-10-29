@@ -8,6 +8,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -89,13 +90,8 @@ func (c *YTBSClient) Login(ctx context.Context, apiKey, username, password strin
 	return token, err
 }
 
-// SendInstantData transmits 15-minute telemetry (MW) to TEIAS.
-func (c *YTBSClient) SendInstantData(ctx context.Context, apiKey, username, password, licenseNo string, ytbsPlantID int, dateStr, timeStr string, valueMw float64) (int, string, error) {
-	token, statusCode, respBody, err := c.LoginWithDetails(ctx, apiKey, username, password)
-	if err != nil {
-		return statusCode, respBody, err
-	}
-
+// SendInstantDataWithToken sends instant data using an explicit token.
+func (c *YTBSClient) SendInstantDataWithToken(ctx context.Context, apiKey, token, licenseNo string, ytbsPlantID int, dateStr, timeStr string, valueMw float64) (int, string, error) {
 	payload := map[string]interface{}{
 		"baglantiAnlasmasiSirketiLisansNo": licenseNo,
 		"veri": []map[string]interface{}{
@@ -135,13 +131,51 @@ func (c *YTBSClient) SendInstantData(ctx context.Context, apiKey, username, pass
 	return resp.StatusCode, respStr, nil
 }
 
-// SendHourlyData transmits 1-hour total production (MWh) to TEIAS.
-func (c *YTBSClient) SendHourlyData(ctx context.Context, apiKey, username, password, licenseNo string, ytbsPlantID int, dateStr, hourStr string, valueMwh float64) (int, string, error) {
-	token, statusCode, respBody, err := c.LoginWithDetails(ctx, apiKey, username, password)
-	if err != nil {
-		return statusCode, respBody, err
+// SendInstantDataWithAutoRefresh sends instant data using currentToken; if invalid or expired, re-authenticates, saves token via callback, and retries.
+func (c *YTBSClient) SendInstantDataWithAutoRefresh(
+	ctx context.Context,
+	apiKey, username, password, currentToken, licenseNo string,
+	ytbsPlantID int,
+	dateStr, timeStr string,
+	valueMw float64,
+	onTokenRefreshed func(newToken string) error,
+) (int, string, error) {
+	activeToken := currentToken
+	if activeToken == "" {
+		newToken, code, body, err := c.LoginWithDetails(ctx, apiKey, username, password)
+		if err != nil {
+			return code, body, err
+		}
+		activeToken = newToken
+		if onTokenRefreshed != nil {
+			_ = onTokenRefreshed(newToken)
+		}
 	}
 
+	code, body, err := c.SendInstantDataWithToken(ctx, apiKey, activeToken, licenseNo, ytbsPlantID, dateStr, timeStr, valueMw)
+	// Check if token was rejected or expired
+	if code == http.StatusUnauthorized || code == http.StatusForbidden || strings.Contains(strings.ToLower(body), "jeton") || strings.Contains(strings.ToLower(body), "token") {
+		log.Printf("[YTBS-CLIENT] Anlık iletim: Jeton geçersiz/süresi dolmuş görünüyor (HTTP %d). Otomatik login yenileniyor...", code)
+		newToken, loginCode, loginBody, loginErr := c.LoginWithDetails(ctx, apiKey, username, password)
+		if loginErr != nil {
+			return loginCode, loginBody, loginErr
+		}
+		if onTokenRefreshed != nil {
+			_ = onTokenRefreshed(newToken)
+		}
+		return c.SendInstantDataWithToken(ctx, apiKey, newToken, licenseNo, ytbsPlantID, dateStr, timeStr, valueMw)
+	}
+
+	return code, body, err
+}
+
+// SendInstantData transmits 15-minute telemetry (MW) to TEIAS (backwards-compatible wrapper).
+func (c *YTBSClient) SendInstantData(ctx context.Context, apiKey, username, password, licenseNo string, ytbsPlantID int, dateStr, timeStr string, valueMw float64) (int, string, error) {
+	return c.SendInstantDataWithAutoRefresh(ctx, apiKey, username, password, "", licenseNo, ytbsPlantID, dateStr, timeStr, valueMw, nil)
+}
+
+// SendHourlyDataWithToken sends hourly data using an explicit token.
+func (c *YTBSClient) SendHourlyDataWithToken(ctx context.Context, apiKey, token, licenseNo string, ytbsPlantID int, dateStr, hourStr string, valueMwh float64) (int, string, error) {
 	payload := map[string]interface{}{
 		"baglantiAnlasmasiSirketiLisansNo": licenseNo,
 		"veri": []map[string]interface{}{
@@ -179,6 +213,49 @@ func (c *YTBSClient) SendHourlyData(ctx context.Context, apiKey, username, passw
 
 	log.Printf("[YTBS-CLIENT] Saatlik veri başarıyla gönderildi: Santral %d, %s %s, Değer: %.4f MWh", ytbsPlantID, dateStr, hourStr, valueMwh)
 	return resp.StatusCode, respStr, nil
+}
+
+// SendHourlyDataWithAutoRefresh sends hourly data using currentToken; if invalid or expired, re-authenticates, saves token via callback, and retries.
+func (c *YTBSClient) SendHourlyDataWithAutoRefresh(
+	ctx context.Context,
+	apiKey, username, password, currentToken, licenseNo string,
+	ytbsPlantID int,
+	dateStr, hourStr string,
+	valueMwh float64,
+	onTokenRefreshed func(newToken string) error,
+) (int, string, error) {
+	activeToken := currentToken
+	if activeToken == "" {
+		newToken, code, body, err := c.LoginWithDetails(ctx, apiKey, username, password)
+		if err != nil {
+			return code, body, err
+		}
+		activeToken = newToken
+		if onTokenRefreshed != nil {
+			_ = onTokenRefreshed(newToken)
+		}
+	}
+
+	code, body, err := c.SendHourlyDataWithToken(ctx, apiKey, activeToken, licenseNo, ytbsPlantID, dateStr, hourStr, valueMwh)
+	// Check if token was rejected or expired
+	if code == http.StatusUnauthorized || code == http.StatusForbidden || strings.Contains(strings.ToLower(body), "jeton") || strings.Contains(strings.ToLower(body), "token") {
+		log.Printf("[YTBS-CLIENT] Saatlik iletim: Jeton geçersiz/süresi dolmuş görünüyor (HTTP %d). Otomatik login yenileniyor...", code)
+		newToken, loginCode, loginBody, loginErr := c.LoginWithDetails(ctx, apiKey, username, password)
+		if loginErr != nil {
+			return loginCode, loginBody, loginErr
+		}
+		if onTokenRefreshed != nil {
+			_ = onTokenRefreshed(newToken)
+		}
+		return c.SendHourlyDataWithToken(ctx, apiKey, newToken, licenseNo, ytbsPlantID, dateStr, hourStr, valueMwh)
+	}
+
+	return code, body, err
+}
+
+// SendHourlyData transmits 1-hour total production (MWh) to TEIAS (backwards-compatible wrapper).
+func (c *YTBSClient) SendHourlyData(ctx context.Context, apiKey, username, password, licenseNo string, ytbsPlantID int, dateStr, hourStr string, valueMwh float64) (int, string, error) {
+	return c.SendHourlyDataWithAutoRefresh(ctx, apiKey, username, password, "", licenseNo, ytbsPlantID, dateStr, hourStr, valueMwh, nil)
 }
 
 // TestCredentials tests whether login succeeds with given company credentials.

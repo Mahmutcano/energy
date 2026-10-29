@@ -19,7 +19,9 @@ func NewCompanyRepository(db *sql.DB) *CompanyRepository {
 func (r *CompanyRepository) GetAll(ctx context.Context) ([]models.Company, error) {
 	query := `
 		SELECT c.id, c.name, c.tax_number, c.tax_office, c.contact_person, c.email, c.phone,
-		       c.ytbs_username, c.ytbs_password, c.ytbs_api_key, c.license_no, c.is_active, c.created_at,
+		       c.ytbs_username, c.ytbs_password, c.ytbs_api_key, c.license_no,
+		       COALESCE(c.ytbs_token, ''), c.ytbs_token_updated_at,
+		       c.is_active, c.created_at,
 		       COUNT(p.id) as plant_count
 		FROM companies c
 		LEFT JOIN plants p ON c.id = p.company_id
@@ -37,7 +39,9 @@ func (r *CompanyRepository) GetAll(ctx context.Context) ([]models.Company, error
 		var c models.Company
 		if err := rows.Scan(
 			&c.ID, &c.Name, &c.TaxNumber, &c.TaxOffice, &c.ContactPerson, &c.Email, &c.Phone,
-			&c.YTBSUsername, &c.YTBSPassword, &c.YTBSApiKey, &c.LicenseNo, &c.IsActive, &c.CreatedAt,
+			&c.YTBSUsername, &c.YTBSPassword, &c.YTBSApiKey, &c.LicenseNo,
+			&c.YTBSToken, &c.YTBSTokenUpdatedAt,
+			&c.IsActive, &c.CreatedAt,
 			&c.PlantCount,
 		); err != nil {
 			return nil, err
@@ -50,14 +54,18 @@ func (r *CompanyRepository) GetAll(ctx context.Context) ([]models.Company, error
 func (r *CompanyRepository) GetByID(ctx context.Context, id uuid.UUID) (*models.Company, error) {
 	query := `
 		SELECT id, name, tax_number, tax_office, contact_person, email, phone,
-		       ytbs_username, ytbs_password, ytbs_api_key, license_no, is_active, created_at
+		       ytbs_username, ytbs_password, ytbs_api_key, license_no,
+		       COALESCE(ytbs_token, ''), ytbs_token_updated_at,
+		       is_active, created_at
 		FROM companies
 		WHERE id = $1
 	`
 	var c models.Company
 	err := r.db.QueryRowContext(ctx, query, id).Scan(
 		&c.ID, &c.Name, &c.TaxNumber, &c.TaxOffice, &c.ContactPerson, &c.Email, &c.Phone,
-		&c.YTBSUsername, &c.YTBSPassword, &c.YTBSApiKey, &c.LicenseNo, &c.IsActive, &c.CreatedAt,
+		&c.YTBSUsername, &c.YTBSPassword, &c.YTBSApiKey, &c.LicenseNo,
+		&c.YTBSToken, &c.YTBSTokenUpdatedAt,
+		&c.IsActive, &c.CreatedAt,
 	)
 	if err != nil {
 		return nil, err
@@ -90,6 +98,18 @@ func (r *CompanyRepository) Update(ctx context.Context, c *models.Company) error
 		c.Phone, c.YTBSUsername, c.YTBSPassword, c.YTBSApiKey,
 		c.LicenseNo, c.IsActive, c.ID,
 	)
+	return err
+}
+
+func (r *CompanyRepository) SetIsActive(ctx context.Context, id uuid.UUID, isActive bool) error {
+	query := `UPDATE companies SET is_active = $1 WHERE id = $2`
+	_, err := r.db.ExecContext(ctx, query, isActive, id)
+	return err
+}
+
+func (r *CompanyRepository) UpdateToken(ctx context.Context, id uuid.UUID, token string) error {
+	query := `UPDATE companies SET ytbs_token = $1, ytbs_token_updated_at = NOW() WHERE id = $2`
+	_, err := r.db.ExecContext(ctx, query, token, id)
 	return err
 }
 

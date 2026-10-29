@@ -64,6 +64,11 @@ func (h *CompanyHandler) Create(w http.ResponseWriter, r *http.Request) {
 		IsActive:      r.FormValue("isActive") == "true",
 	}
 
+	if company.YTBSPassword == "" {
+		http.Error(w, "YTBS Şifresi zorunludur.", http.StatusBadRequest)
+		return
+	}
+
 	if err := h.companyRepo.Create(r.Context(), company); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -99,7 +104,33 @@ func (h *CompanyHandler) Update(w http.ResponseWriter, r *http.Request) {
 		IsActive:      r.FormValue("isActive") == "true",
 	}
 
+	if company.YTBSPassword == "" {
+		http.Error(w, "YTBS Şifresi zorunludur.", http.StatusBadRequest)
+		return
+	}
+
 	if err := h.companyRepo.Update(r.Context(), company); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	http.Redirect(w, r, "/companies", http.StatusSeeOther)
+}
+
+func (h *CompanyHandler) ToggleActive(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	id, err := uuid.Parse(r.FormValue("id"))
+	if err != nil {
+		http.Error(w, "Geçersiz Firma ID", http.StatusBadRequest)
+		return
+	}
+
+	isActive := r.FormValue("isActive") == "true"
+	if err := h.companyRepo.SetIsActive(r.Context(), id, isActive); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -151,6 +182,9 @@ func (h *CompanyHandler) TestYTBSConnection(w http.ResponseWriter, r *http.Reque
 		_ = json.NewEncoder(w).Encode(map[string]interface{}{"success": false, "error": errMsg})
 		return
 	}
+
+	// Persist the token to the database
+	_ = h.companyRepo.UpdateToken(r.Context(), company.ID, token)
 
 	_ = json.NewEncoder(w).Encode(map[string]interface{}{
 		"success": true,

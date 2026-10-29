@@ -140,6 +140,7 @@ func main() {
 			adminRouter.Get("/companies", companyHandler.List)
 			adminRouter.Post("/companies", companyHandler.Create)
 			adminRouter.Post("/companies/update", companyHandler.Update)
+			adminRouter.Post("/companies/toggle-active", companyHandler.ToggleActive)
 			adminRouter.Post("/companies/delete", companyHandler.Delete)
 			adminRouter.Post("/companies/test-ytbs", companyHandler.TestYTBSConnection)
 

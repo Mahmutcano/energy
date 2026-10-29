@@ -159,6 +159,12 @@ func (w *TransmissionWorker) executeTransmissionWithTransaction(
 		return
 	}
 
+	// Firma pasife alınmışsa iletim kesinlikle yapılmaz
+	if !company.IsActive {
+		log.Printf("[WORKER-FROZEN] Firma dondurulmuş/pasif durumda (%s). Veri aktarımı durduruldu.", company.Name)
+		return
+	}
+
 	// Step 1: Open ACID transaction to save the pending log
 	tx, err := w.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -189,34 +195,42 @@ func (w *TransmissionWorker) executeTransmissionWithTransaction(
 		return
 	}
 
-	// Step 2: Transmit to TEIAS YTBS
+	// Step 2: Transmit to TEIAS YTBS with Persistent Token & Auto-Refresh
+	onTokenRefreshed := func(newToken string) error {
+		return w.companyRepo.UpdateToken(context.Background(), company.ID, newToken)
+	}
+
 	var httpCode int
 	var respBody string
 	var sendErr error
 
 	if tType == "INSTANT" {
-		httpCode, respBody, sendErr = w.ytbsClient.SendInstantData(
+		httpCode, respBody, sendErr = w.ytbsClient.SendInstantDataWithAutoRefresh(
 			ctx,
 			company.YTBSApiKey,
 			company.YTBSUsername,
 			company.YTBSPassword,
+			company.YTBSToken,
 			company.LicenseNo,
 			plant.YTBSPlantID,
 			dateStr,
 			timeStr,
 			value,
+			onTokenRefreshed,
 		)
 	} else {
-		httpCode, respBody, sendErr = w.ytbsClient.SendHourlyData(
+		httpCode, respBody, sendErr = w.ytbsClient.SendHourlyDataWithAutoRefresh(
 			ctx,
 			company.YTBSApiKey,
 			company.YTBSUsername,
 			company.YTBSPassword,
+			company.YTBSToken,
 			company.LicenseNo,
 			plant.YTBSPlantID,
 			dateStr,
 			timeStr,
 			value,
+			onTokenRefreshed,
 		)
 	}
 
@@ -271,9 +285,17 @@ func (w *TransmissionWorker) RetryTransmission(ctx context.Context, logID uuid.U
 		return fmt.Errorf("firma bulunamadı: %w", err)
 	}
 
+	if !company.IsActive {
+		return fmt.Errorf("firma (%s) dondurulmuş / pasif durumda olduğu için veri iletimi yapılamaz", company.Name)
+	}
+
 	plant, err := w.plantRepo.GetByID(ctx, logItem.PlantID)
 	if err != nil {
 		return fmt.Errorf("santral bulunamadı: %w", err)
+	}
+
+	onTokenRefreshed := func(newToken string) error {
+		return w.companyRepo.UpdateToken(context.Background(), company.ID, newToken)
 	}
 
 	var httpCode int
@@ -281,28 +303,32 @@ func (w *TransmissionWorker) RetryTransmission(ctx context.Context, logID uuid.U
 	var sendErr error
 
 	if logItem.TransmissionType == "INSTANT" {
-		httpCode, respBody, sendErr = w.ytbsClient.SendInstantData(
+		httpCode, respBody, sendErr = w.ytbsClient.SendInstantDataWithAutoRefresh(
 			ctx,
 			company.YTBSApiKey,
 			company.YTBSUsername,
 			company.YTBSPassword,
+			company.YTBSToken,
 			company.LicenseNo,
 			plant.YTBSPlantID,
 			logItem.ReadingDate,
 			logItem.ReadingTime,
 			logItem.Value,
+			onTokenRefreshed,
 		)
 	} else {
-		httpCode, respBody, sendErr = w.ytbsClient.SendHourlyData(
+		httpCode, respBody, sendErr = w.ytbsClient.SendHourlyDataWithAutoRefresh(
 			ctx,
 			company.YTBSApiKey,
 			company.YTBSUsername,
 			company.YTBSPassword,
+			company.YTBSToken,
 			company.LicenseNo,
 			plant.YTBSPlantID,
 			logItem.ReadingDate,
 			logItem.ReadingTime,
 			logItem.Value,
+			onTokenRefreshed,
 		)
 	}
 

@@ -197,6 +197,11 @@ func (h *PlantHandler) SyncFromTEIAS(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if !company.IsActive {
+		http.Redirect(w, r, "/plants?error="+url.QueryEscape("Firma dondurulmuş / pasif durumda olduğu için TEİAŞ senkronizasyonu ve veri çekme yapılamaz!"), http.StatusSeeOther)
+		return
+	}
+
 	if company.YTBSApiKey == "" || company.YTBSUsername == "" || company.YTBSPassword == "" {
 		http.Redirect(w, r, "/plants?error="+url.QueryEscape("Firmanın TEİAŞ kimlik bilgileri (API Key, Kullanıcı Adı, Şifre) eksik!"), http.StatusSeeOther)
 		return

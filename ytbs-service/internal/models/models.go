@@ -16,11 +16,13 @@ type Company struct {
 	Email         string    `json:"email" db:"email"`
 	Phone         string    `json:"phone" db:"phone"`
 	YTBSUsername  string    `json:"ytbsUsername" db:"ytbs_username"`
-	YTBSPassword  string    `json:"ytbsPassword" db:"ytbs_password"`
-	YTBSApiKey    string    `json:"ytbsApiKey" db:"ytbs_api_key"`
-	LicenseNo     string    `json:"licenseNo" db:"license_no"`
-	IsActive      bool      `json:"isActive" db:"is_active"`
-	CreatedAt     time.Time `json:"createdAt" db:"created_at"`
+	YTBSPassword       string     `json:"ytbsPassword" db:"ytbs_password"`
+	YTBSApiKey         string     `json:"ytbsApiKey" db:"ytbs_api_key"`
+	LicenseNo          string     `json:"licenseNo" db:"license_no"`
+	YTBSToken          string     `json:"ytbsToken" db:"ytbs_token"`
+	YTBSTokenUpdatedAt *time.Time `json:"ytbsTokenUpdatedAt,omitempty" db:"ytbs_token_updated_at"`
+	IsActive           bool       `json:"isActive" db:"is_active"`
+	CreatedAt          time.Time  `json:"createdAt" db:"created_at"`
 	PlantCount    int       `json:"plantCount,omitempty" db:"plant_count"`
 }
 
